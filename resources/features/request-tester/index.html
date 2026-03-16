@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP Forge 🔨</title>
+    <!-- Shared Monaco Viewer Resources -->
+    <link rel="stylesheet" href="{{sharedStyleUri}}">
+    <script src="{{sharedScriptUri}}"></script>
+    <!-- Feature-specific styles -->
+    <link rel="stylesheet" href="{{styleUri}}">
+</head>
+
+<body>
+    <div class="tester-root">
+        <header class="tester-header">
+            <div class="header-left">
+                <span class="preview-label">Preview:</span>
+                <span id="url-preview" class="preview-url"></span>
+            </div>
+            <div class="header-right">
+                <label class="save-response-toggle" title="Save full response body to history">
+                    <input type="checkbox" id="save-response-checkbox">
+                    <span>Save Response</span>
+                </label>
+                <button id="env-settings-btn" class="icon-btn" title="Edit Environments">✎</button>
+            </div>
+        </header>
+
+        <!-- Request Line - Unified (single set of elements, readonly controlled via JS) -->
+        <div class="request-line">
+            <!-- Method Select - disabled when readonly -->
+            <select id="method-select" class="method-select">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+                <option value="HEAD">HEAD</option>
+                <option value="OPTIONS">OPTIONS</option>
+            </select>
+            <!-- Path Input - readOnly attribute set via JS -->
+            <input type="text" id="request-path-input" class="request-path-input" 
+                   placeholder="Enter request URL or path">
+            
+            <!-- Action buttons -->
+            <button id="send-btn" class="primary">Send</button>
+            <button id="btn-save" class="secondary">Save</button>
+        </div>
+
+        <div class="tester-content">
+            <!-- History Sidebar -->
+            <div class="history-sidebar" id="history-sidebar">
+                <div class="sidebar-header">
+                    <span>History (<span id="history-env">dev</span>)</span>
+                    <button id="collapse-sidebar-btn" class="icon-btn" title="Collapse">◀</button>
+                </div>
+                <div class="history-list" id="history-list">
+                    <div class="history-empty">No history yet</div>
+                </div>
+                <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
+            </div>
+
+            <div class="sidebar-toggle hidden" id="sidebar-toggle">
+                <button id="expand-sidebar-btn" class="icon-btn" title="Expand History">▶</button>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Request Section -->
+                <div class="request-section">
+                    <div class="tab-bar" role="tablist">
+                        <button class="tab active" data-tab="params" role="tab" aria-selected="true">Params</button>
+                        <button class="tab" data-tab="auth" role="tab" aria-selected="false">Authorization</button>
+                        <button class="tab" data-tab="headers" role="tab" aria-selected="false">Headers</button>
+                        <button class="tab" data-tab="body" role="tab" aria-selected="false">Body</button>
+                        <button class="tab" data-tab="scripts" role="tab" aria-selected="false">Scripts</button>
+                        <button class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
+                        <button class="tab" data-tab="body-schema" role="tab" aria-selected="false">Body Schema</button>
+                        <button class="tab" data-tab="response-schema" role="tab" aria-selected="false">Response Schema</button>
+                    </div>
+
+                    <div class="tab-content">
+                        <!-- Params Tab -->
+                        <div id="params-tab" class="tab-panel active">
+                            <div class="params-section">
+                                <h3>Query Parameters</h3>
+                                <div id="query-params" class="param-list"></div>
+                                <button id="add-query-param" class="add-param-btn">+ Add Parameter</button>
+                            </div>
+                            <div class="params-section">
+                                <h3>Path Variables</h3>
+                                <div id="path-params" class="param-list"></div>
+                            </div>
+                        </div>
+
+                        <!-- Auth Tab -->
+                        <div id="auth-tab" class="tab-panel hidden">
+                            <div class="auth-section">
+                                <label>Type:</label>
+                                <select id="auth-type">
+                                    <option value="inherit">Inherit from Environment</option>
+                                    <option value="apikey">API Key</option>
+                                    <option value="basic">Basic Auth</option>
+                                    <option value="bearer">Bearer Token</option>
+                                    <option value="oauth2">OAuth 2.0</option>
+                                    <option value="none">No Auth</option>
+                                </select>
+                            </div>
+                            <div id="bearer-token-section" class="auth-section hidden">
+                                <label>Token:</label>
+                                <input type="text" id="bearer-token" placeholder="Enter token or use {{variable}}">
+                            </div>
+                            <div id="basic-auth-section" class="auth-section hidden">
+                                <label>Username:</label>
+                                <input type="text" id="basic-username" placeholder="Enter username or use {{variable}}">
+                                <label>Password:</label>
+                                <input type="password" id="basic-password" placeholder="Enter password or use {{variable}}">
+                            </div>
+                            <div id="apikey-section" class="auth-section hidden">
+                                <label>Key Name:</label>
+                                <input type="text" id="apikey-key" placeholder="Header or query key name, e.g. X-API-Key">
+                                <label>Key Value:</label>
+                                <input type="text" id="apikey-value" placeholder="Enter API key or use {{variable}}">
+                                <label>Add to:</label>
+                                <select id="apikey-in">
+                                    <option value="header">Header</option>
+                                    <option value="query">Query Param</option>
+                                </select>
+                            </div>
+                            <div id="oauth2-section" class="auth-section hidden">
+                                <div class="oauth2-form">
+                                    <label>Grant Type:</label>
+                                    <select id="oauth2-grant-type">
+                                        <option value="authorization_code">Authorization Code (PKCE)</option>
+                                        <option value="client_credentials">Client Credentials</option>
+                                        <option value="password">Password</option>
+                                        <option value="implicit">Implicit (Legacy)</option>
+                                    </select>
+
+                                    <!-- Auth Code specific fields -->
+                                    <div id="oauth2-authcode-fields" class="oauth2-basic-fields">
+                                        <div class="field-pair">
+                                            <label>Auth URL:</label>
+                                            <input type="text" id="oauth2-auth-url" placeholder="https://auth.example.com/authorize">
+                                        </div>
+                                        <div class="field-pair">
+                                            <label>Callback URL:</label>
+                                            <input type="text" id="oauth2-callback-url" placeholder="Auto (VS Code URI handler)" disabled>
+                                        </div>
+                                        <div class="oauth2-toggle">
+                                            <input type="checkbox" id="oauth2-pkce" checked>
+                                            <label for="oauth2-pkce">Use PKCE (recommended)</label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Common fields -->
+                                    <div class="oauth2-basic-fields">
+                                        <div class="field-pair">
+                                            <label>Token URL:</label>
+                                            <input type="text" id="oauth2-token-url" placeholder="https://auth.example.com/token">
+                                        </div>
+                                        <div class="field-pair">
+                                            <label>Client ID:</label>
+                                            <input type="text" id="oauth2-client-id" placeholder="{{clientId}}">
+                                        </div>
+                                        <div class="field-pair">
+                                            <label>Client Secret:</label>
+                                            <input type="password" id="oauth2-client-secret" placeholder="{{clientSecret}}">
+                                        </div>
+                                        <div class="field-pair">
+                                            <label>Scope:</label>
+                                            <input type="text" id="oauth2-scope" placeholder="openid profile email">
+                                        </div>
+                                    </div>
+
+                                    <!-- Password grant specific -->
+                                    <div id="oauth2-password-fields" class="hidden oauth2-basic-fields">
+                                        <div class="field-pair">
+                                            <label>Username:</label>
+                                            <input type="text" id="oauth2-username" placeholder="{{username}}">
+                                        </div>
+                                        <div class="field-pair">
+                                            <label>Password:</label>
+                                            <input type="password" id="oauth2-password" placeholder="{{password}}">
+                                        </div>
+                                    </div>
+
+                                    <!-- Advanced Options -->
+                                    <details class="oauth2-advanced">
+                                        <summary>Advanced Options</summary>
+                                        <div class="oauth2-advanced-fields">
+                                            <div class="field-pair">
+                                                <label>Audience:</label>
+                                                <input type="text" id="oauth2-audience" placeholder="https://api.example.com">
+                                            </div>
+                                            <div class="field-pair">
+                                                <label>Token Prefix:</label>
+                                                <input type="text" id="oauth2-token-prefix" placeholder="Bearer">
+                                            </div>
+                                            <div class="field-pair">
+                                                <label>Token Field:</label>
+                                                <input type="text" id="oauth2-token-field" placeholder="access_token">
+                                            </div>
+                                            <div class="field-pair">
+                                                <label>Client Auth:</label>
+                                                <select id="oauth2-client-auth">
+                                                    <option value="body">Send in body</option>
+                                                    <option value="header">Send as Basic Auth header</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </details>
+
+                                    <!-- Token status -->
+                                    <div class="oauth2-token-status">
+                                        <button id="oauth2-get-token" class="oauth2-btn oauth2-btn-primary">Get New Token</button>
+                                        <button id="oauth2-refresh-token" class="oauth2-btn oauth2-btn-secondary hidden">Refresh</button>
+                                        <button id="oauth2-clear-token" class="oauth2-btn oauth2-btn-secondary hidden">Clear</button>
+                                        <div id="oauth2-token-info" class="hidden">
+                                            <span class="oauth2-token-label">Token:</span>
+                                            <code id="oauth2-token-preview" class="oauth2-token-preview"></code>
+                                            <span id="oauth2-token-expires" class="oauth2-token-expires"></span>
+                                        </div>
+                                        <div id="oauth2-token-error" class="oauth2-token-error hidden"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Headers Tab -->
+                        <div id="headers-tab" class="tab-panel hidden">
+                            <div id="headers-list" class="param-list"></div>
+                            <button id="add-header" class="add-param-btn">+ Add Header</button>
+                        </div>
+
+                        <!-- Body Tab -->
+                        <div id="body-tab" class="tab-panel hidden">
+                            <!-- Body Type Selector -->
+                            <div class="body-type-selector">
+                                <label class="body-type-option">
+                                    <input type="radio" name="body-type" value="none" checked>
+                                    <span>none</span>
+                                </label>
+                                <label class="body-type-option">
+                                    <input type="radio" name="body-type" value="form-data">
+                                    <span>form-data</span>
+                                </label>
+                                <label class="body-type-option">
+                                    <input type="radio" name="body-type" value="x-www-form-urlencoded">
+                                    <span>x-www-form-urlencoded</span>
+                                </label>
+                                <label class="body-type-option">
+                                    <input type="radio" name="body-type" value="raw">
+                                    <span>raw</span>
+                                </label>
+                                <label class="body-type-option">
+                                    <input type="radio" name="body-type" value="binary">
+                                    <span>binary</span>
+                                </label>
+                                <label class="body-type-option">
+                                    <input type="radio" name="body-type" value="graphql">
+                                    <span>GraphQL</span>
+                                </label>
+
+                                <!-- Raw Format Selector (shown only when raw is selected) -->
+                                <div id="raw-format-selector" class="raw-format-selector hidden">
+                                    <select id="raw-format">
+                                        <option value="json">JSON</option>
+                                        <option value="text">Text</option>
+                                        <option value="xml">XML</option>
+                                        <option value="html">HTML</option>
+                                        <option value="javascript">JavaScript</option>
+                                    </select>
+                                </div>
+                                <div id="graphql-toolbar" class="graphql-toolbar hidden">
+                                    <button id="graphql-fetch-schema" class="secondary" title="Fetch schema via introspection">⟳ Fetch Schema</button>
+                                    <select id="graphql-operation-select" class="hidden" title="Select operation to execute">
+                                        <option value="">All operations</option>
+                                    </select>
+                                    <span id="graphql-schema-status" class="graphql-status"></span>
+                                    <button id="graphql-toggle-explorer" class="secondary" title="Toggle Schema Explorer">📖</button>
+                                </div>
+                            </div>
+
+                            <!-- Body Content Areas -->
+                            <div class="body-content">
+                                <!-- None - show message -->
+                                <div id="body-none" class="body-panel active">
+                                    <div class="body-placeholder">
+                                        <span>This request does not have a body</span>
+                                    </div>
+                                </div>
+
+                                <!-- Form Data -->
+                                <div id="body-form-data" class="body-panel hidden">
+                                    <div id="form-data-list" class="param-list"></div>
+                                    <button id="add-form-data" class="add-param-btn">+ Add Field</button>
+                                </div>
+
+                                <!-- URL Encoded -->
+                                <div id="body-urlencoded" class="body-panel hidden">
+                                    <div id="urlencoded-list" class="param-list"></div>
+                                    <button id="add-urlencoded" class="add-param-btn">+ Add Field</button>
+                                </div>
+
+                                <!-- Raw Editor -->
+                                <div id="body-raw" class="body-panel hidden">
+                                    <div id="body-editor" class="monaco-editor-wrapper"></div>
+                                </div>
+
+                                <!-- Binary -->
+                                <div id="body-binary" class="body-panel hidden">
+                                    <div class="binary-upload">
+                                        <input type="file" id="binary-file-input" class="hidden">
+                                        <button id="select-file-btn" class="secondary">Select File</button>
+                                        <span id="selected-file-name" class="file-name">No file selected</span>
+                                    </div>
+                                </div>
+
+                                <!-- GraphQL -->
+                                <div id="body-graphql" class="body-panel hidden">
+                                    <div class="graphql-content">
+                                        <div class="graphql-editors">
+                                            <!-- Vertical GraphQL Tabs -->
+                                            <div class="graphql-tabs-vertical" role="tablist">
+                                                <button class="graphql-tab-vertical active" data-graphql-tab="query" role="tab" aria-selected="true">
+                                                    <span class="graphql-tab-icon">⟩</span>
+                                                    <span class="graphql-tab-label">Query</span>
+                                                </button>
+                                                <button class="graphql-tab-vertical" data-graphql-tab="variables" role="tab" aria-selected="false">
+                                                    <span class="graphql-tab-icon">{}</span>
+                                                    <span class="graphql-tab-label">Variables</span>
+                                                </button>
+                                            </div>
+                                            <!-- GraphQL Editor Panels -->
+                                            <div class="graphql-panels">
+                                                <div id="graphql-query-panel" class="graphql-tab-panel active" role="tabpanel">
+                                                    <div id="graphql-query-editor" class="monaco-editor-wrapper graphql-editor"></div>
+                                                    <div id="graphql-explorer" class="graphql-explorer hidden">
+                                                        <div class="explorer-header">
+                                                            <h4>Schema Explorer</h4>
+                                                            <input type="text" id="graphql-type-search" placeholder="Search types...">
+                                                        </div>
+                                                        <div id="graphql-type-tree" class="explorer-tree"></div>
+                                                    </div>
+                                                </div>
+                                                <div id="graphql-variables-panel" class="graphql-tab-panel" role="tabpanel">
+                                                    <div id="graphql-variables-editor" class="monaco-editor-wrapper graphql-editor"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Settings Tab -->
+                        <div id="settings-tab" class="tab-panel hidden">
+                            <div class="settings-section">
+                                <h3>Request Settings</h3>
+                                
+                                <div class="setting-group">
+                                    <label class="setting-label">Request Timeout (ms)</label>
+                                    <input type="number" id="setting-timeout" class="setting-input" value="30000" min="0" step="1000">
+                                    <span class="setting-hint">Maximum time to wait for response (0 = no timeout)</span>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label class="setting-toggle">
+                                        <input type="checkbox" id="setting-follow-redirects" checked>
+                                        <span>Follow Redirects</span>
+                                    </label>
+                                    <span class="setting-hint">Automatically follow HTTP redirects (3xx responses)</span>
+                                </div>
+
+                                <div class="redirect-options" id="redirect-options">
+                                    <label class="setting-toggle">
+                                        <input type="checkbox" id="setting-original-method">
+                                        <span>Follow Original HTTP Method</span>
+                                    </label>
+                                    <span class="setting-hint">Keep the original method when redirected (instead of GET)</span>
+                                    
+                                    <label class="setting-toggle">
+                                        <input type="checkbox" id="setting-auth-header">
+                                        <span>Follow Authorization Header</span>
+                                    </label>
+                                    <span class="setting-hint">Include Authorization header when redirected</span>
+                                    
+                                    <div class="setting-group inline">
+                                        <label class="setting-label">Max Redirects</label>
+                                        <input type="number" id="setting-max-redirects" class="setting-input small" value="10" min="1" max="50">
+                                    </div>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label class="setting-toggle">
+                                        <input type="checkbox" id="setting-decompress" checked>
+                                        <span>Automatically Decompress Response</span>
+                                    </label>
+                                    <span class="setting-hint">Decompress gzip/deflate responses</span>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label class="setting-toggle">
+                                        <input type="checkbox" id="setting-strict-ssl" checked>
+                                        <span>Enable SSL Certificate Verification</span>
+                                    </label>
+                                    <span class="setting-hint">Verify SSL certificates (disable for self-signed certs)</span>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label class="setting-toggle">
+                                        <input type="checkbox" id="setting-include-cookies" checked>
+                                        <span>Include Cookies</span>
+                                    </label>
+                                    <span class="setting-hint">Automatically attach stored cookies to requests</span>
+                                    
+                                    <!-- Cookie Preview -->
+                                    <div class="cookie-preview" id="cookie-preview">
+                                        <div class="cookie-preview-header">
+                                            <span class="cookie-preview-title">Cookies to be sent:</span>
+                                            <button id="clear-all-cookies-btn" class="text-btn danger" title="Clear all cookies">Clear All</button>
+                                        </div>
+                                        <div class="cookie-preview-list" id="cookie-preview-list">
+                                            <span class="no-cookies">No cookies stored</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Scripts Tab -->
+
+                        <!-- Body Schema Tab -->
+                        <div id="body-schema-tab" class="tab-panel hidden">
+                            <div class="schema-tab-content">
+                                <div class="schema-toolbar">
+                                    <button id="infer-body-schema-btn" class="secondary small" title="Infer schema from current request body">Infer from Body</button>
+                                    <button id="generate-example-body-btn" class="secondary small" title="Generate example body from schema">Generate Example</button>
+                                    <button id="validate-body-btn" class="secondary small" title="Validate body against schema">Validate Body</button>
+                                    <span id="body-schema-status" class="schema-status"></span>
+                                </div>
+                                <div id="body-schema-editor" class="monaco-editor-wrapper schema-editor-wrapper"></div>
+                            </div>
+                        </div>
+
+                        <!-- Response Schema Tab -->
+                        <div id="response-schema-tab" class="tab-panel hidden">
+                            <div class="schema-tab-content">
+                                <div class="schema-toolbar">
+                                    <button id="infer-response-schema-btn" class="secondary small" title="Infer schema from response history">Infer from History</button>
+                                    <button id="capture-response-btn" class="secondary small" title="Capture last response into schema">Capture Last Response</button>
+                                    <button id="generate-example-response-btn" class="secondary small" title="Generate example from schema">Generate Example</button>
+                                    <span id="response-schema-status" class="schema-status"></span>
+                                </div>
+                                <div class="schema-status-tabs" id="response-status-tabs">
+                                    <!-- Status code sub-tabs populated dynamically -->
+                                </div>
+                                <div id="response-schema-editor" class="monaco-editor-wrapper schema-editor-wrapper"></div>
+                            </div>
+                        </div>
+
+                        <div id="scripts-tab" class="tab-panel hidden">
+                            <div class="scripts-tabs-container">
+                                <!-- Vertical Script Tabs -->
+                                <div class="script-tabs-vertical" role="tablist">
+                                    <button class="script-tab-vertical active" data-script-tab="pre-request" role="tab" aria-selected="true">
+                                        <span class="script-tab-icon">▶</span>
+                                        <span class="script-tab-label">Pre-request</span>
+                                    </button>
+                                    <button class="script-tab-vertical" data-script-tab="post-response" role="tab" aria-selected="false">
+                                        <span class="script-tab-icon">◀</span>
+                                        <span class="script-tab-label">Post-response</span>
+                                    </button>
+                                </div>
+
+                                <!-- Script Editor Panels -->
+                                <div class="script-panels">
+                                    <!-- Pre-request Script Panel -->
+                                    <div id="pre-request-script-panel" class="script-tab-panel active" role="tabpanel">
+                                        <div id="pre-request-editor" class="script-editor monaco-editor-wrapper"></div>
+                                    </div>
+
+                                    <!-- Post-response Script Panel -->
+                                    <div id="post-response-script-panel" class="script-tab-panel" role="tabpanel">
+                                        <div id="post-response-editor" class="script-editor monaco-editor-wrapper"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resize Handle -->
+                <div class="resize-handle" id="resize-handle" title="Drag to resize">
+                    <div class="resize-handle-line"></div>
+                </div>
+
+                <!-- Response Section -->
+                <div class="response-section">
+                    <div class="response-header">
+                        <span>Response</span>
+                        <span id="response-status" class="status-badge hidden"></span>
+                        <span id="response-time" class="response-time hidden"></span>
+                    </div>
+
+                    <div class="response-tabs">
+                        <button class="tab active" data-response-tab="body">Body</button>
+                        <button class="tab" data-response-tab="headers">Headers</button>
+                        <button class="tab" data-response-tab="cookies">Cookies</button>
+                        <button class="tab" data-response-tab="sent-request">Sent Request</button>
+                        <button class="tab" data-response-tab="tests">Tests <span id="test-count" class="tab-badge hidden"></span></button>
+                        <button class="tab hidden" id="visualize-tab-btn" data-response-tab="visualize">Visualize</button>
+
+                        <!-- View toggle (Raw / Preview) shown only for HTML responses -->
+                        <div id="response-body-toolbar" class="response-body-toolbar hidden" role="toolbar" aria-label="Response body view">
+                            <button id="response-view-raw" class="tiny-btn active" title="Show raw body">Raw</button>
+                            <button id="response-view-preview" class="tiny-btn" title="Show HTML preview">Preview</button>
+                        </div>
+                    </div>
+
+                    <div class="response-content">
+                        <div id="response-body-tab" class="response-panel active">
+                            <div id="response-body-editor" class="monaco-editor-wrapper"></div>
+
+                            <!-- HTML preview (iframe) -- appears when Preview is selected for HTML content -->
+                            <div id="response-html-preview" class="html-preview">
+                                <iframe id="response-preview-iframe" sandbox="allow-same-origin"></iframe>
+                            </div>
+
+                            <div id="response-placeholder" class="response-placeholder">
+                                Click Send to execute the request
+                            </div>
+                        </div>
+                        <div id="response-headers-tab" class="response-panel hidden">
+                            <table id="response-headers-table" class="kv-table">
+                                <thead>
+                                    <tr>
+                                        <th>Header</th>
+                                        <th>Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div id="response-cookies-tab" class="response-panel hidden">
+                            <table id="response-cookies-table" class="kv-table cookies-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Value</th>
+                                        <th>Domain</th>
+                                        <th>Path</th>
+                                        <th>Expires</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <!-- Sent Request Tab -->
+                        <div id="response-sent-request-tab" class="response-panel hidden">
+                            <div class="sent-request-container">
+                                <div class="sent-request-section">
+                                    <h4>Request URL</h4>
+                                    <div id="sent-request-url" class="sent-request-url"></div>
+                                </div>
+                                <div class="sent-request-section" id="sent-request-params-section">
+                                    <h4>Path Parameters</h4>
+                                    <table id="sent-request-params-table" class="kv-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Parameter</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="sent-request-section" id="sent-request-query-section">
+                                    <h4>Query Parameters</h4>
+                                    <table id="sent-request-query-table" class="kv-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Parameter</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="sent-request-section">
+                                    <h4>Request Headers</h4>
+                                    <table id="sent-request-headers-table" class="kv-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Header</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="sent-request-section" id="sent-request-body-section">
+                                    <h4>Request Body <span id="sent-request-body-type" class="body-type-badge"></span></h4>
+                                    <div id="sent-request-body" class="sent-request-body"></div>
+                                </div>
+                                <div class="sent-request-placeholder" id="sent-request-placeholder">
+                                    Send a request to see the actual HTTP options
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Tests Tab -->
+                        <div id="response-tests-tab" class="response-panel hidden">
+                            <div class="test-results-header">
+                                <span id="test-results-summary" class="test-summary"></span>
+                                <button id="clear-tests-btn" class="icon-btn" title="Clear Tests">🗑️</button>
+                            </div>
+                            <div id="test-results-list" class="test-results-list">
+                                <div class="test-placeholder">Run tests to see results</div>
+                            </div>
+                        </div>
+                        <!-- Visualize Tab (pm.visualizer.set) -->
+                        <div id="response-visualize-tab" class="response-panel hidden">
+                            <div id="visualizer-placeholder" class="response-placeholder">
+                                Use <code>pm.visualizer.set(template, data)</code> in a post-response script to render custom HTML here.
+                            </div>
+                            <iframe id="visualizer-iframe" class="visualizer-iframe hidden" sandbox="allow-scripts"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <span>Sending request...</span>
+        </div>
+
+        <div id="error-message" class="error-message hidden"></div>
+    </div>
+
+    <!-- Bundled script (built by esbuild from modules/) -->
+    <script defer src="{{bundleUri}}"></script>
+</body>
+
+</html>

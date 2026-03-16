@@ -1,0 +1,341 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Request",
+  "description": "Metadata file for an HTTP request (request.json). Body content may be stored in separate body.* files.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the request"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name of the request"
+    },
+    "method": {
+      "type": "string",
+      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"],
+      "description": "HTTP method"
+    },
+    "url": {
+      "type": "string",
+      "description": "Request URL (can include variables like {{baseUrl}})"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of the request"
+    },
+    "disabled": {
+      "type": "boolean",
+      "description": "Whether this request is disabled"
+    },
+    "deprecated": {
+      "type": "boolean",
+      "description": "Whether this request is deprecated (OpenAPI deprecated flag)"
+    },
+    "params": {
+      "type": "object",
+      "description": "URL path parameters (e.g., {id} in /users/{id}). Values can be plain strings or PathParamEntry objects.",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "$ref": "#/definitions/pathParamEntry" }
+        ]
+      }
+    },
+    "query": {
+      "type": "array",
+      "description": "Query string parameters",
+      "items": {
+        "$ref": "#/definitions/queryParam"
+      }
+    },
+    "headers": {
+      "type": "array",
+      "description": "Request headers",
+      "items": {
+        "$ref": "#/definitions/headerParam"
+      }
+    },
+    "body": {
+      "$ref": "#/definitions/body",
+      "description": "Request body (for types that cannot be stored in external files)"
+    },
+    "auth": {
+      "$ref": "#/definitions/auth",
+      "description": "Authentication override for this request"
+    },
+    "settings": {
+      "$ref": "#/definitions/settings",
+      "description": "Request-specific settings"
+    }
+  },
+  "required": ["id", "name", "method", "url"],
+  "definitions": {
+    "pathParamEntry": {
+      "type": "object",
+      "description": "Extended path parameter with optional type metadata",
+      "properties": {
+        "value": { "type": "string", "description": "Parameter value" },
+        "type": { "type": "string", "enum": ["string", "integer", "number", "boolean"], "description": "Parameter type" },
+        "description": { "type": "string", "description": "Parameter description" },
+        "format": { "type": "string", "description": "Value format (e.g., uuid, int64)" },
+        "enum": { "type": "array", "items": { "type": "string" }, "description": "Allowed values" },
+        "deprecated": { "type": "boolean", "description": "Whether this parameter is deprecated" }
+      },
+      "required": ["value"]
+    },
+    "queryParam": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "value": {
+          "type": "string",
+          "description": "Parameter value"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this parameter is enabled"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "integer", "number", "boolean", "array"],
+          "description": "Parameter type for OpenAPI generation"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this parameter is required"
+        },
+        "description": {
+          "type": "string",
+          "description": "Parameter description for OpenAPI generation"
+        },
+        "format": {
+          "type": "string",
+          "description": "Value format (e.g., date-time, email, uuid)"
+        },
+        "enum": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Allowed values"
+        },
+        "deprecated": {
+          "type": "boolean",
+          "description": "Whether this parameter is deprecated"
+        }
+      },
+      "required": ["key", "value"]
+    },
+    "headerParam": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Header name"
+        },
+        "value": {
+          "type": "string",
+          "description": "Header value"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this header is enabled"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "integer", "number", "boolean", "array"],
+          "description": "Header value type for OpenAPI generation"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this header is required"
+        },
+        "description": {
+          "type": "string",
+          "description": "Header description for OpenAPI generation"
+        },
+        "format": {
+          "type": "string",
+          "description": "Value format (e.g., date-time, email, uuid)"
+        },
+        "enum": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Allowed values"
+        },
+        "deprecated": {
+          "type": "boolean",
+          "description": "Whether this header is deprecated"
+        }
+      },
+      "required": ["key", "value"]
+    },
+    "body": {
+      "type": "object",
+      "description": "Request body configuration. For raw/json/xml/graphql, body content is stored in body.* files.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "raw", "form-data", "x-www-form-urlencoded", "binary", "graphql"],
+          "description": "Body type"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["text", "json", "xml", "html", "javascript"],
+          "description": "Format for raw body type"
+        },
+        "content": {
+          "type": "string",
+          "description": "Body content (only for form-data, urlencoded, binary - raw/graphql use external files)"
+        },
+        "formData": {
+          "type": "array",
+          "description": "Form data fields",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": { "type": "string" },
+              "value": { "type": "string" },
+              "type": { 
+                "type": "string",
+                "enum": ["text", "file"]
+              },
+              "enabled": { "type": "boolean" }
+            }
+          }
+        },
+        "urlencoded": {
+          "type": "array",
+          "description": "URL encoded fields",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": { "type": "string" },
+              "value": { "type": "string" },
+              "enabled": { "type": "boolean" }
+            }
+          }
+        },
+        "query": {
+          "type": "string",
+          "description": "GraphQL query (stored in body.graphql file)"
+        },
+        "variables": {
+          "type": "string",
+          "description": "GraphQL variables as JSON string"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "description": "Authentication configuration (canonical nested structure)",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "inherit", "basic", "bearer", "apikey", "oauth2"],
+          "description": "Authentication type"
+        },
+        "bearerToken": {
+          "type": "string",
+          "description": "Token for bearer authentication"
+        },
+        "basicAuth": {
+          "type": "object",
+          "description": "Basic authentication credentials",
+          "properties": {
+            "username": { "type": "string", "description": "Username" },
+            "password": { "type": "string", "description": "Password" }
+          },
+          "required": ["username", "password"]
+        },
+        "apikey": {
+          "type": "object",
+          "description": "API Key configuration",
+          "properties": {
+            "key": { "type": "string", "description": "API key name" },
+            "value": { "type": "string", "description": "API key value" },
+            "in": { "type": "string", "enum": ["header", "query"], "description": "Where to send the API key" }
+          },
+          "required": ["key", "value", "in"]
+        },
+        "oauth2": {
+          "type": "object",
+          "description": "OAuth2 authentication configuration",
+          "properties": {
+            "grantType": { "type": "string", "enum": ["client_credentials", "authorization_code", "password", "implicit"], "description": "OAuth2 grant type" },
+            "tokenUrl": { "type": "string", "description": "Token endpoint URL" },
+            "authUrl": { "type": "string", "description": "Authorization endpoint URL" },
+            "clientId": { "type": "string", "description": "Client ID" },
+            "clientSecret": { "type": "string", "description": "Client secret" },
+            "scope": { "type": "string", "description": "Requested scopes" },
+            "username": { "type": "string", "description": "Resource owner username (for password grant)" },
+            "password": { "type": "string", "description": "Resource owner password (for password grant)" },
+            "accessToken": { "type": "string", "description": "Access token value" },
+            "refreshToken": { "type": "string", "description": "Refresh token value" },
+            "tokenPrefix": { "type": "string", "description": "Prefix for the token (e.g., 'Bearer')" },
+            "tokenField": { "type": "string", "description": "Token response field name (default 'access_token')" },
+            "callbackUrl": { "type": "string", "description": "Custom callback URL (defaults to VS Code URI handler)" },
+            "usePkce": { "type": "boolean", "description": "Enable PKCE (authorization_code defaults to true)" },
+            "pkceMethod": { "type": "string", "enum": ["S256", "plain"], "description": "PKCE challenge method" },
+            "audience": { "type": "string", "description": "Auth0-style audience parameter" },
+            "resource": { "type": "string", "description": "Azure AD resource parameter" },
+            "extraParams": { "type": "object", "description": "Extra provider-specific parameters", "additionalProperties": { "type": "string" } },
+            "clientAuthentication": { "type": "string", "enum": ["body", "header"], "description": "How to send client credentials: in body (default) or as Basic Auth header" },
+            "state": { "type": "string", "description": "Custom state parameter for authorization_code/implicit flows" }
+          }
+        }
+      },
+      "required": ["type"]
+    },
+    "settings": {
+      "type": "object",
+      "description": "Request-specific settings",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in milliseconds"
+        },
+        "followRedirects": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to follow HTTP redirects"
+        },
+        "followOriginalMethod": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep original HTTP method on redirects"
+        },
+        "followAuthHeader": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep auth header on redirects"
+        },
+        "maxRedirects": {
+          "type": "number",
+          "default": 10,
+          "description": "Maximum number of redirects to follow"
+        },
+        "strictSSL": {
+          "type": "boolean",
+          "default": true,
+          "description": "Verify SSL certificates"
+        },
+        "decompress": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically decompress response"
+        },
+        "includeCookies": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include cookies in request"
+        }
+      }
+    }
+  }
+}

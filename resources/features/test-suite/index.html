@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src 'unsafe-eval' https://cdnjs.cloudflare.com 'nonce-{{nonce}}'; font-src {{cspSource}} https://cdnjs.cloudflare.com; worker-src blob:;">
+    <title>Test Suite</title>
+    <!-- Shared Monaco Viewer Resources -->
+    <link rel="stylesheet" href="{{sharedStyleUri}}">
+    <script nonce="{{nonce}}" src="{{sharedScriptUri}}"></script>
+    <!-- Feature-specific styles -->
+    <link rel="stylesheet" href="{{styleUri}}">
+</head>
+<body>
+    <div class="runner-container">
+        <!-- Header -->
+        <header class="runner-header">
+            <div class="header-left">
+                <h1>Test Suite:</h1>
+                <input type="text" class="suite-name-input" id="suite-name" value="" placeholder="Untitled Suite">
+            </div>
+            <div class="header-right">
+                <button id="run-btn" class="btn primary" disabled>
+                    <span class="icon">▶</span> Run
+                </button>
+                <button id="stop-btn" class="btn danger" disabled>
+                    <span class="icon">⏹</span> Stop
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content: Left and Right Panels -->
+        <div class="runner-main">
+            <!-- Left Panel: Requests -->
+            <aside class="runner-left-panel">
+                <div class="panel-header">
+                    <h3>Requests</h3>
+                    <div class="selection-controls">
+                        <button id="select-all-btn" class="btn-link">All</button>
+                        <button id="deselect-all-btn" class="btn-link">None</button>
+                        <button id="add-request-btn" class="btn-link primary">+ Add</button>
+                    </div>
+                </div>
+                <div class="request-list" id="request-list">
+                    <div class="empty-state">
+                        <p>No requests in suite</p>
+                        <p class="hint">Click "+ Add" to add requests</p>
+                    </div>
+                </div>
+                <div class="panel-footer">
+                    <button id="save-suite-btn" class="btn secondary">Save Suite</button>
+                </div>
+            </aside>
+
+            <!-- Resizer -->
+            <div class="panel-resizer" id="panel-resizer"></div>
+
+            <!-- Right Panel: Config and Results -->
+            <main class="runner-right-panel">
+                <!-- Configuration -->
+                <section class="config-section">
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label>Env</label>
+                            <span id="environment-display" class="environment-badge">No Environment</span>
+                        </div>
+                        <div class="config-item">
+                            <label for="iterations-input">Iterations</label>
+                            <input type="number" id="iterations-input" min="1" max="10000" value="1">
+                        </div>
+                        <div class="config-item">
+                            <label for="delay-input">Delay (ms)</label>
+                            <input type="number" id="delay-input" min="0" max="60000" value="0">
+                        </div>
+                        <div class="config-item data-file-item">
+                            <label>Data File</label>
+                            <div class="file-input-row">
+                                <input type="text" id="data-file-path" readonly placeholder="No file selected">
+                                <button id="browse-data-btn" class="btn secondary btn-sm">Browse</button>
+                                <button id="clear-data-btn" class="btn secondary btn-sm" disabled>×</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="config-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="stop-on-error-check">
+                            <span>Stop on error</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="read-from-shared-session-check">
+                            <span>Read from shared session</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="write-to-shared-session-check">
+                            <span>Write to shared session</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Progress Section (Independent, above Tabs) -->
+                <section class="progress-section" id="progress-section" style="display: none;">
+                    <div class="progress-header">
+                        <span class="progress-label">Progress</span>
+                        <span id="progress-text" class="progress-count">0 / 0</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div class="progress-stats">
+                        <span class="stat stat-passed"><span class="stat-icon">✓</span> <span id="passed-count">0</span></span>
+                        <span class="stat stat-failed"><span class="stat-icon">✗</span> <span id="failed-count">0</span></span>
+                        <span class="stat stat-skipped"><span class="stat-icon">○</span> <span id="skipped-count">0</span></span>
+                    </div>
+                    <!-- Real-time Summary Cards (below progress, above tabs) -->
+                    <div class="results-summary" id="results-summary">
+                        <div class="summary-card success">
+                            <div class="value" id="summary-passed">0</div>
+                            <div class="label">Passed</div>
+                        </div>
+                        <div class="summary-card error">
+                            <div class="value" id="summary-failed">0</div>
+                            <div class="label">Failed</div>
+                        </div>
+                        <div class="summary-card warning">
+                            <div class="value" id="summary-skipped">0</div>
+                            <div class="label">Skipped</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="value" id="summary-pass-rate">0%</div>
+                            <div class="label">Pass Rate</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="value" id="summary-duration">0s</div>
+                            <div class="label">Duration</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tabs Section -->
+                <section class="tabs-section">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" data-tab="results-tab">Results</button>
+                        <button class="tab-btn" data-tab="statistics-tab">Statistics</button>
+                    </div>
+
+                    <!-- Results Tab -->
+                    <div class="tab-content active" id="results-tab">
+                        <div class="results-header">
+                            <div class="result-actions">
+                                <button id="export-json-btn" class="btn-link">Export JSON</button>
+                                <button id="export-html-btn" class="btn-link">Export HTML</button>
+                            </div>
+                        </div>
+                        <div class="results-list" id="results-list">
+                            <div class="empty-state">
+                                <p>No results yet</p>
+                                <p class="hint">Run the suite to see results</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Tab -->
+                    <div class="tab-content" id="statistics-tab">
+                        <div class="statistics-container">
+                            <!-- Response Time Table -->
+                            <div class="stats-table-container">
+                                <h4>Response Time</h4>
+                                <table class="stats-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Request</th>
+                                            <th>Min</th>
+                                            <th>Avg</th>
+                                            <th>P95</th>
+                                            <th>P99</th>
+                                            <th>Max</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="stats-table-body">
+                                        <tr class="empty-row">
+                                            <td colspan="6">No data yet</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Error Summary -->
+                            <div class="error-summary" id="error-summary" style="display: none;">
+                                <h4>Error Summary</h4>
+                                <div class="error-list" id="error-list"></div>
+                            </div>
+
+                            <div class="stats-actions">
+                                <button id="export-report-btn" class="btn-link">Export Report</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Request Modal -->
+    <div class="modal-overlay hidden" id="add-request-modal">
+        <div class="modal-container modal-medium">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span>Add Requests</span>
+                </div>
+                <button class="modal-close-btn" id="add-modal-close-btn">×</button>
+            </div>
+            <div class="modal-content">
+                <div class="search-container">
+                    <input type="text" id="request-search" placeholder="Search requests...">
+                </div>
+                <div class="available-requests-list" id="available-requests-list">
+                    <div class="loading">Loading requests...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="add-selected-btn" class="btn primary" disabled>Add Selected</button>
+                <button id="cancel-add-btn" class="btn secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Response Detail Modal -->
+    <div class="modal-overlay hidden" id="response-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="modal-status-icon" id="modal-status-icon">✓</span>
+                    <span class="modal-request-name" id="modal-request-name">Request Name</span>
+                </div>
+                <div class="modal-meta" id="modal-request-meta">GET 200 OK • 123ms</div>
+                <button class="modal-close-btn" id="modal-close-btn">×</button>
+            </div>
+            <div class="modal-tabs">
+                <button class="modal-tab active" data-panel="response-body-panel">Response Body</button>
+                <button class="modal-tab" data-panel="response-headers-panel">Response Headers</button>
+                <button class="modal-tab" data-panel="request-panel">Request</button>
+                <button class="modal-tab" data-panel="tests-panel">Tests</button>
+            </div>
+            <div class="modal-content">
+                <!-- Response Body Panel -->
+                <div class="modal-panel active" id="response-body-panel">
+                    <div class="panel-toolbar">
+                        <select id="body-format-select" class="format-select">
+                            <option value="auto">Auto</option>
+                            <option value="json">JSON</option>
+                            <option value="xml">XML</option>
+                            <option value="html">HTML</option>
+                            <option value="text">Text</option>
+                        </select>
+                        <button id="copy-body-btn" class="btn-link">Copy</button>
+                    </div>
+                    <div class="monaco-editor-wrapper" id="response-body-editor"></div>
+                </div>
+                <!-- Response Headers Panel -->
+                <div class="modal-panel" id="response-headers-panel">
+                    <table class="headers-table">
+                        <thead>
+                            <tr><th>Header</th><th>Value</th></tr>
+                        </thead>
+                        <tbody id="response-headers-table"></tbody>
+                    </table>
+                </div>
+                <!-- Request Panel -->
+                <div class="modal-panel" id="request-panel">
+                    <div class="request-info">
+                        <div class="request-info-row">
+                            <span class="label">URL:</span>
+                            <span class="value" id="request-url"></span>
+                        </div>
+                        <div class="request-info-row">
+                            <span class="label">Method:</span>
+                            <span class="value" id="request-method"></span>
+                        </div>
+                        <div class="request-info-row">
+                            <span class="label">Duration:</span>
+                            <span class="value" id="request-duration"></span>
+                        </div>
+                    </div>
+                    <h4>Request Headers</h4>
+                    <table class="headers-table">
+                        <thead>
+                            <tr><th>Header</th><th>Value</th></tr>
+                        </thead>
+                        <tbody id="request-headers-table"></tbody>
+                    </table>
+                    <h4>Request Body</h4>
+                    <pre class="body-content" id="request-body-content">No body</pre>
+                </div>
+                <!-- Tests Panel -->
+                <div class="modal-panel" id="tests-panel">
+                    <div class="test-summary" id="test-summary">No tests</div>
+                    <div class="test-list" id="test-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script nonce="{{nonce}}" src="{{scriptUri}}"></script>
+</body>
+</html>

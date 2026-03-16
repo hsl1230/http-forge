@@ -1,0 +1,320 @@
+/* ============================================
+   Shared Monaco Viewer Styles
+   Common styles for all Monaco-based webviews
+   ============================================ */
+
+/* Base reset */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* General body styling - Dark VS Code theme */
+body {
+    font-family: "Segoe UI", "Verdana", sans-serif;
+    color: #f0f0f0;
+    background-color: #1e1e1e;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+body.with-padding {
+    padding: 12px 16px;
+}
+
+/* ============================================
+   JSON Viewer Components
+   ============================================ */
+
+/* Container for the JSON viewer */
+.json-viewer-root,
+#jsonContent {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.json-viewer-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Header styling */
+.json-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #252526;
+    padding: 8px 16px;
+    border-bottom: 1px solid #3c3c3c;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #cccccc;
+    flex-shrink: 0;
+}
+
+.json-viewer-header.clickable {
+    cursor: pointer;
+}
+
+.json-viewer-header.clickable:hover {
+    color: #ffffff;
+}
+
+.json-viewer-title {
+    color: #8ca5ff;
+}
+
+/* Body styling */
+.json-viewer-body {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Monaco Editor container */
+.json-viewer-container,
+.monaco-container {
+    background-color: #1e1e1e;
+    font-family: "Courier New", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Expand/Collapse and Copy controls */
+.json-viewer-controls,
+.monaco-controls {
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.json-viewer-controls button,
+.monaco-controls button {
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 4px;
+    background-color: #0e639c;
+    border: none;
+    color: white;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.json-viewer-controls button:hover,
+.monaco-controls button:hover {
+    background-color: #1177bb;
+}
+
+/* Copy message overlay */
+.json-viewer-copy-message,
+.copy-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    color: #ffffff;
+    background-color: #0e639c;
+    padding: 10px 20px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.json-viewer-copy-message.visible,
+.json-viewer-show-copy-message,
+.copy-message.visible {
+    opacity: 1;
+}
+
+/* ============================================
+   Action Buttons
+   ============================================ */
+
+.action-bar {
+    display: flex;
+    gap: 10px;
+    padding: 8px 16px;
+    background-color: #252526;
+    border-bottom: 1px solid #3c3c3c;
+    flex-shrink: 0;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: #0e639c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.action-btn:hover {
+    background-color: #1177bb;
+}
+
+.action-btn:active {
+    background-color: #0d5a8c;
+}
+
+/* ============================================
+   Tab Bar (for multi-tab views)
+   ============================================ */
+
+.tab-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #252526;
+    padding: 0;
+    flex-shrink: 0;
+    border-bottom: 1px solid #3c3c3c;
+}
+
+.tab {
+    padding: 8px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background-color: transparent;
+    color: #969696;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.tab:hover {
+    color: #cccccc;
+}
+
+.tab.active {
+    color: #ffffff;
+    border-bottom-color: #0e639c;
+    background-color: #1e1e1e;
+}
+
+.tab-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    padding-right: 8px;
+}
+
+.tab-actions button {
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    background-color: #0e639c;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.tab-actions button:hover {
+    background-color: #1177bb;
+}
+
+/* ============================================
+   Monaco Editor Wrapper
+   ============================================ */
+
+.editor-container {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    background-color: #1e1e1e;
+}
+
+.monaco-editor-wrapper {
+    width: 100%;
+    height: 100%;
+}
+
+.monaco-editor-wrapper.hidden {
+    visibility: hidden;
+    z-index: -1;
+}
+
+/* ============================================
+   Link Decorations for clickable items
+   ============================================ */
+
+.clickable-link-decoration,
+.mapper-link-decoration {
+    color: #4fc1ff !important;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.clickable-link-decoration:hover,
+.mapper-link-decoration:hover {
+    color: #9cdcfe !important;
+    font-weight: bold;
+}
+
+/* ============================================
+   Error Messages
+   ============================================ */
+
+.error-message {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    background-color: #5a1d1d;
+    color: #f48771;
+    flex-shrink: 0;
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.hidden {
+    display: none;
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.no-shrink {
+    flex-shrink: 0;
+}

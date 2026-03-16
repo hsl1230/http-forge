@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Configuration",
+  "description": "Configuration file for HTTP Forge VS Code extension",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration file version",
+      "default": "1.0"
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration for collections and data",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["folder", "json"],
+          "default": "folder",
+          "description": "Storage format for collections. 'folder' stores each request as a folder with separate files for meta.json and body. 'json' stores collections as single JSON files."
+        },
+        "root": {
+          "type": "string",
+          "default": "./http-forge",
+          "description": "Root directory for HTTP Forge data (collections, environments, flows, suites)"
+        },
+        "history": {
+          "type": "string",
+          "default": "./.http-forge-cache/histories",
+          "description": "Directory for request history storage (can be gitignored)"
+        },
+        "results": {
+          "type": "string",
+          "default": "./.http-forge-cache/results",
+          "description": "Directory for test suite results storage (can be gitignored)"
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "description": "Default HTTP request settings",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "default": 30000,
+          "description": "Default request timeout in milliseconds"
+        },
+        "followRedirects": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to follow HTTP redirects"
+        },
+        "maxRedirects": {
+          "type": "number",
+          "default": 10,
+          "description": "Maximum number of redirects to follow"
+        },
+        "strictSSL": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to verify SSL certificates"
+        }
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "description": "Script execution settings",
+      "properties": {
+        "modulePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["./src", "./lib"],
+          "description": "Paths to search for custom modules in pre/post request scripts. Relative to workspace root."
+        }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "description": "Collection runner and test suite settings",
+      "properties": {
+        "resultsRetentionDays": {
+          "type": "number",
+          "default": 7,
+          "description": "Number of days to retain test results"
+        },
+        "indexPageSize": {
+          "type": "number",
+          "default": 1000,
+          "description": "Number of entries per index page"
+        },
+        "recentErrorsLimit": {
+          "type": "number",
+          "default": 20,
+          "description": "Maximum number of recent errors to track"
+        }
+      }
+    },
+    "environments": {
+      "type": "object",
+      "description": "Environment settings",
+      "properties": {
+        "default": {
+          "type": "string",
+          "description": "Name of the default environment to use"
+        }
+      }
+    },
+    "restClientExport": {
+      "type": "object",
+      "description": "Preferences for exporting collections to REST‑Client format.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Output path for exported REST‑Client files.  If relative it is resolved against the workspace root.",
+          "default": "collections-rest-client"
+        },
+        "mergeGlobals": {
+          "type": "boolean",
+          "description": "Merge global environment variables into each exported environment file.",
+          "default": true
+        }
+      }
+    },
+    "proxy": {
+      "type": ["object", "null"],
+      "description": "Proxy configuration (null to disable)",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Proxy host"
+        },
+        "port": {
+          "type": "number",
+          "description": "Proxy port"
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["version"]
+}

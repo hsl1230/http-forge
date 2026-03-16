@@ -1,0 +1,549 @@
+{
+  "name": "http-forge",
+  "displayName": "HTTP Forge - REST API Designer & Tester (Free Postman & Thunder Client Alternative)",
+  "description": "Design, test, and manage REST & GraphQL APIs in VS Code. GraphQL schema introspection, context-aware auto-complete, syntax highlighting, and Schema Explorer. Thunder Client-compatible filter pipes (25+ filters), inline JS expressions, and dynamic variables in {{}}. Full request builder with OAuth 2.0 (PKCE), Bearer, Basic, and API Key auth. OpenAPI import/export, schema editor with inference, codegen, Playwright integration, and test suites with assertions. Postman-compatible scripting and collection import. Git-friendly file storage — no account required.",
+  "version": "0.11.3",
+  "publisher": "henry-huang",
+  "icon": "resources/http-forge-icon.png",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.99.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hsl1230/http-forge-assets"
+  },
+  "homepage": "https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge",
+  "bugs": {
+    "url": "https://github.com/hsl1230/http-forge/issues"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "postman",
+    "free postman alternative",
+    "postman replacement",
+    "thunder client",
+    "thunder client alternative",
+    "free thunder client",
+    "postman import",
+    "http",
+    "api",
+    "testing",
+    "rest-client",
+    "rest",
+    "insomnia",
+    "request",
+    "api-client",
+    "http-client",
+    "api testing",
+    "api development",
+    "graphql",
+    "collection runner",
+    "template engine",
+    "filter pipes",
+    "openapi"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "HTTP Forge",
+      "properties": {}
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": "http-forge.config.json",
+        "url": "./resources/http-forge.config.schema.json"
+      },
+      {
+        "fileMatch": "**/collection.json",
+        "url": "./resources/collection.schema.json"
+      },
+      {
+        "fileMatch": "**/folder.json",
+        "url": "./resources/folder.schema.json"
+      },
+      {
+        "fileMatch": "**/request.json",
+        "url": "./resources/request.schema.json"
+      },
+      {
+        "fileMatch": "**/response.schema.json",
+        "url": "./resources/response-schema.schema.json"
+      },
+      {
+        "fileMatch": "**/body.schema.json",
+        "url": "./resources/body-schema.schema.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "httpForge",
+          "title": "HTTP Forge",
+          "icon": "resources/http-forge-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "httpForge": [
+        {
+          "id": "httpForge.collections",
+          "name": "Collections",
+          "icon": "$(folder-library)"
+        },
+        {
+          "id": "httpForge.testSuites",
+          "name": "Test Suites",
+          "icon": "$(beaker)"
+        },
+        {
+          "id": "httpForge.environments",
+          "name": "Environments",
+          "icon": "$(server-environment)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "httpForge.newRequest",
+        "title": "HTTP Forge: New Request",
+        "icon": "$(add)"
+      },
+      {
+        "command": "httpForge.openRequest",
+        "title": "Open Request",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "httpForge.openRequestInNewPanel",
+        "title": "Open in New Panel",
+        "icon": "$(multiple-windows)"
+      },
+      {
+        "command": "httpForge.newFolder",
+        "title": "New Folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "httpForge.editFolder",
+        "title": "Edit Folder",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "httpForge.newCollection",
+        "title": "New Collection",
+        "icon": "$(folder-library)"
+      },
+      {
+        "command": "httpForge.deleteItem",
+        "title": "Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "httpForge.renameItem",
+        "title": "Rename",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "httpForge.runCollection",
+        "title": "Run Collection",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "httpForge.editCollection",
+        "title": "Edit Collection",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "httpForge.selectEnvironment",
+        "title": "Select Environment",
+        "icon": "$(check)"
+      },
+      {
+        "command": "httpForge.newEnvironment",
+        "title": "New Environment",
+        "icon": "$(add)"
+      },
+      {
+        "command": "httpForge.editEnvironment",
+        "title": "Edit Environment",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "httpForge.deleteEnvironment",
+        "title": "Delete Environment",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "httpForge.duplicateEnvironment",
+        "title": "Duplicate Environment",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "httpForge.renameEnvironment",
+        "title": "Rename Environment",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "httpForge.refreshCollections",
+        "title": "Refresh Collections",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "httpForge.refreshEnvironments",
+        "title": "Refresh Environments",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "httpForge.importCollection",
+        "title": "Import Postman Collection",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "httpForge.importPostmanEnvironment",
+        "title": "Import Postman Environment",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "httpForge.exportCollection",
+        "title": "Export Collection",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "httpForge.exportCollectionToRestClientFolder",
+        "title": "Export Collection as REST Client",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "httpForge.closeAllRequestPanels",
+        "title": "HTTP Forge: Close All Request Panels",
+        "category": "HTTP Forge"
+      },
+      {
+        "command": "httpForge.newTestSuite",
+        "title": "New Test Suite",
+        "icon": "$(add)"
+      },
+      {
+        "command": "httpForge.openTestSuite",
+        "title": "Open Test Suite",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "httpForge.deleteTestSuite",
+        "title": "Delete Test Suite",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "httpForge.renameTestSuite",
+        "title": "Rename Test Suite",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "httpForge.runTestSuite",
+        "title": "Run Test Suite",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "httpForge.duplicateTestSuite",
+        "title": "Duplicate Test Suite",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "httpForge.refreshTestSuites",
+        "title": "Refresh Test Suites",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "httpForge.showConsole",
+        "title": "HTTP Forge: Show Console"
+      },
+      {
+        "command": "httpForge.clearConsole",
+        "title": "HTTP Forge: Clear Console"
+      },
+      {
+        "command": "httpForge.moveItemUp",
+        "title": "Move Up",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "httpForge.moveItemDown",
+        "title": "Move Down",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "httpForge.exportOpenApi",
+        "title": "Export as OpenAPI",
+        "icon": "$(export)"
+      },
+      {
+        "command": "httpForge.importOpenApi",
+        "title": "Import OpenAPI Spec",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "httpForge.inferResponseSchema",
+        "title": "Infer Response Schema",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "httpForge.inferAllResponseSchemas",
+        "title": "Infer All Response Schemas",
+        "icon": "$(lightbulb-autofix)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "httpForge.closeAllRequestPanels"
+        },
+        {
+          "command": "httpForge.showConsole"
+        },
+        {
+          "command": "httpForge.clearConsole"
+        },
+        {
+          "command": "httpForge.exportOpenApi"
+        },
+        {
+          "command": "httpForge.importOpenApi"
+        },
+        {
+          "command": "httpForge.inferResponseSchema"
+        },
+        {
+          "command": "httpForge.inferAllResponseSchemas"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "httpForge.closeAllRequestPanels",
+          "when": "webviewId =~ /^request-tester-/",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "httpForge.refreshCollections",
+          "when": "view == httpForge.collections",
+          "group": "navigation@1"
+        },
+        {
+          "command": "httpForge.newCollection",
+          "when": "view == httpForge.collections",
+          "group": "navigation@2"
+        },
+        {
+          "command": "httpForge.importCollection",
+          "when": "view == httpForge.collections",
+          "group": "navigation@3"
+        },
+        {
+          "command": "httpForge.importOpenApi",
+          "when": "view == httpForge.collections",
+          "group": "navigation@4"
+        },
+        {
+          "command": "httpForge.refreshEnvironments",
+          "when": "view == httpForge.environments",
+          "group": "navigation@1"
+        },
+        {
+          "command": "httpForge.newEnvironment",
+          "when": "view == httpForge.environments",
+          "group": "navigation@2"
+        },
+        {
+          "command": "httpForge.importPostmanEnvironment",
+          "when": "view == httpForge.environments",
+          "group": "navigation@3"
+        },
+        {
+          "command": "httpForge.refreshTestSuites",
+          "when": "view == httpForge.testSuites",
+          "group": "navigation@1"
+        },
+        {
+          "command": "httpForge.newTestSuite",
+          "when": "view == httpForge.testSuites",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "httpForge.openRequestInNewPanel",
+          "when": "view == httpForge.collections && viewItem == request",
+          "group": "1_open@1"
+        },
+        {
+          "command": "httpForge.newRequest",
+          "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
+          "group": "1_add@1"
+        },
+        {
+          "command": "httpForge.newFolder",
+          "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
+          "group": "1_add@2"
+        },
+        {
+          "command": "httpForge.runCollection",
+          "when": "view == httpForge.collections && viewItem == collection",
+          "group": "2_run@1"
+        },
+        {
+          "command": "httpForge.editCollection",
+          "when": "view == httpForge.collections && viewItem == collection",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "httpForge.editFolder",
+          "when": "view == httpForge.collections && viewItem == folder",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "httpForge.exportCollection",
+          "when": "view == httpForge.collections && viewItem == collection",
+          "group": "3_edit@2"
+        },
+        {
+          "command": "httpForge.exportCollectionToRestClientFolder",
+          "when": "view == httpForge.collections && viewItem == collection",
+          "group": "3_edit@3"
+        },
+        {
+          "command": "httpForge.exportOpenApi",
+          "when": "view == httpForge.collections && viewItem == collection",
+          "group": "3_edit@4"
+        },
+        {
+          "command": "httpForge.inferAllResponseSchemas",
+          "when": "view == httpForge.collections && viewItem == collection",
+          "group": "3_edit@5"
+        },
+        {
+          "command": "httpForge.renameItem",
+          "when": "view == httpForge.collections",
+          "group": "4_modify@1"
+        },
+        {
+          "command": "httpForge.deleteItem",
+          "when": "view == httpForge.collections",
+          "group": "4_modify@2"
+        },
+        {
+          "command": "httpForge.inferResponseSchema",
+          "when": "view == httpForge.collections && viewItem == request",
+          "group": "4_modify@3"
+        },
+        {
+          "command": "httpForge.moveItemUp",
+          "when": "view == httpForge.collections && viewItem =~ /request|folder/",
+          "group": "5_order@1"
+        },
+        {
+          "command": "httpForge.moveItemDown",
+          "when": "view == httpForge.collections && viewItem =~ /request|folder/",
+          "group": "5_order@2"
+        },
+        {
+          "command": "httpForge.selectEnvironment",
+          "when": "view == httpForge.environments && viewItem == environment",
+          "group": "1_select@1"
+        },
+        {
+          "command": "httpForge.editEnvironment",
+          "when": "view == httpForge.environments && viewItem == environment",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "httpForge.duplicateEnvironment",
+          "when": "view == httpForge.environments && viewItem == environment",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "httpForge.renameEnvironment",
+          "when": "view == httpForge.environments && viewItem == environment",
+          "group": "2_edit@3"
+        },
+        {
+          "command": "httpForge.deleteEnvironment",
+          "when": "view == httpForge.environments && viewItem == environment",
+          "group": "3_delete@1"
+        },
+        {
+          "command": "httpForge.runTestSuite",
+          "when": "view == httpForge.testSuites && viewItem == testSuite",
+          "group": "1_run@1"
+        },
+        {
+          "command": "httpForge.renameTestSuite",
+          "when": "view == httpForge.testSuites && viewItem == testSuite",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "httpForge.duplicateTestSuite",
+          "when": "view == httpForge.testSuites && viewItem == testSuite",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "httpForge.deleteTestSuite",
+          "when": "view == httpForge.testSuites && viewItem == testSuite",
+          "group": "3_delete@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "httpForge.moveItemUp",
+        "key": "alt+up",
+        "when": "focusedView == httpForge.collections && listFocus"
+      },
+      {
+        "command": "httpForge.moveItemDown",
+        "key": "alt+down",
+        "when": "focusedView == httpForge.collections && listFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "clean": "rm -rf out",
+    "esbuild-base": "node esbuild.js",
+    "build": "npm run esbuild-base",
+    "build:dev": "npm run esbuild-base",
+    "build:prod": "npm run esbuild-base -- --production",
+    "compile": "npm run build:dev",
+    "watch": "npm run esbuild-base -- --watch",
+    "compile:tsc": "tsc -p ./",
+    "watch:tsc": "tsc -watch -p ./",
+    "package": "npm run clean && npm run build:prod && vsce package",
+    "package:dev": "npm run clean && npm run build:dev && vsce package"
+  },
+  "devDependencies": {
+    "@apidevtools/json-schema-ref-parser": "^11.0.0",
+    "@types/lodash": "^4.17.21",
+    "@types/node": "^20.x",
+    "@types/tv4": "^1.2.33",
+    "@types/vscode": "^1.99.3",
+    "@types/xml2js": "^0.4.14",
+    "@typescript-eslint/eslint-plugin": "^7.x",
+    "@typescript-eslint/parser": "^7.x",
+    "canvas": "^3.2.1",
+    "esbuild": "^0.27.3",
+    "eslint": "^8.x",
+    "typescript": "^5.x",
+    "vitest": "^1.6.1"
+  },
+  "dependencies": {
+    "@http-forge/core": "^0.2.1",
+    "cheerio": "^1.1.2",
+    "uuid": "^13.0.0",
+    "xml2js": "^0.6.2",
+    "yaml": "^2.4.0"
+  }
+}

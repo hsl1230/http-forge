@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "storage": {
+    "format": "folder",
+    "root": "./http-forge",
+    "history": "./.http-forge-cache/histories",
+    "results": "./.http-forge-cache/results"
+  },
+  "request": {
+    "timeout": 30000,
+    "followRedirects": true,
+    "maxRedirects": 10,
+    "strictSSL": true
+  },
+  "scripts": {
+    "modulePaths": ["./src", "./lib"]
+  },
+  "runner": {
+    "resultsRetentionDays": 7,
+    "indexPageSize": 1000,
+    "recentErrorsLimit": 20
+  },
+  "environments": {
+    "default": "dev"
+  },
+  "proxy": null
+}

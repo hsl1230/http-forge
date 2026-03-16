@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Folder",
+  "description": "Metadata file for a folder within an HTTP Forge collection (folder.json)",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the folder"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name of the folder"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of the folder"
+    },
+    "auth": {
+      "$ref": "#/definitions/auth",
+      "description": "Authentication override for requests in this folder"
+    },
+    "order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Order of child items (folder slugs/names). If not specified, filesystem order is used."
+    }
+  },
+  "required": ["id", "name"],
+  "definitions": {
+    "auth": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "inherit", "basic", "bearer", "apikey"],
+          "description": "Authentication type"
+        },
+        "username": {
+          "type": "string",
+          "description": "Username for basic auth"
+        },
+        "password": {
+          "type": "string",
+          "description": "Password for basic auth"
+        },
+        "token": {
+          "type": "string",
+          "description": "Token for bearer auth"
+        },
+        "key": {
+          "type": "string",
+          "description": "API key name"
+        },
+        "value": {
+          "type": "string",
+          "description": "API key value"
+        },
+        "in": {
+          "type": "string",
+          "enum": ["header", "query"],
+          "description": "Where to send the API key"
+        }
+      },
+      "required": ["type"]
+    }
+  }
+}

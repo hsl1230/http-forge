@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="{{cspContent}}">
+    <title>Folder Editor</title>
+    <link rel="stylesheet" href="{{styleUri}}">
+</head>
+<body>
+    <div class="container">
+        <div id="status-message" class="status-message"></div>
+
+        <div class="header">
+            <span class="header-icon">📁</span>
+            <div class="header-title">
+                <input type="text" id="folder-name" placeholder="Folder Name">
+            </div>
+        </div>
+
+        <div class="collection-info" id="collection-info">
+            <span class="collection-label">Collection:</span>
+            <span class="collection-name" id="collection-name-display">—</span>
+        </div>
+
+        <div class="folder-stats" id="folder-stats">
+            <div class="stat-item">
+                <span class="stat-value" id="stat-requests">0</span>
+                <span class="stat-label">Requests</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="stat-folders">0</span>
+                <span class="stat-label">Subfolders</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="overview">Overview</button>
+            <button class="tab" data-tab="authorization">Authorization</button>
+            <button class="tab" data-tab="scripts">Scripts</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="tab-overview" class="tab-panel active">
+            <div class="section">
+                <div class="form-group">
+                    <label for="folder-description">Description</label>
+                    <textarea id="folder-description" placeholder="Add a description for this folder..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Authorization Tab -->
+        <div id="tab-authorization" class="tab-panel">
+            <div class="section">
+                <div class="section-description">
+                    Configure authorization to be inherited by all requests in this folder.
+                </div>
+                <div class="auth-type-selector" id="auth-type-selector">
+                    <button class="auth-type-btn active" data-auth="none">No Auth</button>
+                    <button class="auth-type-btn" data-auth="inherit">Inherit</button>
+                    <button class="auth-type-btn" data-auth="bearer">Bearer Token</button>
+                    <button class="auth-type-btn" data-auth="basic">Basic Auth</button>
+                    <button class="auth-type-btn" data-auth="apikey">API Key</button>
+                </div>
+                <div class="auth-config" id="auth-config">
+                    <!-- Auth configuration will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Scripts Tab (Pre-request & Post-response) -->
+        <div id="tab-scripts" class="tab-panel">
+            <div class="scripts-tabs-container">
+                <!-- Script Tabs -->
+                <div class="script-tabs" role="tablist">
+                    <button class="script-tab active" data-script-tab="pre-request" role="tab" aria-selected="true">Pre-request Script</button>
+                    <button class="script-tab" data-script-tab="post-response" role="tab" aria-selected="false">Post-response Script (Tests)</button>
+                </div>
+
+                <!-- Pre-request Script Panel -->
+                <div id="pre-request-script-panel" class="script-tab-panel active" role="tabpanel">
+                    <div class="script-description">
+                        This script will run before every request in this folder. Use it to set variables, generate timestamps, or prepare data.
+                    </div>
+                    <div class="script-editor-container">
+                        <div id="pre-request-editor" class="script-editor"></div>
+                    </div>
+                </div>
+
+                <!-- Post-response Script Panel -->
+                <div id="post-response-script-panel" class="script-tab-panel" role="tabpanel">
+                    <div class="script-description">
+                        This script will run after every request in this folder. Use it to validate responses, extract data, or run assertions.
+                    </div>
+                    <div class="script-editor-container">
+                        <div id="post-response-editor" class="script-editor"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <button class="btn btn-secondary" id="btn-reset">Reset</button>
+            <button class="btn btn-primary" id="btn-save">Save Folder</button>
+        </div>
+    </div>
+
+    <script src="{{monacoViewerUri}}"></script>
+    <script src="{{scriptUri}}"></script>
+</body>
+</html>

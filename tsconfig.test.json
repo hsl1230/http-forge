@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // bring in Node.js and Vitest type definitions for the test environment
+    "types": ["node", "vitest"]
+  },
+  "include": [
+    // include only tests that live under the extension source tree
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ],
+  "exclude": ["node_modules", "out"]
+}

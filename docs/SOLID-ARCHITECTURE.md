@@ -1,0 +1,318 @@
+# HTTP Forge - SOLID Architecture
+
+This document outlines the SOLID principles applied to the HTTP Forge VS Code extension.
+
+## Overview
+
+The codebase has been refactored to follow SOLID principles:
+
+- **S**ingle Responsibility Principle
+- **O**pen/Closed Principle
+- **L**iskov Substitution Principle
+- **I**nterface Segregation Principle
+- **D**ependency Inversion Principle
+
+## Architecture Changes
+
+### 1. Single Responsibility Principle (SRP)
+
+#### URL Builder (`src/services/url-builder.ts`)
+- Extracted URL building logic from `HttpRequestService`
+- Handles template variable replacement (`{{variable}}`)
+- Handles path parameter substitution (`:param`)
+- Handles query string building
+
+#### Request Preprocessor (`src/services/request-preprocessor.ts`)
+- Extracted header sanitization from `HttpRequestService`
+- Extracted body encoding logic
+- Handles Content-Type header management
+
+#### Collection Runner Components (`src/services/collection-runner/`)
+Extracted from `CollectionRunnerPanel` (~800 lines → ~400 lines):
+
+- **VariableReplacer** (`variable-replacer.ts`)
+  - Handles `{{variable}}` pattern replacement
+  - Recursive replacement in objects/arrays
+  
+- **TestScriptRunner** (`test-script-runner.ts`)
+  - Executes post-response test scripts
+  - Provides `httpForge` and `expect` APIs
+  - Sandboxed script execution
+  
+- **DataFileParser** (`data-file-parser.ts`)
+  - Parses JSON data files into rows
+  - Parses CSV files with proper quoting support
+  
+- **CollectionRequestExecutor** (`collection-request-executor.ts`)
+  - Coordinates request execution
+  - Handles URL resolution with baseUrl
+  - Integrates variable replacement and test running
+
+#### Services
+Each service has a focused responsibility:
+- `EnvironmentConfigService` - Environment and variable management
+- `CollectionService` - Collection CRUD operations
+- `HttpRequestService` - HTTP request execution
+- `CookieService` - Cookie management
+- `RequestHistoryService` - Request history persistence
+- `OAuth2TokenManager` - OAuth 2.0 token acquisition, caching, refresh, and SecretStorage persistence
+- `RequestPreparer` - Request preparation including auth injection (Bearer, Basic, API Key, OAuth2)
+
+### 2. Open/Closed Principle (OCP)
+
+#### Interceptor Chain (`src/services/interceptors.ts`)
+- Request interceptors can modify requests before sending
+- Response interceptors can process responses after receiving
+- Error interceptors can handle/recover from errors
+- New interceptors can be added without modifying existing code
+
+```typescript
+// Example: Adding a custom interceptor
+interceptorChain.addRequestInterceptor({
+  name: 'custom-auth',
+  priority: 10,
+  intercept(options, context) {
+    options.headers = {
+      ...options.headers,
+      'X-Custom-Auth': 'token'
+    };
+    return options;
+  }
+});
+```
+
+#### Message Router (`src/webview-panels/request-tester/webview-message-router.ts`)
+- New message handlers can be registered without modifying the router
+- Each handler declares which commands it supports
+
+### 3. Liskov Substitution Principle (LSP)
+
+All services implement their corresponding interfaces:
+- `HttpRequestService` implements `IHttpRequestService`
+- `CollectionService` implements `ICollectionService`
+- `CookieService` implements `ICookieService`
+- `EnvironmentConfigService` implements `IEnvironmentConfigService`
+- `RequestHistoryService` implements `IRequestHistoryService`
+
+Services can be substituted with any implementation of the interface, enabling:
+- Mock implementations for testing
+- Alternative implementations for different use cases
+
+### 4. Interface Segregation Principle (ISP)
+
+Interfaces are split into focused sub-interfaces:
+
+#### Environment Config
+- `IEnvironmentConfigReader` - Read-only operations
+- `IEnvironmentSelector` - Environment selection
+- `IVariableResolver` - Variable resolution
+- `IVariableManager` - Variable CRUD operations
+
+#### Collection Service
+- `ICollectionReader` - Read-only operations
+- `ICollectionWriter` - Collection CRUD
+- `IRequestManager` - Request operations
+- `IFolderManager` - Folder operations
+- `ICollectionVariableManager` - Variable management
+- `ICollectionImportExport` - Import/export operations
+
+#### Cookie Service
+- `ICookieReader` - Read-only operations
+- `ICookieWriter` - Write operations
+
+#### HTTP Request Service
+- `IHttpExecutor` - Request execution
+- `IUrlBuilder` - URL building
+
+### 5. Dependency Inversion Principle (DIP)
+
+#### Service Container (`src/services/service-container.ts`)
+- Centralized dependency management
+- Services are registered with identifiers
+- Consumers resolve dependencies through the container
+
+```typescript
+// Register a service
+container.registerSingleton<IHttpRequestService>(
+  ServiceIdentifiers.HttpRequest,
+  (c) => new HttpRequestService(
+    c.resolve<IEnvironmentConfigService>(ServiceIdentifiers.EnvironmentConfig),
+    c.resolve<IUrlBuilder>(ServiceIdentifiers.UrlBuilder),
+    c.resolve<IRequestPreprocessor>(ServiceIdentifiers.RequestPreprocessor),
+    c.resolve<IInterceptorChain>(ServiceIdentifiers.InterceptorChain)
+  )
+);
+
+// Resolve a service
+const httpService = container.resolve<IHttpRequestService>(
+  ServiceIdentifiers.HttpRequest
+);
+```
+
+#### Service Bootstrap (`src/services/service-bootstrap.ts`)
+- Composition root for the application
+- Configures all service registrations
+- Provides `createTestContainer()` for testing
+
+## File Structure
+
+### Backend Services (TypeScript)
+
+```
+src/services/
+├── interfaces/
+│   ├── index.ts                      # Interface exports
+│   ├── collection.interface.ts       # Collection service interface
+│   ├── cookie.interface.ts           # Cookie service interface
+│   ├── environment-config.interface.ts
+│   ├── http-request.interface.ts     # HTTP service interface
+│   └── request-history.interface.ts  # History service interface
+├── collection-runner/
+│   ├── index.ts                      # Collection runner exports
+│   ├── interfaces.ts                 # Runner component interfaces
+│   ├── variable-replacer.ts          # SRP: Variable substitution
+│   ├── test-script-runner.ts         # SRP: Test script execution
+│   ├── data-file-parser.ts           # SRP: Data file parsing
+│   └── collection-request-executor.ts # DIP: Request orchestration
+├── collection-service.ts
+├── cookie-service.ts
+├── environment-config-service.ts
+├── http-request-service.ts
+├── request-history-service.ts
+├── interceptors.ts                   # OCP: Request/response interceptors
+├── request-preprocessor.ts           # SRP: Header/body processing
+├── url-builder.ts                    # SRP: URL building
+├── service-container.ts              # DIP: Dependency injection
+├── service-bootstrap.ts              # DIP: Composition root
+└── index.ts                          # Service exports
+```
+
+### Frontend Webview Modules (JavaScript)
+
+```
+resources/features/request-tester/modules/
+├── main.js                    # Entry point, initialization
+├── message-handler.js         # Handle messages from extension
+├── state.js                   # Application state management
+├── elements.js                # DOM element references
+├── utils.js                   # Utility functions
+├── request-builder.js         # Build request configuration
+├── request-executor.js        # Execute HTTP requests
+├── request-loader.js          # Load request data into UI
+├── request-saver.js           # Save request to collection
+├── response-handler.js        # Handle and display responses
+├── url-builder.js             # Build URL with variables
+├── form-manager.js            # Manage form inputs
+├── query-params-manager.js    # Manage query parameters
+├── path-variables-manager.js  # Manage path variables
+├── body-type-manager.js       # Manage request body types
+├── monaco-editors-manager.js  # Monaco editor instances
+├── history-renderer.js        # Render request history
+├── cookie-manager.js          # Manage cookies
+├── script-runner.js           # Execute pre/post scripts
+├── agl-object.js              # Script API object
+├── expect-chain.js            # Fluent assertion API
+├── test-results.js            # Test results management
+├── console-capture.js         # Capture console output
+└── schema-editor-manager.js   # Body Schema & Response Schema tab editors
+```
+
+## Webview Module Architecture
+
+The Request Tester webview has been refactored following the same SOLID principles:
+
+### Module Responsibilities
+
+| Module | Responsibility |
+|--------|----------------|
+| `main.js` | Entry point, initialization, event binding |
+| `message-handler.js` | Handle messages from VS Code extension |
+| `state.js` | Application state management |
+| `elements.js` | Centralized DOM element references |
+| `request-builder.js` | Build request configuration from UI |
+| `request-executor.js` | Execute requests via extension |
+| `request-loader.js` | Load request data into UI form |
+| `request-saver.js` | Save request to collection |
+| `response-handler.js` | Process and display responses |
+| `url-builder.js` | Build URL with variable substitution |
+| `form-manager.js` | Manage form inputs (headers, etc.) |
+| `query-params-manager.js` | Manage query parameters table |
+| `path-variables-manager.js` | Manage path variables |
+| `body-type-manager.js` | Manage request body type selection |
+| `monaco-editors-manager.js` | Manage Monaco editor instances |
+| `history-renderer.js` | Render request history sidebar |
+| `cookie-manager.js` | Manage cookies across requests |
+| `script-runner.js` | Execute pre/post request scripts |
+| `agl-object.js` | Provide `forge` API object for scripts |
+| `expect-chain.js` | Fluent assertion API (`forge.expect()`) |
+| `test-results.js` | Manage and display test results |
+| `console-capture.js` | Capture console output from scripts |
+| `schema-editor-manager.js` | Body Schema & Response Schema tab editors (Monaco, toolbar, status-code sub-tabs) |
+
+### Module Dependency Graph
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              main.js                                     │
+│                     (Entry point, initialization)                        │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        ▼                      ▼                      ▼
+┌───────────────┐     ┌────────────────┐     ┌───────────────┐
+│message-handler│     │    state.js    │     │   elements.js │
+└───────────────┘     └────────────────┘     └───────────────┘
+        │                      │                      │
+        ├──────────────────────┼──────────────────────┤
+        ▼                      ▼                      ▼
+┌───────────────┐     ┌────────────────┐     ┌───────────────┐
+│request-builder│     │request-executor│     │response-handler│
+└───────────────┘     └────────────────┘     └───────────────┘
+        │                      │                      │
+        ▼                      ▼                      ▼
+┌───────────────┐     ┌────────────────┐     ┌───────────────┐
+│  url-builder  │     │ script-runner  │     │ test-results  │
+└───────────────┘     └────────────────┘     └───────────────┘
+        │                      │                      │
+        └──────────────────────┼──────────────────────┘
+                               ▼
+                    ┌────────────────────┐
+                    │     utils.js       │
+                    └────────────────────┘
+```
+
+---
+
+## Testing Benefits
+
+The SOLID architecture enables:
+
+1. **Unit Testing**: Services can be tested in isolation
+2. **Mocking**: Inject mock implementations through the container
+3. **Integration Testing**: Test interactions between services
+
+```typescript
+// Create a test container with mocks
+const container = createTestContainer({
+  httpService: {
+    execute: async (options) => mockResponse
+  }
+});
+
+// Test code using the container
+const service = container.httpRequest;
+```
+
+## Migration Notes
+
+Existing code continues to work. The refactoring is backward compatible:
+- Global service variables replaced with service container
+- Services cast to concrete types where needed (TODO: update panels to use interfaces)
+- Extension entry point uses `bootstrapServices()` for initialization
+
+## Future Improvements
+
+1. Update webview panels to depend on interfaces
+2. Add more built-in interceptors (logging, retry, caching)
+3. Implement plugin system for custom services
+4. Add comprehensive unit tests using mock container

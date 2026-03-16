@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Response Schema",
+  "description": "Defines response schemas per status code for OpenAPI generation. Stored as response.schema.json alongside request.json.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for validation"
+    },
+    "responses": {
+      "type": "object",
+      "description": "Map of HTTP status codes (or 'default') to response definitions",
+      "additionalProperties": {
+        "$ref": "#/definitions/responseDefinition"
+      }
+    },
+    "components": {
+      "type": "object",
+      "description": "Reusable schema components (local $ref targets)",
+      "additionalProperties": {
+        "type": "object"
+      }
+    }
+  },
+  "required": ["responses"],
+  "definitions": {
+    "responseDefinition": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this response"
+        },
+        "contentType": {
+          "type": "string",
+          "description": "MIME type shorthand (e.g., 'application/json'). Ignored when 'content' map is present."
+        },
+        "schema": {
+          "type": "object",
+          "description": "JSON Schema for the response body (shorthand). Ignored when 'content' map is present."
+        },
+        "examples": {
+          "type": "object",
+          "description": "Named examples (shorthand). Ignored when 'content' map is present.",
+          "additionalProperties": {
+            "$ref": "#/definitions/example"
+          }
+        },
+        "content": {
+          "type": "object",
+          "description": "Multiple content types (mirrors OpenAPI content map). Takes precedence over shorthand fields.",
+          "additionalProperties": {
+            "$ref": "#/definitions/contentDefinition"
+          }
+        },
+        "headers": {
+          "type": "object",
+          "description": "Response headers",
+          "additionalProperties": {
+            "$ref": "#/definitions/headerDefinition"
+          }
+        }
+      }
+    },
+    "contentDefinition": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "object",
+          "description": "JSON Schema for this content type"
+        },
+        "examples": {
+          "type": "object",
+          "description": "Named examples",
+          "additionalProperties": {
+            "$ref": "#/definitions/example"
+          }
+        },
+        "encoding": {
+          "type": "object",
+          "description": "Encoding metadata per property (for multipart)",
+          "additionalProperties": {
+            "$ref": "#/definitions/encodingDefinition"
+          }
+        }
+      }
+    },
+    "example": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "Short description of the example"
+        },
+        "value": {
+          "description": "Example value (any JSON)"
+        }
+      }
+    },
+    "headerDefinition": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        }
+      }
+    },
+    "encodingDefinition": {
+      "type": "object",
+      "properties": {
+        "contentType": {
+          "type": "string",
+          "description": "Content type for the property"
+        },
+        "style": {
+          "type": "string",
+          "enum": ["form", "spaceDelimited", "pipeDelimited", "deepObject"],
+          "description": "Serialization style"
+        },
+        "explode": {
+          "type": "boolean",
+          "description": "Whether arrays/objects generate separate parameters"
+        },
+        "allowReserved": {
+          "type": "boolean",
+          "description": "Allow reserved characters in values"
+        },
+        "headers": {
+          "type": "object",
+          "description": "Additional headers for the part",
+          "additionalProperties": {
+            "$ref": "#/definitions/headerDefinition"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Collection",
+  "description": "Metadata file for an HTTP Forge collection (collection.json)",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the collection"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name of the collection"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of the collection"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of the collection (e.g., '1.0.0')"
+    },
+    "variables": {
+      "type": "object",
+      "description": "Collection-level variables available to all requests",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "auth": {
+      "$ref": "#/definitions/auth",
+      "description": "Default authentication for all requests in this collection"
+    },
+    "order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Order of child items (folder slugs/names). If not specified, filesystem order is used."
+    }
+  },
+  "required": ["id", "name"],
+  "definitions": {
+    "auth": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "inherit", "basic", "bearer", "apikey"],
+          "description": "Authentication type"
+        },
+        "username": {
+          "type": "string",
+          "description": "Username for basic auth"
+        },
+        "password": {
+          "type": "string",
+          "description": "Password for basic auth"
+        },
+        "token": {
+          "type": "string",
+          "description": "Token for bearer auth"
+        },
+        "key": {
+          "type": "string",
+          "description": "API key name"
+        },
+        "value": {
+          "type": "string",
+          "description": "API key value"
+        },
+        "in": {
+          "type": "string",
+          "enum": ["header", "query"],
+          "description": "Where to send the API key"
+        }
+      },
+      "required": ["type"]
+    }
+  }
+}

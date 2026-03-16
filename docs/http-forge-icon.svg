@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Hammer head -->
+  <rect x="0" y="0" width="92" height="44" rx="6" fill="#5B9BD5"/>
+  <rect x="0" y="0" width="92" height="44" rx="6" stroke="#3D6A99" stroke-width="2" fill="none"/>
+  
+  <!-- Hammer head detail (darker top) -->
+  <rect x="0" y="0" width="92" height="20" rx="6" fill="#4A8BC4"/>
+  
+  <!-- Hammer handle -->
+  <rect x="36" y="44" width="20" height="84" rx="3" fill="#8B5A2B"/>
+  <rect x="36" y="44" width="20" height="84" rx="3" stroke="#5D3A1A" stroke-width="1.5" fill="none"/>
+  
+  <!-- Handle grip lines -->
+  <line x1="40" y1="64" x2="52" y2="64" stroke="#6B4423" stroke-width="2.5"/>
+  <line x1="40" y1="80" x2="52" y2="80" stroke="#6B4423" stroke-width="2.5"/>
+  <line x1="40" y1="96" x2="52" y2="96" stroke="#6B4423" stroke-width="2.5"/>
+  <line x1="40" y1="112" x2="52" y2="112" stroke="#6B4423" stroke-width="2.5"/>
+  
+  <!-- HTTP spark/lightning bolt -->
+  <path d="M78 28 L100 28 L88 52 L128 52 L68 128 L86 72 L56 72 Z" fill="#FFD700"/>
+  <path d="M78 28 L100 28 L88 52 L128 52 L68 128 L86 72 L56 72 Z" stroke="#DAA520" stroke-width="1.5" fill="none"/>
+</svg>
