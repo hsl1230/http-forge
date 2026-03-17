@@ -1,5 +1,0 @@
-[0;34m[2026-03-16 18:57:24][0m Starting Full DDD Migration Setup
-[0;34m[2026-03-16 18:57:24][0m Migration ID: full-ddd-20260316-185724
-[0;34m[2026-03-16 18:57:24][0m Log file: .migration-log-full-ddd-20260316-185724.txt
-[0;34m[2026-03-16 18:57:24][0m Checking git status...
-[0;31m❌ Git has uncommitted changes. Please commit or stash first.[0m
