@@ -1,0 +1,575 @@
+# HTTP Forge Copilot Instructions
+
+## 项目背景
+
+**项目类型**: VS Code 扩展 + 核心库（@http-forge/core）
+**核心职责**: REST API 客户端（Postman 替代品），集成脚本执行、变量管理、Cookie 管理
+**架构目标**: 从混合架构演进到 DDD 分层模型（Application → Orchestration → Infrastructure）
+**关键依赖**: @http-forge/core (npm 包)，VS Code API
+
+---
+
+## 强制架构原则
+
+### 分层架构（必须遵守）
+
+```
+┌─────────────────────────────────────────────┐
+│   Presentation Layer                        │
+│   (webview panels, tree providers)          │
+│   src/presentation/                         │
+└─────────────┬───────────────────────────────┘
+              │ calls
+              ▼
+┌─────────────────────────────────────────────┐
+│   Application Layer                         │
+│   (commands, DTOs, use cases)               │
+│   src/application/                          │
+└─────────────┬───────────────────────────────┘
+              │ uses
+              ▼
+┌─────────────────────────────────────────────┐
+│   Orchestration Layer                       │
+│   (orchestrators, repositories)             │
+│   src/orchestration/                        │
+└─────────────┬───────────────────────────────┘
+              │ delegates to
+              ▼
+┌─────────────────────────────────────────────┐
+│   Infrastructure Layer                      │
+│   (VS Code adapters, @http-forge/core)      │
+│   src/infrastructure/                       │
+└─────────────────────────────────────────────┘
+```
+
+### SOLID 原则
+
+- **S** (Single Responsibility): 每个类只有一个职责
+  - Handler: 只处理消息路由
+  - Command: 只编排用例
+  - Orchestrator: 只协调核心服务
+  
+- **O** (Open/Closed): 对扩展开放，对修改关闭
+  - 新 Handler 通过 Factory 注册，不修改 Panel
+  - 新 Command 不修改现有 Command
+  
+- **L** (Liskov Substitution): 子类可替换父类
+  - 所有 Handler 实现 IMessageHandler
+  - 所有 Command 实现 ICommand<TInput, TOutput>
+  
+- **I** (Interface Segregation): 接口最小化
+  - IWebviewMessenger: 只有 postMessage()
+  - IPanelContextProvider: 只提供需要的上下文
+  
+- **D** (Dependency Inversion): 依赖抽象而不是实现
+  - ✅ 构造函数注入接口
+  - ❌ 直接 new 具体类
+  - ❌ getServiceContainer() 调用
+
+---
+
+## 严格禁止的反模式
+
+### ❌ 反模式 #1: Service Locator
+
+**错误示例**:
+```typescript
+// ❌ 绝对禁止
+const executor = getServiceContainer().scriptExecutor;
+```
+
+**正确做法**:
+```typescript
+// ✅ 使用构造函数注入
+constructor(private scriptExecutor: IScriptExecutor) {}
+```
+
+---
+
+### ❌ 反模式 #2: 循环依赖
+
+**错误示例**:
+```typescript
+// ❌ 循环依赖：Panel ↔ Handler ↔ DataProvider
+class RequestTesterPanel {
+  private environmentHandler = new EnvironmentHandler(this);  // ← this as context
+  private dataProvider = new PanelDataProvider(environmentHandler);
+  (environmentHandler as any).contextProvider = dataProvider;  // ← 后期注入，错误！
+}
+```
+
+**正确做法**:
+```typescript
+// ✅ 通过 Factory 分离依赖
+class HandlerFactory {
+  static createHandlers(contextProvider: IPanelContextProvider): IMessageHandler[] {
+    return [
+      new EnvironmentHandler(services, contextProvider),
+      new RequestExecutionHandler(services, contextProvider),
+      // ... 所有初始化完成
+    ];
+  }
+}
+
+class RequestTesterPanel {
+  private handlers = HandlerFactory.createHandlers(this.dataProvider);
+}
+```
+
+---
+
+### ❌ 反模式 #3: 共享可变状态
+
+**错误示例**:
+```typescript
+// ❌ RequestContext 被多个 Handler 修改
+const context = this.contextProvider.getCurrentContext();
+context.request.headers = { ...headers };  // ← 修改共享对象
+context.environment = selectedEnv;          // ← 又修改了
+```
+
+**正确做法**:
+```typescript
+// ✅ Handler 不修改状态，使用 Command 返回 DTO
+const result = await this.executeCommand.execute({
+  collectionId,
+  requestId,
+  environmentId
+});
+
+// result 是不可变的 DTO
+messenger.postMessage({ type: 'success', data: result });
+```
+
+---
+
+### ❌ 反模式 #4: 类型转换
+
+**错误示例**:
+```typescript
+// ❌ 使用 as any 绕过类型检查
+(this.environmentHandler as any).contextProvider = dataProvider;
+this as any;  // this 类型不对
+```
+
+**正确做法**:
+```typescript
+// ✅ 通过接口确保类型安全
+interface IContextAware {
+  setContext(provider: IPanelContextProvider): void;
+}
+
+class EnvironmentHandler implements IContextAware {
+  setContext(provider: IPanelContextProvider): void {
+    this.contextProvider = provider;
+  }
+}
+```
+
+---
+
+### ❌ 反模式 #5: Handler 负责 DI 容器
+
+**错误示例**:
+```typescript
+// ❌ Handler 负责创建依赖
+class RequestExecutionHandler {
+  constructor(contextProvider) {
+    this.scriptExecutor = getServiceContainer().scriptExecutor;
+    this.requestPreparer = getServiceContainer().requestPreparer;
+  }
+}
+```
+
+**正确做法**:
+```typescript
+// ✅ Handler 只接收依赖
+class RequestExecutionHandler {
+  constructor(
+    private scriptExecutor: IScriptExecutor,
+    private requestPreparer: IRequestPreparer,
+    private contextProvider: IPanelContextProvider
+  ) {}
+}
+
+// 在 Factory 中创建
+new RequestExecutionHandler(
+  container.scriptExecutor,
+  container.requestPreparer,
+  contextProvider
+);
+```
+
+---
+
+## 编码规范
+
+### Handler 创建规范
+
+所有 Handler 必须遵循此模板：
+
+```typescript
+import { IMessageHandler, IWebviewMessenger } from '../../shared-interfaces';
+import { IPanelContextProvider } from '../interfaces';
+import { ILogger } from '@http-forge/core';
+
+/**
+ * Handles [message type] messages
+ * 
+ * Single Responsibility: Only routes and dispatches [specific message]
+ * Dependency Inversion: Depends on ICommand abstraction
+ */
+export class MyHandler implements IMessageHandler {
+  constructor(
+    private myCommand: IMyCommand,                    // ✅ Command 接口
+    private contextProvider: IPanelContextProvider,   // ✅ Context 接口
+    private logger: ILogger                           // ✅ Logger 接口
+  ) {}
+
+  getSupportedCommands(): string[] {
+    return ['myCommand'];
+  }
+
+  async handle(
+    command: string,
+    message: any,
+    messenger: IWebviewMessenger
+  ): Promise<boolean> {
+    if (command !== 'myCommand') {
+      return false;
+    }
+
+    try {
+      // 1. 验证输入
+      this.validateInput(message);
+
+      // 2. 执行 Command
+      const result = await this.myCommand.execute({
+        data: message.data,
+        context: this.contextProvider.getCurrentContext()
+      });
+
+      // 3. 发送成功消息
+      messenger.postMessage({
+        type: 'myCommandSuccess',
+        data: result
+      });
+
+      return true;
+    } catch (error) {
+      this.logger.error('[MyHandler] Execution failed', error);
+      messenger.postMessage({
+        type: 'myCommandError',
+        error: (error as Error).message
+      });
+      return false;
+    }
+  }
+
+  private validateInput(message: any): void {
+    if (!message.data) {
+      throw new Error('Missing required field: data');
+    }
+  }
+}
+```
+
+**检查清单**:
+- [ ] 实现 IMessageHandler 接口
+- [ ] 构造函数参数都是接口（不是具体类）
+- [ ] getSupportedCommands() 返回字符串数组
+- [ ] handle() 使用 try-catch 处理错误
+- [ ] 调用 this.myCommand.execute()（不是 getServiceContainer()）
+- [ ] 没有 as any 类型转换
+- [ ] logger 用于错误日志
+
+---
+
+### Command 创建规范
+
+所有 Command 必须遵循此模板：
+
+```typescript
+import { ICommand } from '../command.interface';
+import { IOrchestrator } from '../../orchestration/interfaces';
+import { IEventBus } from '../../orchestration/event-bus.interface';
+
+/**
+ * Command: [Use case description]
+ * 
+ * Responsibility:
+ * - Validate input DTO
+ * - Orchestrate workflow
+ * - Publish domain events
+ * - Return output DTO
+ */
+export interface MyCommandInput {
+  collectionId: string;
+  requestId: string;
+  environmentId?: string;
+}
+
+export interface MyCommandOutput {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+export class MyCommand implements ICommand<MyCommandInput, MyCommandOutput> {
+  constructor(
+    private orchestrator: IOrchestrator,   // ✅ 接口依赖
+    private eventBus: IEventBus            // ✅ 事件总线
+  ) {}
+
+  async execute(input: MyCommandInput): Promise<MyCommandOutput> {
+    try {
+      // 1. 验证输入
+      this.validateInput(input);
+
+      // 2. 调用 Orchestrator
+      const result = await this.orchestrator.execute({
+        collectionId: input.collectionId,
+        requestId: input.requestId
+      });
+
+      // 3. 发布事件
+      this.eventBus.publish({
+        type: 'myCommandExecuted',
+        data: result,
+        timestamp: Date.now()
+      });
+
+      // 4. 返回 DTO（不可变）
+      return {
+        success: true,
+        data: result
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  private validateInput(input: MyCommandInput): void {
+    if (!input.collectionId) {
+      throw new Error('collectionId is required');
+    }
+    if (!input.requestId) {
+      throw new Error('requestId is required');
+    }
+  }
+}
+```
+
+**检查清单**:
+- [ ] 定义 Input/Output 接口（DTO）
+- [ ] 实现 ICommand<Input, Output>
+- [ ] 构造函数只接收接口
+- [ ] execute() 返回 Promise<Output>（不是 void）
+- [ ] 返回值是不可变的 DTO
+- [ ] 调用 eventBus.publish() 发布事件
+- [ ] 没有 getServiceContainer() 调用
+- [ ] 涵盖计入输入验证
+
+---
+
+### DTO 定义规范
+
+```typescript
+// src/application/dto/execute-request.dto.ts
+
+/**
+ * Request execution input DTO
+ * 
+ * Cross-layer data transfer object
+ * Single source of truth for command input
+ */
+export interface ExecuteRequestInput {
+  collectionId: string;
+  requestId: string;
+  environmentId?: string;
+  localVariables?: Record<string, string>;
+}
+
+/**
+ * Request execution output DTO
+ * 
+ * Contains execution results + script output
+ * Immutable data structure
+ */
+export class ExecuteRequestOutput {
+  readonly statusCode: number;
+  readonly headers: Record<string, string>;
+  readonly body: string;
+  readonly duration: number;
+  readonly cookies: Array<{ name: string; value: string }>;
+  readonly scriptResults?: {
+    preRequestOutput?: any;
+    postResponseOutput?: any;
+  };
+
+  constructor(data: {
+    statusCode: number;
+    headers: Record<string, string>;
+    body: string;
+    duration: number;
+    cookies: Array<{ name: string; value: string }>;
+    scriptResults?: any;
+  }) {
+    this.statusCode = data.statusCode;
+    this.headers = data.headers;
+    this.body = data.body;
+    this.duration = data.duration;
+    this.cookies = data.cookies;
+    this.scriptResults = data.scriptResults;
+  }
+
+  // Factory method for converting from core response
+  static from(response: any): ExecuteRequestOutput {
+    return new ExecuteRequestOutput({
+      statusCode: response.status,
+      headers: response.headers,
+      body: response.body,
+      duration: response.duration,
+      cookies: response.cookies || []
+    });
+  }
+}
+```
+
+**检查清单**:
+- [ ] Input 是 interface（字段可选用 ?）
+- [ ] Output 是 class（理由：可能包含方法）
+- [ ] 字段使用 readonly 确保不可变性
+- [ ] 包含 factory 方法（from(), fromCore() 等）
+- [ ] 清晰的 JSDoc 说明用途
+
+---
+
+## 文件位置规范（必须遵守）
+
+| 职责 | 层级 | 位置 | 示例 |
+|------|------|------|------|
+| 消息处理 | Presentation | `src/presentation/webview/message-handlers/` | `RequestExecutionHandler.ts` |
+| 用例编排 | Application | `src/application/commands/` | `ExecuteRequestCommand.ts` |
+| DTO 定义 | Application | `src/application/dto/` | `execute-request.dto.ts` |
+| 业务逻辑 | Orchestration | `src/orchestration/services/` | `RequestOrchestrator.ts` |
+| 接口定义 | 每层 | 与实现同目录 | `request-executor.interface.ts` |
+| VS Code 适配 | Infrastructure | `src/infrastructure/vscode-adapters/` | `VscodeNotificationService.ts` |
+| 树视图提供 | Presentation | `src/presentation/components/tree-providers/` | `CollectionTreeProvider.ts` |
+| 模型加载 | Presentation | `src/presentation/components/tree-providers/loaders/` | `CollectionModelLoader.ts` |
+| 工厂方法 | Presentation | `src/presentation/webview/factories/` | `HandlerFactory.ts` |
+
+---
+
+## 禁止修改的文件
+
+这些文件是核心基础设施，任何修改需要仔细评估：
+
+- `src/services/service-container.ts` - 全局 DI 容器
+- `src/services/service-bootstrap.ts` - 服务启动初始化
+- `src/extension.ts` - 扩展入口点
+- `src/shared/constants.ts` - 全局常量
+
+---
+
+## 快速决策树
+
+### 当你需要添加新的 Webview 消息时...
+
+```
+问题：这个消息涉及哪个领域？
+├─ 请求执行？→ ExecuteRequestCommand
+├─ 环境管理？→ SelectEnvironmentCommand
+├─ Cookie 管理？→ ManageCookieCommand
+└─ 其他？→ 创建新 Command
+
+然后：
+1. 在 src/application/commands/ 创建 Command
+2. 在 src/application/dto/ 定义 Input/Output
+3. 在 src/presentation/webview/message-handlers/ 创建 Handler
+4. 在 HandlerFactory 注册 Handler
+```
+
+### 当你需要修改执行流程时...
+
+```
+修改级别：
+1. 只改算法？→ 修改 Orchestrator
+2. 改算法 + 外部调用？→ 改 Command + Orchestrator
+3. 改 webview 交互？→ 改 Handler
+4. 改错误处理方式？→ 改 Handler catch 块
+```
+
+### 当你需要添加新的树视图时...
+
+```
+步骤：
+1. 在 src/presentation/components/tree-providers/loaders/ 创建 ModelLoader
+2. 在 src/presentation/components/tree-providers/ 创建 TreeProvider
+3. 分离关注点：
+   - Loader 只加载模型
+   - TreeProvider 只负责 UI 转换
+   - TreeItem 只存储数据
+```
+
+---
+
+## 常见问题快速参考
+
+**Q: 我在哪里处理错误？**
+A: 
+- Handler: try-catch 块 → 发送错误消息
+- Command: try-catch 块 → 返回错误 DTO
+- Orchestrator: 抛出异常（由 Command 捕获）
+
+**Q: 我应该在哪里验证输入？**
+A: 
+- DTO 层：基本类型检查（非空、类型匹配）
+- Command 层：业务规则验证（ID 存在、权限检查）
+- Handler 层：不验证（只转发消息）
+
+**Q: 如何发布事件？**
+A: 在 Command 中使用 eventBus：
+```typescript
+this.eventBus.publish(new RequestExecutedEvent({
+  collectionId,
+  requestId,
+  result
+}));
+```
+
+**Q: 如何访问当前上下文？**
+A: 通过 IPanelContextProvider（不是全局变量）：
+```typescript
+const collectionId = this.contextProvider.getCollectionId();
+const environment = this.contextProvider.getEnvironmentId();
+```
+
+---
+
+## 关键检查列表（提交前必读）
+
+提交代码前，确保：
+
+- [ ] 没有 `getServiceContainer()` 调用
+- [ ] 没有 `new` 具体类（除了 DTO）
+- [ ] 没有 `as any` 类型转换
+- [ ] 所有依赖都在构造函数中声明
+- [ ] Handler 实现 IMessageHandler
+- [ ] Command 实现 ICommand<I, O>
+- [ ] DTOs 都是 interface（Input）或 class（Output）
+- [ ] 有单元测试
+- [ ] 文件在正确的层目录中
+- [ ] 没有循环依赖（检查 import 语句）
+- [ ] JSDoc 清晰说明职责
+
+---
+
+## 参考资源
+
+- 完整架构文档：`ARCHITECTURE-ANALYSIS.md`
+- 项目规范：`docs/CUSTOM-INSTRUCTIONS.md`
+- 代码示例：`.vscode/http-forge.code-snippets`

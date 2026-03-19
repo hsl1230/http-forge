@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "outDir": "out",
     "rootDir": "src",
     "sourceMap": true,
@@ -12,8 +12,9 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "types": ["jest", "node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "out", ".vscode-test", "src/**/*.test.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "out", ".vscode-test", "src/**/__tests__", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

@@ -137,3 +137,13 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+.migration-log-full-ddd-*
+.migration-baseline
+.migration-reports
+.migration-context.json
+.MIGRATION-GUIDE.md
+
+*.vsix
+generate-icon.js
+
