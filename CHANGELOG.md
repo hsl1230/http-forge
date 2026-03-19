@@ -6,7 +6,62 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## 0.12.0 - 2026-03-15
+## 0.11.4 - 2026-03-19
+
+### Added
+
+- **Complete SOLID Refactoring of Webview Panels**: Comprehensive architectural refactoring of all webview panels (Environment Editor, Folder Editor, Request Tester, Test Suite) following SOLID principles. Introduced unified handler-based architecture with message router, context providers, and data providers across 40+ message handlers and 10,000+ lines of modular TypeScript code.
+  - **Shared Interfaces** (`src/presentation/webview/shared-interfaces.ts`):
+    - `IWebviewMessenger`: Abstracts panel communication, allows handlers to send messages without direct panel dependency.
+    - `IMessageHandler`: Base interface for all message handlers with `getSupportedCommands()` and `handle()` methods.
+    - `WebviewMessageRouter`: Centralized O(1) command dispatch using internal command map. New handlers can be registered without modifying existing code (Open/Closed Principle).
+  - **Request Tester Panel Refactoring** (~350 lines):
+    - Simplified panel class handles only lifecycle, webview HTML, and message routing.
+    - `RequestTesterPanelManager` manages multiple request panels with constraints: no duplicates (one per unique request), max 5 panels open, LRU eviction policy.
+    - `PanelDataProvider` implements `IPanelContextProvider` — provides current context, history storage paths, merged request data (saved + generated).
+    - **9 Message Handlers** delegating specific concerns:
+      1. `RequestExecutionHandler` (433 lines) — HTTP execution with collection/folder script context, cookie jar, environment variables, abortable via AbortController.
+      2. `SaveRequestHandler` (191 lines) — Save request to collection or create new, resolves collectionId from collectionName.
+      3. `EnvironmentSelectionHandler` (159 lines) — Environment selection, history grouped by ticket/branch, external environment change handling.
+      4. `HistoryHandler` (242 lines) — Request history: use/delete/share entries, rename/move shared groups.
+      5. `CookieHandler` (63 lines) — Cookie CRUD via `IAsyncCookieService`.
+      6. `VariableHandler` (150 lines) — Global/environment/collection/session variable management.
+      7. `SchemaHandler` (555 lines) — Body/response schema operations: get, save, infer, validate, capture, generate examples with JSON Schema support.
+      8. `OAuth2Handler` (112 lines) — OAuth 2.0 token lifecycle via `IOAuth2TokenManager`.
+      9. `GraphQLHandler` (119 lines) — GraphQL introspection & completions via `IGraphQLSchemaService`.
+  - **Environment Editor Panel Refactoring**:
+    - `ReadyHandler` — Send initial configuration data.
+    - `ConfigHandler` — Save shared/local configuration.
+    - `EnvironmentCrudHandler` — Add/delete/duplicate environments.
+    - `FileHandler` — Open environment config files in editor.
+  - **Folder Editor Panel Refactoring**:
+    - `ReadyHandler` — Send initial folder data with item counts.
+    - `SaveHandler` — Save folder properties (name, description, auth, scripts).
+  - **Test Suite Panel Refactoring**:
+    - `ReadyHandler` — Send suite and environment data.
+    - `SaveHandler` — Suite configuration and request management.
+    - `SuiteRunHandler` — Execute suite with statistics and parameterized runs.
+    - `BrowseDataHandler` — File browser for data files (JSON/CSV).
+    - `ExportHandler` — Export results to JSON/HTML with formatted report generation.
+  - **Architecture Benefits**:
+    - Single Responsibility: Each handler has one specific concern.
+    - Open/Closed: New handlers can be added without modifying existing code.
+    - Testability: Handlers can be unit tested in isolation.
+    - Reusability: Handlers can be composed across panels.
+    - Maintainability: Simpler panel class, cleaner separation of concerns.
+    - Extensibility: Third-party extensions can register custom handlers.
+  - **Panel-Specific Interfaces**: Each panel defines focused interfaces (Request Tester: `IPanelContextProvider`, `HistoryStoragePath`; Environment Editor: `IEnvironmentConfigProvider`; Test Suite: `SuiteRunConfiguration`, etc.).
+  - **Type Safety**: All handlers implement `IMessageHandler`; panels and handlers depend on abstractions, not concrete implementations (Dependency Inversion Principle).
+
+### Fixed / Improved
+
+- **Request Tester`: Panel now properly tracks unsaved changes (`isDirty` state) for smart panel reuse.
+- **Schema Handler**: Variable placeholder resolution (`{{var}}`) now handles edge cases in JSON before parsing (bare values, mixed strings).
+- **Folder Editor**: Comprehensive folder context with item counts, auth, and script support.
+- **Test Suite**: Memory-efficient result storage via `ResultStorageService` for large test runs.
+
+
+## 0.11.3 - 2026-03-15
 
 ### Added
 

@@ -81,9 +81,12 @@ interceptorChain.addRequestInterceptor({
 });
 ```
 
-#### Message Router (`src/webview-panels/request-tester/webview-message-router.ts`)
+#### Webview Message Router (`src/presentation/webview/shared-interfaces.ts`)
+- Centralized routing system for all webview messages
 - New message handlers can be registered without modifying the router
-- Each handler declares which commands it supports
+- Each handler declares which commands it supports via `getSupportedCommands()`
+- O(1) command dispatch using internal command map
+- Enables composition of handlers for complex panels
 
 ### 3. Liskov Substitution Principle (LSP)
 
@@ -216,6 +219,154 @@ resources/features/request-tester/modules/
 ├── console-capture.js         # Capture console output
 └── schema-editor-manager.js   # Body Schema & Response Schema tab editors
 ```
+
+## Webview Panel Handler Architecture
+
+### Overview
+
+Webview panels (`RequestTesterPanel`, `EnvironmentEditorPanel`, `FolderEditorPanel`, `TestSuitePanel`) use a handler-based architecture implementing SOLID principles. This enables:
+
+- **SRP**: Each handler has a single responsibility
+- **OCP**: New handlers can be added without modifying the panel
+- **LSP**: All handlers implement `IMessageHandler` interface
+- **ISP**: Small focused interfaces for message handling
+- **DIP**: Panels depend on abstractions, not concrete implementations
+
+### Core Interfaces
+
+#### IWebviewMessenger
+Abstracts webview panel communication - allows handlers to send messages to webview without direct panel dependency.
+
+```typescript
+export interface IWebviewMessenger {
+    postMessage(message: unknown): void;
+}
+```
+
+#### IMessageHandler
+Base interface for all message handlers - implementing handlers declare supported commands and handle them.
+
+```typescript
+export interface IMessageHandler {
+    getSupportedCommands(): string[];
+    handle(command: string, message: any, messenger: IWebviewMessenger): Promise<boolean>;
+}
+```
+
+#### IPanelContextProvider
+Provides request/suite context to handlers - enables handlers to access current context without the panel directly managing state.
+
+```typescript
+export interface IPanelContextProvider {
+    getCurrentContext(): RequestContext | undefined;
+    getHistoryStoragePath(): HistoryStoragePath | undefined;
+    getCollectionId(): string | undefined;
+}
+```
+
+### WebviewMessageRouter
+
+Centralized routing system using O(1) command dispatch:
+
+```typescript
+export class WebviewMessageRouter {
+    private handlers: IMessageHandler[] = [];
+    private commandMap: Map<string, IMessageHandler> = new Map();
+
+    registerHandler(handler: IMessageHandler): void {
+        // Build command lookup map
+        for (const command of handler.getSupportedCommands()) {
+            this.commandMap.set(command, handler);
+        }
+    }
+
+    async route(message: any, messenger: IWebviewMessenger): Promise<boolean> {
+        const command = message.command || message.type;
+        const handler = this.commandMap.get(command);
+        if (handler) {
+            return await handler.handle(command, message, messenger);
+        }
+        return false;
+    }
+}
+```
+
+### Request Tester Panel Handlers
+
+Each handler in `RequestTesterPanel` handles a specific concern:
+
+| Handler | Responsibility | Commands |
+|---------|----------------|----------|
+| `RequestExecutionHandler` | HTTP request execution | `sendRequest`, `cancelRequest`, `sendHttpRequest` |
+| `SaveRequestHandler` | Save request to collection | `saveRequest` |
+| `EnvironmentSelectionHandler` | Environment selection and history | `changeEnvironment`, `openEnvironmentEditor` |
+| `HistoryHandler` | Request history operations | `useHistoryEntry`, `deleteHistoryEntry`, `shareHistoryEntry` |
+| `CookieHandler` | Cookie management | `getCookies`, `setCookie`, `deleteCookie`, `clearCookies` |
+| `VariableHandler` | Variable management | `variableChange` |
+| `SchemaHandler` | Body/response schema operations | `getBodySchema`, `saveBodySchema`, `inferBodySchema`, `validateBody`, etc. |
+| `OAuth2Handler` | OAuth2 token management | `oauth2GetToken`, `oauth2RefreshToken`, `oauth2ClearToken` |
+| `GraphQLHandler` | GraphQL introspection & completions | `graphqlFetchSchema`, `graphqlGetCompletions` |
+
+### Panel Data Provider
+
+`PanelDataProvider` implements `IPanelContextProvider` and provides data for webview initialization:
+
+- Manages current request context
+- Provides merged request data (saved + generated) to handlers
+- Offers collection variable resolution
+- Supplies history information grouped by ticket/branch
+
+### Request Tester Panel Manager
+
+Multi-panel support with LRU eviction:
+
+```typescript
+export class RequestTesterPanelManager {
+    private panels: Map<string, RequestTesterPanel> = new Map();
+    
+    async show(context: RequestContext, forceNew: boolean = false): Promise<RequestTesterPanel> {
+        // Unique panel ID from context
+        const panelId = this.generatePanelId(context);
+        
+        // Return existing panel for this request (no duplicates)
+        if (this.panels.has(panelId)) {
+            return this.panels.get(panelId)!.reveal();
+        }
+        
+        // Reuse active panel or oldest (LRU) if at max capacity
+        // Create new panel otherwise
+    }
+    
+    closeAll(): void {
+        // Close all open panels
+    }
+}
+```
+
+### Other Panel Handlers
+
+#### Environment Editor Panel Handler
+| Handler | Responsibility |
+|---------|----------------|
+| `ReadyHandler` | Send initial environment data to webview |
+| `ConfigHandler` | Save shared and local configuration |
+| `EnvironmentCrudHandler` | Add/delete/duplicate environments |
+| `FileHandler` | Open environment config files in editor |
+
+#### Folder Editor Panel Handler
+| Handler | Responsibility |
+|---------|----------------|
+| `ReadyHandler` | Send initial folder data |
+| `SaveHandler` | Save folder properties |
+
+#### Test Suite Panel Handler
+| Handler | Responsibility |
+|---------|----------------|
+| `ReadyHandler` | Send initial suite and environment data |
+| `SaveHandler` | Save suite and manage requests |
+| `SuiteRunHandler` | Execute test suite with statistics |
+| `BrowseDataHandler` | Browse and load data files |
+| `ExportHandler` | Export test results to JSON/HTML |
 
 ## Webview Module Architecture
 

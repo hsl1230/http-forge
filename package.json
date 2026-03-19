@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge - REST API Designer & Tester (Free Postman & Thunder Client Alternative)",
   "description": "Design, test, and manage REST & GraphQL APIs in VS Code. GraphQL schema introspection, context-aware auto-complete, syntax highlighting, and Schema Explorer. Thunder Client-compatible filter pipes (25+ filters), inline JS expressions, and dynamic variables in {{}}. Full request builder with OAuth 2.0 (PKCE), Bearer, Basic, and API Key auth. OpenAPI import/export, schema editor with inference, codegen, Playwright integration, and test suites with assertions. Postman-compatible scripting and collection import. Git-friendly file storage — no account required.",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/hsl1230/http-forge-assets"
+    "url": "https://github.com/hsl1230/http-forge"
   },
   "homepage": "https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge",
   "bugs": {
@@ -526,6 +526,7 @@
   },
   "devDependencies": {
     "@apidevtools/json-schema-ref-parser": "^11.0.0",
+    "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.21",
     "@types/node": "^20.x",
     "@types/tv4": "^1.2.33",
@@ -540,7 +541,7 @@
     "vitest": "^1.6.1"
   },
   "dependencies": {
-    "@http-forge/core": "^0.2.1",
+    "@http-forge/core": "^0.2.2",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",
