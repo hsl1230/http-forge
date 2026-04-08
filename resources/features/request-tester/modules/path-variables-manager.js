@@ -73,8 +73,9 @@ function createPathVariablesManager({ state, elements, formManager }) {
     /**
      * Update path variables section based on current path
      * @param {string} path - Current path
+     * @param {Object} [params] - Optional params metadata (PathParamEntry map) to extract enum values from
      */
-    function updateFromPath(path) {
+    function updateFromPath(path, params) {
         const variables = extractVariables(path);
         
         // Get current values to preserve them
@@ -90,10 +91,24 @@ function createPathVariablesManager({ state, elements, formManager }) {
         
         // Add rows for each variable
         variables.forEach(({ name: paramName, options, pattern }) => {
+            // Params metadata (enum/format) takes priority over URL constraint
+            let effectiveOptions = options;
+            let effectivePattern = pattern;
+            if (params) {
+                const entry = params[paramName];
+                if (entry && typeof entry === 'object') {
+                    if (Array.isArray(entry.enum) && entry.enum.length > 0) {
+                        effectiveOptions = entry.enum;
+                    }
+                    if (entry.format) {
+                        effectivePattern = entry.format;
+                    }
+                }
+            }
             const existingValue = currentValues[paramName] || '';
             state.pathParams[paramName] = existingValue;
             // Pass options for select box, or pattern for input validation
-            formManager.addParamRow('path', paramName, existingValue, false, true, true, options, pattern);
+            formManager.addParamRow('path', paramName, existingValue, false, true, true, effectiveOptions, effectivePattern);
         });
     }
 

@@ -207,7 +207,7 @@ resources/features/request-tester/modules/
 ├── url-builder.js             # Build URL with variables
 ├── form-manager.js            # Manage form inputs
 ├── query-params-manager.js    # Manage query parameters
-├── path-variables-manager.js  # Manage path variables
+├── path-variables-manager.js  # Manage path variables (enum dropdowns, format validation)
 ├── body-type-manager.js       # Manage request body types
 ├── monaco-editors-manager.js  # Monaco editor instances
 ├── history-renderer.js        # Render request history
@@ -388,7 +388,7 @@ The Request Tester webview has been refactored following the same SOLID principl
 | `url-builder.js` | Build URL with variable substitution |
 | `form-manager.js` | Manage form inputs (headers, etc.) |
 | `query-params-manager.js` | Manage query parameters table |
-| `path-variables-manager.js` | Manage path variables |
+| `path-variables-manager.js` | Manage path variables (enum-driven select dropdowns, format validation) |
 | `body-type-manager.js` | Manage request body type selection |
 | `monaco-editors-manager.js` | Manage Monaco editor instances |
 | `history-renderer.js` | Render request history sidebar |

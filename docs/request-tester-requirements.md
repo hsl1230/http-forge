@@ -85,7 +85,7 @@ Developers currently face several challenges when testing HTTP APIs:
 | ID | Requirement | Priority | Status |
 |----|-------------|----------|--------|
 | FR-3.1 | Display HTTP method and endpoint path | Must | ✅ Done |
-| FR-3.2 | Path parameters input (auto-detected from endpoint) | Must | ✅ Done |
+| FR-3.2 | Path parameters input (auto-detected from endpoint; select dropdowns for enum metadata) | Must | ✅ Done |
 | FR-3.3 | Query parameters with enable/disable checkboxes | Must | ✅ Done |
 | FR-3.4 | Custom headers with enable/disable checkboxes | Must | ✅ Done |
 | FR-3.5 | Request body editor (Monaco, JSON) | Must | ✅ Done |
