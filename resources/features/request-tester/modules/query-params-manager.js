@@ -251,7 +251,10 @@ function createQueryParamsManager({ state, elements, formManager, updateUrlPrevi
             if (key && Object.keys(meta).length > 0) {
                 state._queryMeta[key] = meta;
             }
-            formManager.addParamRow('query', param.key, param.value, true, keyEditable, param.enabled !== false);
+            // Use enum as select options, format as validation pattern
+            const options = Array.isArray(param.enum) && param.enum.length > 0 ? param.enum : null;
+            const pattern = param.format || null;
+            formManager.addParamRow('query', param.key, param.value, true, keyEditable, param.enabled !== false, options, pattern);
         });
         
         // Build and set full URL (base + enabled params)

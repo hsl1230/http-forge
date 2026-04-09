@@ -2,6 +2,15 @@
 
 **Design, Test & Document REST APIs — All Inside VS Code.** Combines the power of Postman + Thunder Client + Swagger UI in a single, free, offline-first extension. Thunder Client-compatible filter pipes and inline JS expressions, full OpenAPI 3.0 round-trip, schema inference from real responses, collection-driven test suites, and advanced scripting — no account, no cloud, no compromises.
 
+## 🚀 Install
+
+- Install from the VS Code Marketplace: `henry-huang.http-forge`
+- Or load the locally built extension from `http-forge/http-forge-0.11.6.vsix`
+
+## 📚 Documentation
+
+- Full user guide: [docs/user-guide/index.md](docs/user-guide/index.md)
+- API reference, CLI, codegen, and Playwright integration are available from the docs directory.
 
 ## 📸 Screenshots
 
@@ -121,7 +130,7 @@
 - **Headers**: Custom headers with enable/disable toggles
 - **Request Body**: JSON, form-data, raw text, or no body
   - **Mustache template highlighting**: Editors highlight full Mustache expressions (variables, sections, partials, comments, and unescaped/triple stache) while preserving Monaco's native syntax highlighting.
-- **Path Variables**: `{{variableName}}` syntax with automatic substitution
+- **Path Variables**: `{{variableName}}` syntax with automatic substitution; enum-driven select dropdowns for constrained values (2+ enum items in `PathParamEntry`)
 - **GraphQL**: Full-featured GraphQL body type with schema introspection, context-aware auto-complete, syntax highlighting, Schema Explorer panel, and operation selector
 - **Authentication**: OAuth 2.0 (all 4 grant types with PKCE), Bearer, Basic, API Key
 - **Pre-request Scripts**: Run JavaScript before each request — `{{variable}}` templates auto-resolve in script source
@@ -208,6 +217,11 @@
 ## 📚 User Guides
 
 Start here: [docs/user-guide/index.md](docs/user-guide/index.md)
+
+- [Extension (VS Code)](docs/user-guide/extension.md)
+- [CLI & Standalone](docs/user-guide/cli-standalone.md)
+- [Codegen](docs/user-guide/codegen.md)
+- [Playwright Integration](docs/user-guide/playwright.md)
 
 ## 📖 Usage Guide
 

@@ -43,7 +43,7 @@ resources/features/request-tester/modules/
 ├── url-builder.js             # Build URL with variables
 ├── form-manager.js            # Manage form inputs
 ├── query-params-manager.js    # Manage query parameters
-├── path-variables-manager.js  # Manage path variables
+├── path-variables-manager.js  # Manage path variables (enum dropdowns, format validation)
 ├── body-type-manager.js       # Manage request body types
 ├── monaco-editors-manager.js  # Monaco editor instances
 ├── history-renderer.js        # Render request history
@@ -356,8 +356,15 @@ Behavior and implementation notes:
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Path Variables (auto-detected from endpoint)                        │
 │ ┌────────────────┬─────────────────────────────────┐               │
-│ │ contentId      │ [{{testContentId}}____________] │               │
+│ │ contentId      │ [{{testContentId}}____________] │  ← Text input │
+│ │ channel        │ [IOS ▼]                         │  ← Select     │
+│ │                │  (IOS, ANDROID_TV_BYOD, ...)    │    (enum > 1) │
 │ └────────────────┴─────────────────────────────────┘               │
+│                                                                     │
+│ Path params with enum arrays in their PathParamEntry               │
+│ metadata render as select dropdowns. Missing enum renders as a     │
+│ renders as a text input. Params metadata (enum, format) takes      │
+│ priority over values inferred from URL constraints.                │
 │                                                                     │
 │ Query Params (auto-detected from flow analysis)                     │
 │ ┌───┬────────────────┬─────────────────────────────┐               │

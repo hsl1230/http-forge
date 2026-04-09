@@ -129,6 +129,124 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
     }
 
     /**
+     * Sync the value element in a row based on current enum/format metadata.
+     * Replaces input↔select as needed and re-wires event listeners.
+     * @param {HTMLElement} row - The .param-row element
+     * @param {string} type - 'path', 'query', or 'header'
+     * @param {string} itemKey - The param/header key name
+     * @param {Object} meta - Current metadata from the detail panel
+     */
+    function syncValueElementFromMeta(row, type, itemKey, meta) {
+        const oldEl = row.querySelector('input.value, select.value');
+        if (!oldEl) return;
+
+        const currentValue = oldEl.value || '';
+        const enumValues = Array.isArray(meta.enum) && meta.enum.length > 0 ? meta.enum : null;
+        const isCurrentlySelect = oldEl.tagName === 'SELECT';
+
+        if (enumValues && !isCurrentlySelect) {
+            // Replace text input with select dropdown
+            const sel = document.createElement('select');
+            sel.className = 'value';
+            let effectiveValue = currentValue;
+            if (!currentValue || !enumValues.includes(currentValue)) {
+                effectiveValue = enumValues[0];
+            }
+            enumValues.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                option.selected = opt === effectiveValue;
+                sel.appendChild(option);
+            });
+            oldEl.replaceWith(sel);
+            attachValueListener(sel, type, itemKey);
+            updateValueState(type, itemKey, effectiveValue);
+        } else if (!enumValues && isCurrentlySelect) {
+            // Replace select with text input
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.className = 'value';
+            inp.placeholder = 'Value or {{variable}}';
+            inp.value = currentValue;
+            if (meta.format) {
+                inp.title = `Must match: ${meta.format}`;
+            }
+            oldEl.replaceWith(inp);
+            attachValueListener(inp, type, itemKey);
+            attachBlurValidation(inp, meta.format);
+        } else if (enumValues && isCurrentlySelect) {
+            // Update existing select options
+            const sel = oldEl;
+            sel.innerHTML = '';
+            let effectiveValue = currentValue;
+            if (!currentValue || !enumValues.includes(currentValue)) {
+                effectiveValue = enumValues[0];
+            }
+            enumValues.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                option.selected = opt === effectiveValue;
+                sel.appendChild(option);
+            });
+            updateValueState(type, itemKey, effectiveValue);
+        } else if (!enumValues && !isCurrentlySelect) {
+            // Update format hint on existing text input
+            const inp = oldEl;
+            inp.title = meta.format ? `Must match: ${meta.format}` : '';
+            // Re-attach blur validation with new format
+            attachBlurValidation(inp, meta.format);
+        }
+    }
+
+    /**
+     * Attach the value-change event listener on a new value element
+     */
+    function attachValueListener(el, type, itemKey) {
+        const eventType = el.tagName === 'SELECT' ? 'change' : 'input';
+        el.addEventListener(eventType, () => {
+            updateValueState(type, itemKey, el.value);
+            if (markDirty) markDirty();
+            if (type === 'query') {
+                updateQueryParamsState();
+                if (syncUrlWithQueryParams) syncUrlWithQueryParams();
+            }
+            updateUrlPreview();
+        });
+    }
+
+    /**
+     * Update the appropriate state map when a value changes
+     */
+    function updateValueState(type, itemKey, value) {
+        if (type === 'path') {
+            state.pathParams[itemKey] = value;
+        }
+        // query state is sync'd via updateQueryParamsState()
+    }
+
+    /**
+     * Attach blur validation for a text input with a regex format pattern
+     */
+    function attachBlurValidation(inp, format) {
+        if (!format) return;
+        inp.addEventListener('blur', () => {
+            const val = inp.value;
+            if (!val || val.startsWith('{{')) {
+                inp.classList.remove('invalid');
+                return;
+            }
+            try {
+                const regex = new RegExp(`^(${format})$`);
+                inp.classList.toggle('invalid', !regex.test(val));
+            } catch (e) {
+                console.warn('Invalid regex pattern:', format, e);
+            }
+        });
+    }
+
+    /**
      * Attach event listeners to a metadata detail panel
      * @param {HTMLElement} detailEl - The .param-meta-detail element
      * @param {HTMLElement} row - The parent .param-row element
@@ -137,6 +255,9 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
      * @param {HTMLElement} toggleBtn - The schema toggle button
      */
     function attachMetaListeners(detailEl, row, metaMapKey, itemKey, toggleBtn) {
+        // Derive the param type from metaMapKey
+        const type = metaMapKey === '_paramsMeta' ? 'path' : metaMapKey === '_queryMeta' ? 'query' : 'header';
+
         const updateMeta = () => {
             const meta = readMetaFromPanel(detailEl);
             if (!state[metaMapKey]) state[metaMapKey] = {};
@@ -146,6 +267,9 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             row.classList.toggle('is-deprecated', !!meta.deprecated);
             row.classList.toggle('is-required', !!meta.required);
             toggleBtn.classList.toggle('has-meta', hasMetaContent(meta));
+
+            // Sync value element (input ↔ select) based on updated enum/format
+            syncValueElementFromMeta(row, type, itemKey, meta);
             
             if (markDirty) markDirty();
         };
@@ -396,24 +520,42 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
      * @param {string} value - Header value
      * @param {boolean} isNew - Whether this is a new (removable) header
      * @param {boolean} enabled - Whether the header is enabled
+     * @param {string[]|null} options - If provided, render a select box with these options
+     * @param {string|null} pattern - If provided, validate input against this regex pattern on blur
      */
-    function addHeaderRow(key, value, isNew = false, enabled = true) {
+    function addHeaderRow(key, value, isNew = false, enabled = true, options = null, pattern = null) {
         const row = document.createElement('div');
         row.className = 'param-row';
 
         const checkboxHtml = `<input type="checkbox" class="param-checkbox" ${enabled ? 'checked' : ''} title="Enable/disable this header">`;
 
+        // Render select dropdown for enum options, or text input otherwise
+        let valueHtml;
+        if (options && options.length > 0) {
+            let effectiveValue = value;
+            if (!value || !options.includes(value)) {
+                effectiveValue = options[0];
+            }
+            const optionsHtml = options.map(opt => 
+                `<option value="${escapeHtml(opt)}" ${opt === effectiveValue ? 'selected' : ''}>${escapeHtml(opt)}</option>`
+            ).join('');
+            valueHtml = `<select class="value">${optionsHtml}</select>`;
+        } else {
+            const patternHint = pattern ? ` title="Must match: ${escapeHtml(pattern)}"` : '';
+            valueHtml = `<input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml(value)}"${patternHint}>`;
+        }
+
         row.innerHTML = `
             ${checkboxHtml}
             <input type="text" class="key" placeholder="Header name" value="${escapeHtml(key)}">
-            <input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml(value)}">
+            ${valueHtml}
             ${isNew ? '<button class="icon-btn remove-btn" title="Remove">×</button>' : ''}
         `;
 
         // Add change listeners for dirty state
         const checkbox = row.querySelector('.param-checkbox');
         const keyInput = row.querySelector('.key');
-        const valueInput = row.querySelector('.value');
+        const valueElement = row.querySelector('.value');  // Can be input or select
         const removeBtn = row.querySelector('.remove-btn');
         
         if (checkbox) {
@@ -428,9 +570,32 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             });
         }
         
-        if (valueInput) {
-            valueInput.addEventListener('input', () => {
+        // Handle both input and select elements
+        if (valueElement) {
+            const valueEventType = valueElement.tagName === 'SELECT' ? 'change' : 'input';
+            valueElement.addEventListener(valueEventType, () => {
                 if (markDirty) markDirty();
+            });
+        }
+
+        // Add blur validation for inputs with regex pattern
+        if (pattern && valueElement && valueElement.tagName === 'INPUT') {
+            valueElement.addEventListener('blur', () => {
+                const val = valueElement.value;
+                if (!val || val.startsWith('{{')) {
+                    valueElement.classList.remove('invalid');
+                    return;
+                }
+                try {
+                    const regex = new RegExp(`^(${pattern})$`);
+                    if (regex.test(val)) {
+                        valueElement.classList.remove('invalid');
+                    } else {
+                        valueElement.classList.add('invalid');
+                    }
+                } catch (e) {
+                    console.warn('Invalid regex pattern:', pattern, e);
+                }
             });
         }
 

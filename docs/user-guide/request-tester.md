@@ -17,10 +17,15 @@ GET {{baseUrl}}/users/:id
 ### Path params
 - Automatically detected from `:param` or `{{param}}` patterns
 - Values can be literals or `{{variables}}`
+- **Enum-driven dropdowns**: When a path parameter has an `enum` array in its `PathParamEntry` metadata, it renders as a select dropdown instead of a text input
+- **Validation**: The `format` field (if present) is used as a validation pattern, taking priority over patterns inferred from URL constraints like `:param(regex)`
+- Params metadata (`enum`, `format`) takes priority over URL-constraint-derived values
 
 ### Query params
 - Each row includes an enable/disable checkbox
 - Disabled rows are ignored without removing them
+- **Enum-driven dropdowns**: Query parameters with an `enum` array in their `KeyValueEntry` metadata render as select dropdowns
+- **Validation**: The `format` field is used as a validation pattern on blur
 
 Example:
 ```
@@ -47,6 +52,8 @@ Auth settings are properly inherited when running requests in Test Suites.
 - Add/remove headers
 - Enable/disable each header row
 - Supports `{{variables}}`
+- **Enum-driven dropdowns**: Headers with an `enum` array in their `KeyValueEntry` metadata render as select dropdowns
+- **Validation**: The `format` field is used as a validation pattern on blur
 
 ## Body tab
 - **JSON**: Monaco editor with formatting

@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge - REST API Designer & Tester (Free Postman & Thunder Client Alternative)",
   "description": "Design, test, and manage REST & GraphQL APIs in VS Code. GraphQL schema introspection, context-aware auto-complete, syntax highlighting, and Schema Explorer. Thunder Client-compatible filter pipes (25+ filters), inline JS expressions, and dynamic variables in {{}}. Full request builder with OAuth 2.0 (PKCE), Bearer, Basic, and API Key auth. OpenAPI import/export, schema editor with inference, codegen, Playwright integration, and test suites with assertions. Postman-compatible scripting and collection import. Git-friendly file storage — no account required.",
-  "version": "0.11.5",
+  "version": "0.11.8",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -541,7 +541,7 @@
     "vitest": "^1.6.1"
   },
   "dependencies": {
-    "@http-forge/core": "file:../http-forge.core",
+    "@http-forge/core": "^0.2.3",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

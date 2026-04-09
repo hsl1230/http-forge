@@ -701,8 +701,8 @@ class RequestTesterApp {
         // Clear form
         this.formManager.clearForm();
 
-        // Setup path variables
-        this.pathVariablesManager.updateFromPath(path);
+        // Setup path variables (pass params so enum values can be used for select dropdowns)
+        this.pathVariablesManager.updateFromPath(path, reqData?.params);
         // Apply saved params first (from collection/request), then fill in remaining from environment
         if (reqData?.params) {
             this.pathVariablesManager.applyParams(reqData.params);
@@ -863,7 +863,11 @@ class RequestTesterApp {
         }
 
         allHeaders.forEach(({ value, enabled }, key) => {
-            this.formManager.addHeaderRow(key, value, true, enabled);
+            // Use enum as select options, format as validation pattern from metadata
+            const meta = this.state._headersMeta[key];
+            const options = meta && Array.isArray(meta.enum) && meta.enum.length > 0 ? meta.enum : null;
+            const pattern = meta && meta.format ? meta.format : null;
+            this.formManager.addHeaderRow(key, value, true, enabled, options, pattern);
         });
     }
 

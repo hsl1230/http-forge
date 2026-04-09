@@ -302,6 +302,30 @@ params?: Record<string, string>                // current simple format
 as `{ value: <string>, type: undefined }`. The UI and runtime continue to use only the `value`
 field for actual HTTP requests. The extra metadata is consumed solely by the OpenAPI exporter.
 
+#### Enum-Driven Select Dropdowns
+
+Path parameters, query parameters, and headers with an `enum` array containing more than
+one value are rendered as **select dropdowns** in the Request Tester UI instead of plain
+text inputs:
+
+| Metadata shape | Rendered as |
+|---|---|
+| `{ value: "123" }` | Text input |
+| `{ value: "admin", enum: ["admin"] }` | **Select dropdown** (single option) |
+| `{ value: "admin", enum: ["admin", "user", "viewer"] }` | **Select dropdown** |
+
+The `value` field sets the initially selected option.
+
+**Priority rules** — params metadata takes priority over URL-constraint values:
+
+1. **`enum`** from `PathParamEntry` / `KeyValueEntry` overrides simple-option
+   lists parsed from the URL constraint (e.g. `:param(A|B)`).
+2. **`format`** from the entry overrides the regex pattern extracted from the URL
+   constraint and is used for input validation.
+
+For query parameters and headers, only `KeyValueEntry` metadata (`enum`, `format`) is
+used — there are no URL constraints to merge with.
+
 ### 3.5 Extended `CollectionRequest`
 
 ```typescript

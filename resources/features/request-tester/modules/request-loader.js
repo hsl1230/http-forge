@@ -86,7 +86,7 @@ function createRequestLoader({
 
         // Extract and display path variables from base URL (e.g., :userId, :id)
         const pathForVariables = state.baseUrl || queryParamsManager.getUrlWithoutQuery(baseUrl);
-        pathVariablesManager.updateFromPath(pathForVariables);
+        pathVariablesManager.updateFromPath(pathForVariables, request.params);
 
         // Apply headers (object format: { headerName: value })
         const requestHeaders = request.headers || {};

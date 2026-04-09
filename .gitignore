@@ -147,3 +147,5 @@ vite.config.ts.timestamp-*
 *.vsix
 generate-icon.js
 
+http-forge-assets/
+
