@@ -103,6 +103,12 @@ function createPathVariablesManager({ state, elements, formManager }) {
                     if (entry.format) {
                         effectivePattern = entry.format;
                     }
+                    // Pre-populate metadata so the detail panel renders with it
+                    const { value: _v, ...meta } = entry;
+                    if (Object.keys(meta).length > 0) {
+                        if (!state._paramsMeta) state._paramsMeta = {};
+                        state._paramsMeta[paramName] = meta;
+                    }
                 }
             }
             const existingValue = currentValues[paramName] || '';
