@@ -5,6 +5,16 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.11.9 - 2026-04-16
+
+### Added
+
+- **Document Tab**: New "Document" tab in the Request Tester panel displays request-level Markdown documentation from `doc.md` files stored alongside `request.json` in folder collections. Includes rendered Markdown view and an "Open File" button to edit the source.
+- **File Watching — Collections**: Collection file changes (create, edit, delete) now auto-refresh the Collections tree view and all open Request Tester panels. No manual refresh needed.
+- **File Watching — Environments**: Environment JSON file changes now auto-refresh the Environments tree view and all open Request Tester panels.
+- **Request Documentation (`doc.md`)**: Each request folder can now include a `doc.md` file for inline API documentation, persisted as a `doc` field on `UnifiedRequest` / `CollectionRequest`.
+- **Panel Auto-reload**: Open Request Tester panels automatically reload data from disk when underlying collection or environment files change externally (e.g. via a text editor, git operations, or another VS Code tab).
+
 ## 0.11.6 - 2026-04-06
 
 ### Fixed / Improved

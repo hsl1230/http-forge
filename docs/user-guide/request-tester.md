@@ -149,6 +149,21 @@ Third-party extensions (e.g. Spring API Tester) can push `bodySchema` and `respo
 - Strict SSL
 - Decompression
 
+## Document tab
+The Document tab displays request-level Markdown documentation stored in a `doc.md` file alongside the request's `request.json`.
+
+- **Rendered Markdown**: The `doc.md` content is rendered as HTML with support for headings, lists, tables, code blocks, links, blockquotes, and horizontal rules.
+- **Open File button**: Click "Open File" in the toolbar to open the `doc.md` source in a VS Code editor tab for editing.
+- **Live reload**: When you save the `doc.md` file in the editor, the Document tab updates automatically.
+- **Hidden when empty**: The Document tab button is hidden when the request has no `doc.md` file. It appears automatically when a `doc.md` file is created.
+
+## Auto-reload on file changes
+Open Request Tester panels automatically reload when underlying files change on disk:
+
+- **Collection files**: Changes to `request.json`, `doc.md`, scripts, or any file under the collections directory trigger a full reload of the panel data and a refresh of the Collections tree view.
+- **Environment files**: Changes to environment JSON files trigger a reload of resolved environment data in all open panels and a refresh of the Environments tree view.
+- **External edits**: This works for edits made in another VS Code tab, an external editor, or via git operations — no manual refresh is needed.
+
 ## Send execution flow
 1. Resolve environment variables
 2. Apply environment headers

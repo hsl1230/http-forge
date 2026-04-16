@@ -65,6 +65,7 @@ export function ensureRequestDefaults(item: Partial<CollectionRequest>): Collect
         // Preserve OpenAPI metadata
         deprecated: item.deprecated,
         description: item.description,
+        doc: item.doc,
         responseSchema: item.responseSchema,
         bodySchema: item.bodySchema
     };

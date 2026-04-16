@@ -337,6 +337,11 @@ export class RequestTesterPanelManager {
         // Create new panel otherwise
     }
     
+    // Broadcast file-change notifications to all open panels
+    notifyCollectionsChanged(): void { /* reloadFromDisk() on all panels */ }
+    notifyEnvironmentsChanged(): void { /* reloadFromDisk() on all panels */ }
+    notifyEnvironmentChange(env: string): void { /* re-send env data to all panels */ }
+    
     closeAll(): void {
         // Close all open panels
     }

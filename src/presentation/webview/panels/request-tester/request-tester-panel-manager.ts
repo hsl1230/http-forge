@@ -271,6 +271,24 @@ export class RequestTesterPanelManager {
   }
 
   /**
+   * Notify all panels that collection files have changed on disk
+   */
+  public notifyCollectionsChanged(): void {
+    for (const panel of this.panels.values()) {
+      panel.reloadFromDisk();
+    }
+  }
+
+  /**
+   * Notify all panels that environment files have changed on disk
+   */
+  public notifyEnvironmentsChanged(): void {
+    for (const panel of this.panels.values()) {
+      panel.reloadFromDisk();
+    }
+  }
+
+  /**
    * Dispose of the manager and all panels
    */
   public dispose(): void {

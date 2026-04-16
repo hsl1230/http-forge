@@ -47,6 +47,13 @@ http-forge/environments/
 └── dev.json
 ```
 
+## File watching
+Changes to environment JSON files automatically:
+- Refresh the **Environments tree view** in the sidebar
+- Reload **all open Request Tester panels** with the latest resolved environment data
+
+No manual refresh is needed — edits from other VS Code tabs, external editors, or git operations are reflected immediately.
+
 _global.json
 ```json
 {

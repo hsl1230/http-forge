@@ -346,6 +346,7 @@ class RequestTesterApp {
             'requestSaved': (msg) => this.handleRequestSaved(msg),
             'sessionVariablesLoaded': (msg) => this.handleSessionVariablesLoaded(msg),
             'cookiesLoaded': (msg) => this.handleCookiesLoaded(msg),
+            'docUpdated': (msg) => this.updateDocTab(msg.doc),
             'error': (msg) => this.handleError(msg),
             'sendRequestResponse': (msg) => this.handleSendRequestResponse(msg),
             // Schema editor handlers
@@ -553,6 +554,9 @@ class RequestTesterApp {
             // Load the request
             this.requestLoader.loadCollectionRequest(msg.request);
             
+            // Update document tab
+            this.updateDocTab(msg.request?.doc);
+
             // Render history if provided
             if (msg.history) {
                 this.historyRenderer.render(msg.history);
@@ -795,6 +799,99 @@ class RequestTesterApp {
 
         // Load schemas from backend for this request
         this.schemaEditorManager.loadSchemas();
+
+        // Handle document tab visibility and content
+        this.updateDocTab(reqData?.doc);
+    }
+
+    /**
+     * Render markdown to HTML using regex-based parser
+     * @param {string} md - Markdown content
+     * @returns {string} HTML string
+     */
+    renderMarkdown(md) {
+        if (!md) { return ''; }
+        let html = md
+            // Code blocks
+            .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="doc-code-block"><code>$2</code></pre>')
+            // Horizontal rules
+            .replace(/^---+$/gm, '<hr class="doc-hr">')
+            // Headings
+            .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+            // Blockquotes
+            .replace(/^> (.+)$/gm, '<blockquote class="doc-blockquote">$1</blockquote>')
+            .replace(/<\/blockquote>\n<blockquote class="doc-blockquote">/g, '<br>')
+            // Bold
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            // Links
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a class="doc-link" href="$2" title="$2">$1</a>')
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code class="doc-inline-code">$1</code>')
+            // Unordered lists
+            .replace(/^- (.+)$/gm, '<li>$1</li>')
+            // Table separator rows (consume trailing newline to prevent blank lines)
+            .replace(/^\|[- :|]+\|\r?\n?/gm, '')
+            // Table data rows
+            .replace(/^\|(.+)\|$/gm, (match, inner) => {
+                const cells = inner.split('|').map(c => c.trim());
+                if (cells.every(c => !c)) { return ''; }
+                return '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+            })
+            // Wrap consecutive <tr> in <table>
+            .replace(/((?:<tr>.*<\/tr>\n?)+)/g, '<table class="doc-table">$1</table>')
+            .replace(/<tr><\/tr>/g, '')
+            // Wrap consecutive <li> in <ul>
+            .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
+            // Remove newlines adjacent to block elements
+            .replace(/\n+((<\/?(?:h[1-4]|table|ul|pre|div|hr|blockquote)>)|$)/g, '$1')
+            .replace(/((<\/?(?:h[1-4]|table|ul|pre|div|hr|blockquote)>))\n+/g, '$1')
+            // Paragraphs
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>')
+            .replace(/<p>\s*<\/p>/g, '');
+        return `<div class="doc-rendered">${html}</div>`;
+    }
+
+    /**
+     * Update the Document tab visibility and content
+     * @param {string|undefined} doc - Markdown documentation content
+     */
+    updateDocTab(doc) {
+        this.state.doc = doc;
+        const docTabBtn = document.querySelector('.tab[data-tab="doc"]');
+        const docContent = document.getElementById('doc-content');
+
+        if (doc) {
+            // Show the Document tab button
+            if (docTabBtn) docTabBtn.classList.remove('hidden');
+            // Render the doc content
+            if (docContent) {
+                docContent.innerHTML =
+                    '<div class="doc-toolbar">' +
+                        '<button class="doc-open-file-btn" id="doc-open-file-btn" title="Open documentation in editor">' +
+                            '<span class="codicon codicon-go-to-file"></span> Open File' +
+                        '</button>' +
+                    '</div>' +
+                    this.renderMarkdown(doc);
+                // Attach click handler for Open File button
+                const openFileBtn = document.getElementById('doc-open-file-btn');
+                if (openFileBtn) {
+                    openFileBtn.addEventListener('click', () => {
+                        vscode.postMessage({ command: 'openDocFile' });
+                    });
+                }
+            }
+        } else {
+            // Hide the Document tab button
+            if (docTabBtn) docTabBtn.classList.add('hidden');
+            // Show empty state
+            if (docContent) {
+                docContent.innerHTML = '<div class="doc-empty-state">No documentation available for this endpoint.</div>';
+            }
+        }
     }
 
     populateEnvironmentSelector() {

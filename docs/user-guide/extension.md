@@ -85,6 +85,13 @@ The Response viewer (Body tab) also supports an HTML Preview for rendered respon
 - SSL verification
 - Decompression
 
+### Document tab
+- Rendered Markdown view of the request's `doc.md` file
+- "Open File" button to edit in VS Code
+- Live reload on save
+
+Open panels auto-reload when collection or environment files change on disk.
+
 See: request-tester.md
 
 ## 5) Environment selection and variables

@@ -2,19 +2,19 @@ import type { Collection, CollectionItem } from '@http-forge/core';
 import { CollectionFolderItem, CollectionRequestItem, CollectionService, ConfigService, CookieService, EnvironmentConfigService, exportCollectionToRestClient, generateId, HttpRequestService, OpenApiExporter, type OpenApiExportOptions, OpenApiImporter, RequestHistoryService, SchemaInferenceService, TestSuite, TestSuiteService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
+import { BootstrapResult, bootstrapServices } from './infrastructure/services/service-bootstrap';
+import { getServiceContainer, ServiceIdentifiers } from './infrastructure/services/service-container';
 import { CollectionsTreeProvider, CollectionTreeItem } from './presentation/components/tree-providers/collections-tree-provider';
 import { EnvironmentsTreeProvider, EnvironmentTreeItem } from './presentation/components/tree-providers/environments-tree-provider';
 import { TestSuitesTreeProvider, TestSuiteTreeItem } from './presentation/components/tree-providers/test-suites-tree-provider';
-import { BootstrapResult, bootstrapServices } from './infrastructure/services/service-bootstrap';
-import { getServiceContainer, ServiceIdentifiers } from './infrastructure/services/service-container';
-import { COMMAND_IDS, EXTENSION_ID } from './shared/constants';
-import { ensureRequestDefaults, RequestContext } from './shared/utils';
 import { CollectionEditorPanel } from './presentation/webview/panels/collection-editor';
 import { EnvironmentEditorPanel } from './presentation/webview/panels/environment-editor';
 import { FolderEditorPanel } from './presentation/webview/panels/folder-editor';
 import { RequestTesterPanel } from './presentation/webview/panels/request-tester';
 import { RequestTesterPanelManager } from './presentation/webview/panels/request-tester/request-tester-panel-manager';
 import { TestSuitePanel } from './presentation/webview/panels/test-suite';
+import { COMMAND_IDS, EXTENSION_ID } from './shared/constants';
+import { ensureRequestDefaults, RequestContext } from './shared/utils';
 
 // Service container for dependency injection
 let services: BootstrapResult | undefined;
@@ -68,6 +68,20 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
   collectionsTreeProvider = new CollectionsTreeProvider(collectionService as CollectionService);
   environmentsTreeProvider = new EnvironmentsTreeProvider(envConfigService as EnvironmentConfigService);
   testSuitesTreeProvider = new TestSuitesTreeProvider(testSuiteService);
+
+  // Auto-refresh tree and open panels when collection files change on disk
+  (collectionService as CollectionService).onCollectionsChanged = () => {
+    collectionsTreeProvider?.refresh();
+    const manager = RequestTesterPanelManager.getInstance();
+    manager.notifyCollectionsChanged();
+  };
+
+  // Auto-refresh tree and open panels when environment files change on disk
+  (envConfigService as EnvironmentConfigService).onEnvironmentsChanged = () => {
+    environmentsTreeProvider?.refresh();
+    const manager = RequestTesterPanelManager.getInstance();
+    manager.notifyEnvironmentsChanged();
+  };
 
   // Register tree views
   collectionsView = vscode.window.createTreeView('httpForge.collections', {
@@ -812,6 +826,7 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
         // Preserve OpenAPI metadata
         deprecated: requestData.deprecated,
         description: requestData.description,
+        doc: requestData.doc,
         responseSchema: requestData.responseSchema,
         bodySchema: requestData.bodySchema
       });
@@ -868,6 +883,7 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
           // Preserve OpenAPI metadata
           deprecated: requestData.deprecated,
           description: requestData.description,
+          doc: requestData.doc,
           responseSchema: requestData.responseSchema,
           bodySchema: requestData.bodySchema
         }

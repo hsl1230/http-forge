@@ -135,6 +135,7 @@
 - **Authentication**: OAuth 2.0 (all 4 grant types with PKCE), Bearer, Basic, API Key
 - **Pre-request Scripts**: Run JavaScript before each request — `{{variable}}` templates auto-resolve in script source
 - **Post-response Scripts**: Process responses with custom scripts — templates, filters, and expressions work inline
+- **Request Documentation**: View request-level Markdown docs from `doc.md` files in the Document tab
 
 ### � Template Engine
 - **Filter Pipes**: Chain filters on any variable — `{{variable | upper | substring(0, 5)}}`
@@ -158,6 +159,8 @@
 - **OpenAPI 3.0**: Import OpenAPI specs to create collections; export collections as OpenAPI 3.0.3 YAML/JSON
 - **Drag & Drop**: Rearrange requests easily
 - **Collection Runner**: Execute entire collections with configurable iterations
+- **File Watching**: Collection file changes auto-refresh the tree view and all open panels
+- **Request Documentation**: Each request folder supports a `doc.md` file for inline API docs
 
 ### 🌍 Environment Management
 - **Multiple Environments**: Dev, staging, production, and custom environments
@@ -165,6 +168,7 @@
 - **Environment Inheritance**: Share common variables across environments
 - **Local Secrets**: Store sensitive data in gitignored files
 - **Session Variables**: Temporary variables that persist during your session
+- **File Watching**: Environment file changes auto-refresh the tree view and all open panels
 
 ### 📊 Response Viewer
 - **Syntax Highlighting**: Beautiful JSON, XML, and HTML formatting

@@ -140,6 +140,7 @@ function createRequestSaver({
             // Preserve OpenAPI metadata — prefer live editor data over original
             deprecated: state.requestData?.deprecated,
             description: state.requestData?.description,
+            doc: state.requestData?.doc,
             responseSchema: getSchemaDataForSave?.()?.responseSchema ?? state.requestData?.responseSchema,
             bodySchema: getSchemaDataForSave?.()?.bodySchema ?? state.requestData?.bodySchema
         };

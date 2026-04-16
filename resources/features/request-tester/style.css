@@ -2817,3 +2817,95 @@ button.secondary:disabled {
     vertical-align: super;
 }
 
+/* ========================================
+   Document tab content
+   ======================================== */
+
+.doc-content {
+    padding: 16px 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 180px);
+}
+
+.doc-rendered h1 { font-size: 20px; margin: 20px 0 8px; font-weight: 600; }
+.doc-rendered h2 { font-size: 17px; margin: 18px 0 6px; font-weight: 600; border-bottom: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); padding-bottom: 4px; }
+.doc-rendered h3 { font-size: 15px; margin: 14px 0 4px; font-weight: 600; }
+.doc-rendered h4 { font-size: 13px; margin: 10px 0 4px; font-weight: 600; }
+.doc-rendered p { margin: 6px 0; line-height: 1.6; }
+.doc-rendered ul { margin: 4px 0; padding-left: 20px; }
+.doc-rendered li { margin: 2px 0; line-height: 1.5; }
+
+.doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 13px;
+}
+.doc-table td {
+    padding: 6px 10px;
+    border: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1));
+}
+.doc-table tr:first-child td {
+    font-weight: 600;
+    background: rgba(255,255,255,0.04);
+}
+
+.doc-inline-code {
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12px;
+}
+
+.doc-code-block {
+    background: rgba(0,0,0,0.25);
+    padding: 10px 14px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 12px;
+    margin: 8px 0;
+}
+.doc-code-block code { font-family: var(--vscode-editor-font-family, monospace); white-space: pre; }
+
+.doc-hr { border: none; border-top: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); margin: 16px 0; }
+
+.doc-blockquote {
+    margin: 6px 0;
+    padding: 4px 12px;
+    border-left: 3px solid var(--vscode-panel-border, rgba(255,255,255,0.2));
+    color: var(--vscode-descriptionForeground, rgba(255,255,255,0.6));
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.doc-link { color: var(--vscode-textLink-foreground, #3794ff); text-decoration: none; }
+.doc-link:hover { text-decoration: underline; }
+
+.doc-empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    font-size: 13px;
+}
+
+.doc-toolbar {
+    margin-bottom: 12px;
+}
+
+.doc-open-file-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-textLink-foreground, #3794ff);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.doc-open-file-btn:hover {
+    background: rgba(255,255,255,0.08);
+}
+

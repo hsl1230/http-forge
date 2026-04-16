@@ -29,6 +29,7 @@ import { PanelDataProvider } from './panel-data-provider';
 export class RequestTesterPanel implements vscode.Disposable {
   private panel?: vscode.WebviewPanel;
   private messageDisposable?: vscode.Disposable;
+  private docSaveDisposable?: vscode.Disposable;
   private webviewReady: boolean = false;
   private readonly panelId: string;
   
@@ -225,6 +226,7 @@ export class RequestTesterPanel implements vscode.Disposable {
     this._onDidDispose.dispose();
     this.webviewReady = false;
     this.messageDisposable?.dispose();
+    this.docSaveDisposable?.dispose();
     
     const panelToDispose = this.panel;
     this.panel = undefined;
@@ -243,6 +245,21 @@ export class RequestTesterPanel implements vscode.Disposable {
     }
   }
 
+  /**
+   * Reload data from disk and push to webview.
+   * Called when collection files change externally.
+   */
+  public reloadFromDisk(): void {
+    if (this.webviewReady) {
+      try {
+        const data = this.dataProvider.getInitialData();
+        this.messenger.postMessage({ command: 'loadRequest', ...data });
+      } catch {
+        // Context may no longer be valid (e.g. request deleted)
+      }
+    }
+  }
+
   private async createAndShow(context: RequestContext, panelTitle: string): Promise<void> {
     this.dataProvider.setContext(context);
 
@@ -253,6 +270,7 @@ export class RequestTesterPanel implements vscode.Disposable {
 
     // Register message handler BEFORE revealing to avoid missing webviewLoaded
     this.registerMessageHandler();
+    this.registerDocFileWatcher();
     this.panel.reveal(vscode.ViewColumn.One);
   }
 
@@ -307,6 +325,12 @@ export class RequestTesterPanel implements vscode.Disposable {
         return;
       }
 
+      // Open doc.md file in editor
+      if (cmd === 'openDocFile') {
+        await this.openDocFile();
+        return;
+      }
+
       // Route all other messages through the router
       await this.router.route(msg, this.messenger);
     });
@@ -319,6 +343,98 @@ export class RequestTesterPanel implements vscode.Disposable {
     } catch (error) {
       console.error('[RequestTesterPanel] Failed to send initial data:', error);
     }
+  }
+
+  /**
+   * Watch for doc.md saves and push updated content to the webview
+   */
+  private registerDocFileWatcher(): void {
+    this.docSaveDisposable?.dispose();
+
+    this.docSaveDisposable = vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (!this.webviewReady || !doc.fileName.endsWith('doc.md')) {
+        return;
+      }
+
+      const context = this.dataProvider.getCurrentContext();
+      if (!context?.collectionId || !context?.requestId) {
+        return;
+      }
+
+      // Verify this doc.md belongs to the current request
+      const requestJsonPath = path.join(path.dirname(doc.fileName), 'request.json');
+      try {
+        if (!fs.existsSync(requestJsonPath)) return;
+        const metadata = JSON.parse(fs.readFileSync(requestJsonPath, 'utf-8'));
+        if (metadata.id !== context.requestId) return;
+      } catch {
+        return;
+      }
+
+      const newContent = doc.getText();
+      this.messenger.postMessage({ command: 'docUpdated', doc: newContent });
+    });
+  }
+
+  /**
+   * Open the doc.md file for the current request in VS Code editor
+   */
+  private async openDocFile(): Promise<void> {
+    const context = this.dataProvider.getCurrentContext();
+    if (!context?.collectionId || !context?.requestId) {
+      return;
+    }
+
+    const container = getServiceContainer();
+    const collectionsDir = container.config.getCollectionsPath();
+    const docPath = this.findDocFile(collectionsDir, context.requestId);
+
+    if (docPath && fs.existsSync(docPath)) {
+      const doc = await vscode.workspace.openTextDocument(docPath);
+      await vscode.window.showTextDocument(doc);
+    }
+  }
+
+  /**
+   * Search for doc.md in the collections directory for the given request ID
+   */
+  private findDocFile(basePath: string, requestId: string): string | undefined {
+    const searchDir = (dir: string): string | undefined => {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return undefined;
+      }
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const entryPath = path.join(dir, entry.name);
+        const requestJsonPath = path.join(entryPath, 'request.json');
+
+        if (fs.existsSync(requestJsonPath)) {
+          try {
+            const content = fs.readFileSync(requestJsonPath, 'utf-8');
+            const metadata = JSON.parse(content);
+            if (metadata.id === requestId) {
+              const docPath = path.join(entryPath, 'doc.md');
+              return fs.existsSync(docPath) ? docPath : undefined;
+            }
+          } catch {
+            // Skip invalid request.json files
+          }
+        }
+
+        // Recurse into subdirectories
+        const found = searchDir(entryPath);
+        if (found) return found;
+      }
+
+      return undefined;
+    };
+
+    return searchDir(basePath);
   }
 
   private getHtmlContent(

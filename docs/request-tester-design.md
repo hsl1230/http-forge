@@ -58,6 +58,8 @@ resources/features/request-tester/modules/
 └── oauth2-manager.js          # OAuth 2.0 UI manager
 ```
 
+The Document tab (rendered Markdown from `doc.md`) is handled by `main.js` via the `updateDocTab()` and `renderMarkdown()` methods.
+
 ---
 
 ## Configuration
@@ -70,8 +72,14 @@ your-workspace/
       ├── environments.json           ← Shared environments (can be committed)
       ├── environments.local.json     ← Personal credentials (gitignored)
       ├── collections/                ← Request collections
-      │   ├── my-api.json
-      │   └── auth-tests.json
+      │   ├── my-api/
+      │   │   ├── collection.json
+      │   │   └── items/
+      │   │       └── login/
+      │   │           ├── request.json
+      │   │           └── doc.md       ← Optional request documentation
+      │   └── auth-tests/
+      │       └── ...
       └── histories/                  ← Request history (gitignored)
           ├── collection-id/
           │   ├── request-id.json

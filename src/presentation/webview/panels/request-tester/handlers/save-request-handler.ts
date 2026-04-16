@@ -91,6 +91,7 @@ export class SaveRequestHandler implements IMessageHandler {
         // Preserve OpenAPI metadata
         deprecated: request.deprecated ?? context?.request?.deprecated,
         description: request.description ?? context?.request?.description,
+        doc: request.doc ?? context?.request?.doc,
         responseSchema: request.responseSchema ?? context?.request?.responseSchema,
         bodySchema: request.bodySchema ?? context?.request?.bodySchema
       });
@@ -131,6 +132,7 @@ export class SaveRequestHandler implements IMessageHandler {
           // Preserve OpenAPI metadata
           deprecated: request.deprecated ?? context?.request?.deprecated,
           description: request.description ?? context?.request?.description,
+          doc: request.doc ?? context?.request?.doc,
           responseSchema: request.responseSchema ?? context?.request?.responseSchema,
           bodySchema: request.bodySchema ?? context?.request?.bodySchema
         }) as { success: boolean; requestId: string; name: string } | undefined;
@@ -163,6 +165,7 @@ export class SaveRequestHandler implements IMessageHandler {
           // Preserve OpenAPI metadata
           deprecated: request.deprecated ?? context?.request?.deprecated,
           description: request.description ?? context?.request?.description,
+          doc: request.doc ?? context?.request?.doc,
           responseSchema: request.responseSchema ?? context?.request?.responseSchema,
           bodySchema: request.bodySchema ?? context?.request?.bodySchema
         });
