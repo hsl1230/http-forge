@@ -389,7 +389,11 @@ export class RequestTesterPanel implements vscode.Disposable {
     const collectionsDir = container.config.getCollectionsPath();
     const docPath = this.findDocFile(collectionsDir, context.requestId);
 
-    if (docPath && fs.existsSync(docPath)) {
+    if (docPath) {
+      // Create the file if it doesn't exist
+      if (!fs.existsSync(docPath)) {
+        fs.writeFileSync(docPath, '', 'utf-8');
+      }
       const doc = await vscode.workspace.openTextDocument(docPath);
       await vscode.window.showTextDocument(doc);
     }
@@ -418,8 +422,7 @@ export class RequestTesterPanel implements vscode.Disposable {
             const content = fs.readFileSync(requestJsonPath, 'utf-8');
             const metadata = JSON.parse(content);
             if (metadata.id === requestId) {
-              const docPath = path.join(entryPath, 'doc.md');
-              return fs.existsSync(docPath) ? docPath : undefined;
+              return path.join(entryPath, 'doc.md');
             }
           } catch {
             // Skip invalid request.json files

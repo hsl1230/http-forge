@@ -835,7 +835,7 @@ class RequestTesterApp {
             // Table separator rows (consume trailing newline to prevent blank lines)
             .replace(/^\|[- :|]+\|\r?\n?/gm, '')
             // Table data rows
-            .replace(/^\|(.+)\|$/gm, (match, inner) => {
+            .replace(/^\|(.+)\|$\r?\n?/gm, (match, inner) => {
                 const cells = inner.split('|').map(c => c.trim());
                 if (cells.every(c => !c)) { return ''; }
                 return '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
@@ -846,8 +846,8 @@ class RequestTesterApp {
             // Wrap consecutive <li> in <ul>
             .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
             // Remove newlines adjacent to block elements
-            .replace(/\n+((<\/?(?:h[1-4]|table|ul|pre|div|hr|blockquote)>)|$)/g, '$1')
-            .replace(/((<\/?(?:h[1-4]|table|ul|pre|div|hr|blockquote)>))\n+/g, '$1')
+            .replace(/\n+((<\/?(?:h[1-4]|table|ul|pre|div|hr|blockquote)[^>]*>)|$)/g, '$1')
+            .replace(/((<\/?(?:h[1-4]|table|ul|pre|div|hr|blockquote)[^>]*>))\n+/g, '$1')
             // Paragraphs
             .replace(/\n\n/g, '</p><p>')
             .replace(/\n/g, '<br>')
@@ -861,36 +861,34 @@ class RequestTesterApp {
      */
     updateDocTab(doc) {
         this.state.doc = doc;
-        const docTabBtn = document.querySelector('.tab[data-tab="doc"]');
         const docContent = document.getElementById('doc-content');
 
+        const toolbarHtml =
+            '<div class="doc-toolbar">' +
+                '<button class="doc-open-file-btn" id="doc-open-file-btn" title="Open documentation in editor">' +
+                    '<span class="codicon codicon-go-to-file"></span> Open File' +
+                '</button>' +
+            '</div>';
+
         if (doc) {
-            // Show the Document tab button
-            if (docTabBtn) docTabBtn.classList.remove('hidden');
             // Render the doc content
             if (docContent) {
-                docContent.innerHTML =
-                    '<div class="doc-toolbar">' +
-                        '<button class="doc-open-file-btn" id="doc-open-file-btn" title="Open documentation in editor">' +
-                            '<span class="codicon codicon-go-to-file"></span> Open File' +
-                        '</button>' +
-                    '</div>' +
-                    this.renderMarkdown(doc);
-                // Attach click handler for Open File button
-                const openFileBtn = document.getElementById('doc-open-file-btn');
-                if (openFileBtn) {
-                    openFileBtn.addEventListener('click', () => {
-                        vscode.postMessage({ command: 'openDocFile' });
-                    });
-                }
+                docContent.innerHTML = toolbarHtml + this.renderMarkdown(doc);
             }
         } else {
-            // Hide the Document tab button
-            if (docTabBtn) docTabBtn.classList.add('hidden');
-            // Show empty state
+            // Show empty state with Open File button to create doc.md
             if (docContent) {
-                docContent.innerHTML = '<div class="doc-empty-state">No documentation available for this endpoint.</div>';
+                docContent.innerHTML = toolbarHtml +
+                    '<div class="doc-empty-state">No documentation yet. Click "Open File" to create a doc.md for this request.</div>';
             }
+        }
+
+        // Attach click handler for Open File button
+        const openFileBtn = document.getElementById('doc-open-file-btn');
+        if (openFileBtn) {
+            openFileBtn.addEventListener('click', () => {
+                vscode.postMessage({ command: 'openDocFile' });
+            });
         }
     }
 
