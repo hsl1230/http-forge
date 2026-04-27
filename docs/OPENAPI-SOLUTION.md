@@ -239,14 +239,24 @@ Proposed (backward-compatible additions):
 interface KeyValueEntry {
   key: string;
   value: string;
-  enabled: boolean;
-  // NEW — optional fields for OpenAPI generation
+  enabled?: boolean;
+  // OpenAPI generation fields (all optional, backward-compatible)
   type?: 'string' | 'integer' | 'number' | 'boolean' | 'array';
   required?: boolean;
   description?: string;
-  format?: string;       // e.g., "date-time", "email", "uuid"
+  format?: string;       // semantic hint, e.g., "date-time", "email", "uuid" (display only)
   enum?: string[];       // allowed values
   deprecated?: boolean;  // OAS deprecated flag
+  // Extended constraint fields for full OpenAPI round-trip
+  pattern?: string;      // regex pattern for validation, e.g., "^[A-Z]{2}-\\d{4}$"
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  /** When multiple incompatible constraint sets exist (e.g. from merged endpoints) */
+  oneOf?: Array<Record<string, any>>;
 }
 ```
 
@@ -269,12 +279,22 @@ simple format or a richer `PathParamEntry` map:
 ```typescript
 interface PathParamEntry {
   value: string;
-  // NEW — optional fields for OpenAPI generation
+  // OpenAPI generation fields (all optional, backward-compatible)
   type?: 'string' | 'integer' | 'number' | 'boolean';
   description?: string;
-  format?: string;       // e.g., "uuid", "int64"
+  format?: string;       // semantic hint, e.g., "uuid", "int64" (display only)
   enum?: string[];       // allowed values
   deprecated?: boolean;  // OAS deprecated flag
+  // Extended constraint fields for full OpenAPI round-trip
+  pattern?: string;      // regex pattern for validation
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  /** When multiple incompatible constraint sets exist (e.g. from merged endpoints) */
+  oneOf?: Array<Record<string, any>>;
 }
 
 // params can be either format:
@@ -320,11 +340,18 @@ The `value` field sets the initially selected option.
 
 1. **`enum`** from `PathParamEntry` / `KeyValueEntry` overrides simple-option
    lists parsed from the URL constraint (e.g. `:param(A|B)`).
-2. **`format`** from the entry overrides the regex pattern extracted from the URL
-   constraint and is used for input validation.
+2. **`pattern`** (regex) from the entry overrides the regex pattern extracted from
+   the URL constraint and is used for blur input validation.
+3. **`format`** is a semantic hint (e.g., `"uuid"`, `"date-time"`) displayed as
+   a tooltip label — it is **not** used as a regex for validation.
 
-For query parameters and headers, only `KeyValueEntry` metadata (`enum`, `format`) is
-used — there are no URL constraints to merge with.
+For query parameters and headers, only `KeyValueEntry` metadata (`enum`, `pattern`) is
+used for validation — there are no URL constraints to merge with.
+
+> **Important:** `format` and `pattern` serve different purposes per the OpenAPI 3.0 spec:
+> - `pattern` is a regex that validators **must** enforce (e.g., `"^[A-Z]{2}-\\d{4}$"`).
+> - `format` is a named semantic hint that validators **may** ignore (e.g., `"uuid"`, `"email"`, `"date-time"`).
+> Both are stored on the schema and round-trip through import/export, but only `pattern` drives blur validation in the UI.
 
 ### 3.5 Extended `CollectionRequest`
 
@@ -760,6 +787,24 @@ Request: POST {{baseUrl}}/api/users/:userId/orders
 - Primary: `toCamelCase(request.name)` → ensures uniqueness by appending method if duplicate
 - Fallback: `method + toCamelCase(pathSegments)`
 
+**Path+method collision handling:**
+
+When multiple requests normalize to the same path **and** method (e.g., two requests
+both targeting `POST /api/users/{userId}/orders` with different parameter constraints),
+the exporter **merges** the operations instead of silently overwriting:
+
+- **Descriptions**: Appended with variant info (e.g., "--- Variant 2: Create Priority Order ---")
+- **Tags**: Union of all tags from colliding requests
+- **Parameters**: Merged per-name. When two parameters share the same name:
+  - Same constraint kind (both enum, both pattern, both range, etc.) → merged in place
+    (e.g., enum arrays are unioned, ranges are widened)
+  - Different constraint kinds (e.g., one has `enum`, the other has `pattern`) → wrapped
+    in a `oneOf` array so both constraint sets are preserved without confusion
+- **Responses**: New status codes are added; existing ones are preserved
+- **Request bodies**: New content types are added
+
+Constraint kinds recognized: `enum`, `pattern`, `range` (min/max), `length` (minLength/maxLength), `format`, `oneOf`, `none`.
+
 ##### Parameters
 
 ```
@@ -776,6 +821,13 @@ If extended PathParamEntry has type hints:
   { value: "123", type: "integer", format: "int64", description: "Unique user ID" }
   → { name: userId, in: path, required: true, description: "Unique user ID",
       schema: { type: integer, format: int64 }, example: 123 }
+
+If extended entries have constraint fields:
+  { key: "code", value: "US-1234", pattern: "^[A-Z]{2}-\\d{4}$" }
+  → { name: code, in: query, schema: { type: string, pattern: "^[A-Z]{2}-\\d{4}$" } }
+
+  { key: "age", value: "25", type: "integer", minimum: 0, maximum: 150 }
+  → { name: age, in: query, schema: { type: integer, minimum: 0, maximum: 150 } }
 ```
 
 **Path parameter handling:**

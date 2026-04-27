@@ -97,6 +97,8 @@ dev.json
 
 ## Template Engine — Filters, Expressions & String Concatenation
 
+For a complete supported syntax reference for `{{ }}` templates, see [Template Syntax Reference](template-syntax.md).
+
 HTTP Forge extends the `{{variable}}` syntax with **filter pipes**, **JavaScript expressions**, and **string concatenation** — all usable in URL, headers, body, params, and scripts.
 
 ### Filter Pipes

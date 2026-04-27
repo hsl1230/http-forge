@@ -91,7 +91,7 @@ function createPathVariablesManager({ state, elements, formManager }) {
         
         // Add rows for each variable
         variables.forEach(({ name: paramName, options, pattern }) => {
-            // Params metadata (enum/format) takes priority over URL constraint
+            // Params metadata (enum/pattern) takes priority over URL constraint
             let effectiveOptions = options;
             let effectivePattern = pattern;
             if (params) {
@@ -100,8 +100,8 @@ function createPathVariablesManager({ state, elements, formManager }) {
                     if (Array.isArray(entry.enum) && entry.enum.length > 0) {
                         effectiveOptions = entry.enum;
                     }
-                    if (entry.format) {
-                        effectivePattern = entry.format;
+                    if (entry.pattern) {
+                        effectivePattern = entry.pattern;
                     }
                     // Pre-populate metadata so the detail panel renders with it
                     const { value: _v, ...meta } = entry;

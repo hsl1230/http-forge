@@ -11,6 +11,7 @@ import {
   HistoryHandler,
   OAuth2Handler,
   RequestExecutionHandler,
+  RequestPreviewHandler,
   SaveRequestHandler,
   SchemaHandler,
   VariableHandler
@@ -100,6 +101,11 @@ export class RequestTesterPanel implements vscode.Disposable {
       this.environmentHandler
     );
 
+    const requestPreviewHandler = new RequestPreviewHandler(
+      envConfigService,
+      httpService
+    );
+
     const historyHandler = new HistoryHandler(
       historyService,
       envConfigService,
@@ -129,6 +135,7 @@ export class RequestTesterPanel implements vscode.Disposable {
     this.router.registerHandlers([
       this.environmentHandler,
       requestHandler,
+      requestPreviewHandler,
       historyHandler,
       this.cookieHandler,
       this.variableHandler,

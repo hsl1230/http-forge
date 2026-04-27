@@ -1331,6 +1331,40 @@ button.primary.cancel:hover {
     background: var(--vscode-button-secondaryHoverBackground, #45494e);
 }
 
+/* Constraint fields (read-only display for pattern, min/max, etc.) */
+.param-meta-detail .meta-constraints {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--vscode-input-border, #3c3c3c);
+}
+
+.param-meta-detail .constraint-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin-top: 4px;
+}
+
+.param-meta-detail .constraint-item {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground, #808080);
+    background: var(--vscode-textBlockQuote-background, #2d2d2d);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--vscode-input-border, #3c3c3c);
+}
+
+.param-meta-detail .constraint-item b {
+    color: var(--vscode-foreground, #cccccc);
+    font-weight: 600;
+}
+
+.param-meta-detail .constraint-item code {
+    font-family: var(--vscode-editor-font-family, 'Cascadia Code', monospace);
+    font-size: 10px;
+    word-break: break-all;
+}
+
 /* Path params don't have checkboxes — shift detail panel left */
 .param-row-wrapper[data-type="path"] .param-meta-detail {
     padding-left: 8px;

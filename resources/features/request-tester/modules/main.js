@@ -94,6 +94,11 @@ class RequestTesterApp {
         this.requestBuilder = null;
         this.responseHandler = null;
         this.requestExecutor = null;
+
+        // URL preview request tracking
+        this.previewRequestSequence = 0;
+        this.latestPreviewRequestSequence = 0;
+        this.debouncedResolveUrlPreview = this.debounce(() => this.requestUrlPreview(), 500);
     }
 
     /**
@@ -349,6 +354,7 @@ class RequestTesterApp {
             'docUpdated': (msg) => this.updateDocTab(msg.doc),
             'error': (msg) => this.handleError(msg),
             'sendRequestResponse': (msg) => this.handleSendRequestResponse(msg),
+            'resolvedUrlPreview': (msg) => this.handleResolvedUrlPreview(msg),
             // Schema editor handlers
             ...this.schemaEditorManager.getMessageHandlers(),
             // OAuth2 handlers
@@ -553,6 +559,8 @@ class RequestTesterApp {
             
             // Load the request
             this.requestLoader.loadCollectionRequest(msg.request);
+            this.pathVariablesManager.applyParams(msg.request.params);
+            this.pathVariablesManager.applyEnvironmentDefaults(this.state.resolvedEnvironment.variables);
             
             // Update document tab
             this.updateDocTab(msg.request?.doc);
@@ -958,10 +966,10 @@ class RequestTesterApp {
         }
 
         allHeaders.forEach(({ value, enabled }, key) => {
-            // Use enum as select options, format as validation pattern from metadata
+            // Use enum as select options, pattern (regex) for validation
             const meta = this.state._headersMeta[key];
             const options = meta && Array.isArray(meta.enum) && meta.enum.length > 0 ? meta.enum : null;
-            const pattern = meta && meta.format ? meta.format : null;
+            const pattern = meta && meta.pattern ? meta.pattern : null;
             this.formManager.addHeaderRow(key, value, true, enabled, options, pattern);
         });
     }
@@ -1033,6 +1041,39 @@ class RequestTesterApp {
 
         if (this.elements.urlPreview) {
             this.elements.urlPreview.textContent = preview;
+        }
+
+        if (this.debouncedResolveUrlPreview) {
+            this.debouncedResolveUrlPreview();
+        }
+    }
+
+    async requestUrlPreview() {
+        if (!this.requestBuilder) return;
+
+        const request = this.requestBuilder.buildRequest();
+        this.previewRequestSequence += 1;
+        this.latestPreviewRequestSequence = this.previewRequestSequence;
+
+        vscode.postMessage({
+            command: 'resolveUrlPreview',
+            request,
+            sequence: this.previewRequestSequence
+        });
+    }
+
+    handleResolvedUrlPreview(msg) {
+        if (!msg || msg.sequence !== this.latestPreviewRequestSequence) {
+            return;
+        }
+
+        if (msg.error) {
+            console.warn('[RequestTesterApp] URL preview resolution failed:', msg.error);
+            return;
+        }
+
+        if (this.elements.urlPreview && typeof msg.url === 'string' && msg.url) {
+            this.elements.urlPreview.textContent = msg.url;
         }
     }
 

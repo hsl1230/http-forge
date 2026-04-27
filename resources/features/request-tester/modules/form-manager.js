@@ -46,6 +46,41 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             `<span class="enum-tag">${escapeHtml(v)}<span class="remove-enum" title="Remove">×</span></span>`
         ).join('');
 
+        // Build read-only constraints section if any extended fields exist
+        const constraints = [];
+        if (meta.pattern) constraints.push(`<span class="constraint-item"><b>pattern:</b> <code>${escapeHtml(meta.pattern)}</code></span>`);
+        if (meta.minimum !== undefined) constraints.push(`<span class="constraint-item"><b>minimum:</b> ${meta.minimum}</span>`);
+        if (meta.maximum !== undefined) constraints.push(`<span class="constraint-item"><b>maximum:</b> ${meta.maximum}</span>`);
+        if (meta.exclusiveMinimum !== undefined) constraints.push(`<span class="constraint-item"><b>exclusiveMin:</b> ${meta.exclusiveMinimum}</span>`);
+        if (meta.exclusiveMaximum !== undefined) constraints.push(`<span class="constraint-item"><b>exclusiveMax:</b> ${meta.exclusiveMaximum}</span>`);
+        if (meta.minLength !== undefined) constraints.push(`<span class="constraint-item"><b>minLength:</b> ${meta.minLength}</span>`);
+        if (meta.maxLength !== undefined) constraints.push(`<span class="constraint-item"><b>maxLength:</b> ${meta.maxLength}</span>`);
+        
+        let constraintsHtml = '';
+        if (constraints.length > 0) {
+            constraintsHtml = `
+                <div class="meta-constraints">
+                    <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--vscode-descriptionForeground,#808080);font-weight:600;">Constraints</label>
+                    <div class="constraint-list">${constraints.join('')}</div>
+                </div>`;
+        }
+
+        // Show oneOf variants if present
+        let oneOfHtml = '';
+        if (meta.oneOf && meta.oneOf.length > 0) {
+            const variantItems = meta.oneOf.map((v, i) => {
+                const props = Object.entries(v).map(([k, val]) => 
+                    `<b>${escapeHtml(k)}:</b> ${escapeHtml(JSON.stringify(val))}`
+                ).join(', ');
+                return `<div class="constraint-item">Variant ${i + 1}: ${props}</div>`;
+            }).join('');
+            oneOfHtml = `
+                <div class="meta-constraints">
+                    <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--vscode-descriptionForeground,#808080);font-weight:600;">Schema Variants (oneOf)</label>
+                    <div class="constraint-list">${variantItems}</div>
+                </div>`;
+        }
+
         return `
             <div class="meta-field">
                 <label>Type</label>
@@ -79,7 +114,7 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                     <input type="text" class="enum-new-value" placeholder="Add enum value">
                     <button class="enum-add-btn" type="button">+</button>
                 </div>
-            </div>
+            </div>${constraintsHtml}${oneOfHtml}
         `;
     }
 
@@ -91,7 +126,11 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
     function hasMetaContent(meta) {
         if (!meta) return false;
         return !!(meta.type || meta.required || meta.description || meta.format || 
-                  (meta.enum && meta.enum.length > 0) || meta.deprecated);
+                  (meta.enum && meta.enum.length > 0) || meta.deprecated ||
+                  meta.pattern || meta.minimum !== undefined || meta.maximum !== undefined ||
+                  meta.exclusiveMinimum !== undefined || meta.exclusiveMaximum !== undefined ||
+                  meta.minLength !== undefined || meta.maxLength !== undefined ||
+                  (meta.oneOf && meta.oneOf.length > 0));
     }
 
     /**
@@ -99,8 +138,27 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
      * @param {HTMLElement} detailEl - The .param-meta-detail element
      * @returns {Object} metadata object
      */
-    function readMetaFromPanel(detailEl) {
-        const meta = {};
+    /**
+     * Read current metadata values from a detail panel DOM element.
+     * Merges with existing state metadata to preserve fields that aren't
+     * editable in the UI (pattern, min/max, oneOf, etc.).
+     * @param {HTMLElement} detailEl - The .param-meta-detail element
+     * @param {string} [metaMapKey] - State metadata map key (e.g. '_paramsMeta')
+     * @param {string} [itemKey] - The param/header key name
+     * @returns {Object} metadata object
+     */
+    function readMetaFromPanel(detailEl, metaMapKey, itemKey) {
+        // Start with existing non-editable fields preserved from state
+        const existing = (metaMapKey && itemKey && state[metaMapKey]?.[itemKey]) || {};
+        const preserved = {};
+        // Preserve fields not editable in the UI
+        const preserveKeys = ['pattern', 'minimum', 'maximum', 'exclusiveMinimum',
+                              'exclusiveMaximum', 'minLength', 'maxLength', 'oneOf'];
+        for (const k of preserveKeys) {
+            if (existing[k] !== undefined) preserved[k] = existing[k];
+        }
+
+        const meta = { ...preserved };
         const typeVal = detailEl.querySelector('.meta-type')?.value;
         if (typeVal) meta.type = typeVal;
         
@@ -169,12 +227,14 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             inp.className = 'value';
             inp.placeholder = 'Value or {{variable}}';
             inp.value = currentValue;
-            if (meta.format) {
-                inp.title = `Must match: ${meta.format}`;
+            if (meta.pattern) {
+                inp.title = `Must match: ${meta.pattern}`;
+            } else if (meta.format) {
+                inp.title = `Format: ${meta.format}`;
             }
             oldEl.replaceWith(inp);
             attachValueListener(inp, type, itemKey);
-            attachBlurValidation(inp, meta.format);
+            attachBlurValidation(inp, meta.pattern);
         } else if (enumValues && isCurrentlySelect) {
             // Update existing select options
             const sel = oldEl;
@@ -194,9 +254,9 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         } else if (!enumValues && !isCurrentlySelect) {
             // Update format hint on existing text input
             const inp = oldEl;
-            inp.title = meta.format ? `Must match: ${meta.format}` : '';
-            // Re-attach blur validation with new format
-            attachBlurValidation(inp, meta.format);
+            inp.title = meta.pattern ? `Must match: ${meta.pattern}` : (meta.format ? `Format: ${meta.format}` : '');
+            // Re-attach blur validation with pattern (regex), not format (semantic hint)
+            attachBlurValidation(inp, meta.pattern);
         }
     }
 
@@ -259,7 +319,7 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         const type = metaMapKey === '_paramsMeta' ? 'path' : metaMapKey === '_queryMeta' ? 'query' : 'header';
 
         const updateMeta = () => {
-            const meta = readMetaFromPanel(detailEl);
+            const meta = readMetaFromPanel(detailEl, metaMapKey, itemKey);
             if (!state[metaMapKey]) state[metaMapKey] = {};
             state[metaMapKey][itemKey] = meta;
             

@@ -5,6 +5,25 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.11.12 - 2026-04-27
+
+### Added
+
+- **OpenAPI collision-aware export**: When multiple requests normalize to the same path and HTTP method, the exporter now merges them into a single operation — appending descriptions, unioning tags, merging parameters (same constraint kind merged in place, different kinds wrapped in `oneOf`), and adding new response codes and content types.
+- **Full parameter constraint round-trip**: OpenAPI import and export now preserve all schema constraint fields: `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `minLength`, `maxLength`, and `oneOf`. These are stored on `KeyValueEntry` and `PathParamEntry` and round-trip without data loss.
+- **Constraints display in Request Tester**: The inline metadata panel for parameters, headers, and query params now shows a read-only "Constraints" section for `pattern`, min/max values, and length constraints. Parameters with `oneOf` (from merged collision variants) show a "Schema Variants" section.
+
+### Fixed
+
+- **`format` vs `pattern` validation**: Fixed incorrect use of `format` (a semantic hint like `"uuid"`, `"date-time"`) as a regex pattern for blur validation. `pattern` (the actual regex) is now used for validation; `format` is displayed as a tooltip hint only. This aligns with the OpenAPI 3.0 specification where `pattern` is enforced and `format` is advisory.
+
+## 0.11.11 - 2026-04-24
+
+### Added
+
+- **Request Tester URL preview**: The Request Tester now resolves the preview URL using backend environment resolution, dynamic variables, filter/pipe expressions, and auth query params so the preview matches actual request execution.
+
+
 ## 0.11.9 - 2026-04-16
 
 ### Added
@@ -19,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed / Improved
 
-- **Request Tester**: Path parameters, query parameters, and headers with `enum` arrays in their metadata now render as select dropdowns instead of text inputs. The `format` field provides validation patterns. For path params, metadata takes priority over URL-constraint-derived values.
+- **Request Tester**: Path parameters, query parameters, and headers with `enum` arrays in their metadata now render as select dropdowns instead of text inputs. The `pattern` field provides regex validation on blur; the `format` field is shown as a tooltip hint. For path params, metadata takes priority over URL-constraint-derived values.
 - **Request Tester`: show shared cookie in the header of sent request.
 
 ## 0.11.4 - 2026-03-19

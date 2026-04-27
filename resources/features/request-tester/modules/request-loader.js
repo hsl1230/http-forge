@@ -87,10 +87,24 @@ function createRequestLoader({
         // Extract and display path variables from base URL (e.g., :userId, :id)
         const pathForVariables = state.baseUrl || queryParamsManager.getUrlWithoutQuery(baseUrl);
         pathVariablesManager.updateFromPath(pathForVariables, request.params);
+        pathVariablesManager.applyParams(request.params);
 
-        // Apply headers (object format: { headerName: value })
+        // Apply headers - supports both array format (KeyValueEntry[]) and object format (legacy)
         const requestHeaders = request.headers || {};
-        if (typeof requestHeaders === 'object' && !Array.isArray(requestHeaders)) {
+        if (Array.isArray(requestHeaders)) {
+            // New format: Array<KeyValueEntry> — { key, value, enabled, type?, pattern?, oneOf?, ... }
+            if (!state._headersMeta) state._headersMeta = {};
+            requestHeaders.forEach(({ key, value, enabled, ...meta }) => {
+                if (key) {
+                    if (Object.keys(meta).length > 0) {
+                        state._headersMeta[key] = meta;
+                    }
+                    const options = meta.enum && meta.enum.length > 0 ? meta.enum : null;
+                    const pattern = meta.pattern || null;
+                    formManager.addHeaderRow(key, value || '', true, enabled !== false, options, pattern);
+                }
+            });
+        } else if (typeof requestHeaders === 'object') {
             Object.entries(requestHeaders).forEach(([key, value]) => {
                 formManager.addHeaderRow(key, value, true, true);
             });

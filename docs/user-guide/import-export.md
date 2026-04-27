@@ -23,6 +23,21 @@ Import an OpenAPI 3.0 specification (`.yaml` or `.json`) to create a fully hydra
 
 All `$ref` pointers are resolved before import (including external and circular references).
 
+#### Parameter constraint round-trip
+The importer extracts all OpenAPI 3.0 parameter schema constraints and stores them as metadata:
+
+| OpenAPI schema field | Stored on | UI behavior |
+|---|---|---|
+| `enum` | `PathParamEntry` / `KeyValueEntry` | Select dropdown |
+| `pattern` | `PathParamEntry` / `KeyValueEntry` | Regex blur validation |
+| `format` | `PathParamEntry` / `KeyValueEntry` | Tooltip hint (display only) |
+| `minimum` / `maximum` | `PathParamEntry` / `KeyValueEntry` | Shown in constraints panel |
+| `exclusiveMinimum` / `exclusiveMaximum` | `PathParamEntry` / `KeyValueEntry` | Shown in constraints panel |
+| `minLength` / `maxLength` | `PathParamEntry` / `KeyValueEntry` | Shown in constraints panel |
+| `oneOf` | `PathParamEntry` / `KeyValueEntry` | Shown as schema variants |
+
+These fields are preserved when saving and re-exported to OpenAPI without data loss.
+
 ## Export
 
 ### Export to Postman
@@ -40,11 +55,21 @@ Generate a valid OpenAPI 3.0.3 specification from an HTTP Forge collection.
 4. The exporter maps:
    - Collection folders → OpenAPI tags.
    - Requests → OpenAPI operations (path + method).
-   - Path/query/header params (with metadata annotations) → OpenAPI parameters.
+   - Path/query/header params (with metadata annotations) → OpenAPI parameters, including `enum`, `pattern`, `format`, `minimum`/`maximum`, `minLength`/`maxLength`, and `oneOf`.
    - Request body (with `body.schema.json`) → `requestBody`.
    - Response schema (`response.schema.json`) → `responses`.
    - Auth (OAuth 2.0, Bearer, Basic, API Key) → `securitySchemes`.
    - Shared components are deduplicated.
+
+#### Collision-aware merging
+When multiple requests resolve to the same OpenAPI path **and** HTTP method (e.g., two
+`POST /api/orders` variants with different constraints), the exporter **merges** them
+into a single operation instead of losing one:
+
+- Descriptions are appended with variant labels.
+- Tags are unioned.
+- Parameters with the same name are merged: same constraint kind → merged in place (e.g., enum arrays unioned, ranges widened); different constraint kinds → wrapped in `oneOf`.
+- New response status codes and request body content types are added.
 
 ### Export to REST Client
 Right‑click a collection in the **Collections** tree and choose **Export Collection as REST Client**.

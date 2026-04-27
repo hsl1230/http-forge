@@ -7,6 +7,7 @@ The Request Tester is the main UI for building and executing requests from the e
 - **Path/URL**: Absolute URL or relative path resolved against environment variables (supports Express.js route patterns like `:id`)
 - **Send**: Executes the request
 - **Save**: Saves updates back to the collection
+- **Resolved URL preview**: Shows the final executed URL after inline variables, selected environment values, dynamic variables, filter/pipe expressions, and auth query params are resolved.
 
 ### Example
 ```
@@ -18,14 +19,14 @@ GET {{baseUrl}}/users/:id
 - Automatically detected from `:param` or `{{param}}` patterns
 - Values can be literals or `{{variables}}`
 - **Enum-driven dropdowns**: When a path parameter has an `enum` array in its `PathParamEntry` metadata, it renders as a select dropdown instead of a text input
-- **Validation**: The `format` field (if present) is used as a validation pattern, taking priority over patterns inferred from URL constraints like `:param(regex)`
-- Params metadata (`enum`, `format`) takes priority over URL-constraint-derived values
+- **Validation**: The `pattern` field (regex) is used for blur validation, taking priority over patterns inferred from URL constraints like `:param(regex)`. The `format` field (e.g., `"uuid"`, `"date-time"`) is shown as a tooltip hint but is **not** used as a regex.
+- Params metadata (`enum`, `pattern`) takes priority over URL-constraint-derived values
 
 ### Query params
 - Each row includes an enable/disable checkbox
 - Disabled rows are ignored without removing them
 - **Enum-driven dropdowns**: Query parameters with an `enum` array in their `KeyValueEntry` metadata render as select dropdowns
-- **Validation**: The `format` field is used as a validation pattern on blur
+- **Validation**: The `pattern` field (regex) is used for blur validation. `format` is shown as a tooltip hint.
 
 Example:
 ```
@@ -53,7 +54,7 @@ Auth settings are properly inherited when running requests in Test Suites.
 - Enable/disable each header row
 - Supports `{{variables}}`
 - **Enum-driven dropdowns**: Headers with an `enum` array in their `KeyValueEntry` metadata render as select dropdowns
-- **Validation**: The `format` field is used as a validation pattern on blur
+- **Validation**: The `pattern` field (regex) is used for blur validation. `format` is shown as a tooltip hint.
 
 ## Body tab
 - **JSON**: Monaco editor with formatting
@@ -125,6 +126,10 @@ The Body Schema tab lets you view and edit a JSON Schema definition for the requ
 
 ### Inline metadata (Params / Headers / Query)
 Each parameter, header, and query row has an expand toggle that reveals metadata fields: **type**, **description**, **required**, **format**, **enum**, **deprecated**. These annotations are exported as OpenAPI parameter metadata and saved with the request.
+
+When a parameter has extended constraints from an OpenAPI import (or manual entry), the metadata panel also shows a read-only **Constraints** section displaying `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `minLength`, `maxLength`. If the parameter has a `oneOf` array (from merged collision variants), a **Schema Variants** section shows each variant's properties.
+
+> **`format` vs `pattern`**: Per the OpenAPI 3.0 spec, `format` is a semantic keyword hint (e.g., `"uuid"`, `"email"`, `"date-time"`) that tools may ignore. `pattern` is a regex that must be enforced. In the Request Tester, only `pattern` drives blur validation — `format` is displayed as a tooltip label.
 
 ## Response Schema tab
 The Response Schema tab lets you view and edit response schemas grouped by HTTP status code. Schemas are stored in `response.schema.json` alongside each request.
