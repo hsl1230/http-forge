@@ -101,7 +101,8 @@ function createRequestLoader({
                     }
                     const options = meta.enum && meta.enum.length > 0 ? meta.enum : null;
                     const pattern = meta.pattern || null;
-                    formManager.addHeaderRow(key, value || '', true, enabled !== false, options, pattern);
+                    const combobox = !!(options && meta.oneOf && meta.oneOf.length > 0);
+                    formManager.addHeaderRow(key, value || '', true, enabled !== false, options, pattern, combobox);
                 }
             });
         } else if (typeof requestHeaders === 'object') {
@@ -153,6 +154,18 @@ function createRequestLoader({
         }
         if (elements.oauth2Section) {
             elements.oauth2Section.classList.add('hidden');
+        }
+        if (elements.apiKeySection) {
+            elements.apiKeySection.classList.add('hidden');
+        }
+        if (elements.apiKeyKey) {
+            elements.apiKeyKey.value = '';
+        }
+        if (elements.apiKeyValue) {
+            elements.apiKeyValue.value = '';
+        }
+        if (elements.apiKeyIn) {
+            elements.apiKeyIn.value = 'header';
         }
 
         // Apply auth from request if present

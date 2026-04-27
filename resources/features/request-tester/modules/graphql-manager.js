@@ -762,7 +762,31 @@ export function createGraphQLSchemaManager({ state, elements, vscode, editorsMan
         };
     }
 
-    // ─── Cleanup ─────────────────────────────────────
+    // ─── Reset / Cleanup ─────────────────────────────
+
+    /**
+     * Reset all GraphQL schema state for a new request.
+     * Clears cached schema, completions, explorer, status, and operation selector.
+     */
+    function reset() {
+        if (completionDisposable) {
+            completionDisposable.dispose();
+            completionDisposable = null;
+        }
+        schemaData = null;
+        schemaEndpointUrl = null;
+        isFetching = false;
+
+        // Clear UI
+        setStatus('', '');
+        if (typeTree) typeTree.innerHTML = '';
+        if (operationSelect) {
+            operationSelect.innerHTML = '<option value="">All operations</option>';
+        }
+        if (explorerPanel) {
+            explorerPanel.classList.add('hidden');
+        }
+    }
 
     function dispose() {
         if (completionDisposable) {
@@ -777,6 +801,7 @@ export function createGraphQLSchemaManager({ state, elements, vscode, editorsMan
     return {
         initialize,
         fetchSchema,
+        reset,
         getMessageHandlers,
         dispose,
         getSchemaData: () => schemaData,

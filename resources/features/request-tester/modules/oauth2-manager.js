@@ -325,6 +325,40 @@ function createOAuth2Manager({ state, elements, vscode, markDirty }) {
     }
 
     /**
+     * Reset OAuth2 manager to clean state.
+     * Clears cached token, token UI, error messages, and all form fields.
+     */
+    function reset() {
+        currentTokenInfo = null;
+        updateTokenUI(null);
+        hideError();
+
+        // Reset button state
+        if (elements.oauth2GetToken) {
+            elements.oauth2GetToken.textContent = 'Get New Token';
+            elements.oauth2GetToken.disabled = false;
+        }
+
+        // Clear all form fields
+        if (elements.oauth2GrantType) elements.oauth2GrantType.value = 'authorization_code';
+        if (elements.oauth2AuthUrl) elements.oauth2AuthUrl.value = '';
+        if (elements.oauth2TokenUrl) elements.oauth2TokenUrl.value = '';
+        if (elements.oauth2ClientId) elements.oauth2ClientId.value = '';
+        if (elements.oauth2ClientSecret) elements.oauth2ClientSecret.value = '';
+        if (elements.oauth2Scope) elements.oauth2Scope.value = '';
+        if (elements.oauth2Pkce) elements.oauth2Pkce.checked = true;
+        if (elements.oauth2Username) elements.oauth2Username.value = '';
+        if (elements.oauth2Password) elements.oauth2Password.value = '';
+        if (elements.oauth2Audience) elements.oauth2Audience.value = '';
+        if (elements.oauth2TokenPrefix) elements.oauth2TokenPrefix.value = '';
+        if (elements.oauth2TokenField) elements.oauth2TokenField.value = '';
+        if (elements.oauth2ClientAuth) elements.oauth2ClientAuth.value = 'body';
+
+        // Reset field visibility to authorization_code defaults
+        switchGrantType('authorization_code');
+    }
+
+    /**
      * Initialize event listeners for OAuth2 fields
      */
     function initListeners() {
@@ -412,6 +446,7 @@ function createOAuth2Manager({ state, elements, vscode, markDirty }) {
         switchGrantType,
         getConfig,
         loadConfig,
+        reset,
         requestToken,
         refreshToken,
         clearToken,

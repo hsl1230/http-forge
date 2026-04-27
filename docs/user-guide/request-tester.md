@@ -19,6 +19,7 @@ GET {{baseUrl}}/users/:id
 - Automatically detected from `:param` or `{{param}}` patterns
 - Values can be literals or `{{variables}}`
 - **Enum-driven dropdowns**: When a path parameter has an `enum` array in its `PathParamEntry` metadata, it renders as a select dropdown instead of a text input
+- **Combobox mode**: When a path parameter has both `enum` and `oneOf` (e.g. from collision-merged OpenAPI variants), it renders as an editable combobox — an `<input>` with a `<datalist>` providing autocomplete suggestions from the enum values. This allows users to either pick a known value from the dropdown or type a pattern-matched value not in the enum.
 - **Validation**: The `pattern` field (regex) is used for blur validation, taking priority over patterns inferred from URL constraints like `:param(regex)`. The `format` field (e.g., `"uuid"`, `"date-time"`) is shown as a tooltip hint but is **not** used as a regex.
 - Params metadata (`enum`, `pattern`) takes priority over URL-constraint-derived values
 
@@ -26,6 +27,7 @@ GET {{baseUrl}}/users/:id
 - Each row includes an enable/disable checkbox
 - Disabled rows are ignored without removing them
 - **Enum-driven dropdowns**: Query parameters with an `enum` array in their `KeyValueEntry` metadata render as select dropdowns
+- **Combobox mode**: Query parameters with both `enum` and `oneOf` render as an editable combobox (same behavior as path params above)
 - **Validation**: The `pattern` field (regex) is used for blur validation. `format` is shown as a tooltip hint.
 
 Example:
@@ -54,6 +56,7 @@ Auth settings are properly inherited when running requests in Test Suites.
 - Enable/disable each header row
 - Supports `{{variables}}`
 - **Enum-driven dropdowns**: Headers with an `enum` array in their `KeyValueEntry` metadata render as select dropdowns
+- **Combobox mode**: Headers with both `enum` and `oneOf` render as an editable combobox (same behavior as path params above)
 - **Validation**: The `pattern` field (regex) is used for blur validation. `format` is shown as a tooltip hint.
 
 ## Body tab
@@ -197,3 +200,29 @@ Behavior notes
 
 ## History
 See: history-shared.md
+
+## Panel lifecycle — loading a new request
+
+When you open a different request in an existing Request Tester panel (via the Collections tree, history sidebar, or extension API), the panel performs a **full reset** before populating the new request data. This ensures no stale state from the previous request leaks through.
+
+### What gets reset
+
+| Area | Reset behavior |
+|------|----------------|
+| **Params / Headers / Query** | DOM rows cleared, metadata maps (`_paramsMeta`, `_queryMeta`, `_headersMeta`) emptied |
+| **Method / URL** | Reset to `GET` / empty, then overwritten by new request |
+| **Body** | Body type, raw format, form-data, urlencoded, binary, and GraphQL editors all cleared |
+| **Authorization** | All auth types reset — Bearer token, Basic credentials, API Key fields, OAuth2 form fields and cached token all cleared |
+| **Scripts** | Pre-request and post-response editors cleared to empty |
+| **Settings** | Reset to defaults (timeout 30s, follow redirects, strict SSL, etc.) then merged with request settings |
+| **Body Schema / Response Schema** | Editor content, status code sub-tabs, and internal schema data cleared |
+| **GraphQL schema** | Cached schema, Monaco completions, explorer tree, operation selector, and status indicator all cleared |
+| **Response section** | Body editor, headers/cookies tables, sent request details, test results, and visualizer iframe all cleared |
+| **Cookie preview** | Updated from message data or cleared to empty |
+| **History sidebar** | Re-rendered from message data or cleared to "No history yet" |
+| **Document tab** | Updated from new request's `doc` field |
+| **URL preview** | Recalculated after loading |
+
+### Dirty state suppression
+
+During the load cycle, dirty tracking is suppressed (`_suppressDirty` flag). This prevents intermediate form-change events from emitting `dirtyStateChanged` messages to the extension host. After all population is complete, a fresh snapshot is taken and `markClean()` is called — so the panel starts in a clean state with no unsaved changes.

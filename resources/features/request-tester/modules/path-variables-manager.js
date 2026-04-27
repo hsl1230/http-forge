@@ -94,6 +94,7 @@ function createPathVariablesManager({ state, elements, formManager }) {
             // Params metadata (enum/pattern) takes priority over URL constraint
             let effectiveOptions = options;
             let effectivePattern = pattern;
+            let combobox = false;  // true = render as editable input with suggestions, not strict select
             if (params) {
                 const entry = params[paramName];
                 if (entry && typeof entry === 'object') {
@@ -102,6 +103,12 @@ function createPathVariablesManager({ state, elements, formManager }) {
                     }
                     if (entry.pattern) {
                         effectivePattern = entry.pattern;
+                    }
+                    // When oneOf is present, the enum is only a subset of valid values —
+                    // render as a combobox (input + datalist) so the user can also type
+                    // pattern-matched values not in the enum.
+                    if (entry.oneOf && entry.oneOf.length > 0 && effectiveOptions) {
+                        combobox = true;
                     }
                     // Pre-populate metadata so the detail panel renders with it
                     const { value: _v, ...meta } = entry;
@@ -114,7 +121,7 @@ function createPathVariablesManager({ state, elements, formManager }) {
             const existingValue = currentValues[paramName] || '';
             state.pathParams[paramName] = existingValue;
             // Pass options for select box, or pattern for input validation
-            formManager.addParamRow('path', paramName, existingValue, false, true, true, effectiveOptions, effectivePattern);
+            formManager.addParamRow('path', paramName, existingValue, false, true, true, effectiveOptions, effectivePattern, combobox);
         });
     }
 

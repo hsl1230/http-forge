@@ -452,7 +452,13 @@ class RequestTesterApp {
             this.state.allowSave = data.allowSave === true;
             this.applyReadonlyState();
 
-            this.initializePanelData(data);
+            // Suppress dirty tracking during initialization
+            this.state._suppressDirty = true;
+            try {
+                this.initializePanelData(data);
+            } finally {
+                this.state._suppressDirty = false;
+            }
 
             // For Endpoint Tester mode (allowSave=true), enable save button
             // by default since the endpoint test configuration isn't saved yet.
@@ -464,9 +470,9 @@ class RequestTesterApp {
                 this.updateSaveButtonState();
                 this.state.originalRequest = this.requestSaver.takeSnapshot();
             } else {
-                // Mark as clean after loading (loading triggers change events)
-                this.markClean();
+                // Take snapshot first, then mark clean
                 this.state.originalRequest = this.requestSaver.takeSnapshot();
+                this.markClean();
             }
             
         } catch (error) {
@@ -540,39 +546,86 @@ class RequestTesterApp {
 
     handleLoadRequest(msg) {
         if (msg.request) {
-            // Update readonly state if provided
-            if (typeof msg.readonly === 'boolean') {
-                this.state.readonly = msg.readonly;
-                this.applyReadonlyState();
-            }
-            
-            // Update state for collection tracking
-            if (msg.collectionId) this.state.collectionId = msg.collectionId;
-            if (msg.collectionName) this.state.collectionName = msg.collectionName;
-            if (msg.resolvedEnvironment) this.state.resolvedEnvironment = msg.resolvedEnvironment;
-            if (msg.globalVariables) this.state.globalVariables = msg.globalVariables;
-            if (msg.sessionVariables) this.state.sessionVariables = msg.sessionVariables;
-            if (msg.collectionVariables) this.state.collectionVariables = msg.collectionVariables;
-            
-            // Clear previous response before loading new request
-            this.responseHandler.clearResponse();
-            
-            // Load the request
-            this.requestLoader.loadCollectionRequest(msg.request);
-            this.pathVariablesManager.applyParams(msg.request.params);
-            this.pathVariablesManager.applyEnvironmentDefaults(this.state.resolvedEnvironment.variables);
-            
-            // Update document tab
-            this.updateDocTab(msg.request?.doc);
+            // Suppress dirty tracking during the entire load cycle so intermediate
+            // form-change events don't fire dirtyStateChanged to the extension.
+            this.state._suppressDirty = true;
 
-            // Render history if provided
-            if (msg.history) {
-                this.historyRenderer.render(msg.history);
+            try {
+                // Update readonly state if provided
+                if (typeof msg.readonly === 'boolean') {
+                    this.state.readonly = msg.readonly;
+                    this.applyReadonlyState();
+                }
+
+                // Update state for collection tracking — use unconditional
+                // assignment with fallbacks so stale values from the previous
+                // request never leak through.
+                this.state.requestData = msg.request;
+                this.state.collectionId = msg.collectionId || null;
+                this.state.collectionName = msg.collectionName || null;
+                this.state.resolvedEnvironment = msg.resolvedEnvironment || {};
+                this.state.globalVariables = msg.globalVariables || {};
+                this.state.sessionVariables = msg.sessionVariables || {};
+                this.state.collectionVariables = msg.collectionVariables || {};
+                this.state.selectedEnvironment = msg.selectedEnvironment || this.state.selectedEnvironment;
+
+                // --- Full panel reset before populating ---
+                // Response section
+                this.responseHandler.clearResponse();
+                this.state.lastResponse = null;
+                this.state.lastSentRequest = null;
+                this.resetRequestState();
+
+                // Request section — form, method, path
+                this.formManager.clearForm();
+                this.setMethod('GET');
+                this.setPath('');
+                this.state.requestPath = '';
+                this.state.baseUrl = '';
+
+                // History sidebar
+                this.state.activeHistoryEntryId = null;
+
+                // Reset OAuth2 internal state (cached token, token UI, form fields)
+                if (this.oauth2Manager) {
+                    this.oauth2Manager.reset();
+                }
+
+                // Load the request (populates form, params, headers, body, auth, scripts, settings)
+                this.requestLoader.loadCollectionRequest(msg.request);
+                this.pathVariablesManager.applyParams(msg.request.params);
+                this.pathVariablesManager.applyEnvironmentDefaults(this.state.resolvedEnvironment.variables);
+
+                // Update document tab
+                this.updateDocTab(msg.request?.doc);
+
+                // Render history (clear if not provided so stale entries don't persist)
+                this.historyRenderer.render(msg.history || []);
+
+                // Cookie preview — load if provided, clear otherwise
+                if (msg.cookies && this.cookieManager) {
+                    this.cookieManager.loadCookies(msg.cookies);
+                    this.renderCookiePreview(msg.cookies);
+                } else {
+                    this.renderCookiePreview([]);
+                }
+
+                // Load schemas for the new request (clears previous schemas first)
+                this.schemaEditorManager.loadSchemas();
+
+                // Reset GraphQL schema cache (completions, explorer, status)
+                this.graphqlSchemaManager.reset();
+
+                this.updateUrlPreview();
+                this.populateEnvironmentSelector();
+            } finally {
+                // Re-enable dirty tracking and mark clean
+                this.state._suppressDirty = false;
             }
 
-            // Mark as clean after loading (loading triggers change events)
-            this.markClean();
+            // Take a fresh snapshot AFTER all population is done, then mark clean
             this.state.originalRequest = this.requestSaver.takeSnapshot();
+            this.markClean();
         }
     }
 
@@ -970,7 +1023,8 @@ class RequestTesterApp {
             const meta = this.state._headersMeta[key];
             const options = meta && Array.isArray(meta.enum) && meta.enum.length > 0 ? meta.enum : null;
             const pattern = meta && meta.pattern ? meta.pattern : null;
-            this.formManager.addHeaderRow(key, value, true, enabled, options, pattern);
+            const combobox = !!(options && meta && meta.oneOf && meta.oneOf.length > 0);
+            this.formManager.addHeaderRow(key, value, true, enabled, options, pattern, combobox);
         });
     }
 
@@ -1201,6 +1255,8 @@ class RequestTesterApp {
     // ========================================
 
     markDirty() {
+        // Suppress dirty events during bulk loading to avoid premature dirtyStateChanged messages
+        if (this.state._suppressDirty) return;
         // Only track dirty state when not readonly, or when allowSave is true
         if (this.state.readonly && !this.state.allowSave) return;
         
@@ -1216,6 +1272,7 @@ class RequestTesterApp {
     }
 
     markClean() {
+        if (this.state._suppressDirty) return;
         this.state.isDirty = false;
         this.updateSaveButtonState();
         // Notify extension of dirty state change

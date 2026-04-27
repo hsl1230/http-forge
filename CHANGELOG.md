@@ -5,7 +5,26 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.11.12 - 2026-04-27
+## 0.11.14 - 2026-04-27
+
+### Added
+
+- **Combobox for oneOf+enum parameters**: When a parameter has both `enum` and `oneOf` (e.g. from collision-merged variants where some variants are pattern-based), the Request Tester renders an editable combobox (`<input>` + `<datalist>`) instead of a strict `<select>`. This allows users to pick from known enum values or type pattern-matched values not in the enum.
+- **Full panel reset on request switch**: Opening a new request in an existing Request Tester panel now performs a comprehensive reset of all tabs and sections before populating the new data. Dirty tracking is suppressed during loading so intermediate form changes don't emit false `dirtyStateChanged` events.
+
+### Fixed
+
+- **API Key auth section not hidden on reset**: When switching to a request without API Key auth, the API Key section and its form fields were not being cleared/hidden. Now all auth sections (Bearer, Basic, API Key, OAuth2) are uniformly reset.
+- **Stale state after request switch**: Fixed multiple state leak issues when switching requests in an existing panel:
+  - OAuth2 cached token and token UI now cleared (new `oauth2Manager.reset()`)
+  - GraphQL cached schema, completions, explorer, and status now cleared (new `graphqlSchemaManager.reset()`)
+  - Body and Response schema editors now cleared before loading (new `clearSchemas()` in schema-editor-manager)
+  - Cookie preview in Settings tab now cleared or updated
+  - History sidebar now always re-rendered (empty list if no history provided)
+  - `lastResponse`, `lastSentRequest`, `activeHistoryEntryId` cleared to `null`
+  - Collection/environment state uses unconditional assignment with fallbacks instead of guarded `if` checks
+
+## 0.11.13 - 2026-04-27
 
 ### Added
 

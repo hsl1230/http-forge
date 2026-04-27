@@ -127,6 +127,9 @@ function createState() {
         /** Dirty state - tracks if there are unsaved changes */
         isDirty: false,
 
+        /** Suppress dirty tracking during bulk loading */
+        _suppressDirty: false,
+
         /** Original request snapshot for comparison */
         originalRequest: null
     };

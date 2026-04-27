@@ -254,7 +254,8 @@ function createQueryParamsManager({ state, elements, formManager, updateUrlPrevi
             // Use enum as select options, pattern (regex) for validation
             const options = Array.isArray(param.enum) && param.enum.length > 0 ? param.enum : null;
             const pattern = param.pattern || null;
-            formManager.addParamRow('query', param.key, param.value, true, keyEditable, param.enabled !== false, options, pattern);
+            const combobox = !!(options && param.oneOf && param.oneOf.length > 0);
+            formManager.addParamRow('query', param.key, param.value, true, keyEditable, param.enabled !== false, options, pattern, combobox);
         });
         
         // Build and set full URL (base + enabled params)

@@ -200,9 +200,51 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
 
         const currentValue = oldEl.value || '';
         const enumValues = Array.isArray(meta.enum) && meta.enum.length > 0 ? meta.enum : null;
+        const hasOneOf = meta.oneOf && meta.oneOf.length > 0;
         const isCurrentlySelect = oldEl.tagName === 'SELECT';
+        const isCurrentlyInput = oldEl.tagName === 'INPUT';
 
-        if (enumValues && !isCurrentlySelect) {
+        if (enumValues && hasOneOf) {
+            // Combobox mode: enum + oneOf → input with datalist suggestions
+            if (isCurrentlySelect) {
+                // Replace strict select with combobox input + datalist
+                const listId = `dl-${itemKey}-${Date.now()}`;
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.className = 'value';
+                inp.placeholder = 'Value or {{variable}}';
+                inp.value = currentValue;
+                inp.setAttribute('list', listId);
+                inp.title = meta.pattern
+                    ? `Suggestions from enum; also accepts: ${meta.pattern}`
+                    : 'Type or select a value';
+                const dl = document.createElement('datalist');
+                dl.id = listId;
+                enumValues.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt;
+                    dl.appendChild(o);
+                });
+                oldEl.replaceWith(inp);
+                inp.after(dl);
+                attachValueListener(inp, type, itemKey);
+                attachBlurValidation(inp, meta.pattern);
+            } else {
+                // Already an input — update the datalist
+                const existingDl = oldEl.list;
+                if (existingDl) {
+                    existingDl.innerHTML = '';
+                    enumValues.forEach(opt => {
+                        const o = document.createElement('option');
+                        o.value = opt;
+                        existingDl.appendChild(o);
+                    });
+                }
+                oldEl.title = meta.pattern
+                    ? `Suggestions from enum; also accepts: ${meta.pattern}`
+                    : 'Type or select a value';
+            }
+        } else if (enumValues && !isCurrentlySelect) {
             // Replace text input with select dropdown
             const sel = document.createElement('select');
             sel.className = 'value';
@@ -217,6 +259,8 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                 option.selected = opt === effectiveValue;
                 sel.appendChild(option);
             });
+            // Remove any datalist from previous combobox mode
+            if (oldEl.list) oldEl.list.remove();
             oldEl.replaceWith(sel);
             attachValueListener(sel, type, itemKey);
             updateValueState(type, itemKey, effectiveValue);
@@ -439,8 +483,9 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
      * @param {boolean} enabled - Whether the param is enabled (for query params)
      * @param {string[]|null} options - If provided, render a select box with these options
      * @param {string|null} pattern - If provided, validate input against this regex pattern on blur
+     * @param {boolean} combobox - If true, render options as a datalist (editable input with suggestions) instead of strict select
      */
-    function addParamRow(type, key, value, isNew = false, keyDisabled = false, enabled = true, options = null, pattern = null) {
+    function addParamRow(type, key, value, isNew = false, keyDisabled = false, enabled = true, options = null, pattern = null, combobox = false) {
         const container = type === 'path' ? elements.pathParams : elements.queryParams;
         const row = document.createElement('div');
         row.className = 'param-row';
@@ -452,10 +497,11 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             : '';
 
         // For path params with options, render a select box instead of input
+        // Exception: combobox mode renders an input with datalist for free-form + suggestions
         let valueHtml;
         let effectiveValue = value;
-        if (options && options.length > 0) {
-            // If value is empty or not in options, default to first option
+        if (options && options.length > 0 && !combobox) {
+            // Strict select — value must be one of the options
             if (!value || !options.includes(value)) {
                 effectiveValue = options[0];
                 // Update state immediately if this is a path param
@@ -467,6 +513,12 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                 `<option value="${escapeHtml(opt)}" ${opt === effectiveValue ? 'selected' : ''}>${escapeHtml(opt)}</option>`
             ).join('');
             valueHtml = `<select class="value">${optionsHtml}</select>`;
+        } else if (options && options.length > 0 && combobox) {
+            // Combobox — editable input with suggestions from enum, allows free-form values
+            const listId = `dl-${key}-${Date.now()}`;
+            const optionsHtml = options.map(opt => `<option value="${escapeHtml(opt)}">`).join('');
+            const patternHint = pattern ? ` title="Suggestions from enum; also accepts: ${escapeHtml(pattern)}"` : ' title="Type or select a value"';
+            valueHtml = `<input type="text" class="value" list="${listId}" placeholder="Value or {{variable}}" value="${escapeHtml(value)}"${patternHint}><datalist id="${listId}">${optionsHtml}</datalist>`;
         } else {
             // Add title with pattern hint if there's a validation pattern
             const patternHint = pattern ? ` title="Must match: ${escapeHtml(pattern)}"` : '';
@@ -583,15 +635,16 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
      * @param {string[]|null} options - If provided, render a select box with these options
      * @param {string|null} pattern - If provided, validate input against this regex pattern on blur
      */
-    function addHeaderRow(key, value, isNew = false, enabled = true, options = null, pattern = null) {
+    function addHeaderRow(key, value, isNew = false, enabled = true, options = null, pattern = null, combobox = false) {
         const row = document.createElement('div');
         row.className = 'param-row';
 
         const checkboxHtml = `<input type="checkbox" class="param-checkbox" ${enabled ? 'checked' : ''} title="Enable/disable this header">`;
 
         // Render select dropdown for enum options, or text input otherwise
+        // Exception: combobox mode renders an input with datalist for free-form + suggestions
         let valueHtml;
-        if (options && options.length > 0) {
+        if (options && options.length > 0 && !combobox) {
             let effectiveValue = value;
             if (!value || !options.includes(value)) {
                 effectiveValue = options[0];
@@ -600,6 +653,11 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                 `<option value="${escapeHtml(opt)}" ${opt === effectiveValue ? 'selected' : ''}>${escapeHtml(opt)}</option>`
             ).join('');
             valueHtml = `<select class="value">${optionsHtml}</select>`;
+        } else if (options && options.length > 0 && combobox) {
+            const listId = `dl-h-${key}-${Date.now()}`;
+            const optionsHtml = options.map(opt => `<option value="${escapeHtml(opt)}">`).join('');
+            const patternHint = pattern ? ` title="Suggestions from enum; also accepts: ${escapeHtml(pattern)}"` : ' title="Type or select a value"';
+            valueHtml = `<input type="text" class="value" list="${listId}" placeholder="Value or {{variable}}" value="${escapeHtml(value)}"${patternHint}><datalist id="${listId}">${optionsHtml}</datalist>`;
         } else {
             const patternHint = pattern ? ` title="Must match: ${escapeHtml(pattern)}"` : '';
             valueHtml = `<input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml(value)}"${patternHint}>`;

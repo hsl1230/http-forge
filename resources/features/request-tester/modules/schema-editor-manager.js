@@ -233,6 +233,9 @@ function createSchemaEditorManager({ vscode, state, editorsManager, markDirty })
      * Called from main.js during request setup
      */
     function loadSchemas() {
+        // Clear previous schema data first to avoid stale content
+        clearSchemas();
+
         // Always apply in-memory schema data first (e.g. from Spring API Tester
         // or other external extensions that set bodySchema/responseSchema on
         // the request object). This ensures freshly-generated schemas display
@@ -252,6 +255,36 @@ function createSchemaEditorManager({ vscode, state, editorsManager, markDirty })
             // backend for the stored version (normal collection workflow).
             vscode.postMessage({ command: 'getBodySchema', collectionId, requestId });
             vscode.postMessage({ command: 'getResponseSchema', collectionId, requestId });
+        }
+    }
+
+    /**
+     * Clear all schema data and editors back to empty state.
+     * Called before loading a new request to avoid stale content.
+     */
+    function clearSchemas() {
+        bodySchemaData = null;
+        responseSchemaData = {};
+        responseSchemaComponents = null;
+        activeStatusCode = null;
+
+        if (bodySchemaEditor) {
+            bodySchemaEditor.setValue('');
+        }
+        if (responseSchemaEditor) {
+            responseSchemaEditor.setValue('');
+        }
+
+        // Clear status code sub-tabs
+        const tabsContainer = document.getElementById('response-status-tabs');
+        if (tabsContainer) {
+            tabsContainer.innerHTML = '';
+        }
+
+        // Remove schema indicator from Body tab
+        const bodyTab = document.querySelector('.tab[data-tab="body"]');
+        if (bodyTab) {
+            bodyTab.classList.remove('has-schema');
         }
     }
 
@@ -442,6 +475,7 @@ function createSchemaEditorManager({ vscode, state, editorsManager, markDirty })
     return {
         init,
         loadSchemas,
+        clearSchemas,
         applyBodySchema,
         applyResponseSchema,
         getMessageHandlers,
