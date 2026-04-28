@@ -1239,9 +1239,8 @@ button.primary.cancel:hover {
 }
 
 .param-meta-detail.open {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px 12px;
+    display: flex;
+    flex-direction: column;
 }
 
 .param-meta-detail .meta-field {
@@ -1519,6 +1518,96 @@ button.primary.cancel:hover {
 
 .param-meta-detail .oneof-add-btn:hover {
     background: var(--vscode-button-secondaryHoverBackground, #45494e);
+}
+
+/* ── Section-based layout ── */
+.param-meta-detail .meta-section {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--vscode-input-border, #3c3c3c);
+}
+
+.param-meta-detail .meta-section:first-child {
+    padding-top: 0;
+}
+
+.param-meta-detail .meta-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.param-meta-detail .meta-section-parameter,
+.param-meta-detail .meta-section-schema {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.param-meta-detail .meta-section > .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--vscode-descriptionForeground, #808080);
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: block;
+}
+
+/* Schema type row — Type | Format | Nullable inline */
+.param-meta-detail .schema-type-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 6px;
+}
+
+.param-meta-detail .schema-type-row .meta-field {
+    flex: 1;
+}
+
+.param-meta-detail .schema-type-row .nullable-toggle {
+    padding-bottom: 4px;
+    white-space: nowrap;
+}
+
+/* Enum sub-label (inside schema section) */
+.param-meta-detail .section-sublabel {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--vscode-descriptionForeground, #808080);
+    font-weight: 600;
+}
+
+/* Constraint inline pairs — Min+Exclusive / Max+Exclusive side by side */
+.param-meta-detail .constraint-inline-pairs {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.param-meta-detail .constraint-inline-pair {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.param-meta-detail .inline-toggle {
+    padding-bottom: 3px;
+    white-space: nowrap;
+}
+
+/* Two-column constraint grid (string min/max length) */
+.param-meta-detail .constraint-fields-grid.two-col {
+    grid-template-columns: 1fr 1fr;
+}
+
+/* Hint shown when no type is selected */
+.param-meta-detail .constraint-type-hint {
+    padding: 6px 0;
+    font-size: 11px;
+    font-style: italic;
+    color: var(--vscode-descriptionForeground, #808080);
 }
 
 /* Path params don't have checkboxes — shift detail panel left */

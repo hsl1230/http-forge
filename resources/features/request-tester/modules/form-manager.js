@@ -45,22 +45,73 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         const enumTags = (meta.enum || []).map(v =>
             `<span class="enum-tag">${escapeHtml(v)}<span class="remove-enum" title="Remove">×</span></span>`
         ).join('');
-
-        // Editable constraints section — organized by type group with show/hide based on selected type
-        // Determine initial visibility: no type selected → show all groups
+        // Layout: Parameter section → Schema section → Variants section
+        // Determine initial visibility: no type selected → hide all constraint groups + show hint
         const t = meta.type || '';
-        const isStr = !t || t === 'string';
-        const isNum = !t || t === 'integer' || t === 'number';
-        const isArr = !t || t === 'array';
+        const isStr = t === 'string';
+        const isNum = t === 'integer' || t === 'number';
+        const isArr = t === 'array';
+        const hasType = !!t;
 
-        const constraintsHtml = `
-            <div class="meta-constraints">
-                <label class="section-label">Constraints</label>
+        // oneOf variant items
+        const oneOfVariants = (meta.oneOf && meta.oneOf.length > 0) ? meta.oneOf : [];
+        const variantItems = oneOfVariants.map((v, i) => {
+            const summary = variantSummary(v);
+            const jsonAttr = escapeHtml(JSON.stringify(v));
+            return `<div class="oneof-variant-item" data-index="${i}" data-variant="${jsonAttr}" title="Click to load into fields above">
+                <span class="oneof-variant-label">Variant ${i + 1}:</span>
+                <span class="oneof-variant-summary">${summary}</span>
+                <button class="oneof-remove-btn icon-btn" type="button" title="Remove variant">×</button>
+            </div>`;
+        }).join('');
+
+        return `
+            <div class="meta-section meta-section-parameter">
+                <label class="section-label">Parameter</label>
+                <div class="meta-field full-width">
+                    <label>Description</label>
+                    <textarea class="meta-description" placeholder="Parameter description" rows="1">${escapeHtml(meta.description || '')}</textarea>
+                </div>
                 <div class="meta-toggles">
                     <label class="meta-toggle-label">
+                        <input type="checkbox" class="meta-required" ${meta.required ? 'checked' : ''}>
+                        Required
+                    </label>
+                    <label class="meta-toggle-label">
+                        <input type="checkbox" class="meta-deprecated" ${meta.deprecated ? 'checked' : ''}>
+                        Deprecated
+                    </label>
+                </div>
+            </div>
+            <div class="meta-section meta-section-schema">
+                <label class="section-label">Schema</label>
+                <div class="schema-type-row">
+                    <div class="meta-field">
+                        <label>Type</label>
+                        <select class="meta-type">
+                            <option value="">—</option>
+                            ${typeOptions}
+                        </select>
+                    </div>
+                    <div class="meta-field">
+                        <label>Format</label>
+                        <input type="text" class="meta-format" placeholder="e.g. date-time, int32" value="${escapeHtml(meta.format || '')}" list="format-suggestions">
+                    </div>
+                    <label class="meta-toggle-label nullable-toggle">
                         <input type="checkbox" class="meta-nullable" ${meta.nullable ? 'checked' : ''}>
                         Nullable
                     </label>
+                </div>
+                <div class="enum-editor">
+                    <label class="section-sublabel">Enum Values</label>
+                    <div class="enum-tags">${enumTags}</div>
+                    <div class="enum-input-row">
+                        <input type="text" class="enum-new-value" placeholder="Add enum value">
+                        <button class="enum-add-btn" type="button">+</button>
+                    </div>
+                </div>
+                <div class="constraint-type-hint" ${hasType ? 'style="display:none"' : ''}>
+                    <span>Select a type to configure constraints</span>
                 </div>
                 <div class="constraint-group constraint-group-string" ${isStr ? '' : 'style="display:none"'}>
                     <label class="group-label">String</label>
@@ -68,7 +119,7 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                         <label>Pattern</label>
                         <input type="text" class="meta-pattern" placeholder="e.g. ^[a-z]+$" value="${escapeHtml(meta.pattern || '')}">
                     </div>
-                    <div class="constraint-fields-grid">
+                    <div class="constraint-fields-grid two-col">
                         <div class="meta-field">
                             <label>Min Length</label>
                             <input type="number" class="meta-min-length" placeholder="—" value="${meta.minLength !== undefined ? meta.minLength : ''}" min="0">
@@ -81,36 +132,36 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                 </div>
                 <div class="constraint-group constraint-group-numeric" ${isNum ? '' : 'style="display:none"'}>
                     <label class="group-label">Numeric</label>
-                    <div class="constraint-fields-grid">
-                        <div class="meta-field">
-                            <label>Minimum</label>
-                            <input type="number" class="meta-minimum" placeholder="—" value="${meta.minimum !== undefined ? meta.minimum : ''}">
-                        </div>
-                        <div class="meta-field">
-                            <label>Maximum</label>
-                            <input type="number" class="meta-maximum" placeholder="—" value="${meta.maximum !== undefined ? meta.maximum : ''}">
-                        </div>
-                        <div class="meta-field">
-                            <label class="meta-toggle-label" style="padding-top:18px">
+                    <div class="constraint-inline-pairs">
+                        <div class="constraint-inline-pair">
+                            <div class="meta-field">
+                                <label>Minimum</label>
+                                <input type="number" class="meta-minimum" placeholder="—" value="${meta.minimum !== undefined ? meta.minimum : ''}">
+                            </div>
+                            <label class="meta-toggle-label inline-toggle">
                                 <input type="checkbox" class="meta-exclusive-minimum" ${meta.exclusiveMinimum ? 'checked' : ''}>
-                                Exclusive Min
+                                Exclusive
                             </label>
                         </div>
-                        <div class="meta-field">
-                            <label class="meta-toggle-label" style="padding-top:18px">
+                        <div class="constraint-inline-pair">
+                            <div class="meta-field">
+                                <label>Maximum</label>
+                                <input type="number" class="meta-maximum" placeholder="—" value="${meta.maximum !== undefined ? meta.maximum : ''}">
+                            </div>
+                            <label class="meta-toggle-label inline-toggle">
                                 <input type="checkbox" class="meta-exclusive-maximum" ${meta.exclusiveMaximum ? 'checked' : ''}>
-                                Exclusive Max
+                                Exclusive
                             </label>
                         </div>
-                        <div class="meta-field">
-                            <label>Multiple Of</label>
-                            <input type="number" class="meta-multiple-of" placeholder="—" value="${meta.multipleOf !== undefined ? meta.multipleOf : ''}" min="0">
-                        </div>
+                    </div>
+                    <div class="meta-field" style="max-width:140px">
+                        <label>Multiple Of</label>
+                        <input type="number" class="meta-multiple-of" placeholder="—" value="${meta.multipleOf !== undefined ? meta.multipleOf : ''}" min="0">
                     </div>
                 </div>
                 <div class="constraint-group constraint-group-array" ${isArr ? '' : 'style="display:none"'}>
                     <label class="group-label">Array</label>
-                    <div class="constraint-fields-grid">
+                    <div class="constraint-inline-pairs">
                         <div class="meta-field">
                             <label>Min Items</label>
                             <input type="number" class="meta-min-items" placeholder="—" value="${meta.minItems !== undefined ? meta.minItems : ''}" min="0">
@@ -119,68 +170,18 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                             <label>Max Items</label>
                             <input type="number" class="meta-max-items" placeholder="—" value="${meta.maxItems !== undefined ? meta.maxItems : ''}" min="0">
                         </div>
-                        <div class="meta-field">
-                            <label class="meta-toggle-label" style="padding-top:18px">
-                                <input type="checkbox" class="meta-unique-items" ${meta.uniqueItems ? 'checked' : ''}>
-                                Unique Items
-                            </label>
-                        </div>
+                        <label class="meta-toggle-label inline-toggle" style="align-self:flex-end;padding-bottom:3px">
+                            <input type="checkbox" class="meta-unique-items" ${meta.uniqueItems ? 'checked' : ''}>
+                            Unique Items
+                        </label>
                     </div>
                 </div>
-            </div>`;
-
-        // oneOf section: read-only variant list + "Add Current as Variant" button
-        const oneOfVariants = (meta.oneOf && meta.oneOf.length > 0) ? meta.oneOf : [];
-        const variantItems = oneOfVariants.map((v, i) => {
-            const summary = variantSummary(v);
-            const jsonAttr = escapeHtml(JSON.stringify(v));
-            return `<div class="oneof-variant-item" data-index="${i}" data-variant="${jsonAttr}" title="Click to load into fields above">
-                <span class="oneof-variant-label">Variant ${i + 1}:</span>
-                <span class="oneof-variant-summary">${summary}</span>
-                <button class="oneof-remove-btn icon-btn" type="button" title="Remove variant">×</button>
-            </div>`;
-        }).join('');
-        const oneOfHtml = `
-            <div class="meta-constraints oneof-section">
-                <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--vscode-descriptionForeground,#808080);font-weight:600;">Schema Variants (oneOf)</label>
+            </div>
+            <div class="meta-section meta-section-variants">
+                <label class="section-label">Variants (oneOf)</label>
                 <div class="oneof-variants-list">${variantItems}</div>
                 <button class="oneof-add-btn" type="button">+ Add Current as Variant</button>
-            </div>`;
-
-        return `
-            <div class="meta-field">
-                <label>Type</label>
-                <select class="meta-type">
-                    <option value="">—</option>
-                    ${typeOptions}
-                </select>
             </div>
-            <div class="meta-field">
-                <label>Format</label>
-                <input type="text" class="meta-format" placeholder="e.g. date-time, int32" value="${escapeHtml(meta.format || '')}" list="format-suggestions">
-            </div>
-            <div class="meta-field full-width">
-                <label>Description</label>
-                <textarea class="meta-description" placeholder="Parameter description" rows="1">${escapeHtml(meta.description || '')}</textarea>
-            </div>
-            <div class="meta-toggles">
-                <label class="meta-toggle-label">
-                    <input type="checkbox" class="meta-required" ${meta.required ? 'checked' : ''}>
-                    Required
-                </label>
-                <label class="meta-toggle-label">
-                    <input type="checkbox" class="meta-deprecated" ${meta.deprecated ? 'checked' : ''}>
-                    Deprecated
-                </label>
-            </div>
-            <div class="enum-editor">
-                <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--vscode-descriptionForeground,#808080);font-weight:600;">Enum Values</label>
-                <div class="enum-tags">${enumTags}</div>
-                <div class="enum-input-row">
-                    <input type="text" class="enum-new-value" placeholder="Add enum value">
-                    <button class="enum-add-btn" type="button">+</button>
-                </div>
-            </div>${constraintsHtml}${oneOfHtml}
         `;
     }
 
@@ -678,16 +679,19 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
 
     /**
      * Show/hide constraint groups based on selected type.
-     * No type → show all groups; otherwise show only the relevant group(s).
+     * No type → hide all groups and show hint; type selected → show relevant group(s).
      */
     function updateConstraintGroupVisibility(detailEl, selectedType) {
         const t = selectedType || '';
-        const showStr = !t || t === 'string';
-        const showNum = !t || t === 'integer' || t === 'number';
-        const showArr = !t || t === 'array';
+        const showStr = t === 'string';
+        const showNum = t === 'integer' || t === 'number';
+        const showArr = t === 'array';
+        const hasType = !!t;
         const strGroup = detailEl.querySelector('.constraint-group-string');
         const numGroup = detailEl.querySelector('.constraint-group-numeric');
         const arrGroup = detailEl.querySelector('.constraint-group-array');
+        const hint = detailEl.querySelector('.constraint-type-hint');
+        if (hint) hint.style.display = hasType ? 'none' : '';
         if (strGroup) {
             strGroup.style.display = showStr ? '' : 'none';
             if (!showStr) clearGroupFields(strGroup);

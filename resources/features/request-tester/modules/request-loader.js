@@ -306,6 +306,18 @@ function createRequestLoader({
         const historyHeaders = originalConfig.headers || {};
         const historyBody = originalConfig.body ?? null;
 
+        // Update method from originalConfig, fallback to entry.method or sentRequest.method
+        const method = originalConfig.method || entry.method || entry.sentRequest?.method || 'GET';
+        setMethod(method);
+
+        // Update path from originalConfig
+        const path = originalConfig.path || '';
+        if (path) {
+            setPath(path);
+            state.requestPath = path;
+            state.baseUrl = path.split('?')[0];
+        }
+
         // Store sentRequest for reference (can be displayed in a debug panel)
         state.lastSentRequest = entry.sentRequest || {};
 
