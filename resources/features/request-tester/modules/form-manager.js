@@ -46,40 +46,106 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             `<span class="enum-tag">${escapeHtml(v)}<span class="remove-enum" title="Remove">×</span></span>`
         ).join('');
 
-        // Build read-only constraints section if any extended fields exist
-        const constraints = [];
-        if (meta.pattern) constraints.push(`<span class="constraint-item"><b>pattern:</b> <code>${escapeHtml(meta.pattern)}</code></span>`);
-        if (meta.minimum !== undefined) constraints.push(`<span class="constraint-item"><b>minimum:</b> ${meta.minimum}</span>`);
-        if (meta.maximum !== undefined) constraints.push(`<span class="constraint-item"><b>maximum:</b> ${meta.maximum}</span>`);
-        if (meta.exclusiveMinimum !== undefined) constraints.push(`<span class="constraint-item"><b>exclusiveMin:</b> ${meta.exclusiveMinimum}</span>`);
-        if (meta.exclusiveMaximum !== undefined) constraints.push(`<span class="constraint-item"><b>exclusiveMax:</b> ${meta.exclusiveMaximum}</span>`);
-        if (meta.minLength !== undefined) constraints.push(`<span class="constraint-item"><b>minLength:</b> ${meta.minLength}</span>`);
-        if (meta.maxLength !== undefined) constraints.push(`<span class="constraint-item"><b>maxLength:</b> ${meta.maxLength}</span>`);
-        
-        let constraintsHtml = '';
-        if (constraints.length > 0) {
-            constraintsHtml = `
-                <div class="meta-constraints">
-                    <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--vscode-descriptionForeground,#808080);font-weight:600;">Constraints</label>
-                    <div class="constraint-list">${constraints.join('')}</div>
-                </div>`;
-        }
+        // Editable constraints section — organized by type group with show/hide based on selected type
+        // Determine initial visibility: no type selected → show all groups
+        const t = meta.type || '';
+        const isStr = !t || t === 'string';
+        const isNum = !t || t === 'integer' || t === 'number';
+        const isArr = !t || t === 'array';
 
-        // Show oneOf variants if present
-        let oneOfHtml = '';
-        if (meta.oneOf && meta.oneOf.length > 0) {
-            const variantItems = meta.oneOf.map((v, i) => {
-                const props = Object.entries(v).map(([k, val]) => 
-                    `<b>${escapeHtml(k)}:</b> ${escapeHtml(JSON.stringify(val))}`
-                ).join(', ');
-                return `<div class="constraint-item">Variant ${i + 1}: ${props}</div>`;
-            }).join('');
-            oneOfHtml = `
-                <div class="meta-constraints">
-                    <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--vscode-descriptionForeground,#808080);font-weight:600;">Schema Variants (oneOf)</label>
-                    <div class="constraint-list">${variantItems}</div>
-                </div>`;
-        }
+        const constraintsHtml = `
+            <div class="meta-constraints">
+                <label class="section-label">Constraints</label>
+                <div class="meta-toggles">
+                    <label class="meta-toggle-label">
+                        <input type="checkbox" class="meta-nullable" ${meta.nullable ? 'checked' : ''}>
+                        Nullable
+                    </label>
+                </div>
+                <div class="constraint-group constraint-group-string" ${isStr ? '' : 'style="display:none"'}>
+                    <label class="group-label">String</label>
+                    <div class="meta-field full-width">
+                        <label>Pattern</label>
+                        <input type="text" class="meta-pattern" placeholder="e.g. ^[a-z]+$" value="${escapeHtml(meta.pattern || '')}">
+                    </div>
+                    <div class="constraint-fields-grid">
+                        <div class="meta-field">
+                            <label>Min Length</label>
+                            <input type="number" class="meta-min-length" placeholder="—" value="${meta.minLength !== undefined ? meta.minLength : ''}" min="0">
+                        </div>
+                        <div class="meta-field">
+                            <label>Max Length</label>
+                            <input type="number" class="meta-max-length" placeholder="—" value="${meta.maxLength !== undefined ? meta.maxLength : ''}" min="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="constraint-group constraint-group-numeric" ${isNum ? '' : 'style="display:none"'}>
+                    <label class="group-label">Numeric</label>
+                    <div class="constraint-fields-grid">
+                        <div class="meta-field">
+                            <label>Minimum</label>
+                            <input type="number" class="meta-minimum" placeholder="—" value="${meta.minimum !== undefined ? meta.minimum : ''}">
+                        </div>
+                        <div class="meta-field">
+                            <label>Maximum</label>
+                            <input type="number" class="meta-maximum" placeholder="—" value="${meta.maximum !== undefined ? meta.maximum : ''}">
+                        </div>
+                        <div class="meta-field">
+                            <label class="meta-toggle-label" style="padding-top:18px">
+                                <input type="checkbox" class="meta-exclusive-minimum" ${meta.exclusiveMinimum ? 'checked' : ''}>
+                                Exclusive Min
+                            </label>
+                        </div>
+                        <div class="meta-field">
+                            <label class="meta-toggle-label" style="padding-top:18px">
+                                <input type="checkbox" class="meta-exclusive-maximum" ${meta.exclusiveMaximum ? 'checked' : ''}>
+                                Exclusive Max
+                            </label>
+                        </div>
+                        <div class="meta-field">
+                            <label>Multiple Of</label>
+                            <input type="number" class="meta-multiple-of" placeholder="—" value="${meta.multipleOf !== undefined ? meta.multipleOf : ''}" min="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="constraint-group constraint-group-array" ${isArr ? '' : 'style="display:none"'}>
+                    <label class="group-label">Array</label>
+                    <div class="constraint-fields-grid">
+                        <div class="meta-field">
+                            <label>Min Items</label>
+                            <input type="number" class="meta-min-items" placeholder="—" value="${meta.minItems !== undefined ? meta.minItems : ''}" min="0">
+                        </div>
+                        <div class="meta-field">
+                            <label>Max Items</label>
+                            <input type="number" class="meta-max-items" placeholder="—" value="${meta.maxItems !== undefined ? meta.maxItems : ''}" min="0">
+                        </div>
+                        <div class="meta-field">
+                            <label class="meta-toggle-label" style="padding-top:18px">
+                                <input type="checkbox" class="meta-unique-items" ${meta.uniqueItems ? 'checked' : ''}>
+                                Unique Items
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        // oneOf section: read-only variant list + "Add Current as Variant" button
+        const oneOfVariants = (meta.oneOf && meta.oneOf.length > 0) ? meta.oneOf : [];
+        const variantItems = oneOfVariants.map((v, i) => {
+            const summary = variantSummary(v);
+            const jsonAttr = escapeHtml(JSON.stringify(v));
+            return `<div class="oneof-variant-item" data-index="${i}" data-variant="${jsonAttr}" title="Click to load into fields above">
+                <span class="oneof-variant-label">Variant ${i + 1}:</span>
+                <span class="oneof-variant-summary">${summary}</span>
+                <button class="oneof-remove-btn icon-btn" type="button" title="Remove variant">×</button>
+            </div>`;
+        }).join('');
+        const oneOfHtml = `
+            <div class="meta-constraints oneof-section">
+                <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--vscode-descriptionForeground,#808080);font-weight:600;">Schema Variants (oneOf)</label>
+                <div class="oneof-variants-list">${variantItems}</div>
+                <button class="oneof-add-btn" type="button">+ Add Current as Variant</button>
+            </div>`;
 
         return `
             <div class="meta-field">
@@ -126,39 +192,48 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
     function hasMetaContent(meta) {
         if (!meta) return false;
         return !!(meta.type || meta.required || meta.description || meta.format || 
-                  (meta.enum && meta.enum.length > 0) || meta.deprecated ||
+                  (meta.enum && meta.enum.length > 0) || meta.deprecated || meta.nullable ||
                   meta.pattern || meta.minimum !== undefined || meta.maximum !== undefined ||
                   meta.exclusiveMinimum !== undefined || meta.exclusiveMaximum !== undefined ||
                   meta.minLength !== undefined || meta.maxLength !== undefined ||
+                  meta.multipleOf !== undefined ||
+                  meta.minItems !== undefined || meta.maxItems !== undefined || meta.uniqueItems ||
                   (meta.oneOf && meta.oneOf.length > 0));
     }
 
     /**
-     * Read current metadata values from a detail panel DOM element
-     * @param {HTMLElement} detailEl - The .param-meta-detail element
-     * @returns {Object} metadata object
+     * Build a compact summary string for a oneOf variant object.
+     * @param {Object} v - Variant object with constraint properties
+     * @returns {string} HTML summary
      */
+    function variantSummary(v) {
+        const parts = [];
+        if (v.type) parts.push(`<b>type:</b> ${escapeHtml(v.type)}`);
+        if (v.format) parts.push(`<b>format:</b> ${escapeHtml(v.format)}`);
+        if (v.nullable) parts.push(`<b>nullable</b>`);
+        if (v.pattern) parts.push(`<b>pattern:</b> <code>${escapeHtml(v.pattern)}</code>`);
+        if (v.minimum !== undefined) parts.push(`<b>min${v.exclusiveMinimum ? ' (excl)' : ''}:</b> ${v.minimum}`);
+        if (v.maximum !== undefined) parts.push(`<b>max${v.exclusiveMaximum ? ' (excl)' : ''}:</b> ${v.maximum}`);
+        if (v.multipleOf !== undefined) parts.push(`<b>multipleOf:</b> ${v.multipleOf}`);
+        if (v.minLength !== undefined) parts.push(`<b>minLen:</b> ${v.minLength}`);
+        if (v.maxLength !== undefined) parts.push(`<b>maxLen:</b> ${v.maxLength}`);
+        if (v.minItems !== undefined) parts.push(`<b>minItems:</b> ${v.minItems}`);
+        if (v.maxItems !== undefined) parts.push(`<b>maxItems:</b> ${v.maxItems}`);
+        if (v.uniqueItems) parts.push(`<b>uniqueItems</b>`);
+        if (v.enum && v.enum.length > 0) parts.push(`<b>enum:</b> [${v.enum.map(e => escapeHtml(e)).join(', ')}]`);
+        return parts.length > 0 ? parts.join(', ') : '<i>empty</i>';
+    }
+
     /**
      * Read current metadata values from a detail panel DOM element.
-     * Merges with existing state metadata to preserve fields that aren't
-     * editable in the UI (pattern, min/max, oneOf, etc.).
+     * All fields including constraints and oneOf variants are read from the DOM.
      * @param {HTMLElement} detailEl - The .param-meta-detail element
      * @param {string} [metaMapKey] - State metadata map key (e.g. '_paramsMeta')
      * @param {string} [itemKey] - The param/header key name
      * @returns {Object} metadata object
      */
     function readMetaFromPanel(detailEl, metaMapKey, itemKey) {
-        // Start with existing non-editable fields preserved from state
-        const existing = (metaMapKey && itemKey && state[metaMapKey]?.[itemKey]) || {};
-        const preserved = {};
-        // Preserve fields not editable in the UI
-        const preserveKeys = ['pattern', 'minimum', 'maximum', 'exclusiveMinimum',
-                              'exclusiveMaximum', 'minLength', 'maxLength', 'oneOf'];
-        for (const k of preserveKeys) {
-            if (existing[k] !== undefined) preserved[k] = existing[k];
-        }
-
-        const meta = { ...preserved };
+        const meta = {};
         const typeVal = detailEl.querySelector('.meta-type')?.value;
         if (typeVal) meta.type = typeVal;
         
@@ -182,7 +257,48 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             if (text) enumVals.push(text);
         });
         if (enumVals.length > 0) meta.enum = enumVals;
-        
+
+        // Read constraint fields
+        const patternVal = detailEl.querySelector('.meta-pattern')?.value?.trim();
+        if (patternVal) meta.pattern = patternVal;
+
+        const minVal = detailEl.querySelector('.meta-minimum')?.value;
+        if (minVal !== '' && minVal != null) meta.minimum = Number(minVal);
+
+        const maxVal = detailEl.querySelector('.meta-maximum')?.value;
+        if (maxVal !== '' && maxVal != null) meta.maximum = Number(maxVal);
+
+        const exMinCheck = detailEl.querySelector('.meta-exclusive-minimum');
+        if (exMinCheck?.checked) meta.exclusiveMinimum = true;
+
+        const exMaxCheck = detailEl.querySelector('.meta-exclusive-maximum');
+        if (exMaxCheck?.checked) meta.exclusiveMaximum = true;
+
+        const multipleOfVal = detailEl.querySelector('.meta-multiple-of')?.value;
+        if (multipleOfVal !== '' && multipleOfVal != null) meta.multipleOf = Number(multipleOfVal);
+
+        const minLenVal = detailEl.querySelector('.meta-min-length')?.value;
+        if (minLenVal !== '' && minLenVal != null) meta.minLength = Number(minLenVal);
+
+        const maxLenVal = detailEl.querySelector('.meta-max-length')?.value;
+        if (maxLenVal !== '' && maxLenVal != null) meta.maxLength = Number(maxLenVal);
+
+        const minItemsVal = detailEl.querySelector('.meta-min-items')?.value;
+        if (minItemsVal !== '' && minItemsVal != null) meta.minItems = Number(minItemsVal);
+
+        const maxItemsVal = detailEl.querySelector('.meta-max-items')?.value;
+        if (maxItemsVal !== '' && maxItemsVal != null) meta.maxItems = Number(maxItemsVal);
+
+        const uniqueItemsCheck = detailEl.querySelector('.meta-unique-items');
+        if (uniqueItemsCheck?.checked) meta.uniqueItems = true;
+
+        const nullableCheck = detailEl.querySelector('.meta-nullable');
+        if (nullableCheck?.checked) meta.nullable = true;
+
+        // oneOf is managed via add/remove buttons, preserve from state
+        const existing = (metaMapKey && itemKey && state[metaMapKey]?.[itemKey]) || {};
+        if (existing.oneOf && existing.oneOf.length > 0) meta.oneOf = existing.oneOf;
+
         return meta;
     }
 
@@ -198,6 +314,7 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         const oldEl = row.querySelector('input.value, select.value');
         if (!oldEl) return;
 
+        const metaMapKey = type === 'path' ? '_paramsMeta' : type === 'query' ? '_queryMeta' : '_headersMeta';
         const currentValue = oldEl.value || '';
         const enumValues = Array.isArray(meta.enum) && meta.enum.length > 0 ? meta.enum : null;
         const hasOneOf = meta.oneOf && meta.oneOf.length > 0;
@@ -205,44 +322,24 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         const isCurrentlyInput = oldEl.tagName === 'INPUT';
 
         if (enumValues && hasOneOf) {
-            // Combobox mode: enum + oneOf → input with datalist suggestions
-            if (isCurrentlySelect) {
-                // Replace strict select with combobox input + datalist
-                const listId = `dl-${itemKey}-${Date.now()}`;
-                const inp = document.createElement('input');
-                inp.type = 'text';
-                inp.className = 'value';
-                inp.placeholder = 'Value or {{variable}}';
-                inp.value = currentValue;
-                inp.setAttribute('list', listId);
-                inp.title = meta.pattern
-                    ? `Suggestions from enum; also accepts: ${meta.pattern}`
-                    : 'Type or select a value';
-                const dl = document.createElement('datalist');
-                dl.id = listId;
-                enumValues.forEach(opt => {
-                    const o = document.createElement('option');
-                    o.value = opt;
-                    dl.appendChild(o);
-                });
-                oldEl.replaceWith(inp);
-                inp.after(dl);
-                attachValueListener(inp, type, itemKey);
-                attachBlurValidation(inp, meta.pattern);
-            } else {
-                // Already an input — update the datalist
-                const existingDl = oldEl.list;
-                if (existingDl) {
-                    existingDl.innerHTML = '';
-                    enumValues.forEach(opt => {
-                        const o = document.createElement('option');
-                        o.value = opt;
-                        existingDl.appendChild(o);
-                    });
-                }
+            // Combobox mode: enum + oneOf → input with custom dropdown
+            const existingContainer = oldEl.closest('.combobox-container');
+            if (existingContainer) {
+                // Already a combobox — update options in-place
+                updateComboboxOptions(existingContainer, enumValues);
                 oldEl.title = meta.pattern
                     ? `Suggestions from enum; also accepts: ${meta.pattern}`
                     : 'Type or select a value';
+            } else {
+                // Replace select or plain input with combobox
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = buildComboboxHtml(itemKey, currentValue, enumValues, meta.pattern);
+                const container = tempDiv.firstElementChild;
+                oldEl.replaceWith(container);
+                attachComboboxBehavior(container);
+                const newInput = container.querySelector('input.value');
+                attachValueListener(newInput, type, itemKey);
+                attachBlurValidation(newInput, meta.pattern, metaMapKey, itemKey);
             }
         } else if (enumValues && !isCurrentlySelect) {
             // Replace text input with select dropdown
@@ -259,9 +356,13 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                 option.selected = opt === effectiveValue;
                 sel.appendChild(option);
             });
-            // Remove any datalist from previous combobox mode
-            if (oldEl.list) oldEl.list.remove();
-            oldEl.replaceWith(sel);
+            // Remove any combobox container from previous combobox mode
+            const prevContainer = oldEl.closest('.combobox-container');
+            if (prevContainer) {
+                prevContainer.replaceWith(sel);
+            } else {
+                oldEl.replaceWith(sel);
+            }
             attachValueListener(sel, type, itemKey);
             updateValueState(type, itemKey, effectiveValue);
         } else if (!enumValues && isCurrentlySelect) {
@@ -278,7 +379,7 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             }
             oldEl.replaceWith(inp);
             attachValueListener(inp, type, itemKey);
-            attachBlurValidation(inp, meta.pattern);
+            attachBlurValidation(inp, meta.pattern, metaMapKey, itemKey);
         } else if (enumValues && isCurrentlySelect) {
             // Update existing select options
             const sel = oldEl;
@@ -298,9 +399,14 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         } else if (!enumValues && !isCurrentlySelect) {
             // Update format hint on existing text input
             const inp = oldEl;
+            // If previously a combobox, unwrap from container
+            const prevContainer = inp.closest('.combobox-container');
+            if (prevContainer) {
+                prevContainer.replaceWith(inp);
+            }
             inp.title = meta.pattern ? `Must match: ${meta.pattern}` : (meta.format ? `Format: ${meta.format}` : '');
             // Re-attach blur validation with pattern (regex), not format (semantic hint)
-            attachBlurValidation(inp, meta.pattern);
+            attachBlurValidation(inp, meta.pattern, metaMapKey, itemKey);
         }
     }
 
@@ -331,23 +437,234 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
     }
 
     /**
-     * Attach blur validation for a text input with a regex format pattern
+     * Test whether a value passes validation for a given pattern and/or oneOf variants.
+     * Returns true if valid, false if invalid.
+     * - If pattern is provided and no oneOf, validates against pattern.
+     * - If oneOf variants exist, value is valid if it matches ANY variant's constraints.
+     * - Each variant can have: pattern, enum, minimum, maximum, exclusiveMinimum,
+     *   exclusiveMaximum, minLength, maxLength.
+     * @param {string} val - The input value
+     * @param {string|null} pattern - Direct pattern (used when no oneOf)
+     * @param {Array|null} oneOf - Array of variant constraint objects
+     * @returns {boolean}
      */
-    function attachBlurValidation(inp, format) {
-        if (!format) return;
-        inp.addEventListener('blur', () => {
+    function isValueValid(val, pattern, oneOf) {
+        if (oneOf && oneOf.length > 0) {
+            // Valid if it matches ANY variant
+            return oneOf.some(variant => matchesVariant(val, variant));
+        }
+        // Fall back to direct pattern check
+        if (pattern) {
+            try {
+                return new RegExp(`^(${pattern})$`).test(val);
+            } catch { return true; } // bad regex — don't flag
+        }
+        return true; // no constraints
+    }
+
+    /**
+     * Check if a value satisfies a single oneOf variant's constraints.
+     */
+    function matchesVariant(val, variant) {
+        // Type check — validate the value is compatible with the declared type
+        if (variant.type) {
+            switch (variant.type) {
+                case 'integer':
+                    if (!/^-?\d+$/.test(val)) return false;
+                    break;
+                case 'number':
+                    if (isNaN(Number(val)) || val === '') return false;
+                    break;
+                case 'boolean':
+                    if (val !== 'true' && val !== 'false') return false;
+                    break;
+                // 'string' and 'array' accept any text value
+            }
+        }
+        // Pattern check
+        if (variant.pattern) {
+            try {
+                if (!new RegExp(`^(${variant.pattern})$`).test(val)) return false;
+            } catch { /* bad regex — skip */ }
+        }
+        // Enum check
+        if (variant.enum && variant.enum.length > 0) {
+            if (!variant.enum.includes(val)) return false;
+        }
+        // Numeric checks (only if value is numeric)
+        const num = Number(val);
+        if (!isNaN(num) && val !== '') {
+            if (variant.minimum !== undefined) {
+                // OpenAPI 3.0: exclusiveMinimum is a boolean modifier on minimum
+                if (variant.exclusiveMinimum && num <= variant.minimum) return false;
+                if (!variant.exclusiveMinimum && num < variant.minimum) return false;
+            }
+            if (variant.maximum !== undefined) {
+                if (variant.exclusiveMaximum && num >= variant.maximum) return false;
+                if (!variant.exclusiveMaximum && num > variant.maximum) return false;
+            }
+            if (variant.multipleOf !== undefined && variant.multipleOf !== 0 && num % variant.multipleOf !== 0) return false;
+        }
+        // Length checks
+        if (variant.minLength !== undefined && val.length < variant.minLength) return false;
+        if (variant.maxLength !== undefined && val.length > variant.maxLength) return false;
+        return true;
+    }
+
+    /**
+     * Attach blur validation for a text input.
+     * Looks up the metadata map at validation time so oneOf changes are always reflected.
+     * @param {string} metaMapKey - e.g. '_paramsMeta', '_queryMeta', '_headersMeta'
+     * @param {string} itemKey - The param/header key
+     */
+    function attachBlurValidation(inp, pattern, metaMapKey, itemKey) {
+        // Remove previous blur validator if any to prevent duplicate listeners
+        if (inp._blurValidator) {
+            inp.removeEventListener('blur', inp._blurValidator);
+        }
+        inp._blurValidator = () => {
             const val = inp.value;
             if (!val || val.startsWith('{{')) {
                 inp.classList.remove('invalid');
                 return;
             }
-            try {
-                const regex = new RegExp(`^(${format})$`);
-                inp.classList.toggle('invalid', !regex.test(val));
-            } catch (e) {
-                console.warn('Invalid regex pattern:', format, e);
+            const meta = (metaMapKey && itemKey && state[metaMapKey]?.[itemKey]) || {};
+            const effectivePattern = pattern || meta.pattern || null;
+            const oneOf = (meta.oneOf && meta.oneOf.length > 0) ? meta.oneOf : null;
+            inp.classList.toggle('invalid', !isValueValid(val, effectivePattern, oneOf));
+        };
+        inp.addEventListener('blur', inp._blurValidator);
+    }
+
+    /**
+     * Build combobox HTML (input + custom dropdown instead of native datalist).
+     * Returns the HTML string for the combobox container.
+     * @param {string} key - Unique key for this combobox
+     * @param {string} value - Current value
+     * @param {string[]} options - Suggestion options
+     * @param {string|null} pattern - Regex pattern hint
+     * @returns {string} HTML string
+     */
+    function buildComboboxHtml(key, value, options, pattern) {
+        const patternHint = pattern
+            ? ` title="Suggestions from enum; also accepts: ${escapeHtml(pattern)}"`
+            : ' title="Type or select a value"';
+        const optionsHtml = options.map(opt =>
+            `<div class="combobox-option" data-value="${escapeHtml(opt)}">${escapeHtml(opt)}</div>`
+        ).join('');
+        return `<span class="combobox-container"><input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml(value)}"${patternHint}><div class="combobox-dropdown hidden">${optionsHtml}</div></span>`;
+    }
+
+    /**
+     * Attach combobox behavior to a container element.
+     * Wires up focus/blur/input/keyboard/click to show/hide and filter the dropdown.
+     * @param {HTMLElement} container - The .combobox-container element
+     */
+    function attachComboboxBehavior(container) {
+        const input = container.querySelector('input.value');
+        const dropdown = container.querySelector('.combobox-dropdown');
+        if (!input || !dropdown) return;
+
+        let highlightIndex = -1;
+
+        function getVisibleOptions() {
+            return [...dropdown.querySelectorAll('.combobox-option:not(.hidden-opt)')];
+        }
+
+        function filterOptions() {
+            const val = input.value.toLowerCase();
+            const allOpts = dropdown.querySelectorAll('.combobox-option');
+            allOpts.forEach(opt => {
+                const match = !val || opt.dataset.value.toLowerCase().includes(val);
+                opt.classList.toggle('hidden-opt', !match);
+                if (!match) opt.style.display = 'none';
+                else opt.style.display = '';
+            });
+            highlightIndex = -1;
+            updateHighlight();
+        }
+
+        function updateHighlight() {
+            const opts = getVisibleOptions();
+            opts.forEach((opt, i) => {
+                opt.classList.toggle('highlighted', i === highlightIndex);
+            });
+            // Scroll highlighted item into view
+            if (highlightIndex >= 0 && opts[highlightIndex]) {
+                opts[highlightIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function showDropdown() {
+            filterOptions();
+            dropdown.classList.remove('hidden');
+        }
+
+        function hideDropdown() {
+            dropdown.classList.add('hidden');
+            highlightIndex = -1;
+        }
+
+        function selectOption(value) {
+            input.value = value;
+            hideDropdown();
+            // Trigger input event so value change is picked up
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // Show on focus
+        input.addEventListener('focus', () => showDropdown());
+
+        // Filter as user types
+        input.addEventListener('input', () => showDropdown());
+
+        // Hide on blur (delayed to allow click on option)
+        input.addEventListener('blur', () => {
+            setTimeout(() => hideDropdown(), 150);
+        });
+
+        // Keyboard navigation
+        input.addEventListener('keydown', (e) => {
+            const opts = getVisibleOptions();
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (dropdown.classList.contains('hidden')) showDropdown();
+                highlightIndex = Math.min(highlightIndex + 1, opts.length - 1);
+                updateHighlight();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightIndex = Math.max(highlightIndex - 1, 0);
+                updateHighlight();
+            } else if (e.key === 'Enter' && highlightIndex >= 0 && opts[highlightIndex]) {
+                e.preventDefault();
+                selectOption(opts[highlightIndex].dataset.value);
+            } else if (e.key === 'Escape') {
+                hideDropdown();
             }
         });
+
+        // Click on option
+        dropdown.addEventListener('mousedown', (e) => {
+            // Use mousedown instead of click so it fires before blur
+            const opt = e.target.closest('.combobox-option');
+            if (opt) {
+                e.preventDefault();
+                selectOption(opt.dataset.value);
+            }
+        });
+    }
+
+    /**
+     * Update the options in an existing combobox dropdown.
+     * @param {HTMLElement} container - The .combobox-container element
+     * @param {string[]} options - New option values
+     */
+    function updateComboboxOptions(container, options) {
+        const dropdown = container.querySelector('.combobox-dropdown');
+        if (!dropdown) return;
+        dropdown.innerHTML = options.map(opt =>
+            `<div class="combobox-option" data-value="${escapeHtml(opt)}">${escapeHtml(opt)}</div>`
+        ).join('');
     }
 
     /**
@@ -358,6 +675,39 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
      * @param {string} itemKey - The key/name of the param/header
      * @param {HTMLElement} toggleBtn - The schema toggle button
      */
+
+    /**
+     * Show/hide constraint groups based on selected type.
+     * No type → show all groups; otherwise show only the relevant group(s).
+     */
+    function updateConstraintGroupVisibility(detailEl, selectedType) {
+        const t = selectedType || '';
+        const showStr = !t || t === 'string';
+        const showNum = !t || t === 'integer' || t === 'number';
+        const showArr = !t || t === 'array';
+        const strGroup = detailEl.querySelector('.constraint-group-string');
+        const numGroup = detailEl.querySelector('.constraint-group-numeric');
+        const arrGroup = detailEl.querySelector('.constraint-group-array');
+        if (strGroup) {
+            strGroup.style.display = showStr ? '' : 'none';
+            if (!showStr) clearGroupFields(strGroup);
+        }
+        if (numGroup) {
+            numGroup.style.display = showNum ? '' : 'none';
+            if (!showNum) clearGroupFields(numGroup);
+        }
+        if (arrGroup) {
+            arrGroup.style.display = showArr ? '' : 'none';
+            if (!showArr) clearGroupFields(arrGroup);
+        }
+    }
+
+    /** Clear all input/checkbox values within a hidden constraint group */
+    function clearGroupFields(group) {
+        group.querySelectorAll('input[type="number"], input[type="text"]').forEach(inp => { inp.value = ''; });
+        group.querySelectorAll('input[type="checkbox"]').forEach(chk => { chk.checked = false; });
+    }
+
     function attachMetaListeners(detailEl, row, metaMapKey, itemKey, toggleBtn) {
         // Derive the param type from metaMapKey
         const type = metaMapKey === '_paramsMeta' ? 'path' : metaMapKey === '_queryMeta' ? 'query' : 'header';
@@ -379,11 +729,32 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         };
 
         // Type, format, description, required, deprecated
-        detailEl.querySelector('.meta-type')?.addEventListener('change', updateMeta);
+        detailEl.querySelector('.meta-type')?.addEventListener('change', () => {
+            const selectedType = detailEl.querySelector('.meta-type')?.value || '';
+            updateConstraintGroupVisibility(detailEl, selectedType);
+            updateMeta();
+        });
         detailEl.querySelector('.meta-format')?.addEventListener('input', updateMeta);
         detailEl.querySelector('.meta-description')?.addEventListener('input', updateMeta);
         detailEl.querySelector('.meta-required')?.addEventListener('change', updateMeta);
         detailEl.querySelector('.meta-deprecated')?.addEventListener('change', updateMeta);
+
+        // Constraint fields — common
+        detailEl.querySelector('.meta-nullable')?.addEventListener('change', updateMeta);
+        // String constraints
+        detailEl.querySelector('.meta-pattern')?.addEventListener('input', updateMeta);
+        detailEl.querySelector('.meta-min-length')?.addEventListener('input', updateMeta);
+        detailEl.querySelector('.meta-max-length')?.addEventListener('input', updateMeta);
+        // Numeric constraints
+        detailEl.querySelector('.meta-minimum')?.addEventListener('input', updateMeta);
+        detailEl.querySelector('.meta-maximum')?.addEventListener('input', updateMeta);
+        detailEl.querySelector('.meta-exclusive-minimum')?.addEventListener('change', updateMeta);
+        detailEl.querySelector('.meta-exclusive-maximum')?.addEventListener('change', updateMeta);
+        detailEl.querySelector('.meta-multiple-of')?.addEventListener('input', updateMeta);
+        // Array constraints
+        detailEl.querySelector('.meta-min-items')?.addEventListener('input', updateMeta);
+        detailEl.querySelector('.meta-max-items')?.addEventListener('input', updateMeta);
+        detailEl.querySelector('.meta-unique-items')?.addEventListener('change', updateMeta);
 
         // Enum add
         const enumAddBtn = detailEl.querySelector('.enum-add-btn');
@@ -416,6 +787,150 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
                 btn.parentElement.remove();
                 updateMeta();
             });
+        });
+
+        // oneOf variant management
+        const oneOfList = detailEl.querySelector('.oneof-variants-list');
+        const oneOfAddBtn = detailEl.querySelector('.oneof-add-btn');
+
+        /**
+         * Read current constraint field values as a variant object.
+         * Captures type, format, pattern, min/max, minLength/maxLength, and enum.
+         */
+        function readConstraintFieldsAsVariant() {
+            const v = {};
+            const t = detailEl.querySelector('.meta-type')?.value;
+            if (t) v.type = t;
+            const f = detailEl.querySelector('.meta-format')?.value?.trim();
+            if (f) v.format = f;
+            const nullableCheck = detailEl.querySelector('.meta-nullable');
+            if (nullableCheck?.checked) v.nullable = true;
+            const p = detailEl.querySelector('.meta-pattern')?.value?.trim();
+            if (p) v.pattern = p;
+            const min = detailEl.querySelector('.meta-minimum')?.value;
+            if (min !== '' && min != null) v.minimum = Number(min);
+            const max = detailEl.querySelector('.meta-maximum')?.value;
+            if (max !== '' && max != null) v.maximum = Number(max);
+            const exMinChk = detailEl.querySelector('.meta-exclusive-minimum');
+            if (exMinChk?.checked) v.exclusiveMinimum = true;
+            const exMaxChk = detailEl.querySelector('.meta-exclusive-maximum');
+            if (exMaxChk?.checked) v.exclusiveMaximum = true;
+            const multipleOf = detailEl.querySelector('.meta-multiple-of')?.value;
+            if (multipleOf !== '' && multipleOf != null) v.multipleOf = Number(multipleOf);
+            const minL = detailEl.querySelector('.meta-min-length')?.value;
+            if (minL !== '' && minL != null) v.minLength = Number(minL);
+            const maxL = detailEl.querySelector('.meta-max-length')?.value;
+            if (maxL !== '' && maxL != null) v.maxLength = Number(maxL);
+            const minI = detailEl.querySelector('.meta-min-items')?.value;
+            if (minI !== '' && minI != null) v.minItems = Number(minI);
+            const maxI = detailEl.querySelector('.meta-max-items')?.value;
+            if (maxI !== '' && maxI != null) v.maxItems = Number(maxI);
+            const uniqueCheck = detailEl.querySelector('.meta-unique-items');
+            if (uniqueCheck?.checked) v.uniqueItems = true;
+            // Enum from tags
+            const enums = [];
+            detailEl.querySelectorAll('.enum-tag').forEach(tag => {
+                const text = tag.childNodes[0]?.textContent?.trim();
+                if (text) enums.push(text);
+            });
+            if (enums.length > 0) v.enum = enums;
+            return v;
+        }
+
+        /**
+         * Populate constraint fields from a variant object.
+         */
+        function populateFieldsFromVariant(v) {
+            const setVal = (sel, val) => { const el = detailEl.querySelector(sel); if (el) el.value = val ?? ''; };
+            const setCheck = (sel, checked) => { const el = detailEl.querySelector(sel); if (el) el.checked = !!checked; };
+            setVal('.meta-type', v.type || '');
+            setVal('.meta-format', v.format || '');
+            setCheck('.meta-nullable', v.nullable);
+            setVal('.meta-pattern', v.pattern || '');
+            setVal('.meta-minimum', v.minimum !== undefined ? v.minimum : '');
+            setVal('.meta-maximum', v.maximum !== undefined ? v.maximum : '');
+            setCheck('.meta-exclusive-minimum', v.exclusiveMinimum);
+            setCheck('.meta-exclusive-maximum', v.exclusiveMaximum);
+            setVal('.meta-multiple-of', v.multipleOf !== undefined ? v.multipleOf : '');
+            setVal('.meta-min-length', v.minLength !== undefined ? v.minLength : '');
+            setVal('.meta-max-length', v.maxLength !== undefined ? v.maxLength : '');
+            setVal('.meta-min-items', v.minItems !== undefined ? v.minItems : '');
+            setVal('.meta-max-items', v.maxItems !== undefined ? v.maxItems : '');
+            setCheck('.meta-unique-items', v.uniqueItems);
+            // Rebuild enum tags
+            if (enumTagsContainer) {
+                enumTagsContainer.innerHTML = '';
+                (v.enum || []).forEach(val => {
+                    const tag = document.createElement('span');
+                    tag.className = 'enum-tag';
+                    tag.innerHTML = `${escapeHtml(val)}<span class="remove-enum" title="Remove">×</span>`;
+                    tag.querySelector('.remove-enum').addEventListener('click', () => { tag.remove(); updateMeta(); });
+                    enumTagsContainer.appendChild(tag);
+                });
+            }
+            // Update constraint group visibility based on loaded variant type
+            updateConstraintGroupVisibility(detailEl, v.type || '');
+        }
+
+        /** Re-render the oneOf variant list from state */
+        function rerenderOneOfList() {
+            if (!oneOfList) return;
+            const current = (state[metaMapKey]?.[itemKey]?.oneOf) || [];
+            oneOfList.innerHTML = current.map((v, i) => {
+                const summary = variantSummary(v);
+                const jsonAttr = escapeHtml(JSON.stringify(v));
+                return `<div class="oneof-variant-item" data-index="${i}" data-variant="${jsonAttr}" title="Click to load into fields above">
+                    <span class="oneof-variant-label">Variant ${i + 1}:</span>
+                    <span class="oneof-variant-summary">${summary}</span>
+                    <button class="oneof-remove-btn icon-btn" type="button" title="Remove variant">×</button>
+                </div>`;
+            }).join('');
+            wireAllOneOfItems();
+        }
+
+        function wireAllOneOfItems() {
+            oneOfList?.querySelectorAll('.oneof-variant-item').forEach(item => {
+                // Click to populate fields
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('.oneof-remove-btn')) return; // don't trigger on remove click
+                    try {
+                        const v = JSON.parse(item.dataset.variant);
+                        populateFieldsFromVariant(v);
+                    } catch { /* ignore parse errors */ }
+                });
+                // Remove button
+                item.querySelector('.oneof-remove-btn')?.addEventListener('click', () => {
+                    const idx = Number(item.dataset.index);
+                    const meta = state[metaMapKey]?.[itemKey];
+                    if (meta?.oneOf) {
+                        meta.oneOf.splice(idx, 1);
+                        if (meta.oneOf.length === 0) delete meta.oneOf;
+                    }
+                    rerenderOneOfList();
+                    // Update has-meta indicator
+                    toggleBtn.classList.toggle('has-meta', hasMetaContent(state[metaMapKey]?.[itemKey] || {}));
+                    if (markDirty) markDirty();
+                });
+            });
+        }
+
+        // Wire initial items
+        wireAllOneOfItems();
+
+        // Add current constraint values as a new oneOf variant
+        oneOfAddBtn?.addEventListener('click', () => {
+            const variant = readConstraintFieldsAsVariant();
+            if (Object.keys(variant).length === 0) return; // nothing to add
+            if (!state[metaMapKey]) state[metaMapKey] = {};
+            if (!state[metaMapKey][itemKey]) state[metaMapKey][itemKey] = {};
+            const meta = state[metaMapKey][itemKey];
+            if (!meta.oneOf) meta.oneOf = [];
+            meta.oneOf.push(variant);
+            rerenderOneOfList();
+            toggleBtn.classList.toggle('has-meta', hasMetaContent(meta));
+            // Sync value element in case enum+oneOf triggers combobox mode
+            syncValueElementFromMeta(row, type, itemKey, readMetaFromPanel(detailEl, metaMapKey, itemKey));
+            if (markDirty) markDirty();
         });
     }
 
@@ -483,7 +998,7 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
      * @param {boolean} enabled - Whether the param is enabled (for query params)
      * @param {string[]|null} options - If provided, render a select box with these options
      * @param {string|null} pattern - If provided, validate input against this regex pattern on blur
-     * @param {boolean} combobox - If true, render options as a datalist (editable input with suggestions) instead of strict select
+     * @param {boolean} combobox - If true, render options as a custom dropdown (editable input with suggestions) instead of strict select
      */
     function addParamRow(type, key, value, isNew = false, keyDisabled = false, enabled = true, options = null, pattern = null, combobox = false) {
         const container = type === 'path' ? elements.pathParams : elements.queryParams;
@@ -497,7 +1012,7 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             : '';
 
         // For path params with options, render a select box instead of input
-        // Exception: combobox mode renders an input with datalist for free-form + suggestions
+        // Exception: combobox mode renders an input with custom dropdown for free-form + suggestions
         let valueHtml;
         let effectiveValue = value;
         if (options && options.length > 0 && !combobox) {
@@ -514,11 +1029,8 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             ).join('');
             valueHtml = `<select class="value">${optionsHtml}</select>`;
         } else if (options && options.length > 0 && combobox) {
-            // Combobox — editable input with suggestions from enum, allows free-form values
-            const listId = `dl-${key}-${Date.now()}`;
-            const optionsHtml = options.map(opt => `<option value="${escapeHtml(opt)}">`).join('');
-            const patternHint = pattern ? ` title="Suggestions from enum; also accepts: ${escapeHtml(pattern)}"` : ' title="Type or select a value"';
-            valueHtml = `<input type="text" class="value" list="${listId}" placeholder="Value or {{variable}}" value="${escapeHtml(value)}"${patternHint}><datalist id="${listId}">${optionsHtml}</datalist>`;
+            // Combobox — editable input with custom dropdown suggestions
+            valueHtml = buildComboboxHtml(key, value, options, pattern);
         } else {
             // Add title with pattern hint if there's a validation pattern
             const patternHint = pattern ? ` title="Must match: ${escapeHtml(pattern)}"` : '';
@@ -536,6 +1048,10 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         const keyInput = row.querySelector('.key');
         const valueElement = row.querySelector('.value');  // Can be input or select
         const removeBtn = row.querySelector('.remove-btn');
+
+        // Wire up custom combobox dropdown if present
+        const comboboxContainer = row.querySelector('.combobox-container');
+        if (comboboxContainer) attachComboboxBehavior(comboboxContainer);
 
         if (checkbox) {
             checkbox.addEventListener('change', () => {
@@ -568,28 +1084,10 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             updateUrlPreview();
         });
 
-        // Add blur validation for inputs with regex pattern
-        if (pattern && valueElement.tagName === 'INPUT') {
-            valueElement.addEventListener('blur', () => {
-                const val = valueElement.value;
-                // Skip validation if empty or is a variable placeholder
-                if (!val || val.startsWith('{{')) {
-                    valueElement.classList.remove('invalid');
-                    return;
-                }
-                try {
-                    // Create regex that matches the entire string
-                    const regex = new RegExp(`^(${pattern})$`);
-                    if (regex.test(val)) {
-                        valueElement.classList.remove('invalid');
-                    } else {
-                        valueElement.classList.add('invalid');
-                    }
-                } catch (e) {
-                    // Invalid regex pattern, skip validation
-                    console.warn('Invalid regex pattern:', pattern, e);
-                }
-            });
+        // Add blur validation for inputs with regex pattern / oneOf
+        if (valueElement.tagName === 'INPUT') {
+            const metaMapKey = type === 'path' ? '_paramsMeta' : '_queryMeta';
+            attachBlurValidation(valueElement, pattern, metaMapKey, key);
         }
 
         if (removeBtn) {
@@ -642,7 +1140,7 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         const checkboxHtml = `<input type="checkbox" class="param-checkbox" ${enabled ? 'checked' : ''} title="Enable/disable this header">`;
 
         // Render select dropdown for enum options, or text input otherwise
-        // Exception: combobox mode renders an input with datalist for free-form + suggestions
+        // Exception: combobox mode renders an input with custom dropdown for free-form + suggestions
         let valueHtml;
         if (options && options.length > 0 && !combobox) {
             let effectiveValue = value;
@@ -654,10 +1152,8 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             ).join('');
             valueHtml = `<select class="value">${optionsHtml}</select>`;
         } else if (options && options.length > 0 && combobox) {
-            const listId = `dl-h-${key}-${Date.now()}`;
-            const optionsHtml = options.map(opt => `<option value="${escapeHtml(opt)}">`).join('');
-            const patternHint = pattern ? ` title="Suggestions from enum; also accepts: ${escapeHtml(pattern)}"` : ' title="Type or select a value"';
-            valueHtml = `<input type="text" class="value" list="${listId}" placeholder="Value or {{variable}}" value="${escapeHtml(value)}"${patternHint}><datalist id="${listId}">${optionsHtml}</datalist>`;
+            // Combobox — editable input with custom dropdown suggestions
+            valueHtml = buildComboboxHtml(key, value, options, pattern);
         } else {
             const patternHint = pattern ? ` title="Must match: ${escapeHtml(pattern)}"` : '';
             valueHtml = `<input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml(value)}"${patternHint}>`;
@@ -675,6 +1171,10 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
         const keyInput = row.querySelector('.key');
         const valueElement = row.querySelector('.value');  // Can be input or select
         const removeBtn = row.querySelector('.remove-btn');
+
+        // Wire up custom combobox dropdown if present
+        const comboboxContainer = row.querySelector('.combobox-container');
+        if (comboboxContainer) attachComboboxBehavior(comboboxContainer);
         
         if (checkbox) {
             checkbox.addEventListener('change', () => {
@@ -696,25 +1196,9 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             });
         }
 
-        // Add blur validation for inputs with regex pattern
-        if (pattern && valueElement && valueElement.tagName === 'INPUT') {
-            valueElement.addEventListener('blur', () => {
-                const val = valueElement.value;
-                if (!val || val.startsWith('{{')) {
-                    valueElement.classList.remove('invalid');
-                    return;
-                }
-                try {
-                    const regex = new RegExp(`^(${pattern})$`);
-                    if (regex.test(val)) {
-                        valueElement.classList.remove('invalid');
-                    } else {
-                        valueElement.classList.add('invalid');
-                    }
-                } catch (e) {
-                    console.warn('Invalid regex pattern:', pattern, e);
-                }
-            });
+        // Add blur validation for inputs with regex pattern / oneOf
+        if (valueElement && valueElement.tagName === 'INPUT') {
+            attachBlurValidation(valueElement, pattern, '_headersMeta', key);
         }
 
         if (removeBtn) {

@@ -29,7 +29,7 @@ HTTP Forge stores rich request metadata (method, URL, headers, query, body, auth
 | Folder hierarchy            | ✅      | `folder.json`                     |
 | Environment variables       | ✅      | `environments/*.json`             |
 | **Response schemas**        | ❌      | —                                 |
-| **Parameter types/constraints** | ❌  | —                                 |
+| **Parameter types/constraints** | ✅  | `request.json` (KeyValueEntry / PathParamEntry)   |
 | **Expected status codes**   | ❌      | —                                 |
 | **Response examples**       | ❌      | —                                 |
 
@@ -251,10 +251,15 @@ interface KeyValueEntry {
   pattern?: string;      // regex pattern for validation, e.g., "^[A-Z]{2}-\\d{4}$"
   minimum?: number;
   maximum?: number;
-  exclusiveMinimum?: number;
-  exclusiveMaximum?: number;
+  exclusiveMinimum?: boolean;  // OpenAPI 3.0: boolean modifier on minimum (true = strict >)
+  exclusiveMaximum?: boolean;  // OpenAPI 3.0: boolean modifier on maximum (true = strict <)
+  multipleOf?: number;
   minLength?: number;
   maxLength?: number;
+  minItems?: number;
+  maxItems?: number;
+  uniqueItems?: boolean;
+  nullable?: boolean;
   /** When multiple incompatible constraint sets exist (e.g. from merged endpoints) */
   oneOf?: Array<Record<string, any>>;
 }
@@ -289,10 +294,15 @@ interface PathParamEntry {
   pattern?: string;      // regex pattern for validation
   minimum?: number;
   maximum?: number;
-  exclusiveMinimum?: number;
-  exclusiveMaximum?: number;
+  exclusiveMinimum?: boolean;  // OpenAPI 3.0: boolean modifier on minimum (true = strict >)
+  exclusiveMaximum?: boolean;  // OpenAPI 3.0: boolean modifier on maximum (true = strict <)
+  multipleOf?: number;
   minLength?: number;
   maxLength?: number;
+  minItems?: number;
+  maxItems?: number;
+  uniqueItems?: boolean;
+  nullable?: boolean;
   /** When multiple incompatible constraint sets exist (e.g. from merged endpoints) */
   oneOf?: Array<Record<string, any>>;
 }
@@ -322,17 +332,19 @@ params?: Record<string, string>                // current simple format
 as `{ value: <string>, type: undefined }`. The UI and runtime continue to use only the `value`
 field for actual HTTP requests. The extra metadata is consumed solely by the OpenAPI exporter.
 
-#### Enum-Driven Select Dropdowns
+#### Enum-Driven Select Dropdowns & Combobox
 
 Path parameters, query parameters, and headers with an `enum` array containing more than
 one value are rendered as **select dropdowns** in the Request Tester UI instead of plain
-text inputs:
+text inputs. When both `enum` and `oneOf` exist (from collision-merged variants), an
+editable **combobox** is rendered instead:
 
 | Metadata shape | Rendered as |
 |---|---|
 | `{ value: "123" }` | Text input |
 | `{ value: "admin", enum: ["admin"] }` | **Select dropdown** (single option) |
 | `{ value: "admin", enum: ["admin", "user", "viewer"] }` | **Select dropdown** |
+| `{ value: "T7.2", enum: ["T2.0", "T2.1"], oneOf: [...] }` | **Combobox** (input + dropdown suggestions) |
 
 The `value` field sets the initially selected option.
 
@@ -795,11 +807,16 @@ the exporter **merges** the operations instead of silently overwriting:
 
 - **Descriptions**: Appended with variant info (e.g., "--- Variant 2: Create Priority Order ---")
 - **Tags**: Union of all tags from colliding requests
-- **Parameters**: Merged per-name. When two parameters share the same name:
-  - Same constraint kind (both enum, both pattern, both range, etc.) → merged in place
+- **Parameters**: Merged per-name via `mergeParameterSchema()`. When two parameters share the same name:
+  - **Existing already has `oneOf`** → incoming constraints are appended as a new variant
+  - **Incoming has `oneOf`** → existing schema is wrapped as a single variant, then
+    incoming's variants are flattened in (prevents nested oneOf-of-oneOf)
+  - **Both are simple schemas** with same constraint kind → merged in place
     (e.g., enum arrays are unioned, ranges are widened)
-  - Different constraint kinds (e.g., one has `enum`, the other has `pattern`) → wrapped
-    in a `oneOf` array so both constraint sets are preserved without confusion
+  - **Both are simple schemas** with different constraint kinds → wrapped in a `oneOf`
+    array so both constraint sets are preserved without confusion
+  - After any merge branch, `stripConstraints()` removes stale top-level constraint
+    fields from the parameter schema to prevent enum/pattern leaking alongside `oneOf`
 - **Responses**: New status codes are added; existing ones are preserved
 - **Request bodies**: New content types are added
 

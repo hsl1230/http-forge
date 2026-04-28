@@ -5,6 +5,26 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.11.15 - 2026-04-28
+
+### Added
+
+- **Full OpenAPI 3.0 constraint alignment**: The metadata panel for parameters, headers, and query params now supports all OpenAPI 3.0 Schema Object constraint fields organized into type-dependent groups:
+  - **String**: `pattern`, `minLength`, `maxLength`
+  - **Numeric**: `minimum`, `maximum`, `exclusiveMinimum` (boolean checkbox), `exclusiveMaximum` (boolean checkbox), `multipleOf`
+  - **Array**: `minItems`, `maxItems`, `uniqueItems`
+  - **Common**: `nullable`
+- **Type-dependent constraint visibility**: Constraint groups show/hide based on the selected type. Selecting `string` hides Numeric and Array groups; selecting `integer`/`number` hides String and Array groups; selecting `array` hides String and Numeric groups. No type selected shows all groups.
+- **Auto-clear hidden constraint fields**: When the type changes and a constraint group is hidden, its fields are automatically cleared (inputs reset to empty, checkboxes unchecked) to prevent stale values from persisting in the metadata.
+- **Type validation in oneOf variants**: `matchesVariant()` now validates the value against the variant's declared `type` — `integer` requires `/^-?\d+$/`, `number` requires a parseable number, `boolean` requires `true`/`false`. Previously, type-only variants acted as catch-all matches.
+
+### Fixed
+
+- **oneOf/enum leak in OpenAPI export**: When merging parameters with different constraint kinds (e.g., `enum` + `pattern`), top-level constraints like `enum` could survive alongside `oneOf` in the exported schema, producing invalid OpenAPI. `stripConstraints()` now runs after all three branches of the different-kinds merge.
+- **Data loss when incoming parameter has oneOf**: When an existing parameter with simple constraints (e.g., `enum`) collided with an incoming parameter that already had `oneOf` (from a prior import), the incoming's `oneOf` variants were lost because `buildVariantSchema()` doesn't copy nested `oneOf`. Added a dedicated `else if (is.oneOf)` branch that wraps existing as a single variant and flattens the incoming's variants.
+- **Duplicate blur validation listeners**: `attachBlurValidation()` could stack duplicate `blur` event listeners on the same input element when metadata was updated repeatedly (via `syncValueElementFromMeta`). Fixed by storing the handler reference as `inp._blurValidator` and removing the previous listener before attaching a new one.
+- **`exclusiveMinimum`/`exclusiveMaximum` as booleans**: Corrected these fields from numbers (OpenAPI 3.1 style) to booleans (OpenAPI 3.0 style) across types, UI (checkboxes), exporter, importer, and validator. In OpenAPI 3.0.3, `exclusiveMinimum: true` means strict `>` on the `minimum` value.
+
 ## 0.11.14 - 2026-04-27
 
 ### Added

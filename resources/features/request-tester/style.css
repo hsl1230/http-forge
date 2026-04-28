@@ -1112,6 +1112,51 @@ button.primary.cancel:hover {
     box-shadow: 0 0 0 1px rgba(244, 67, 54, 0.3);
 }
 
+/* Combobox — custom dropdown for enum+oneOf parameters */
+.combobox-container {
+    position: relative;
+    display: inline-flex;
+    flex: 1;
+    min-width: 0;
+}
+.combobox-container input.value {
+    width: 100%;
+}
+.combobox-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 160px;
+    overflow-y: auto;
+    background: var(--vscode-dropdown-background, #3c3c3c);
+    border: 1px solid var(--vscode-dropdown-border, #454545);
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.36);
+    margin-top: 1px;
+}
+.combobox-dropdown.hidden {
+    display: none;
+}
+.combobox-option {
+    padding: 4px 8px;
+    cursor: pointer;
+    color: var(--vscode-dropdown-foreground, #cccccc);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+}
+.combobox-option:hover,
+.combobox-option.highlighted {
+    background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+.combobox-option.active {
+    background: var(--vscode-list-activeSelectionBackground, #094771);
+    color: var(--vscode-list-activeSelectionForeground, #ffffff);
+}
+
 .add-param-btn {
     margin-top: 8px;
     padding: 6px 12px;
@@ -1331,11 +1376,41 @@ button.primary.cancel:hover {
     background: var(--vscode-button-secondaryHoverBackground, #45494e);
 }
 
-/* Constraint fields (read-only display for pattern, min/max, etc.) */
+/* Constraint fields (editable inputs for pattern, min/max, etc.) */
 .param-meta-detail .meta-constraints {
     margin-top: 6px;
     padding-top: 6px;
     border-top: 1px solid var(--vscode-input-border, #3c3c3c);
+}
+
+.param-meta-detail .meta-constraints .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--vscode-descriptionForeground, #808080);
+    font-weight: 600;
+}
+
+.param-meta-detail .constraint-group {
+    margin-top: 6px;
+    padding: 4px 0 2px;
+}
+
+.param-meta-detail .constraint-group .group-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--vscode-descriptionForeground, #808080);
+    opacity: 0.7;
+    margin-bottom: 2px;
+    display: block;
+}
+
+.param-meta-detail .constraint-fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px 8px;
+    margin-top: 4px;
 }
 
 .param-meta-detail .constraint-list {
@@ -1363,6 +1438,87 @@ button.primary.cancel:hover {
     font-family: var(--vscode-editor-font-family, 'Cascadia Code', monospace);
     font-size: 10px;
     word-break: break-all;
+}
+
+/* oneOf variant section */
+.param-meta-detail .oneof-section {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--vscode-input-border, #3c3c3c);
+}
+
+.param-meta-detail .oneof-variant-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 4px 6px;
+    background: var(--vscode-textBlockQuote-background, #2d2d2d);
+    border: 1px solid var(--vscode-input-border, #3c3c3c);
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.param-meta-detail .oneof-variant-item:hover {
+    border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.param-meta-detail .oneof-variant-label {
+    font-weight: 600;
+    color: var(--vscode-foreground, #cccccc);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.param-meta-detail .oneof-variant-summary {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--vscode-descriptionForeground, #808080);
+}
+
+.param-meta-detail .oneof-variant-summary b {
+    color: var(--vscode-foreground, #cccccc);
+    font-weight: 600;
+}
+
+.param-meta-detail .oneof-variant-summary code {
+    font-family: var(--vscode-editor-font-family, 'Cascadia Code', monospace);
+    font-size: 10px;
+}
+
+.param-meta-detail .oneof-remove-btn {
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 4px;
+    color: var(--vscode-descriptionForeground, #808080);
+    background: none;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.param-meta-detail .oneof-remove-btn:hover {
+    color: #f44336;
+}
+
+.param-meta-detail .oneof-add-btn {
+    margin-top: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    background: var(--vscode-button-secondaryBackground, #3a3d41);
+    color: var(--vscode-button-secondaryForeground, #cccccc);
+    border: 1px solid var(--vscode-input-border, #3c3c3c);
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.param-meta-detail .oneof-add-btn:hover {
+    background: var(--vscode-button-secondaryHoverBackground, #45494e);
 }
 
 /* Path params don't have checkboxes — shift detail panel left */
