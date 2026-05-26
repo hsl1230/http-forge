@@ -19,6 +19,11 @@
                 <h1>Test Suite:</h1>
                 <input type="text" class="suite-name-input" id="suite-name" value="" placeholder="Untitled Suite">
             </div>
+            <div class="header-center" id="suite-description-container">
+                <span class="description-display" id="suite-description-display" title="">Click to add description…</span>
+                <div class="description-tooltip" id="suite-description-tooltip"></div>
+                <textarea class="description-edit hidden" id="suite-description-edit" placeholder="Describe what this suite tests…"></textarea>
+            </div>
             <div class="header-right">
                 <button id="run-btn" class="btn primary" disabled>
                     <span class="icon">▶</span> Run
@@ -141,6 +146,7 @@
                     <div class="tabs-header">
                         <button class="tab-btn active" data-tab="results-tab">Results</button>
                         <button class="tab-btn" data-tab="statistics-tab">Statistics</button>
+                        <button class="tab-btn" data-tab="history-tab">History</button>
                     </div>
 
                     <!-- Results Tab -->
@@ -192,6 +198,26 @@
 
                             <div class="stats-actions">
                                 <button id="export-report-btn" class="btn-link">Export Report</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- History Tab -->
+                    <div class="tab-content" id="history-tab">
+                        <div class="history-container">
+                            <div class="history-header-bar">
+                                <h4>Run History</h4>
+                                <button id="refresh-history-btn" class="btn-link">Refresh</button>
+                            </div>
+                            <div class="history-banner hidden" id="history-banner">
+                                <span id="history-banner-text">Viewing historical run</span>
+                                <button id="back-to-latest-btn" class="btn-link">Back to latest</button>
+                            </div>
+                            <div class="history-list" id="history-list">
+                                <div class="empty-state">
+                                    <p>No run history</p>
+                                    <p class="hint">Run the suite to generate history</p>
+                                </div>
                             </div>
                         </div>
                     </div>

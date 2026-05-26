@@ -12,16 +12,28 @@ HTTP Forge supports a rich template engine inside `{{ }}` for request URLs, para
 - Pre-request and post-response scripts
 
 ## Variable lookup
-Use `{{variableName}}` to resolve variables from these scopes:
-1. Session
-2. Collection
-3. Environment
+Use `{{variableName}}` to resolve variables from these scopes (Postman-compatible cascade):
+1. Variables (merged view)
+2. Environment
+3. Collection
 4. Globals
 
 ### Example
 ```text
 {{baseUrl}}/users/{{userId}}
 ```
+
+## Property & index access
+Access array elements and object properties directly on typed variables:
+
+```text
+{{users[0]}}              → first element of array variable
+{{users[1].name}}         → nested property on array element
+{{config.retries}}        → object property
+{{config["api-key"]}}     → bracket notation for special keys
+```
+
+This works with any variable stored via `pm.*.set()` as a non-string type. Equivalent to using `at()` / `prop()` filters but with familiar JavaScript syntax.
 
 ## Dynamic variables
 Dynamic variables begin with `$` and generate values at execution time.
@@ -49,7 +61,7 @@ Dynamic variables begin with `$` and generate values at execution time.
 Unquoted arguments inside dynamic variable calls are resolved from variables in the current scope.
 
 ```text
-{{$randomInt(minValue, maxValue)}}   → minValue and maxValue are looked up from env/collection/session/globals
+{{$randomInt(minValue, maxValue)}}   → minValue and maxValue are looked up from env/collection/globals
 {{$randomString(strLength)}}         → strLength is resolved from variables
 ```
 
@@ -117,6 +129,8 @@ Supported hash algorithms: `md5`, `sha1`, `sha256`, `sha512`.
 | `map(prop)` | `{{users \| map("name")}}` | Map property |
 
 Filter conditions support operators: `>`, `>=`, `<`, `<=`, `=`, `!=`, `*=`, `^=`, `$=`.
+
+> **Typed variables**: Variables stored as arrays/objects via `pm.environment.set('items', [1,2,3])` work directly with array and object filters — no `parseJSON` step is needed. The template engine detects typed values automatically.
 
 ### Object filters
 | Filter | Example | Result |

@@ -1,18 +1,22 @@
-import { ICollectionService } from '@http-forge/core';
+import { ICollectionService, IEnvironmentConfigService, applyExtractionPlan, buildExtractionPlan, type SensitiveExtraction } from '@http-forge/core';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { COMMAND_IDS } from '../../../../../shared/constants';
 import { UIRequest } from '../../../../../shared/types';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { IPanelContextProvider } from '../interfaces';
+import { getSuiteContext } from '../suite-context-registry';
 
 /**
  * Handles save request operations
- * Single Responsibility: Only manages saving requests to collections
+ * Single Responsibility: Only manages saving requests to collections or suite folders
  */
 export class SaveRequestHandler implements IMessageHandler {
   constructor(
     private contextProvider: IPanelContextProvider,
-    private collectionService?: ICollectionService
+    private collectionService?: ICollectionService,
+    private envConfigService?: IEnvironmentConfigService
   ) {}
 
   getSupportedCommands(): string[] {
@@ -29,6 +33,15 @@ export class SaveRequestHandler implements IMessageHandler {
 
   private async handleSaveRequest(request: UIRequest, messenger: IWebviewMessenger): Promise<void> {
     const context = this.contextProvider.getCurrentContext();
+
+    // Suite-aware save: write back to suite folder instead of collection
+    if (context?.suiteId && context?.suiteRequestKey) {
+      const suiteCtx = getSuiteContext(context.suiteId);
+      if (suiteCtx) {
+        await this.handleSaveSuiteRequest(request, context, suiteCtx, messenger);
+        return;
+      }
+    }
 
     console.log('[SaveRequestHandler] handleSaveRequest called');
     console.log('[SaveRequestHandler] context:', JSON.stringify({
@@ -49,6 +62,28 @@ export class SaveRequestHandler implements IMessageHandler {
     if (context?.readonly && !context?.allowSave) {
       console.log('[SaveRequestHandler] Blocked by readonly check');
       return;
+    }
+
+    // ── Sensitive data detection & extraction ──────────────────
+    const extractions = buildExtractionPlan(request);
+    if (extractions.length > 0) {
+      const fieldList = extractions.map(e => e.field).join(', ');
+      const choice = await vscode.window.showWarningMessage(
+        `Sensitive data detected in: ${fieldList}. Extract to .local.json?`,
+        { modal: true },
+        'Extract to .local.json',
+        'Save Anyway'
+      );
+
+      if (!choice) {
+        // User cancelled
+        return;
+      }
+
+      if (choice === 'Extract to .local.json') {
+        request = this.extractSecretsToLocalJson(request, extractions);
+      }
+      // 'Save Anyway' falls through to normal save
     }
 
     // Get collection and request IDs - prefer from context as they are the source of truth
@@ -173,6 +208,91 @@ export class SaveRequestHandler implements IMessageHandler {
         messenger.postMessage({ command: 'requestSaved' });
       }
     }
+  }
+
+  /**
+   * Save request to suite folder (suite-aware save path)
+   */
+  private async handleSaveSuiteRequest(
+    request: UIRequest,
+    context: any,
+    suiteCtx: NonNullable<ReturnType<typeof getSuiteContext>>,
+    messenger: IWebviewMessenger
+  ): Promise<void> {
+    const slug = context.suiteRequestKey;
+    if (!slug) return;
+
+    // Build CollectionRequest from UI request
+    const updatedRequest: any = {
+      id: request.id || context.requestId,
+      name: request.name || context.request?.name || '',
+      method: request.method || context.request?.method || 'GET',
+      url: request.url || request.path || context.request?.url || '',
+      headers: request.headers ?? context.request?.headers ?? [],
+      query: request.query ?? context.request?.query ?? [],
+      params: request.params ?? context.request?.params ?? [],
+      body: request.body ?? context.request?.body ?? null,
+      auth: request.auth ?? context.request?.auth,
+      settings: request.settings ?? context.request?.settings,
+      scripts: request.scripts ?? context.request?.scripts
+    };
+
+    // Update the suite's request folder
+    suiteCtx.suiteStore.updateSuiteRequest(slug, updatedRequest);
+
+    // Persist suite.json (updates cached name/method)
+    const suite = suiteCtx.suiteStore.getSuite();
+    if (suite) {
+      await suiteCtx.testSuiteService.updateSuite(suite);
+    }
+
+    vscode.window.showInformationMessage('Suite request saved');
+    messenger.postMessage({ command: 'requestSaved' });
+  }
+
+  /**
+   * Extract sensitive data to .local.json and replace values with {{variable}} references.
+   * Returns the modified request.
+   */
+  private extractSecretsToLocalJson(request: UIRequest, extractions: SensitiveExtraction[]): UIRequest {
+    if (!this.envConfigService) {
+      vscode.window.showErrorMessage('Environment service unavailable. Cannot extract secrets.');
+      return request;
+    }
+
+    const envName = this.envConfigService.getSelectedEnvironment();
+    const localFilePath = this.envConfigService.getEnvLocalPath(envName);
+
+    // Read existing local config or start fresh
+    let existingVars: Record<string, string> = {};
+    try {
+      if (fs.existsSync(localFilePath)) {
+        const content = JSON.parse(fs.readFileSync(localFilePath, 'utf-8'));
+        existingVars = content.variables || {};
+      }
+    } catch { /* start fresh */ }
+
+    // Merge new extractions
+    for (const extraction of extractions) {
+      existingVars[extraction.variableName] = extraction.value;
+    }
+
+    // Write to .local.json
+    const dir = path.dirname(localFilePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(localFilePath, JSON.stringify({ variables: existingVars }, null, 2), 'utf-8');
+
+    // Apply replacements to the request
+    const modified = applyExtractionPlan(request, extractions) as UIRequest;
+
+    const varNames = extractions.map(e => `{{${e.variableName}}}`).join(', ');
+    vscode.window.showInformationMessage(
+      `Extracted ${extractions.length} secret(s) to ${path.basename(localFilePath)}. Variables: ${varNames}`
+    );
+
+    return modified;
   }
 
   /**

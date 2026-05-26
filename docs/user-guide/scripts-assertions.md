@@ -32,14 +32,58 @@ You can use any alias:
 
 ## Variables API
 Scopes:
-- `ctx.variables` (session)
-- `ctx.environment`
+- `ctx.variables` (merged view — reads from all scopes)
+- `ctx.environment` (persisted to workspace state)
 - `ctx.collectionVariables`
 - `ctx.globals`
 - `ctx.iterationData` (read-only, data-driven testing)
 
 Methods:
 - `get`, `set`, `unset`, `clear`, `has`, `toObject`, `replaceIn`
+
+### Storing non-string values
+
+All variable scopes support automatic serialization of non-string values (arrays, objects, numbers, booleans):
+
+```javascript
+// Arrays and objects are auto-serialized on set()
+ctx.environment.set('users', [1, 2, 3]);
+ctx.environment.set('config', { retries: 3, timeout: 5000 });
+ctx.environment.set('count', 42);
+ctx.environment.set('flag', true);
+
+// get() automatically deserializes back to the original type
+const users = ctx.environment.get('users');   // [1, 2, 3] (array)
+const config = ctx.environment.get('config'); // { retries: 3, timeout: 5000 } (object)
+const count = ctx.environment.get('count');   // 42 (number)
+const flag  = ctx.environment.get('flag');    // true (boolean)
+```
+
+Under the hood, `set()` tags non-string values with an internal type marker before storing. Only values carrying this marker are deserialized by `get()` — plain strings are always returned as-is, even if they look like JSON (e.g. `"true"`, `"123"`, `"[1,2,3]"`).
+
+> **Tip:** There is no ambiguity between `set('x', true)` (boolean) and `set('x', 'true')` (string). Each is stored distinctly and `get('x')` returns the exact type you stored.
+
+### Using typed variables in templates
+
+Variables stored as arrays or objects work seamlessly with [filter pipes](template-syntax.md) and property access:
+
+```text
+{{users | first}}         → 1  (first element of the array)
+{{users | at(2)}}         → 3  (element at index 2)
+{{users[0]}}              → 1  (index access — same as first)
+{{config | prop("retries")}} → 3  (nested property access)
+{{config.retries}}        → 3  (dot access — same as prop)
+{{count | add(8)}}        → 50 (arithmetic on a number)
+```
+
+No `parseJSON` filter is needed — the template engine detects typed values automatically.
+
+These also work inside script strings:
+
+```javascript
+pm.test("First user is {{users | first}}", () => { ... });
+pm.test("Retry count: {{config.retries}}", () => { ... });
+```
 
 ## Tests & assertions
 - `ctx.test(name, fn)` (sync and async callbacks supported)
@@ -186,7 +230,7 @@ The pre-request and post-response script editors provide context-aware code comp
 
 | Path | Suggestions |
 |---|---|
-| `hf.` | `variables`, `environment`, `session`, `globals`, `collectionVariables`, `request`, `response`, `cookies`, `test()`, `expect()`, `sendRequest()`, `info` |
+| `hf.` | `variables`, `environment`, `globals`, `collectionVariables`, `request`, `response`, `cookies`, `test()`, `expect()`, `sendRequest()`, `info` |
 | `hf.variables.` | `get(key)`, `set(key, value)`, `has(key)`, `unset(key)`, `clear()`, `toObject()`, `replaceIn(str)` |
 | `hf.environment.` | `get(key)`, `set(key, value)`, `has(key)`, `name`, … |
 | `hf.request.` | `url`, `method`, `headers`, `body`, `params`, `query` |
@@ -208,7 +252,7 @@ HTTP Forge runs the full 5-step resolution pipeline on your script source before
 
 1. **Dynamic variables**: `{{$guid}}`, `{{$randomInt(1, 100)}}`
 2. **Filter chains**: `{{username | upper}}`, `{{price | add(tax)}}`
-3. **Variable lookup**: `{{baseUrl}}` from environment/collection/session
+3. **Variable lookup**: `{{baseUrl}}` from environment/collection/globals
 4. **JavaScript expressions**: `{{price * quantity}}`
 5. **Original text**: unresolved placeholders left as-is
 

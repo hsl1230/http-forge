@@ -212,7 +212,8 @@ export class PanelDataProvider implements IPanelContextProvider {
     this.resolveCollectionIdFromName();
 
     // If saved request exists, merge its values into the latest generated request
-    if (this.currentContext.collectionId && this.currentContext.request) {
+    // Skip merge for suite edit mode - request is already resolved from suite store
+    if (this.currentContext.collectionId && this.currentContext.request && !this.currentContext.suiteId) {
       const requestId = this.currentContext.requestId || this.currentContext.request?.id || '';
       let savedItem = requestId
         ? this.collectionService.findRequest(this.currentContext.collectionId, requestId)
@@ -277,6 +278,10 @@ export class PanelDataProvider implements IPanelContextProvider {
       title: this.currentContext.title,
       collectionId: this.currentContext.collectionId,
       collectionName,
+      suiteId: this.currentContext.suiteId,
+      suiteRequestKey: this.currentContext.suiteRequestKey,
+      disableSchemas: this.currentContext.disableSchemas,
+      disableHistory: this.currentContext.disableHistory,
       ...envData,
       collectionVariables,
       branchInfo,

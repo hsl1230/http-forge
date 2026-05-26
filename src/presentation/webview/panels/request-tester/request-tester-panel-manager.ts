@@ -53,6 +53,10 @@ export class RequestTesterPanelManager {
   private generatePanelId(context: RequestContext): string {
     // Use collectionId:requestId if available, otherwise use a hash of the context
     if (context.collectionId && context.requestId) {
+      // Suite edits get a distinct panel ID so they don't collide with collection editors
+      if (context.suiteId) {
+        return `suite:${context.suiteId}:${context.suiteRequestKey || context.requestId}`;
+      }
       return `${context.collectionId}:${context.requestId}`;
     }
     // For requests without IDs, use collection + folder + title
@@ -108,6 +112,13 @@ export class RequestTesterPanelManager {
       targetPanel = this.getActiveRequestPanel();
       if (targetPanel) {
         targetPanelId = this.findPanelId(targetPanel);
+        // Don't reuse a suite editor for a non-suite request (or vice versa)
+        const activePanelIsSuite = targetPanelId?.startsWith('suite:') ?? false;
+        const newRequestIsSuite = !!context.suiteId;
+        if (activePanelIsSuite !== newRequestIsSuite) {
+          targetPanel = undefined;
+          targetPanelId = undefined;
+        }
       }
     }
 
@@ -134,7 +145,15 @@ export class RequestTesterPanelManager {
         targetPanel = undefined;
         targetPanelId = undefined;
       } else {
-        // action === 'overwrite' - reuse the target panel
+        // action === 'save' or 'discard' - reuse the target panel
+        if (action === 'save') {
+          try {
+            await targetPanel.saveCurrentRequest();
+          } catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to save request: ${error.message}`);
+            return undefined;
+          }
+        }
         this.removePanel(targetPanelId);
 
         const panelTitle = this.generatePanelTitle(context);
@@ -172,37 +191,42 @@ export class RequestTesterPanelManager {
   /**
    * Check if a panel has unsaved changes and prompt user if needed
    * @param panel The panel to check
-   * @returns 'overwrite' | 'new-panel' | 'cancel'
+   * @returns 'save' | 'discard' | 'new-panel' | 'cancel'
    */
-  private async checkUnsavedChanges(panel: RequestTesterPanel): Promise<'overwrite' | 'new-panel' | 'cancel'> {
+  private async checkUnsavedChanges(panel: RequestTesterPanel): Promise<'save' | 'discard' | 'new-panel' | 'cancel'> {
     const hasUnsaved = panel.hasUnsavedChanges();
 
     if (!hasUnsaved) {
-      return 'overwrite'; // No unsaved changes, safe to overwrite
+      return 'discard'; // No unsaved changes, safe to overwrite
     }
 
     const atMaxCapacity = this.panels.size >= MAX_PANELS;
 
-    // At max capacity, user can only overwrite or cancel (can't create new panel)
+    // At max capacity, user can't create a new panel
     if (atMaxCapacity) {
       const choice = await vscode.window.showWarningMessage(
         'The request panel has unsaved changes. Maximum panel limit reached.',
         { modal: true },
-        'Overwrite'
+        'Save & Continue',
+        'Discard'
       );
 
-      return choice === 'Overwrite' ? 'overwrite' : 'cancel';
+      if (choice === 'Save & Continue') return 'save';
+      if (choice === 'Discard') return 'discard';
+      return 'cancel';
     }
 
-    // Not at max capacity, user can choose to open in new panel
+    // Not at max capacity, user can also open in new panel
     const choice = await vscode.window.showWarningMessage(
       'The request panel has unsaved changes.',
       { modal: true },
-      'Overwrite',
+      'Save & Continue',
+      'Discard',
       'Open in New Panel'
     );
 
-    if (choice === 'Overwrite') return 'overwrite';
+    if (choice === 'Save & Continue') return 'save';
+    if (choice === 'Discard') return 'discard';
     if (choice === 'Open in New Panel') return 'new-panel';
     return 'cancel';
   }

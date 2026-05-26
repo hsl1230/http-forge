@@ -98,9 +98,8 @@ See: request-tester.md
 ## 5) Environment selection and variables
 HTTP Forge resolves variables using `{{variableName}}` syntax. Variables can be defined at multiple scopes:
 - Global (workspace)
-- Environment
+- Environment (persisted to workspace state)
 - Collection
-- Session
 
 Use the environment dropdown to switch contexts. The resolved environment also controls default headers and credentials.
 

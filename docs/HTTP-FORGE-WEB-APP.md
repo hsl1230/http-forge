@@ -399,7 +399,7 @@ The existing 26 webview modules see no difference.
 | `deleteCookie` | `{ name, domain }` | `CookieHandler` |
 | `clearCookies` | — | `CookieHandler` |
 | `variableChange` | `{ change }` | `VariableHandler` |
-| `dirtyStateChanged` | `{ isDirty }` | `→ update tab title` |
+| `dirtyStateChanged` | `{ isDirty, requestState? }` | `→ cache state, update tab title` |
 
 **Schema:**
 
@@ -454,7 +454,7 @@ The existing 26 webview modules see no difference.
 | `loadRequest` | `{ request, environment, history }` | Navigation to different request |
 | `requestSaved` | `{ request }` | Save succeeded |
 | `environmentChanged` | `{ environment, variables }` | Env selection changed |
-| `sessionVariablesLoaded` | `{ variables }` | Session vars updated |
+| `environmentVariablesLoaded` | `{ variables }` | Environment vars updated |
 | `cookiesLoaded` | `{ cookies }` | Cookie list updated |
 | `sendRequestResponse` | `{ requestId, response }` | In-script HTTP call resolved |
 | `error` | `{ message }` | Generic error |
@@ -884,7 +884,7 @@ http-forge --host 0.0.0.0 --auth jwt --secret $JWT_SECRET
 ```
 Bind: 0.0.0.0:3000
 Auth: JWT tokens
-Users: multi-user (session-scoped state)
+Users: multi-user (per-connection state)
 Storage: shared filesystem with user namespacing
 ```
 
@@ -894,21 +894,21 @@ Storage: shared filesystem with user namespacing
 |---------|-------|------|----------------|
 | Binding | `localhost` | `0.0.0.0` | Config flag |
 | Auth | None | JWT / OAuth2 / LDAP | Express middleware |
-| Users | Single | Multi | Session per WebSocket |
+| Users | Single | Multi | Per WebSocket connection |
 | Collections | Shared | Shared (read) + per-user | Path scoping |
 | Environments | All visible | Role-based (hide prod secrets) | Middleware filter |
 | History | Single file | Per-user directory | User namespace |
-| Cookies | Single jar | Per-session | Session scope |
-| Variables | Single scope | Per-user session | Session scope |
+| Cookies | Single jar | Per-connection | Connection scope |
+| Variables | Single scope | Per-user connection | Environment scope |
 
-### Multi-User Session Model
+### Multi-User Connection Model
 
 ```typescript
-// Each WebSocket connection gets its own session
+// Each WebSocket connection gets its own context
 wss.on('connection', (ws, req) => {
   const user = authenticateFromToken(req);   // JWT from cookie/header
   const session = new UserSession(user, container);
-  // session gets its own: cookieJar, sessionVariables, history cursor
+  // session gets its own: cookieJar, environment overrides, history cursor
   // session shares: collections, environments (read), schemas
 });
 ```

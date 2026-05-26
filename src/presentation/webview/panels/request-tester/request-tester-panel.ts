@@ -36,6 +36,7 @@ export class RequestTesterPanel implements vscode.Disposable {
   
   // Track dirty state locally (updated by webview notifications)
   private isDirty: boolean = false;
+  private _cachedRequestState: any = null;
 
   // Event emitter for disposal
   private readonly _onDidDispose = new vscode.EventEmitter<void>();
@@ -113,7 +114,7 @@ export class RequestTesterPanel implements vscode.Disposable {
       this.environmentHandler
     );
 
-    const saveRequestHandler = new SaveRequestHandler(this.dataProvider, collectionService);
+    const saveRequestHandler = new SaveRequestHandler(this.dataProvider, collectionService, envConfigService);
 
     // Schema handler for body/response schema operations
     const schemaInferenceService = container.resolve<any>(Symbol.for('SchemaInferenceService'));
@@ -198,6 +199,19 @@ export class RequestTesterPanel implements vscode.Disposable {
   }
 
   /**
+   * Save the currently cached request state (used by manager before overwriting)
+   */
+  public async saveCurrentRequest(): Promise<void> {
+    if (!this._cachedRequestState) {
+      return;
+    }
+    await this.router.route(
+      { command: 'saveRequest', request: this._cachedRequestState },
+      this.messenger
+    );
+  }
+
+  /**
    * Update this panel with new request content
    */
   public async updateContent(context: RequestContext, panelTitle: string): Promise<void> {
@@ -207,6 +221,7 @@ export class RequestTesterPanel implements vscode.Disposable {
 
     // Reset dirty state when loading new content
     this.isDirty = false;
+    this._cachedRequestState = null;
 
     // Update panel title
     this.panel.title = panelTitle;
@@ -227,6 +242,31 @@ export class RequestTesterPanel implements vscode.Disposable {
     // Prevent double disposal
     if (!this.panel) {
       return;
+    }
+
+    // If there are unsaved changes, prompt user
+    if (this.isDirty && this._cachedRequestState) {
+      const requestState = this._cachedRequestState;
+      const requestName = requestState.name || 'Untitled Request';
+      // Show dialog asynchronously (panel is already closing)
+      vscode.window.showWarningMessage(
+        `Request "${requestName}" has unsaved changes.`,
+        { modal: true },
+        'Save',
+        'Don\'t Save'
+      ).then(async (choice) => {
+        if (choice === 'Save') {
+          try {
+            // Route save through the save handler by simulating the message
+            await this.router.route(
+              { command: 'saveRequest', request: requestState },
+              this.messenger
+            );
+          } catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to save request: ${error.message}`);
+          }
+        }
+      });
     }
 
     this._onDidDispose.fire();
@@ -329,6 +369,9 @@ export class RequestTesterPanel implements vscode.Disposable {
       // Track dirty state from webview
       if (cmd === 'dirtyStateChanged') {
         this.isDirty = msg.isDirty || false;
+        if (msg.requestState) {
+          this._cachedRequestState = msg.requestState;
+        }
         return;
       }
 

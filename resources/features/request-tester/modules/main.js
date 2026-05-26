@@ -460,11 +460,11 @@ class RequestTesterApp {
                 this.state._suppressDirty = false;
             }
 
-            // For Endpoint Tester mode (allowSave=true), enable save button
+            // For Endpoint Tester mode (allowSave=true, no suiteId), enable save button
             // by default since the endpoint test configuration isn't saved yet.
-            // This applies whether or not we have a collectionId (endpoint might
-            // be auto-assigned to a collection by name)
-            if (this.state.allowSave) {
+            // For suite request editing (allowSave=true + suiteId), start clean
+            // since the request is already persisted.
+            if (this.state.allowSave && !data.suiteId) {
                 // Mark as dirty so save button is enabled
                 this.state.isDirty = true;
                 this.updateSaveButtonState();
@@ -563,6 +563,10 @@ class RequestTesterApp {
                 this.state.requestData = msg.request;
                 this.state.collectionId = msg.collectionId || null;
                 this.state.collectionName = msg.collectionName || null;
+                this.state.suiteId = msg.suiteId || null;
+                this.state.suiteRequestKey = msg.suiteRequestKey || null;
+                this.state.disableSchemas = msg.disableSchemas || false;
+                this.state.disableHistory = msg.disableHistory || false;
                 this.state.resolvedEnvironment = msg.resolvedEnvironment || {};
                 this.state.globalVariables = msg.globalVariables || {};
                 this.state.sessionVariables = msg.sessionVariables || {};
@@ -618,6 +622,7 @@ class RequestTesterApp {
 
                 this.updateUrlPreview();
                 this.populateEnvironmentSelector();
+                this.applySuiteEditMode();
             } finally {
                 // Re-enable dirty tracking and mark clean
                 this.state._suppressDirty = false;
@@ -742,6 +747,13 @@ class RequestTesterApp {
         this.state.collectionVariables = data.collectionVariables || {};
         this.state.collectionId = data.collectionId || null;
         this.state.collectionName = data.collectionName || null;
+        this.state.suiteId = data.suiteId || null;
+        this.state.suiteRequestKey = data.suiteRequestKey || null;
+        this.state.disableSchemas = data.disableSchemas || false;
+        this.state.disableHistory = data.disableHistory || false;
+
+        // Show/hide suite edit banner
+        this.applySuiteEditMode();
 
         // Clear previous response when loading new request data
         this.responseHandler.clearResponse();
@@ -1266,8 +1278,12 @@ class RequestTesterApp {
         if (hasChanges !== this.state.isDirty) {
             this.state.isDirty = hasChanges;
             this.updateSaveButtonState();
-            // Notify extension of dirty state change
-            vscode.postMessage({ command: 'dirtyStateChanged', isDirty: hasChanges });
+            // Notify extension of dirty state change (include request snapshot for save-on-close)
+            vscode.postMessage({
+                command: 'dirtyStateChanged',
+                isDirty: hasChanges,
+                requestState: hasChanges ? this.requestSaver.buildRequestData() : null
+            });
         }
     }
 
@@ -1282,14 +1298,49 @@ class RequestTesterApp {
     updateSaveButtonState() {
         if (!this.elements.btnSave) return;
         
+        const isSuiteMode = !!this.state.suiteId;
         if (this.state.isDirty) {
             this.elements.btnSave.disabled = false;
             this.elements.btnSave.classList.add('has-changes');
-            this.elements.btnSave.title = 'Save changes to collection';
+            this.elements.btnSave.title = isSuiteMode ? 'Save changes to suite' : 'Save changes to collection';
+            this.elements.btnSave.textContent = isSuiteMode ? 'Save to Suite' : 'Save';
         } else {
             this.elements.btnSave.disabled = true;
             this.elements.btnSave.classList.remove('has-changes');
             this.elements.btnSave.title = 'No changes to save';
+            this.elements.btnSave.textContent = isSuiteMode ? 'Save to Suite' : 'Save';
+        }
+    }
+
+    /**
+     * Show or hide suite-edit-mode UI elements
+     */
+    applySuiteEditMode() {
+        const banner = document.getElementById('suite-edit-banner');
+        if (banner) {
+            if (this.state.suiteId) {
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+        // Hide history sidebar in suite edit mode
+        if (this.state.disableHistory) {
+            const historySidebar = document.getElementById('history-sidebar');
+            if (historySidebar) historySidebar.style.display = 'none';
+        }
+        // Hide schema tabs and per-field schema toggles in suite edit mode
+        if (this.state.disableSchemas) {
+            document.body.classList.add('suite-edit-no-schema');
+            const bodySchemaTab = document.querySelector('[data-tab="body-schema"]');
+            const responseSchemaTab = document.querySelector('[data-tab="response-schema"]');
+            if (bodySchemaTab) bodySchemaTab.style.display = 'none';
+            if (responseSchemaTab) responseSchemaTab.style.display = 'none';
+        }
+        // Hide Document tab in suite edit mode
+        if (this.state.suiteId) {
+            const docTab = document.querySelector('[data-tab="doc"]');
+            if (docTab) docTab.style.display = 'none';
         }
     }
 

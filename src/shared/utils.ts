@@ -27,6 +27,11 @@ export interface RequestContext {
     allowSave?: boolean;  // Allow save even in readonly mode (for Endpoint Tester)
     group?: GroupInfo;
     allowDuplicatedName?: boolean; // Allow duplicate request names in collection editor
+    // Suite editing context
+    suiteId?: string;              // Suite being edited
+    suiteRequestKey?: string;      // Slug of the request within the suite
+    disableSchemas?: boolean;      // Hide schema tabs/actions in webview
+    disableHistory?: boolean;      // Hide history tab in webview
 }
 
 /**

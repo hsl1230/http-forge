@@ -1,5 +1,5 @@
-import type { Collection, CollectionItem } from '@http-forge/core';
-import { CollectionFolderItem, CollectionRequestItem, CollectionService, ConfigService, CookieService, EnvironmentConfigService, exportCollectionToRestClient, generateId, HttpRequestService, OpenApiExporter, type OpenApiExportOptions, OpenApiImporter, RequestHistoryService, SchemaInferenceService, TestSuite, TestSuiteService } from '@http-forge/core';
+import type { Collection, CollectionFolderItem, CollectionItem, CollectionRequestItem } from '@http-forge/core';
+import { CollectionService, ConfigService, CookieService, EnvironmentConfigService, exportCollectionToRestClient, generateId, HttpRequestService, OpenApiExporter, type OpenApiExportOptions, OpenApiImporter, RequestHistoryService, SchemaInferenceService, TestSuite, TestSuiteService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { BootstrapResult, bootstrapServices } from './infrastructure/services/service-bootstrap';
@@ -988,11 +988,7 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
       });
 
       if (newName) {
-        const newSuite = await testSuiteService.createSuite(newName, [...item.suite.requests]);
-        // Copy configuration
-        newSuite.config = { ...item.suite.config };
-        newSuite.description = item.suite.description;
-        await testSuiteService.updateSuite(newSuite);
+        await testSuiteService.duplicateSuite(item.suite.id, newName);
         testSuitesTreeProvider.refresh();
         vscode.window.showInformationMessage(`Test Suite "${newName}" created`);
       }

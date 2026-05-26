@@ -80,17 +80,15 @@ export class SuiteRunHandler implements IMessageHandler {
             return;
         }
 
-        // Convert indices to request keys and get entries
-        const selectedRequestKeys: string[] = [];
+        // Convert indices to request entries
         const requests: SuiteRequestEntry[] = [];
 
         for (const index of selectedIndices) {
             if (index >= 0 && index < suite.requests.length) {
                 const suiteReq = suite.requests[index];
-                const key = `${suiteReq.collectionId}:${suiteReq.requestId}`;
-                selectedRequestKeys.push(key);
-
-                const entry = this.suiteStore.getRequestWithContext(suiteReq.collectionId, suiteReq.requestId);
+                const entry = suiteReq.slug
+                    ? this.suiteStore.getRequestBySlug(suiteReq.slug)
+                    : this.suiteStore.getRequestWithContext(suiteReq.collectionId, suiteReq.requestId);
                 if (entry) {
                     requests.push(entry);
                 }
@@ -116,6 +114,9 @@ export class SuiteRunHandler implements IMessageHandler {
 
         const totalRequests = requests.length * config.iterations;
         const environmentId = config.environmentId || 'default';
+
+        // Create per-run cookie jar (hoisted for flush in finally)
+        const cookieJar: ICookieJar = config.writeToSharedSession ? getServiceContainer().persistentCookieJar : new InMemoryCookieJar();
 
         try {
             // Initialize storage for this run
@@ -149,8 +150,7 @@ export class SuiteRunHandler implements IMessageHandler {
                 'Test Suite'
             );
 
-            // Create per-run cookie jar
-            const cookieJar: ICookieJar = config.writeToSharedSession? getServiceContainer().persistentCookieJar : new InMemoryCookieJar();
+            // cookieJar is created above the try block so it can be flushed in finally
 
             // Load environment variables
             let envVariables: Record<string, string> = {};
@@ -164,8 +164,7 @@ export class SuiteRunHandler implements IMessageHandler {
             // Load shared session variables if enabled
             if (config.readFromSharedSession && this.environmentConfigService) {
                 const sharedEnvVars = this.environmentConfigService.getEnvironmentVariableLocals();
-                const sharedSessionVars = this.environmentConfigService.getSessionVariables();
-                envVariables = { ...envVariables, ...sharedEnvVars, ...sharedSessionVars };
+                envVariables = { ...envVariables, ...sharedEnvVars };
             }
 
             // Parse data file
@@ -198,7 +197,6 @@ export class SuiteRunHandler implements IMessageHandler {
                     }
 
                     const entry = requests[i];
-                    const requestKey = selectedRequestKeys[i];
 
                     // Execute request
                     const result = await this.executeRequest(
@@ -279,23 +277,11 @@ export class SuiteRunHandler implements IMessageHandler {
                     if (result.modifiedEnvironmentVariables) {
                         iterationVariables = { ...iterationVariables, ...result.modifiedEnvironmentVariables };
                     }
-                    if (result.modifiedSessionVariables) {
-                        iterationVariables = { ...iterationVariables, ...result.modifiedSessionVariables };
-                    }
 
-                    // Write to shared session if enabled
-                    if (config.writeToSharedSession && this.environmentConfigService) {
-                        if (result.modifiedEnvironmentVariables) {
-                            for (const [key, value] of Object.entries(result.modifiedEnvironmentVariables)) {
-                                this.environmentConfigService.setEnvironmentVariable(key, value);
-                            }
-                        }
-                        if (result.modifiedSessionVariables) {
-                            for (const [key, value] of Object.entries(result.modifiedSessionVariables)) {
-                                this.environmentConfigService.setSessionVariable(key, value);
-                            }
-                        }
-                    }
+                    // Environment variable changes are now always persisted to workspace state
+                    // via the onEnvironmentChange callback in CollectionRequestExecutor.
+                    // The writeToSharedSession flag is kept for backward compatibility but
+                    // environment persistence happens automatically (Postman-compatible behavior).
 
                     // Stop on error if configured
                     if (!result.passed && config.stopOnError) {
@@ -373,6 +359,11 @@ export class SuiteRunHandler implements IMessageHandler {
                 `Run complete: ${stats.summary.passed} passed, ${stats.summary.failed} failed, ${stats.summary.skipped} skipped (${stats.summary.passRate}% pass rate)`,
                 'Test Suite'
             );
+
+            // Flush pending cookie operations to persistent store
+            if (cookieJar.flush) {
+                await cookieJar.flush();
+            }
 
             // Clean up storage service
             this.resultStorageService = null;

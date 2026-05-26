@@ -3188,3 +3188,31 @@ button.secondary:disabled {
     background: rgba(255,255,255,0.08);
 }
 
+/* Suite edit mode banner */
+.suite-edit-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: var(--vscode-editorInfo-background, rgba(0, 120, 212, 0.1));
+    border: 1px solid var(--vscode-editorInfo-foreground, rgba(0, 120, 212, 0.4));
+    border-radius: 3px;
+    margin: 4px 8px;
+    font-size: 0.85em;
+    color: var(--vscode-editorInfo-foreground, #3794ff);
+}
+.suite-edit-banner.hidden {
+    display: none;
+}
+.suite-edit-icon {
+    font-size: 1em;
+}
+.suite-edit-text {
+    flex: 1;
+}
+
+/* Hide schema toggle buttons when in suite edit (no-schema) mode */
+body.suite-edit-no-schema .schema-toggle {
+    display: none !important;
+}
+

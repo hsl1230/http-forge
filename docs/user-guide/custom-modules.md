@@ -119,7 +119,7 @@ ctx.test('Response matches schema', () => {
 ```javascript
 const $ = require('cheerio').load(ctx.response.body);
 const csrfToken = $('meta[name="csrf-token"]').attr('content');
-ctx.session.set('csrf', csrfToken);
+ctx.environment.set('csrf', csrfToken);
 ```
 
 ## Security and module allowlist

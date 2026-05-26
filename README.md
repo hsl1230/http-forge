@@ -56,7 +56,7 @@
 | **Built-in Libraries** | ✅ lodash, moment, uuid, CryptoJS, etc. | ✅ lodash, moment, uuid, CryptoJS, etc. |
 | **Test Assertions** | ✅ Chai-style expect, JSON schema | ✅ Chai-style expect, JSON schema |
 | **Environment Variables** | ✅ Local files | ❌ Cloud-synced only |
-| **Variable Scopes** | ✅ Global, Environment, Collection, Session | ✅ Global, Environment, Collection |
+| **Variable Scopes** | ✅ Global, Environment, Collection | ✅ Global, Environment, Collection |
 | **Template Engine** | ✅ Filters, JS expressions, string concat | ❌ Variable lookup + script-only filters |
 | **IntelliSense / Autocomplete** | ✅ Variables, filters, dynamic vars, script API | ❌ No template IntelliSense |
 | **Script Template Pre-Resolution** | ✅ `{{var}}` auto-resolves in script source | ❌ Requires `replaceIn()` |
@@ -167,7 +167,8 @@
 - **Variable Substitution**: Use `{{variableName}}` anywhere in your requests
 - **Environment Inheritance**: Share common variables across environments
 - **Local Secrets**: Store sensitive data in gitignored files
-- **Session Variables**: Temporary variables that persist during your session
+- **Environment Overrides**: `pm.environment.set()` persists to workspace state (like Postman)
+- **Type-safe Variables**: Store arrays, objects, numbers, and booleans — `get()` returns the exact type you stored
 - **File Watching**: Environment file changes auto-refresh the tree view and all open panels
 
 ### 📊 Response Viewer
@@ -204,6 +205,8 @@
 
 ### 🧪 Test Suite
 - **Cross-Collection**: Select requests from multiple collections
+- **Suite & Request Descriptions**: Document what the suite tests and what each request does in the flow — inline editing with multi-line hover tooltips
+- **Request Actions Menu**: Per-request `⋯` menu with Edit (suite copy), Open Original (collection source), Reset to Collection, and Remove
 - **Save & Reuse**: Save test configurations for QA teams
 - **Batch Execution**: Run selected requests with iterations
 - **Performance Statistics**: P50/P90/P95/P99 response times
@@ -323,9 +326,11 @@ if (forge.response.status !== 200) {
 
 **Create Test Suite (cross-collection):**
 1. In **Test Suites** view, click **+**
-2. Select requests from multiple collections
-3. Arrange execution order
-4. Save for reuse by QA team
+2. Add a suite description to document the test purpose (click the placeholder in the header)
+3. Select requests from multiple collections
+4. Add per-request descriptions to document each step's role
+5. Arrange execution order
+6. Save for reuse by QA team
 
 **Performance Statistics:**
 - View P50/P90/P95/P99 response times

@@ -318,7 +318,7 @@ Each handler in `RequestTesterPanel` handles a specific concern:
 
 ### Request Tester Panel Manager
 
-Multi-panel support with LRU eviction:
+Multi-panel support with LRU eviction and dirty-state protection:
 
 ```typescript
 export class RequestTesterPanelManager {
@@ -334,6 +334,7 @@ export class RequestTesterPanelManager {
         }
         
         // Reuse active panel or oldest (LRU) if at max capacity
+        // If target panel is dirty, prompt: Save & Continue / Discard / Open in New Panel / Cancel
         // Create new panel otherwise
     }
     

@@ -110,7 +110,7 @@ Implements `IPanelContextProvider` - Provides:
 6. **`VariableHandler`** (150 lines)
    - Commands: `variableChange`
    - Delegated to `EnvironmentConfigService` and `CollectionService`
-   - Supports: global, environment, collection, session scopes
+   - Supports: global, environment, collection scopes
    - Actions: set, unset, clear
 
 7. **`SchemaHandler`** (555 lines)
@@ -417,7 +417,7 @@ A comprehensive template engine extending the `{{variable}}` syntax with Thunder
 Context-aware code completion (IntelliSense) in all Monaco editors — request body (JSON/plaintext/XML/HTML/JavaScript), GraphQL query/variables, and pre-request/post-response script editors.
 
 ### New Files Created
-- **`resources/features/request-tester/modules/template-completion-provider.js`** (~230 lines): Completion provider for `{{ }}` template expressions. Triggers on `{{` (variables + dynamic vars), `$` (18 dynamic variables with snippet tab-stops), `|` (30+ filters grouped by category). Reads live `state` object for real-time variable suggestions across all scopes (environment, collection, global, session). Registered for all 5 body languages: json, plaintext, xml, html, javascript.
+- **`resources/features/request-tester/modules/template-completion-provider.js`** (~230 lines): Completion provider for `{{ }}` template expressions. Triggers on `{{` (variables + dynamic vars), `$` (18 dynamic variables with snippet tab-stops), `|` (30+ filters grouped by category). Reads live `state` object for real-time variable suggestions across all scopes (environment, collection, global). Registered for all 5 body languages: json, plaintext, xml, html, javascript.
 - **`resources/features/request-tester/modules/script-completion-provider.js`** (~300 lines): Completion provider for `hf.*` / `pm.*` / `ctx.*` script API. Triggers on `.` with full path resolution: root members → variable scopes (`get`, `set`, `has`, `replaceIn`) → request object (`url`, `method`, `headers.add/get/upsert`, `body.mode/raw/formdata`) → response object (`status`, `json()`, `getHeader()`, `to.have.status()`, `to.be.ok()`) → cookies (`get`, `set`, `list`, `jar`) → expect chain (`equal`, `include`, `property`, `above`, `below`, `ok`, `empty`) → info (`eventName`, `iteration`). Registered for JavaScript only.
 
 ### Modified Files
@@ -427,7 +427,7 @@ Context-aware code completion (IntelliSense) in all Monaco editors — request b
 - **Template completions**: `{{` → all variables with scope labels and live values; `$` → 18 dynamic variables; `|` → 30+ filters with category tags and snippet parameters
 - **Script API completions**: `hf.`/`pm.`/`ctx.` → full API tree with deep chain support (variables, environment, session, globals, collectionVariables, request, response, cookies, test, expect, sendRequest, info)
 - **Live variable data**: Suggestions read from `state` on every keystroke — switching environments updates suggestions immediately
-- **Priority ordering**: env > collection > global > session; duplicates suppressed
+- **Priority ordering**: env > collection > global; duplicates suppressed
 - **Snippet tab-stops**: Filters and methods with parameters use `$1`, `$2` tab-stops for quick filling
 
 ---

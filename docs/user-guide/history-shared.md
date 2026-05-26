@@ -36,3 +36,11 @@ Shared group name: `release-2026-01`
 - When you enable "save full response" for a history entry, the full response is stored next to the transaction (as `{entryId}.json`).
 - Sharing an entry moves (or copies) that separate full-response file into `storage.root/shared-histories` alongside the shared transactions file so the shared entry preserves its response data.
 - Restoring/using a shared history entry will also load the saved full response (if present).
+
+## Sensitive data redaction
+
+All history entries (local and shared) automatically redact sensitive data before writing to disk. Headers like `Authorization`, `Cookie`, and any header containing `token`, `secret`, or `cookie` have their values replaced with `***`. Request body fields and URL query parameters matching sensitive name patterns are also redacted.
+
+The original request template (`originalConfig`) with `{{variable}}` placeholders is preserved untouched — only resolved values are redacted.
+
+See [Security & Sensitive Data](security.md) for the full list of detected patterns.

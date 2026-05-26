@@ -226,3 +226,30 @@ When you open a different request in an existing Request Tester panel (via the C
 ### Dirty state suppression
 
 During the load cycle, dirty tracking is suppressed (`_suppressDirty` flag). This prevents intermediate form-change events from emitting `dirtyStateChanged` messages to the extension host. After all population is complete, a fresh snapshot is taken and `markClean()` is called — so the panel starts in a clean state with no unsaved changes.
+
+### Save-on-close confirmation
+
+When you close a Request Tester panel that has unsaved changes, a modal dialog appears:
+
+| Button | Behavior |
+|--------|----------|
+| **Save** | Saves the current request (to collection or suite), then closes |
+| **Don't Save** | Discards changes and closes |
+| **Cancel** (Escape) | Keeps the panel open |
+
+This works for both regular collection requests and suite request editors.
+
+### Confirm-before-overwrite
+
+When you open a new request while the current panel has unsaved changes, a unified dialog appears:
+
+| Button | Behavior |
+|--------|----------|
+| **Save & Continue** | Saves the dirty request, then loads the new one in the same panel |
+| **Discard** | Discards changes and loads the new request |
+| **Open in New Panel** | Keeps the dirty panel untouched, opens the new request in a fresh panel (hidden at max panel capacity) |
+| **Cancel** (Escape) | Does nothing — stays on the current request |
+
+### Save button indicator
+
+The Save button displays a pulsing highlight (`.has-changes`) whenever the panel has unsaved modifications, providing clear at-a-glance feedback that changes exist.

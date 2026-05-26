@@ -336,7 +336,7 @@ export default async function(f) {
   
   // 提取变量
   const token = loginRes.body.accessToken;
-  f.session.set('token', token);
+  f.environment.set('token', token);
   
   // 链式请求
   const userRes = await f.send('forgerock-login/auth/user-sessions', {
@@ -367,12 +367,6 @@ interface Flow {
   set(key: string, value: any): void;
   get(key: string): any;
   
-  // Session 作用域 - 当前运行会话有效，跨请求持久
-  session: {
-    set(key: string, value: any): void;
-    get(key: string): any;
-  };
-  
   // ===== 断言 =====
   expect(value: any): Expectation;
 }
@@ -381,14 +375,11 @@ interface Flow {
  * 变量作用域层级 (解析优先级: 内层覆盖外层):
  * 
  * ┌─────────────────────────────────────────────┐
- * │  Environment Variables (持久化到文件)        │
+ * │  Environment Variables (持久化到工作区状态) │
  * │  ┌─────────────────────────────────────────┐│
- * │  │  Session Variables (运行会话期间)        ││
+ * │  │  Flow Variables (单个 Flow 内)                ││
  * │  │  ┌─────────────────────────────────────┐││
- * │  │  │  Flow Variables (单个 Flow 内)      │││
- * │  │  │  ┌─────────────────────────────────┐│││
- * │  │  │  │  Request Variables (单请求)     ││││
- * │  │  │  └─────────────────────────────────┘│││
+ * │  │  │  Request Variables (单请求)              │││
  * │  │  └─────────────────────────────────────┘││
  * │  └─────────────────────────────────────────┘│
  * └─────────────────────────────────────────────┘
