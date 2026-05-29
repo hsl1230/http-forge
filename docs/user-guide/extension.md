@@ -38,6 +38,13 @@ Example URL:
 {{baseUrl}}/users/:id
 ```
 
+### Duplicate a collection, folder, or request
+Right-click any item in the Collections tree and select **Duplicate**. Enter a name for the copy.
+
+- **Collection**: Copies the entire collection including all folders, requests, scripts, schemas, and documentation files.
+- **Folder**: Copies the folder and all nested requests within the same collection.
+- **Request**: Copies the request into the same folder.
+
 ### Naming tips
 - Use stable request names for codegen and Playwright.
 - Avoid duplicate names in the same folder.

@@ -158,6 +158,7 @@
 - **Import/Export**: Postman-compatible collection format (v2.1)
 - **OpenAPI 3.0**: Import OpenAPI specs to create collections; export collections as OpenAPI 3.0.3 YAML/JSON
 - **Drag & Drop**: Rearrange requests easily
+- **Duplicate**: Right-click to duplicate collections, folders, or requests — copies all nested content including scripts and schemas
 - **Collection Runner**: Execute entire collections with configurable iterations
 - **File Watching**: Collection file changes auto-refresh the tree view and all open panels
 - **Request Documentation**: Each request folder supports a `doc.md` file for inline API docs

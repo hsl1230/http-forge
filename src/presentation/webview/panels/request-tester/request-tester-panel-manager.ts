@@ -271,7 +271,7 @@ export class RequestTesterPanelManager {
     for (const panelId of panelIds) {
       const panel = this.panels.get(panelId);
       if (panel) {
-        panel.dispose();
+        panel.close();
       }
     }
     this.panels.clear();

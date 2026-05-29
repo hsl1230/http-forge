@@ -62,6 +62,15 @@ Changes to any file under the collections directory (create, edit, delete) autom
 
 No manual refresh is needed — edits from other VS Code tabs, external editors, or git operations are reflected immediately.
 
+## Duplicating collections, folders, and requests
+Right-click any item in the Collections tree view and select **Duplicate**. The copy is created at the same level as the original.
+
+- A **duplicated collection** copies the entire directory — all folders, requests, scripts (`pre-request.js`, `post-response.js`), schemas, and `doc.md` files.
+- A **duplicated folder** copies the folder into the same parent (collection or folder).
+- A **duplicated request** copies the request into the same folder.
+
+The duplicate gets a new ID so edits to the copy do not affect the original.
+
 ## Naming and stability
 - Keep request names stable to preserve history and codegen output.
 - Avoid duplicate request names within the same folder.

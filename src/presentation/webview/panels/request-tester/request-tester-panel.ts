@@ -244,7 +244,7 @@ export class RequestTesterPanel implements vscode.Disposable {
       return;
     }
 
-    // If there are unsaved changes, prompt user
+    // If there are unsaved changes, prompt user and save before cleanup
     if (this.isDirty && this._cachedRequestState) {
       const requestState = this._cachedRequestState;
       const requestName = requestState.name || 'Untitled Request';
@@ -257,7 +257,6 @@ export class RequestTesterPanel implements vscode.Disposable {
       ).then(async (choice) => {
         if (choice === 'Save') {
           try {
-            // Route save through the save handler by simulating the message
             await this.router.route(
               { command: 'saveRequest', request: requestState },
               this.messenger
@@ -274,10 +273,31 @@ export class RequestTesterPanel implements vscode.Disposable {
     this.webviewReady = false;
     this.messageDisposable?.dispose();
     this.docSaveDisposable?.dispose();
-    
-    const panelToDispose = this.panel;
     this.panel = undefined;
-    panelToDispose.dispose();
+  }
+
+  /**
+   * Programmatically close this panel (triggers onDidDispose → dispose)
+   */
+  public close(): void {
+    this.panel?.dispose();
+  }
+
+  /**
+   * Update tab title to show dirty indicator (● prefix) like VS Code editors
+   */
+  private updateTitleDirtyIndicator(): void {
+    if (!this.panel) return;
+    const title = this.panel.title;
+    if (this.isDirty) {
+      if (!title.startsWith('● ')) {
+        this.panel.title = `● ${title}`;
+      }
+    } else {
+      if (title.startsWith('● ')) {
+        this.panel.title = title.slice(2);
+      }
+    }
   }
 
   /**
@@ -372,6 +392,7 @@ export class RequestTesterPanel implements vscode.Disposable {
         if (msg.requestState) {
           this._cachedRequestState = msg.requestState;
         }
+        this.updateTitleDirtyIndicator();
         return;
       }
 

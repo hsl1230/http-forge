@@ -631,6 +631,50 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.duplicateCollection, async (item: CollectionTreeItem) => {
+      if (!item?.collectionId) return;
+
+      const newName = await vscode.window.showInputBox({
+        prompt: 'Enter name for the duplicated collection',
+        value: `${item.label} (Copy)`
+      });
+
+      if (newName) {
+        try {
+          await collectionService.duplicateCollection(item.collectionId, newName);
+          collectionsTreeProvider.refresh();
+          vscode.window.showInformationMessage(`Collection duplicated as "${newName}"`);
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          vscode.window.showErrorMessage(`Failed to duplicate collection: ${message}`);
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.duplicateFolder, async (item: CollectionTreeItem) => {
+      if (!item?.collectionId || !item?.folderId) return;
+
+      const newName = await vscode.window.showInputBox({
+        prompt: 'Enter name for the duplicated folder',
+        value: `${item.label} (Copy)`
+      });
+
+      if (newName) {
+        try {
+          await collectionService.duplicateFolder(item.collectionId, item.folderId, newName);
+          collectionsTreeProvider.refresh();
+          vscode.window.showInformationMessage(`Folder duplicated as "${newName}"`);
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          vscode.window.showErrorMessage(`Failed to duplicate folder: ${message}`);
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.duplicateRequest, async (item: CollectionTreeItem) => {
       if (!item?.collectionId || !item?.requestId || !item?.requestData) return;
 

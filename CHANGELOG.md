@@ -5,6 +5,19 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.11.27 - 2026-05-28
+
+### Added
+
+- **Duplicate Collection**: Right-click a collection in the Collections tree → **Duplicate Collection**. Creates a full copy including all folders, requests, scripts, schemas, and body files.
+- **Duplicate Folder**: Right-click a folder → **Duplicate Folder**. Copies the folder and all nested requests within the same collection.
+- **Duplicate Request**: Right-click a request → **Duplicate Request**. Copies the request into the same folder.
+
+### Changed
+
+- **Dead code removal**: Removed unused files (unwired V2 / orchestrator / command layer). No public API changes — only internal code that was never imported or referenced.
+- **Dirty indicator on tab title**: The tab title now shows a `●` prefix (e.g., `● GET /users`) when there are unsaved changes, matching VS Code's native editor convention.
+
 ## 0.11.26 - 2026-05-26
 
 ### Added

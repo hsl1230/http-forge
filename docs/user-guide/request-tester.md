@@ -233,9 +233,8 @@ When you close a Request Tester panel that has unsaved changes, a modal dialog a
 
 | Button | Behavior |
 |--------|----------|
-| **Save** | Saves the current request (to collection or suite), then closes |
-| **Don't Save** | Discards changes and closes |
-| **Cancel** (Escape) | Keeps the panel open |
+| **Save** | Saves the current request (to collection or suite) |
+| **Don't Save** | Discards changes |
 
 This works for both regular collection requests and suite request editors.
 
@@ -250,6 +249,7 @@ When you open a new request while the current panel has unsaved changes, a unifi
 | **Open in New Panel** | Keeps the dirty panel untouched, opens the new request in a fresh panel (hidden at max panel capacity) |
 | **Cancel** (Escape) | Does nothing — stays on the current request |
 
-### Save button indicator
+### Dirty state indicators
 
-The Save button displays a pulsing highlight (`.has-changes`) whenever the panel has unsaved modifications, providing clear at-a-glance feedback that changes exist.
+- **Tab title**: A `●` prefix appears on the tab title when there are unsaved changes (e.g., `● GET /users`), matching VS Code's native editor convention.
+- **Save button**: Displays a pulsing highlight (`.has-changes`) for at-a-glance feedback.
