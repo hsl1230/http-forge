@@ -196,6 +196,25 @@ Developers currently face several challenges when testing HTTP APIs:
 | FR-10.2 | Open ticket in default browser | Should | ✅ Done |
 | FR-10.3 | Configurable Jira base URL | Should | ✅ Done |
 
+### 3.11 Request Documentation
+
+| ID | Requirement | Priority | Status |
+|----|-------------|----------|--------|
+| FR-11.1 | Document tab displaying rendered Markdown from `doc.md` | Should | ✅ Done |
+| FR-11.2 | "Open File" button to edit `doc.md` in VS Code | Should | ✅ Done |
+| FR-11.3 | Live reload when `doc.md` is saved in editor | Should | ✅ Done |
+| FR-11.4 | Document tab hidden when no `doc.md` exists | Should | ✅ Done |
+
+### 3.12 File Watching & Auto-Reload
+
+| ID | Requirement | Priority | Status |
+|----|-------------|----------|--------|
+| FR-12.1 | Collection file changes auto-refresh Collections tree view | Should | ✅ Done |
+| FR-12.2 | Collection file changes auto-reload open Request Tester panels | Should | ✅ Done |
+| FR-12.3 | Environment file changes auto-refresh Environments tree view | Should | ✅ Done |
+| FR-12.4 | Environment file changes auto-reload open Request Tester panels | Should | ✅ Done |
+| FR-12.5 | External edits (other tabs, editors, git) reflected without manual refresh | Should | ✅ Done |
+
 ---
 
 ## 4. Non-Functional Requirements

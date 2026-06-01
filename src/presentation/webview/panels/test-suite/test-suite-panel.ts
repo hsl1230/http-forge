@@ -5,7 +5,7 @@
  * Supports multi-collection requests.
  */
 
-import { ITestSuiteStore, TestSuite, TestSuiteService, TestSuiteStore } from '@http-forge/core';
+import { ITestSuiteStore, ResultStorageService, TestSuite, TestSuiteService, TestSuiteStore } from '@http-forge/core';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -13,7 +13,9 @@ import { getServiceContainer } from '../../../../infrastructure/services/service
 import { WebviewMessageRouter, WebviewMessenger } from '../../shared-interfaces';
 import {
     BrowseDataHandler,
+    EditRequestHandler,
     ExportHandler,
+    HistoryHandler,
     ReadyHandler,
     SaveHandler,
     SuiteRunHandler,
@@ -30,7 +32,10 @@ export class TestSuitePanel {
     private readonly _router: WebviewMessageRouter;
     private readonly _readyHandler: ReadyHandler;
     private readonly _envConfigService: any;
+    private readonly _configService: any;
     private _disposables: vscode.Disposable[] = [];
+    private _isDirty: boolean = false;
+    private _cachedSuiteState: any = null;
 
     /**
      * Create or show the Test Suite panel
@@ -116,6 +121,7 @@ export class TestSuitePanel {
         this._envConfigService = envConfigService;
         const dataFileParser = container.dataFileParser;
         const configService = container.config;
+        this._configService = configService;
         
         // Create handlers
         this._readyHandler = new ReadyHandler(
@@ -126,6 +132,7 @@ export class TestSuitePanel {
         
         if (pendingSuite) {
             this._suiteStore.setSuite(pendingSuite);
+            this._suiteStore.setSuiteDir(path.join(configService.getSuitesPath(), pendingSuite.id));
             this._readyHandler.setPendingSuite(pendingSuite);
         }
         
@@ -141,11 +148,20 @@ export class TestSuitePanel {
         
         const saveHandler = new SaveHandler(
             testSuiteService,
-            this._suiteStore
+            this._suiteStore,
+            configService
         );
         
         const browseDataHandler = new BrowseDataHandler();
         const exportHandler = new ExportHandler();
+        const historyHandler = new HistoryHandler(
+            new ResultStorageService(configService),
+            this._suiteStore
+        );
+        const editRequestHandler = new EditRequestHandler(
+            this._suiteStore,
+            testSuiteService
+        );
         
         // Register handlers with router
         this._router.registerHandlers([
@@ -153,7 +169,9 @@ export class TestSuitePanel {
             suiteRunHandler,
             saveHandler,
             browseDataHandler,
-            exportHandler
+            exportHandler,
+            historyHandler,
+            editRequestHandler
         ]);
 
         // Set the webview's initial HTML content
@@ -165,6 +183,14 @@ export class TestSuitePanel {
         // Handle messages from the webview using router
         this._panel.webview.onDidReceiveMessage(
             async (message) => {
+                // Track dirty state from webview
+                if (message.type === 'dirtyStateChanged') {
+                    this._isDirty = message.isDirty;
+                    if (message.suiteState) {
+                        this._cachedSuiteState = message.suiteState;
+                    }
+                    return;
+                }
                 await this._router.route(message, this._messenger);
             },
             null,
@@ -177,6 +203,7 @@ export class TestSuitePanel {
      */
     public setSuite(suite: TestSuite): void {
         this._suiteStore.setSuite(suite);
+        this._suiteStore.setSuiteDir(path.join(this._configService.getSuitesPath(), suite.id));
         this._readyHandler.setPendingSuite(suite);
         this._panel.title = `Test Suite: ${suite.name}`;
         
@@ -283,6 +310,43 @@ export class TestSuitePanel {
      */
     public dispose(): void {
         TestSuitePanel.currentPanel = undefined;
+
+        // If there are unsaved changes, prompt user
+        if (this._isDirty && this._cachedSuiteState) {
+            const suiteState = this._cachedSuiteState;
+            // Show dialog asynchronously (panel is already closing)
+            vscode.window.showWarningMessage(
+                `Test Suite "${suiteState.name || 'Untitled'}" has unsaved changes.`,
+                { modal: true },
+                'Save',
+                'Don\'t Save'
+            ).then(async (choice) => {
+                if (choice === 'Save') {
+                    try {
+                        this._suiteStore.setSuite(suiteState);
+                        const suite = this._suiteStore.getSuite();
+                        if (suite) {
+                            if (suite.isTemporary) {
+                                const container = getServiceContainer();
+                                const testSuiteService = new TestSuiteService(
+                                    this._configService.getSuitesPath()
+                                );
+                                await testSuiteService.saveTempSuite(suite, suite.name);
+                            } else {
+                                const testSuiteService = new TestSuiteService(
+                                    this._configService.getSuitesPath()
+                                );
+                                await testSuiteService.updateSuite(suite);
+                            }
+                            vscode.window.showInformationMessage(`Test Suite "${suite.name}" saved`);
+                            vscode.commands.executeCommand('httpForge.refreshTestSuites');
+                        }
+                    } catch (error: any) {
+                        vscode.window.showErrorMessage(`Failed to save suite: ${error.message}`);
+                    }
+                }
+            });
+        }
 
         // Dispose panel
         this._panel.dispose();

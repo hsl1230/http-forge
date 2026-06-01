@@ -23,12 +23,14 @@ The same API is available through these aliases:
 ## Variables
 | Postman | HTTP Forge | Notes |
 | --- | --- | --- |
-| `pm.variables.*` | `ctx.variables.*` | session scope |
+| `pm.variables.*` | `ctx.variables.*` | merged scope (reads all scopes) |
 | `pm.environment.*` | `ctx.environment.*` | environment scope |
 | `pm.collectionVariables.*` | `ctx.collectionVariables.*` | collection scope |
 | `pm.globals.*` | `ctx.globals.*` | workspace scope |
 
 Supported methods: `get`, `set`, `has`, `unset`, `clear`, `toObject`, `replaceIn`.
+
+**Type-safe storage**: `set(key, value)` accepts any type (string, number, boolean, array, object). `get(key)` returns the exact type that was stored — no manual `JSON.stringify`/`JSON.parse` needed. This matches modern Postman behavior.
 
 Additional scope:
 - `pm.iterationData.*` — Read-only access to data-driven iteration variables.

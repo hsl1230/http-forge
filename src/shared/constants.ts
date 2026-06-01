@@ -77,6 +77,8 @@ export const COMMAND_IDS = {
     deleteRequest: 'httpForge.deleteRequest',
     deleteItem: 'httpForge.deleteItem',
     duplicateRequest: 'httpForge.duplicateRequest',
+    duplicateCollection: 'httpForge.duplicateCollection',
+    duplicateFolder: 'httpForge.duplicateFolder',
     renameItem: 'httpForge.renameItem',
     runCollection: 'httpForge.runCollection',
     editCollection: 'httpForge.editCollection',

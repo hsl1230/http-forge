@@ -6,14 +6,6 @@
 // VS Code API
 const vscode = acquireVsCodeApi();
 
-/**
- * Log function stub - disabled to reduce console noise
- * Enable for debugging by uncommenting the console calls
- */
-function log() {
-    // Intentionally empty - logging disabled
-}
-
 // Virtual scroll configuration
 const VIRTUAL_SCROLL = {
     itemHeight: 45,           // Height of each result item in pixels
@@ -34,13 +26,26 @@ const HTTP_METHOD_REVERSE = {
 };
 
 /**
+ * Sanitize a name for use in filenames.
+ * Must match backend sanitizeName() in helpers.ts
+ */
+function sanitizeName(name) {
+    return name
+        .replace(/[^a-zA-Z0-9-_]/g, '_')
+        .replace(/\s+/g, '-')
+        .toLowerCase()
+        .substring(0, 100);
+}
+
+/**
  * Build result filename from summary components
  * Must match backend formula in result-storage-service.ts
  */
 function buildResultFileName(index, iteration, requestId) {
     const indexStr = String(index).padStart(6, '0');
     const iterStr = String(iteration).padStart(4, '0');
-    return `result-${indexStr}-iter-${iterStr}-${requestId}.json`;
+    const sanitizedRequestId = sanitizeName(requestId);
+    return `result-${indexStr}-iter-${iterStr}-${sanitizedRequestId}.json`;
 }
 
 /**
@@ -98,7 +103,6 @@ let state = {
     isRunning: false,
     results: [],           // Now stores compact ResultSummary objects (not full results)
     statistics: null,
-    currentIndex: 0,
     passed: 0,
     failed: 0,
     skipped: 0,
@@ -108,10 +112,14 @@ let state = {
     autoScroll: true,
     totalRequests: 0,
     iterations: 1,
-    requestsPerIteration: 0,
     isDirty: false,  // Track unsaved changes
     availableRequests: [],  // Available requests for Add modal
-    runStartTime: null      // Track start time for duration calculation
+    runStartTime: null,      // Track start time for duration calculation
+    // History state
+    historyRuns: [],         // List of RunHistoryEntry objects
+    viewingHistoryRun: null, // runId of loaded history run (null = live/latest)
+    historyManifest: null,   // Manifest of loaded history run
+    loadingAsLatest: false   // Flag: loading the latest run (suppresses history banner)
 };
 
 // Monaco editor instance for response body
@@ -121,12 +129,72 @@ let responseBodyMonacoEditor = null;
 let elements = {};
 
 /**
+ * Set dirty state and notify extension + update Save button highlight
+ * @param {boolean} dirty
+ */
+function setDirty(dirty) {
+    const wasDirty = state.isDirty;
+    state.isDirty = dirty;
+    
+    // Update Save button highlight
+    if (elements.saveSuiteBtn) {
+        if (dirty) {
+            elements.saveSuiteBtn.classList.add('has-changes');
+        } else {
+            elements.saveSuiteBtn.classList.remove('has-changes');
+        }
+    }
+    
+    // Notify extension of dirty state change (with current suite snapshot for save-on-close)
+    if (dirty !== wasDirty || dirty) {
+        const suiteState = dirty ? buildCurrentSuiteState() : null;
+        vscode.postMessage({
+            type: 'dirtyStateChanged',
+            isDirty: dirty,
+            suiteState: suiteState
+        });
+    }
+}
+
+/**
+ * Build the current suite state for caching in extension (used for save-on-close)
+ */
+function buildCurrentSuiteState() {
+    if (!state.suite) return null;
+    return {
+        ...state.suite,
+        requests: state.requests.map(r => ({
+            slug: r.slug,
+            collectionId: r.collectionId,
+            requestId: r.requestId || r.id,
+            name: r.name,
+            method: r.method,
+            collectionName: r.collectionName,
+            folderPath: r.folderPath || '',
+            enabled: r.selected,
+            description: r.description || undefined
+        })),
+        config: elements.iterationsInput ? {
+            iterations: parseInt(elements.iterationsInput.value) || 1,
+            delay: parseInt(elements.delayInput.value) || 0,
+            stopOnError: elements.stopOnErrorCheck.checked,
+            readFromSharedSession: elements.readFromSharedSessionCheck?.checked || false,
+            writeToSharedSession: elements.writeToSharedSessionCheck?.checked || false
+        } : state.suite.config
+    };
+}
+
+/**
  * Initialize the runner
  */
 function initialize() {
     // Populate DOM elements after DOM is ready
     elements = {
         suiteName: document.getElementById('suite-name'),
+        suiteDescriptionContainer: document.getElementById('suite-description-container'),
+        suiteDescriptionDisplay: document.getElementById('suite-description-display'),
+        suiteDescriptionTooltip: document.getElementById('suite-description-tooltip'),
+        suiteDescriptionEdit: document.getElementById('suite-description-edit'),
         runBtn: document.getElementById('run-btn'),
         stopBtn: document.getElementById('stop-btn'),
         environmentDisplay: document.getElementById('environment-display'),
@@ -195,7 +263,13 @@ function initialize() {
         bodyFormatSelect: document.getElementById('body-format-select'),
         copyBodyBtn: document.getElementById('copy-body-btn'),
         // Panel resizer
-        panelResizer: document.getElementById('panel-resizer')
+        panelResizer: document.getElementById('panel-resizer'),
+        // History
+        historyList: document.getElementById('history-list'),
+        refreshHistoryBtn: document.getElementById('refresh-history-btn'),
+        historyBanner: document.getElementById('history-banner'),
+        historyBannerText: document.getElementById('history-banner-text'),
+        backToLatestBtn: document.getElementById('back-to-latest-btn')
     };
 
     // Initialize Monaco editor for response body
@@ -211,8 +285,6 @@ function initialize() {
     
     // Request initial data from extension
     vscode.postMessage({ type: 'ready' });
-    
-    log('Test Suite Runner initialized', 'info');
 }
 
 /**
@@ -235,9 +307,18 @@ function setupEventListeners() {
     elements.suiteName?.addEventListener('input', () => {
         if (state.suite) {
             state.suite.name = elements.suiteName.value;
-            state.isDirty = true;
+            setDirty(true);
         }
     });
+
+    // Suite description interaction
+    setupDescriptionInteraction(
+        elements.suiteDescriptionDisplay,
+        elements.suiteDescriptionTooltip,
+        elements.suiteDescriptionEdit,
+        () => state.suite?.description || '',
+        (value) => { if (state.suite) { state.suite.description = value; setDirty(true); } }
+    );
 
     // Data file buttons
     elements.browseDataBtn?.addEventListener('click', browseDataFile);
@@ -247,11 +328,6 @@ function setupEventListeners() {
     elements.exportJsonBtn?.addEventListener('click', exportJsonReport);
     elements.exportHtmlBtn?.addEventListener('click', exportHtmlReport);
     elements.exportReportBtn?.addEventListener('click', exportStatisticsReport);
-
-    // Environment select (disabled - display only)
-    // elements.environmentSelect?.addEventListener('change', (e) => {
-    //     state.selectedEnvironment = e.target.value;
-    // });
 
     // Tab switching
     elements.tabBtns?.forEach(tab => {
@@ -318,6 +394,19 @@ function setupEventListeners() {
         }
     });
 
+    // History tab events
+    elements.refreshHistoryBtn?.addEventListener('click', requestRunHistory);
+    elements.backToLatestBtn?.addEventListener('click', clearHistoryView);
+
+    // Auto-fetch history when History tab is activated
+    elements.tabBtns?.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.dataset.tab === 'history-tab') {
+                requestRunHistory();
+            }
+        });
+    });
+
     // Listen for messages from extension
     window.addEventListener('message', handleMessage);
 }
@@ -372,6 +461,15 @@ function handleMessage(event) {
         case 'saveSuiteResult':
             handleSaveSuiteResult(message.success, message.suiteId, message.error);
             break;
+        case 'runHistory':
+            handleRunHistory(message.runs);
+            break;
+        case 'historyRunLoaded':
+            handleHistoryRunLoaded(message.manifest, message.summaries);
+            break;
+        case 'historyRunDeleted':
+            handleHistoryRunDeleted(message.runId);
+            break;
         case 'error':
             console.error('[TestSuite] Error:', message.error || message.message);
             break;
@@ -403,13 +501,17 @@ function setSuite(suite, requests) {
     state.requests = requests.map((req, index) => ({
         ...req,
         selected: suite.requests[index]?.enabled !== false,
+        description: suite.requests[index]?.description || '',
         status: 'pending'
     }));
-    state.isDirty = false;
+    setDirty(false);
     
     // Set suite name in editable input
     elements.suiteName.value = suite.name;
     elements.runBtn.disabled = state.requests.length === 0;
+    
+    // Update suite description display
+    updateSuiteDescriptionDisplay();
     
     // Apply suite config to UI
     if (suite.config) {
@@ -460,7 +562,6 @@ function setSuite(suite, requests) {
     renderStatistics();
     
     renderRequestList();
-    log(`Loaded test suite: ${suite.name} (${state.requests.length} requests)`, 'info');
 }
 
 /**
@@ -499,8 +600,17 @@ function setDataFile(filePath, content) {
     state.dataFile = { path: filePath, content };
     elements.dataFilePath.value = filePath;
     elements.clearDataBtn.disabled = false;
-    log(`Loaded data file: ${filePath}`, 'info');
 }
+
+/**
+ * Close all open action menus
+ */
+function closeAllMenus() {
+    document.querySelectorAll('.menu-dropdown.open').forEach(m => m.classList.remove('open'));
+}
+
+// Close menus when clicking outside
+document.addEventListener('click', () => closeAllMenus());
 
 /**
  * Render the request list with delete buttons
@@ -517,7 +627,6 @@ function renderRequestList() {
     }
 
     elements.requestList.innerHTML = state.requests.map((item, index) => {
-        const statusIcon = getStatusIcon(item.status);
         // Build full path: Collection › Folder › Request
         const pathParts = [];
         if (item.collectionName) pathParts.push(item.collectionName);
@@ -525,17 +634,39 @@ function renderRequestList() {
         const fullPath = pathParts.length > 0 ? 
             `<span class="collection-path">${escapeHtml(pathParts.join(' › '))}</span>` : '';
         
+        const modifiedDot = item.hasEmbeddedRequest ? '<span class="modified-dot" title="Customized (differs from collection)"></span>' : '';
+        const resetMenuItem = item.hasEmbeddedRequest && item.slug
+            ? `<button class="menu-item reset-btn" data-slug="${item.slug}">↺ Reset to Collection</button>`
+            : '';
+
+        const descText = item.description ? escapeHtml(item.description.replace(/\n/g, ' ')) : 'Click to add description\u2026';
+        const descClass = item.description ? 'description-display' : 'description-display placeholder';
+
         return `
-            <div class="request-item" data-index="${index}" draggable="true">
+            <div class="request-item" data-index="${index}" draggable="true" title="Drag to reorder">
                 <input type="checkbox" ${item.selected ? 'checked' : ''} data-index="${index}" class="request-checkbox">
                 <span class="request-method ${item.method}">${item.method}</span>
                 <span class="request-path">
                     ${fullPath}
-                    <span class="request-name">${escapeHtml(item.name)}</span>
+                    <span class="request-name-row">
+                        <span class="request-name">${escapeHtml(item.name)}</span>
+                        ${modifiedDot}
+                    </span>
                 </span>
-                <span class="request-status ${item.status}">${statusIcon}</span>
-                <button class="delete-btn" data-index="${index}" title="Remove from suite">×</button>
-                <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                <div class="request-actions-menu">
+                    <button class="menu-trigger" title="Actions">⋯</button>
+                    <div class="menu-dropdown">
+                        <button class="menu-item edit-btn" data-slug="${item.slug || ''}" data-index="${index}">✎ Edit</button>
+                        <button class="menu-item open-original-btn" data-slug="${item.slug || ''}">↗ Open Original</button>
+                        ${resetMenuItem}
+                        <button class="menu-item delete-btn danger" data-index="${index}">× Remove</button>
+                    </div>
+                </div>
+                <div class="request-description" data-index="${index}">
+                    <span class="${descClass}" data-index="${index}">${descText}</span>
+                    <div class="description-tooltip"></div>
+                    <textarea class="description-edit hidden" data-index="${index}" placeholder="Describe what this request does\u2026"></textarea>
+                </div>
             </div>
         `;
     }).join('');
@@ -546,7 +677,7 @@ function renderRequestList() {
             e.stopPropagation();
             const index = parseInt(e.target.dataset.index);
             state.requests[index].selected = e.target.checked;
-            state.isDirty = true;
+            setDirty(true);
             updateRunButton();
         });
     });
@@ -555,13 +686,76 @@ function renderRequestList() {
     elements.requestList.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const index = parseInt(e.target.dataset.index);
+            const index = parseInt(btn.closest('.request-item').dataset.index);
+            closeAllMenus();
             removeRequest(index);
+        });
+    });
+
+    // Add edit button handlers
+    elements.requestList.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const slug = btn.dataset.slug;
+            closeAllMenus();
+            if (slug) {
+                vscode.postMessage({ command: 'editSuiteRequest', slug });
+            }
+        });
+    });
+
+    // Add open-original button handlers
+    elements.requestList.querySelectorAll('.open-original-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const slug = btn.dataset.slug;
+            closeAllMenus();
+            if (slug) {
+                vscode.postMessage({ command: 'openOriginalRequest', slug });
+            }
+        });
+    });
+
+    // Add reset button handlers
+    elements.requestList.querySelectorAll('.reset-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const slug = btn.dataset.slug;
+            closeAllMenus();
+            if (slug && confirm('Reset to collection version? Your suite customizations will be lost.')) {
+                vscode.postMessage({ command: 'resetSuiteRequest', slug });
+            }
+        });
+    });
+
+    // Add menu trigger handlers
+    elements.requestList.querySelectorAll('.menu-trigger').forEach(trigger => {
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menu = trigger.nextElementSibling;
+            const wasOpen = menu.classList.contains('open');
+            closeAllMenus();
+            if (!wasOpen) {
+                menu.classList.add('open');
+            }
         });
     });
 
     // Add drag and drop handlers
     setupDragAndDrop();
+
+    // Add per-request description interaction handlers
+    elements.requestList.querySelectorAll('.request-description').forEach(container => {
+        const index = parseInt(container.dataset.index);
+        const displayEl = container.querySelector('.description-display');
+        const tooltipEl = container.querySelector('.description-tooltip');
+        const editEl = container.querySelector('.description-edit');
+        setupDescriptionInteraction(
+            displayEl, tooltipEl, editEl,
+            () => state.requests[index]?.description || '',
+            (value) => { if (state.requests[index]) { state.requests[index].description = value; setDirty(true); } }
+        );
+    });
 }
 
 /**
@@ -605,9 +799,8 @@ function setupDragAndDrop() {
             if (draggedIndex !== null && draggedIndex !== index) {
                 const [removed] = state.requests.splice(draggedIndex, 1);
                 state.requests.splice(index, 0, removed);
-                state.isDirty = true;
+                setDirty(true);
                 renderRequestList();
-                log(`Reordered: moved "${removed.name}" to position ${index + 1}`, 'info');
             }
         });
     });
@@ -619,26 +812,9 @@ function setupDragAndDrop() {
  */
 function removeRequest(index) {
     const removed = state.requests.splice(index, 1)[0];
-    state.isDirty = true;
+    setDirty(true);
     renderRequestList();
     updateRunButton();
-    log(`Removed "${removed.name}" from suite`, 'info');
-}
-
-/**
- * Get status icon for request
- * @param {string} status
- * @returns {string}
- */
-function getStatusIcon(status) {
-    switch (status) {
-        case 'pending': return '○';
-        case 'running': return '⟳';
-        case 'passed': return '✓';
-        case 'failed': return '✗';
-        case 'skipped': return '○';
-        default: return '○';
-    }
 }
 
 /**
@@ -654,7 +830,7 @@ function updateRunButton() {
  */
 function selectAllRequests() {
     state.requests.forEach(r => r.selected = true);
-    state.isDirty = true;
+    setDirty(true);
     renderRequestList();
     updateRunButton();
 }
@@ -664,7 +840,7 @@ function selectAllRequests() {
  */
 function deselectAllRequests() {
     state.requests.forEach(r => r.selected = false);
-    state.isDirty = true;
+    setDirty(true);
     renderRequestList();
     updateRunButton();
 }
@@ -683,7 +859,6 @@ function clearDataFile() {
     state.dataFile = null;
     elements.dataFilePath.value = '';
     elements.clearDataBtn.disabled = true;
-    log('Cleared data file', 'info');
 }
 
 /**
@@ -693,7 +868,6 @@ async function startRun() {
     state.isRunning = true;
     state.results = [];
     state.statistics = null;
-    state.currentIndex = 0;
     state.passed = 0;
     state.failed = 0;
     state.skipped = 0;
@@ -710,7 +884,6 @@ async function startRun() {
     const iterations = parseInt(elements.iterationsInput.value) || 1;
     const selectedRequests = state.requests.filter(r => r.selected);
     state.iterations = iterations;
-    state.requestsPerIteration = selectedRequests.length;
     state.totalRequests = iterations * selectedRequests.length;
 
     // Update UI
@@ -755,8 +928,6 @@ async function startRun() {
         .map((r, i) => r.selected ? i : -1)
         .filter(i => i >= 0);
 
-    log(`Starting run: ${config.iterations} iteration(s), ${config.delay}ms delay, ${selectedIndices.length} requests`, 'info');
-
     vscode.postMessage({
         type: 'startRun',
         selectedIndices,
@@ -773,7 +944,6 @@ function stopRun() {
     elements.stopBtn.disabled = true;
     
     vscode.postMessage({ type: 'stopRun' });
-    log('Run stopped by user', 'warning');
 }
 
 /**
@@ -785,7 +955,15 @@ function handleRunStarted(runId, suiteId) {
     state.currentRunId = runId;
     state.suiteId = suiteId;
     state.autoScroll = true;
-    log(`Run started: ${runId}`, 'info');
+
+    // Clear history view if active
+    if (state.viewingHistoryRun) {
+        state.viewingHistoryRun = null;
+        state.historyManifest = null;
+        if (elements.historyBanner) {
+            elements.historyBanner.classList.add('hidden');
+        }
+    }
 }
 
 /**
@@ -819,7 +997,6 @@ function handleRequestResult(result) {
         state.failed++;
     }
     
-    state.currentIndex++;
     updateProgress();
     
     // Update virtual scroll (only re-render visible items)
@@ -831,11 +1008,6 @@ function handleRequestResult(result) {
         const containerHeight = elements.resultsList.clientHeight || 400;
         elements.resultsList.scrollTop = totalHeight - containerHeight;
     }
-    
-    // Log result
-    const icon = expanded.passed ? '✓' : '✗';
-    const logLevel = expanded.passed ? 'success' : 'error';
-    log(`${icon} ${expanded.name} - ${expanded.status} (${expanded.duration}ms)`, logLevel);
 }
 
 /**
@@ -923,8 +1095,10 @@ function handleRunComplete(summary) {
     
     renderStatistics();
     
-    log(`Run complete: ${state.passed} passed, ${state.failed} failed, ${state.skipped} skipped`, 
-        state.failed > 0 ? 'warning' : 'success');
+    // Refresh history cache so new run appears if user switches to History tab
+    if (state.historyRuns.length > 0) {
+        requestRunHistory();
+    }
 }
 
 /**
@@ -948,8 +1122,7 @@ function handleSuiteSaved(suite) {
     if (suite) {
         state.suite = suite;
         state.suiteId = suite.id;
-        state.isDirty = false;
-        log(`Suite saved: ${suite.name}`, 'success');
+        setDirty(false);
         
         // Show success feedback on button
         if (saveBtn) {
@@ -972,36 +1145,6 @@ function handleSuiteSaved(suite) {
             saveBtn.disabled = false;
         }
     }
-}
-
-/**
- * Render a single result item
- * @param {Object} result
- * @param {number} index
- */
-function renderResultItem(result, index) {
-    const item = document.createElement('div');
-    item.className = `result-item ${result.passed ? 'passed' : 'failed'}`;
-    item.dataset.resultIndex = index;
-    item.title = 'Click to view details';
-    
-    item.innerHTML = `
-        <span class="result-icon ${result.passed ? 'passed' : 'failed'}">
-            ${result.passed ? '✓' : '✗'}
-        </span>
-        <div class="result-details">
-            <div class="result-name">${escapeHtml(result.name)}</div>
-            <div class="result-meta">${escapeHtml(result.method || '')} ${escapeHtml(String(result.status || ''))}</div>
-        </div>
-        <span class="result-duration">${result.duration}ms</span>
-    `;
-    
-    item.addEventListener('click', () => {
-        state.autoScroll = false;
-        showResultDetail(index);
-    });
-    
-    elements.resultsList.appendChild(item);
 }
 
 /**
@@ -1078,13 +1221,15 @@ function saveSuite() {
     const updatedSuite = {
         ...state.suite,
         requests: state.requests.map(r => ({
+            slug: r.slug,
             collectionId: r.collectionId,
             requestId: r.requestId || r.id,
             name: r.name,
             method: r.method,
             collectionName: r.collectionName,
             folderPath: r.folderPath || '',
-            enabled: r.selected
+            enabled: r.selected,
+            description: r.description || undefined
         })),
         config: {
             iterations: parseInt(elements.iterationsInput.value) || 1,
@@ -1099,8 +1244,6 @@ function saveSuite() {
         type: 'saveSuite',
         suite: updatedSuite
     });
-    
-    log('Saving suite...', 'info');
 }
 
 /**
@@ -1113,9 +1256,8 @@ function handleSaveSuiteResult(success, suiteId, error) {
     const saveBtn = elements.saveSuiteBtn;
     
     if (success) {
-        state.isDirty = false;
+        setDirty(false);
         state.suiteId = suiteId;
-        log(`Suite saved: ${suiteId}`, 'success');
         
         // Show success feedback on button
         if (saveBtn) {
@@ -1131,8 +1273,6 @@ function handleSaveSuiteResult(success, suiteId, error) {
             }, 2000);
         }
     } else {
-        log(`Failed to save suite: ${error}`, 'error');
-        
         // Reset button on failure
         if (saveBtn) {
             saveBtn.classList.remove('saving');
@@ -1269,7 +1409,7 @@ function addSelectedRequests() {
     if (toAdd.length > 0) {
         // Add to local state
         state.requests.push(...toAdd);
-        state.isDirty = true;
+        setDirty(true);
         
         // Notify backend to update suite.requests (batch all at once)
         vscode.postMessage({
@@ -1277,13 +1417,16 @@ function addSelectedRequests() {
             requests: toAdd.map(req => ({
                 collectionId: req.collectionId,
                 requestId: req.requestId,
+                name: req.name,
+                method: req.method,
+                collectionName: req.collectionName,
+                folderPath: req.folderPath || '',
                 enabled: true
             }))
         });
         
         renderRequestList();
         updateRunButton();
-        log(`Added ${toAdd.length} request(s) to suite`, 'info');
     }
     
     closeAddRequestModal();
@@ -1311,10 +1454,11 @@ function showResultDetail(index) {
     
     // If we have a resultFile, request full details from extension
     if (result.resultFile && state.suiteId && state.currentRunId) {
+        const runId = state.viewingHistoryRun || state.currentRunId;
         vscode.postMessage({
             type: 'getResultDetails',
             suiteId: state.suiteId,
-            runId: state.currentRunId,
+            runId,
             resultFile: result.resultFile
         });
     } else {
@@ -1638,6 +1782,110 @@ function initPanelResizer() {
 // ============================================
 
 /**
+// ============================================
+// Description Interaction Helper
+// ============================================
+
+/**
+ * Update suite description display text (called on suite load)
+ */
+function updateSuiteDescriptionDisplay() {
+    const display = elements.suiteDescriptionDisplay;
+    if (!display) return;
+    const value = state.suite?.description || '';
+    if (value) {
+        display.textContent = value.replace(/\n/g, ' ');
+        display.classList.remove('placeholder');
+    } else {
+        display.textContent = 'Click to add description\u2026';
+        display.classList.add('placeholder');
+    }
+}
+
+/**
+ * Set up click-to-edit, hover tooltip for a description element.
+ * Reusable for both suite-level and per-request descriptions.
+ * @param {HTMLElement} displayEl - The span showing truncated text
+ * @param {HTMLElement} tooltipEl - The multi-line tooltip div
+ * @param {HTMLElement} editEl - The textarea for editing
+ * @param {Function} getValue - Returns current description string
+ * @param {Function} setValue - Called with new description string on save
+ */
+function setupDescriptionInteraction(displayEl, tooltipEl, editEl, getValue, setValue) {
+    if (!displayEl || !editEl) return;
+
+    let hoverTimeout = null;
+
+    // Update display text
+    function updateDisplay() {
+        const value = getValue();
+        if (value) {
+            displayEl.textContent = value.replace(/\n/g, ' ');
+            displayEl.classList.remove('placeholder');
+        } else {
+            displayEl.textContent = 'Click to add description\u2026';
+            displayEl.classList.add('placeholder');
+        }
+    }
+
+    // Show tooltip on hover (only if has content and not in edit mode)
+    displayEl.addEventListener('mouseenter', () => {
+        const value = getValue();
+        if (!value || !editEl.classList.contains('hidden')) return;
+        hoverTimeout = setTimeout(() => {
+            if (tooltipEl) {
+                tooltipEl.textContent = value;
+                tooltipEl.classList.add('visible');
+            }
+        }, 400);
+    });
+
+    displayEl.addEventListener('mouseleave', () => {
+        clearTimeout(hoverTimeout);
+        if (tooltipEl) tooltipEl.classList.remove('visible');
+    });
+
+    // Click to edit
+    displayEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (tooltipEl) tooltipEl.classList.remove('visible');
+        clearTimeout(hoverTimeout);
+        editEl.value = getValue();
+        editEl.classList.remove('hidden');
+        displayEl.style.visibility = 'hidden';
+        editEl.focus();
+    });
+
+    // Save on blur
+    editEl.addEventListener('blur', () => {
+        const newValue = editEl.value.trim();
+        setValue(newValue);
+        editEl.classList.add('hidden');
+        displayEl.style.visibility = '';
+        updateDisplay();
+    });
+
+    // Ctrl+Enter to save, Escape to cancel
+    editEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            editEl.blur();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            editEl.value = getValue(); // revert
+            editEl.classList.add('hidden');
+            displayEl.style.visibility = '';
+        }
+    });
+
+    // Prevent click inside textarea from propagating
+    editEl.addEventListener('click', (e) => e.stopPropagation());
+
+    // Initial display
+    updateDisplay();
+}
+
+/**
  * Escape HTML special characters
  * @param {string} text
  * @returns {string}
@@ -1838,6 +2086,288 @@ function createResultItemElement(compactResult, index) {
     });
 
     return item;
+}
+
+// ============================================
+// Run History Functions
+// ============================================
+
+/**
+ * Request run history from extension
+ */
+function requestRunHistory() {
+    vscode.postMessage({ type: 'getRunHistory' });
+}
+
+/**
+ * Handle run history response
+ * @param {Array} runs - RunHistoryEntry[]
+ */
+function handleRunHistory(runs) {
+    state.historyRuns = runs || [];
+    renderHistoryList();
+}
+
+/**
+ * Handle loaded history run
+ * @param {Object} manifest - RunManifest
+ * @param {Array} summaries - ResultSummary[]
+ */
+function handleHistoryRunLoaded(manifest, summaries) {
+    const isLatest = state.loadingAsLatest;
+    state.loadingAsLatest = false;
+
+    state.viewingHistoryRun = isLatest ? null : manifest.runId;
+    state.historyManifest = isLatest ? null : manifest;
+    state.results = summaries;
+    state.currentRunId = manifest.runId;
+    state.passed = manifest.stats.passed;
+    state.failed = manifest.stats.failed;
+    state.skipped = manifest.stats.skipped || 0;
+
+    // Populate statistics from manifest.requestStats
+    if (manifest.requestStats) {
+        const byRequest = Object.values(manifest.requestStats).map(rs => ({
+            name: rs.name || 'Unknown',
+            min: rs.minDuration || 0,
+            max: rs.maxDuration || 0,
+            avg: rs.avgDuration || 0,
+            p95: rs.p95 || 0,
+            p99: rs.p99 || 0
+        }));
+        state.statistics = { byRequest, errors: [] };
+    }
+
+    // Show banner only when viewing a non-latest history run
+    if (elements.historyBanner) {
+        if (isLatest) {
+            elements.historyBanner.classList.add('hidden');
+        } else {
+            elements.historyBanner.classList.remove('hidden');
+            const date = new Date(manifest.startTime).toLocaleString();
+            elements.historyBannerText.textContent = `Viewing run from ${date}`;
+        }
+    }
+
+    // Update summary cards
+    updateSummaryCards();
+
+    // Update config inputs from manifest
+    if (manifest.config) {
+        elements.iterationsInput.value = manifest.config.iterations || 1;
+        elements.delayInput.value = manifest.config.delayBetweenRequests || 0;
+        elements.stopOnErrorCheck.checked = manifest.config.stopOnError || false;
+    }
+
+    // Switch to Results tab to show loaded data
+    switchToTab('results-tab');
+
+    // Show progress section with loaded stats
+    elements.progressSection.style.display = '';
+    elements.progressBar.style.width = '100%';
+    elements.progressText.textContent = `${manifest.stats.totalRequests} / ${manifest.stats.totalRequests} (completed)`;
+    if (elements.passedCount) elements.passedCount.textContent = manifest.stats.passed;
+    if (elements.failedCount) elements.failedCount.textContent = manifest.stats.failed;
+    if (elements.skippedCount) elements.skippedCount.textContent = state.skipped;
+
+    // Render results with virtual scroll
+    renderVirtualScrollResults();
+
+    // Render statistics tab
+    renderStatistics();
+}
+
+/**
+ * Handle history run deleted
+ * @param {string} runId
+ */
+function handleHistoryRunDeleted(runId) {
+    state.historyRuns = state.historyRuns.filter(r => r.runId !== runId);
+    renderHistoryList();
+
+    // If we were viewing the deleted run, clear the view
+    if (state.viewingHistoryRun === runId) {
+        clearHistoryView();
+    }
+}
+
+/**
+ * Clear history view and load the latest run
+ */
+function clearHistoryView() {
+    if (state.historyRuns.length > 0) {
+        // Load the most recent run (same action as clicking Load)
+        state.loadingAsLatest = true;
+        loadHistoryRun(state.historyRuns[0].runId);
+    } else {
+        // No history at all - reset to empty
+        state.viewingHistoryRun = null;
+        state.historyManifest = null;
+        state.results = [];
+        state.passed = 0;
+        state.failed = 0;
+        state.skipped = 0;
+        state.currentRunId = null;
+
+        if (elements.historyBanner) {
+            elements.historyBanner.classList.add('hidden');
+        }
+        elements.progressSection.style.display = 'none';
+        const itemsContainer = elements.resultsList?.querySelector('.virtual-items');
+        if (itemsContainer) itemsContainer.innerHTML = '';
+        const spacer = elements.resultsList?.querySelector('.virtual-spacer');
+        if (spacer) spacer.style.height = '0px';
+
+        updateSummaryCards();
+    }
+}
+
+/**
+ * Load a historical run's results
+ * @param {string} runId
+ */
+function loadHistoryRun(runId) {
+    vscode.postMessage({ type: 'loadHistoryRun', runId });
+}
+
+/**
+ * Delete a historical run
+ * @param {string} runId
+ */
+function deleteHistoryRun(runId) {
+    vscode.postMessage({ type: 'deleteHistoryRun', runId });
+}
+
+/**
+ * Render the history list
+ */
+function renderHistoryList() {
+    if (!elements.historyList) return;
+
+    if (state.historyRuns.length === 0) {
+        elements.historyList.innerHTML = `
+            <div class="empty-state">
+                <p>No run history</p>
+                <p class="hint">Run the suite to generate history</p>
+            </div>
+        `;
+        return;
+    }
+
+    const html = state.historyRuns.map(run => {
+        const date = new Date(run.startTime).toLocaleString();
+        const total = run.stats.totalRequests;
+        const passRate = total > 0 ? ((run.stats.passed / total) * 100).toFixed(0) : '0';
+        const duration = formatHistoryDuration(run.stats.totalDuration);
+        const statusClass = run.status === 'completed' ? 'success' : (run.status === 'aborted' ? 'warning' : 'error');
+        const isActive = state.viewingHistoryRun === run.runId;
+
+        return `
+            <div class="history-entry ${statusClass} ${isActive ? 'active' : ''}" data-run-id="${escapeHtml(run.runId)}">
+                <div class="history-entry-header">
+                    <span class="history-date">${escapeHtml(date)}</span>
+                    <span class="history-status badge-${run.status}">${escapeHtml(run.status)}</span>
+                </div>
+                <div class="history-entry-stats">
+                    <span class="history-pass-rate">${passRate}%</span>
+                    <span class="history-counts">
+                        <span class="stat-passed">${run.stats.passed}✓</span>
+                        <span class="stat-failed">${run.stats.failed}✗</span>
+                    </span>
+                    <span class="history-duration">${duration}</span>
+                    <span class="history-iterations">${run.config.iterations} iter</span>
+                </div>
+                <div class="history-entry-actions">
+                    <button class="btn-link history-load-btn" data-run-id="${escapeHtml(run.runId)}">Load</button>
+                    <button class="btn-link danger history-delete-btn" data-run-id="${escapeHtml(run.runId)}">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    elements.historyList.innerHTML = html;
+
+    // Attach event listeners for Load/Delete buttons
+    elements.historyList.querySelectorAll('.history-load-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const runId = btn.dataset.runId;
+            if (runId) loadHistoryRun(runId);
+        });
+    });
+    elements.historyList.querySelectorAll('.history-delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const runId = btn.dataset.runId;
+            if (runId) deleteHistoryRun(runId);
+        });
+    });
+}
+
+/**
+ * Format duration for history display
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string} Formatted duration
+ */
+function formatHistoryDuration(ms) {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(0);
+    return `${minutes}m ${seconds}s`;
+}
+
+/**
+ * Update summary cards with current state
+ */
+function updateSummaryCards() {
+    const total = state.passed + state.failed + state.skipped;
+    const passRate = total > 0 ? ((state.passed / total) * 100).toFixed(0) : '0';
+
+    if (elements.summaryPassed) elements.summaryPassed.textContent = state.passed;
+    if (elements.summaryFailed) elements.summaryFailed.textContent = state.failed;
+    if (elements.summarySkipped) elements.summarySkipped.textContent = state.skipped;
+    if (elements.summaryPassRate) elements.summaryPassRate.textContent = `${passRate}%`;
+
+    if (state.historyManifest && elements.summaryDuration) {
+        elements.summaryDuration.textContent = formatHistoryDuration(state.historyManifest.stats.totalDuration);
+    }
+}
+
+/**
+ * Switch to a specific tab
+ * @param {string} tabId
+ */
+function switchToTab(tabId) {
+    elements.tabBtns?.forEach(t => t.classList.remove('active'));
+    elements.tabContents?.forEach(c => c.classList.remove('active'));
+    const targetTab = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    if (targetTab) targetTab.classList.add('active');
+    document.getElementById(tabId)?.classList.add('active');
+}
+
+/**
+ * Re-render virtual scroll results (used when loading history)
+ */
+function renderVirtualScrollResults() {
+    if (!elements.resultsList) return;
+
+    // Reset virtual scroll
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    virtualScrollState.scrollTop = 0;
+
+    // Update spacer height
+    const spacer = elements.resultsList.querySelector('.virtual-spacer');
+    if (spacer) {
+        spacer.style.height = `${state.results.length * VIRTUAL_SCROLL.itemHeight}px`;
+    }
+
+    // Remove empty state if present
+    const emptyState = elements.resultsList.querySelector('.empty-state');
+    if (emptyState) emptyState.remove();
+
+    // Trigger re-render by dispatching scroll event
+    elements.resultsList.scrollTop = 0;
+    elements.resultsList.dispatchEvent(new Event('scroll'));
 }
 
 // Initialize when DOM is ready

@@ -99,7 +99,7 @@ export interface ICookieHandler extends IMessageHandler {
  * Variable change request structure
  */
 export interface VariableChange {
-  type: 'global' | 'environment' | 'collection' | 'session';
+  type: 'global' | 'environment' | 'collection';
   action: 'set' | 'unset' | 'clear';
   key?: string;
   value?: unknown;

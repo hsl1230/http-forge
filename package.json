@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge - REST API Designer & Tester (Free Postman & Thunder Client Alternative)",
   "description": "Design, test, and manage REST & GraphQL APIs in VS Code. GraphQL schema introspection, context-aware auto-complete, syntax highlighting, and Schema Explorer. Thunder Client-compatible filter pipes (25+ filters), inline JS expressions, and dynamic variables in {{}}. Full request builder with OAuth 2.0 (PKCE), Bearer, Basic, and API Key auth. OpenAPI import/export, schema editor with inference, codegen, Playwright integration, and test suites with assertions. Postman-compatible scripting and collection import. Git-friendly file storage — no account required.",
-  "version": "0.11.8",
+  "version": "0.11.28",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -157,6 +157,21 @@
         "command": "httpForge.editCollection",
         "title": "Edit Collection",
         "icon": "$(gear)"
+      },
+      {
+        "command": "httpForge.duplicateCollection",
+        "title": "Duplicate Collection",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "httpForge.duplicateFolder",
+        "title": "Duplicate Folder",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "httpForge.duplicateRequest",
+        "title": "Duplicate Request",
+        "icon": "$(copy)"
       },
       {
         "command": "httpForge.selectEnvironment",
@@ -427,6 +442,21 @@
           "group": "3_edit@5"
         },
         {
+          "command": "httpForge.duplicateCollection",
+          "when": "view == httpForge.collections && viewItem == collection",
+          "group": "3_edit@6"
+        },
+        {
+          "command": "httpForge.duplicateFolder",
+          "when": "view == httpForge.collections && viewItem == folder",
+          "group": "3_edit@2"
+        },
+        {
+          "command": "httpForge.duplicateRequest",
+          "when": "view == httpForge.collections && viewItem == request",
+          "group": "4_modify@4"
+        },
+        {
           "command": "httpForge.renameItem",
           "when": "view == httpForge.collections",
           "group": "4_modify@1"
@@ -541,7 +571,7 @@
     "vitest": "^1.6.1"
   },
   "dependencies": {
-    "@http-forge/core": "^0.2.3",
+    "@http-forge/core": "^0.2.17",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

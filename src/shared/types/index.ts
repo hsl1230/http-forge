@@ -72,6 +72,7 @@ export interface UIRequest {
     readonly?: boolean;
     saveResponse?: boolean;
     description?: string;
+    doc?: string;
     disabled?: boolean;
     
     // OpenAPI metadata (preserved through save round-trip)

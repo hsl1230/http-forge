@@ -760,8 +760,8 @@ export class RunHandler implements IMessageHandler {
                 );
                 
                 // 更新变量
-                if (result.sessionVariables) {
-                    Object.assign(this.runVariables, result.sessionVariables);
+                if (result.modifiedEnvironmentVariables) {
+                    Object.assign(this.runVariables, result.modifiedEnvironmentVariables);
                 }
                 
                 // 存储结果

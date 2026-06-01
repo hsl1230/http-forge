@@ -38,6 +38,13 @@ Example URL:
 {{baseUrl}}/users/:id
 ```
 
+### Duplicate a collection, folder, or request
+Right-click any item in the Collections tree and select **Duplicate**. Enter a name for the copy.
+
+- **Collection**: Copies the entire collection including all folders, requests, scripts, schemas, and documentation files.
+- **Folder**: Copies the folder and all nested requests within the same collection.
+- **Request**: Copies the request into the same folder.
+
 ### Naming tips
 - Use stable request names for codegen and Playwright.
 - Avoid duplicate names in the same folder.
@@ -51,6 +58,7 @@ The Request Tester is the primary execution UI.
 - Method selector
 - URL/path input
 - Send and Save buttons
+- Resolved URL preview below the request line shows the final URL after environment variables, dynamic variables, filters, and auth query params are resolved.
 
 ### Params tab
 - Path params are auto‑detected from `:param` and `{{param}}` patterns.
@@ -85,14 +93,20 @@ The Response viewer (Body tab) also supports an HTML Preview for rendered respon
 - SSL verification
 - Decompression
 
+### Document tab
+- Rendered Markdown view of the request's `doc.md` file
+- "Open File" button to edit in VS Code
+- Live reload on save
+
+Open panels auto-reload when collection or environment files change on disk.
+
 See: request-tester.md
 
 ## 5) Environment selection and variables
 HTTP Forge resolves variables using `{{variableName}}` syntax. Variables can be defined at multiple scopes:
 - Global (workspace)
-- Environment
+- Environment (persisted to workspace state)
 - Collection
-- Session
 
 Use the environment dropdown to switch contexts. The resolved environment also controls default headers and credentials.
 

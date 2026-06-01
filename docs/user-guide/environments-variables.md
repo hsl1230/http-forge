@@ -4,9 +4,8 @@ HTTP Forge supports multiple variable scopes to keep request data consistent acr
 
 ## Scopes
 - **Globals**: workspace‑wide
-- **Environment**: selected environment
+- **Environment**: selected environment (persisted to workspace state via `pm.environment.set()`)
 - **Collection**: applies to requests in a collection
-- **Session**: temporary values during the session
 
 ## Variable syntax
 Use `{{variableName}}` anywhere:
@@ -23,10 +22,10 @@ Use `{{variableName}}` anywhere:
 ```
 
 ## Resolution order
-When the same key exists at multiple scopes, the most specific value wins:
-1. Session
-2. Collection
-3. Environment
+When the same key exists at multiple scopes, the most specific value wins (Postman-compatible):
+1. Variables (merged view)
+2. Environment
+3. Collection
 4. Globals
 
 ## Environment selection
@@ -36,8 +35,10 @@ The environment dropdown controls:
 - Environment‑specific credentials
 
 ## Local secrets
-Store secrets in a gitignored file (for example, `http-forge.secrets.json`).
+Store secrets in gitignored `.local.json` files alongside your environment configs.
 Reference them by name from environments or scripts.
+
+When requests are executed, resolved secret values in headers and body fields are automatically redacted before being written to history or result files. See [Security & Sensitive Data](security.md) for details.
 
 ### Folder layout example
 ```
@@ -46,6 +47,13 @@ http-forge/environments/
 ├── _secrets.json
 └── dev.json
 ```
+
+## File watching
+Changes to environment JSON files automatically:
+- Refresh the **Environments tree view** in the sidebar
+- Reload **all open Request Tester panels** with the latest resolved environment data
+
+No manual refresh is needed — edits from other VS Code tabs, external editors, or git operations are reflected immediately.
 
 _global.json
 ```json
@@ -89,6 +97,8 @@ dev.json
 ---
 
 ## Template Engine — Filters, Expressions & String Concatenation
+
+For a complete supported syntax reference for `{{ }}` templates, see [Template Syntax Reference](template-syntax.md).
 
 HTTP Forge extends the `{{variable}}` syntax with **filter pipes**, **JavaScript expressions**, and **string concatenation** — all usable in URL, headers, body, params, and scripts.
 
@@ -265,7 +275,7 @@ Templates are resolved in this order (first match wins):
 
 1. **Dynamic variables** — `{{$guid}}`, `{{$randomInt(1, 100)}}`
 2. **Filter chains** — `{{variable | upper | trim}}`
-3. **Variable lookup** — `{{baseUrl}}` from environment/collection/session
+3. **Variable lookup** — `{{baseUrl}}` from environment/collection/globals
 4. **JavaScript expressions** — `{{price * quantity}}`
 5. **Original text** — `{{unknown}}` left unchanged
 
@@ -275,9 +285,9 @@ All Monaco editors (request body, GraphQL, scripts) provide context-aware code c
 
 | Trigger | Context | Suggestions |
 |---|---|---|
-| Type `{{` | Opening a template expression | All environment, collection, global, and session variables (with live values), 18 dynamic variables, and the `@ \| filter` snippet |
+| Type `{{` | Opening a template expression | All environment, collection, and global variables (with live values), 18 dynamic variables, and the `@ \| filter` snippet |
 | Type `$` inside `{{ }}` | Dynamic variable prefix | All 18 dynamic variables with descriptions (`$guid`, `$timestamp`, `$randomInt`, etc.) |
 | Type `\|` inside `{{ }}` | Pipe operator | 30+ filters grouped by category (String, Math, Encoding, Hash, Array, Object, Validation) — filters with parameters include tab-stop snippets |
 | Continue typing inside `{{ }}` | General | Variables and dynamic vars filtered by typed prefix |
 
-Variable suggestions update in real-time — switching environments or setting session variables immediately reflects in the autocomplete list. Priority: environment > collection > global > session (duplicates suppressed).
+Variable suggestions update in real-time — switching environments or calling `pm.environment.set()` immediately reflects in the autocomplete list. Priority: environment > collection > global (duplicates suppressed).

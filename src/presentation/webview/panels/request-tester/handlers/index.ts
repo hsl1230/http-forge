@@ -19,6 +19,7 @@ export * from './graphql-handler';
 export * from './history-handler';
 export * from './oauth2-handler';
 export * from './request-execution-handler';
+export * from './request-preview-handler';
 export * from './save-request-handler';
 export * from './schema-handler';
 export * from './variable-handler';

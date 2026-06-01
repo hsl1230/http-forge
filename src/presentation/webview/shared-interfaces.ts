@@ -29,7 +29,11 @@ export class WebviewMessenger implements IWebviewMessenger {
     constructor(private panel: vscode.WebviewPanel | undefined) {}
 
     postMessage(message: unknown): void {
-        this.panel?.webview.postMessage(message);
+        try {
+            this.panel?.webview.postMessage(message);
+        } catch {
+            // Panel may already be disposed — safe to ignore
+        }
     }
 
     setPanel(panel: vscode.WebviewPanel | undefined): void {

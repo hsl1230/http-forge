@@ -49,6 +49,12 @@
             <button id="btn-save" class="secondary">Save</button>
         </div>
 
+        <!-- Suite edit mode banner (hidden by default) -->
+        <div id="suite-edit-banner" class="suite-edit-banner hidden">
+            <span class="suite-edit-icon">🔗</span>
+            <span class="suite-edit-text">Editing suite request — changes are saved to the suite, not the collection</span>
+        </div>
+
         <div class="tester-content">
             <!-- History Sidebar -->
             <div class="history-sidebar" id="history-sidebar">
@@ -71,6 +77,7 @@
                 <!-- Request Section -->
                 <div class="request-section">
                     <div class="tab-bar" role="tablist">
+                        <button class="tab" data-tab="doc" role="tab" aria-selected="false">Document</button>
                         <button class="tab active" data-tab="params" role="tab" aria-selected="true">Params</button>
                         <button class="tab" data-tab="auth" role="tab" aria-selected="false">Authorization</button>
                         <button class="tab" data-tab="headers" role="tab" aria-selected="false">Headers</button>
@@ -82,6 +89,13 @@
                     </div>
 
                     <div class="tab-content">
+                        <!-- Document Tab -->
+                        <div id="doc-tab" class="tab-panel hidden">
+                            <div class="doc-content" id="doc-content">
+                                <div class="doc-empty-state">No documentation available for this endpoint.</div>
+                            </div>
+                        </div>
+
                         <!-- Params Tab -->
                         <div id="params-tab" class="tab-panel active">
                             <div class="params-section">

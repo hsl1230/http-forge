@@ -50,6 +50,12 @@ export class SchemaHandler implements IMessageHandler {
     }
 
     async handle(command: string, message: any, messenger: IWebviewMessenger): Promise<boolean> {
+        // Disable all schema operations when in suite context
+        const context = this.contextProvider.getCurrentContext();
+        if (context?.disableSchemas) {
+            return this.getSupportedCommands().includes(command);
+        }
+
         switch (command) {
             case 'getBodySchema':
                 await this.handleGetBodySchema(message, messenger);

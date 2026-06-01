@@ -11,7 +11,7 @@ export class VariableHandler implements IMessageHandler {
     private envConfigService: IEnvironmentConfigService,
     private contextProvider: IPanelContextProvider,
     private collectionService: ICollectionService
-  ) {}
+  ) { }
 
   getSupportedCommands(): string[] {
     return ['variableChange'];
@@ -51,9 +51,6 @@ export class VariableHandler implements IMessageHandler {
           break;
         case 'collection':
           this.handleCollectionVariableChange(change);
-          break;
-        case 'session':
-          await this.handleSessionVariableChange(change);
           break;
       }
     } catch (error) {
@@ -126,24 +123,6 @@ export class VariableHandler implements IMessageHandler {
         break;
       case 'clear':
         this.collectionService.clearCollectionVariables(collectionId);
-        break;
-    }
-  }
-
-  private async handleSessionVariableChange(change: VariableChange): Promise<void> {
-    switch (change.action) {
-      case 'set':
-        if (change.key) {
-          await this.envConfigService.setSessionVariable(change.key, String(change.value));
-        }
-        break;
-      case 'unset':
-        if (change.key) {
-          await this.envConfigService.deleteSessionVariable(change.key);
-        }
-        break;
-      case 'clear':
-        await this.envConfigService.clearSessionVariables();
         break;
     }
   }

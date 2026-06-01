@@ -1,4 +1,4 @@
-import { type HistoryEntry, IEnvironmentConfigService, type IRequestHistoryService } from '@http-forge/core';
+import { type HistoryEntry, IEnvironmentConfigService, type IRequestHistoryService, type ResolvedEnvironment } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { COMMAND_IDS } from '../../../../../shared/constants';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
@@ -46,17 +46,19 @@ export class EnvironmentSelectionHandler implements IMessageHandler {
   /**
    * Get environment data for webview initialization
    */
-  getEnvironmentData() {
+  getEnvironmentData(): {
+    selectedEnvironment: string;
+    resolvedEnvironment: ResolvedEnvironment | null;
+    globalVariables: Record<string, string>;
+  } {
     const selectedEnv = this.envConfigService.getSelectedEnvironment();
     const resolvedEnv = this.envConfigService.getResolvedEnvironment(selectedEnv);
     const globalVariables = this.envConfigService.getGlobalVariables();
-    const sessionVariables = this.envConfigService.getSessionVariables();
 
     return {
       selectedEnvironment: selectedEnv,
       resolvedEnvironment: resolvedEnv,
-      globalVariables,
-      sessionVariables
+      globalVariables
     };
   }
 

@@ -94,6 +94,11 @@ class RequestTesterApp {
         this.requestBuilder = null;
         this.responseHandler = null;
         this.requestExecutor = null;
+
+        // URL preview request tracking
+        this.previewRequestSequence = 0;
+        this.latestPreviewRequestSequence = 0;
+        this.debouncedResolveUrlPreview = this.debounce(() => this.requestUrlPreview(), 500);
     }
 
     /**
@@ -346,8 +351,10 @@ class RequestTesterApp {
             'requestSaved': (msg) => this.handleRequestSaved(msg),
             'sessionVariablesLoaded': (msg) => this.handleSessionVariablesLoaded(msg),
             'cookiesLoaded': (msg) => this.handleCookiesLoaded(msg),
+            'docUpdated': (msg) => this.updateDocTab(msg.doc),
             'error': (msg) => this.handleError(msg),
             'sendRequestResponse': (msg) => this.handleSendRequestResponse(msg),
+            'resolvedUrlPreview': (msg) => this.handleResolvedUrlPreview(msg),
             // Schema editor handlers
             ...this.schemaEditorManager.getMessageHandlers(),
             // OAuth2 handlers
@@ -445,21 +452,27 @@ class RequestTesterApp {
             this.state.allowSave = data.allowSave === true;
             this.applyReadonlyState();
 
-            this.initializePanelData(data);
+            // Suppress dirty tracking during initialization
+            this.state._suppressDirty = true;
+            try {
+                this.initializePanelData(data);
+            } finally {
+                this.state._suppressDirty = false;
+            }
 
-            // For Endpoint Tester mode (allowSave=true), enable save button
+            // For Endpoint Tester mode (allowSave=true, no suiteId), enable save button
             // by default since the endpoint test configuration isn't saved yet.
-            // This applies whether or not we have a collectionId (endpoint might
-            // be auto-assigned to a collection by name)
-            if (this.state.allowSave) {
+            // For suite request editing (allowSave=true + suiteId), start clean
+            // since the request is already persisted.
+            if (this.state.allowSave && !data.suiteId) {
                 // Mark as dirty so save button is enabled
                 this.state.isDirty = true;
                 this.updateSaveButtonState();
                 this.state.originalRequest = this.requestSaver.takeSnapshot();
             } else {
-                // Mark as clean after loading (loading triggers change events)
-                this.markClean();
+                // Take snapshot first, then mark clean
                 this.state.originalRequest = this.requestSaver.takeSnapshot();
+                this.markClean();
             }
             
         } catch (error) {
@@ -533,34 +546,91 @@ class RequestTesterApp {
 
     handleLoadRequest(msg) {
         if (msg.request) {
-            // Update readonly state if provided
-            if (typeof msg.readonly === 'boolean') {
-                this.state.readonly = msg.readonly;
-                this.applyReadonlyState();
-            }
-            
-            // Update state for collection tracking
-            if (msg.collectionId) this.state.collectionId = msg.collectionId;
-            if (msg.collectionName) this.state.collectionName = msg.collectionName;
-            if (msg.resolvedEnvironment) this.state.resolvedEnvironment = msg.resolvedEnvironment;
-            if (msg.globalVariables) this.state.globalVariables = msg.globalVariables;
-            if (msg.sessionVariables) this.state.sessionVariables = msg.sessionVariables;
-            if (msg.collectionVariables) this.state.collectionVariables = msg.collectionVariables;
-            
-            // Clear previous response before loading new request
-            this.responseHandler.clearResponse();
-            
-            // Load the request
-            this.requestLoader.loadCollectionRequest(msg.request);
-            
-            // Render history if provided
-            if (msg.history) {
-                this.historyRenderer.render(msg.history);
+            // Suppress dirty tracking during the entire load cycle so intermediate
+            // form-change events don't fire dirtyStateChanged to the extension.
+            this.state._suppressDirty = true;
+
+            try {
+                // Update readonly state if provided
+                if (typeof msg.readonly === 'boolean') {
+                    this.state.readonly = msg.readonly;
+                    this.applyReadonlyState();
+                }
+
+                // Update state for collection tracking — use unconditional
+                // assignment with fallbacks so stale values from the previous
+                // request never leak through.
+                this.state.requestData = msg.request;
+                this.state.collectionId = msg.collectionId || null;
+                this.state.collectionName = msg.collectionName || null;
+                this.state.suiteId = msg.suiteId || null;
+                this.state.suiteRequestKey = msg.suiteRequestKey || null;
+                this.state.disableSchemas = msg.disableSchemas || false;
+                this.state.disableHistory = msg.disableHistory || false;
+                this.state.resolvedEnvironment = msg.resolvedEnvironment || {};
+                this.state.globalVariables = msg.globalVariables || {};
+                this.state.sessionVariables = msg.sessionVariables || {};
+                this.state.collectionVariables = msg.collectionVariables || {};
+                this.state.selectedEnvironment = msg.selectedEnvironment || this.state.selectedEnvironment;
+
+                // --- Full panel reset before populating ---
+                // Response section
+                this.responseHandler.clearResponse();
+                this.state.lastResponse = null;
+                this.state.lastSentRequest = null;
+                this.resetRequestState();
+
+                // Request section — form, method, path
+                this.formManager.clearForm();
+                this.setMethod('GET');
+                this.setPath('');
+                this.state.requestPath = '';
+                this.state.baseUrl = '';
+
+                // History sidebar
+                this.state.activeHistoryEntryId = null;
+
+                // Reset OAuth2 internal state (cached token, token UI, form fields)
+                if (this.oauth2Manager) {
+                    this.oauth2Manager.reset();
+                }
+
+                // Load the request (populates form, params, headers, body, auth, scripts, settings)
+                this.requestLoader.loadCollectionRequest(msg.request);
+                this.pathVariablesManager.applyParams(msg.request.params);
+                this.pathVariablesManager.applyEnvironmentDefaults(this.state.resolvedEnvironment.variables);
+
+                // Update document tab
+                this.updateDocTab(msg.request?.doc);
+
+                // Render history (clear if not provided so stale entries don't persist)
+                this.historyRenderer.render(msg.history || []);
+
+                // Cookie preview — load if provided, clear otherwise
+                if (msg.cookies && this.cookieManager) {
+                    this.cookieManager.loadCookies(msg.cookies);
+                    this.renderCookiePreview(msg.cookies);
+                } else {
+                    this.renderCookiePreview([]);
+                }
+
+                // Load schemas for the new request (clears previous schemas first)
+                this.schemaEditorManager.loadSchemas();
+
+                // Reset GraphQL schema cache (completions, explorer, status)
+                this.graphqlSchemaManager.reset();
+
+                this.updateUrlPreview();
+                this.populateEnvironmentSelector();
+                this.applySuiteEditMode();
+            } finally {
+                // Re-enable dirty tracking and mark clean
+                this.state._suppressDirty = false;
             }
 
-            // Mark as clean after loading (loading triggers change events)
-            this.markClean();
+            // Take a fresh snapshot AFTER all population is done, then mark clean
             this.state.originalRequest = this.requestSaver.takeSnapshot();
+            this.markClean();
         }
     }
 
@@ -677,6 +747,13 @@ class RequestTesterApp {
         this.state.collectionVariables = data.collectionVariables || {};
         this.state.collectionId = data.collectionId || null;
         this.state.collectionName = data.collectionName || null;
+        this.state.suiteId = data.suiteId || null;
+        this.state.suiteRequestKey = data.suiteRequestKey || null;
+        this.state.disableSchemas = data.disableSchemas || false;
+        this.state.disableHistory = data.disableHistory || false;
+
+        // Show/hide suite edit banner
+        this.applySuiteEditMode();
 
         // Clear previous response when loading new request data
         this.responseHandler.clearResponse();
@@ -795,6 +872,97 @@ class RequestTesterApp {
 
         // Load schemas from backend for this request
         this.schemaEditorManager.loadSchemas();
+
+        // Handle document tab visibility and content
+        this.updateDocTab(reqData?.doc);
+    }
+
+    /**
+     * Render markdown to HTML using regex-based parser
+     * @param {string} md - Markdown content
+     * @returns {string} HTML string
+     */
+    renderMarkdown(md) {
+        if (!md) { return ''; }
+        let html = md
+            // Code blocks
+            .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="doc-code-block"><code>$2</code></pre>')
+            // Horizontal rules
+            .replace(/^---+$/gm, '<hr class="doc-hr">')
+            // Headings
+            .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+            // Blockquotes
+            .replace(/^> (.+)$/gm, '<blockquote class="doc-blockquote">$1</blockquote>')
+            .replace(/<\/blockquote>\n<blockquote class="doc-blockquote">/g, '<br>')
+            // Bold
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            // Links
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a class="doc-link" href="$2" title="$2">$1</a>')
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code class="doc-inline-code">$1</code>')
+            // Unordered lists
+            .replace(/^- (.+)$/gm, '<li>$1</li>')
+            // Table separator rows (consume trailing newline to prevent blank lines)
+            .replace(/^\|[- :|]+\|\r?\n?/gm, '')
+            // Table data rows
+            .replace(/^\|(.+)\|$\r?\n?/gm, (match, inner) => {
+                const cells = inner.split('|').map(c => c.trim());
+                if (cells.every(c => !c)) { return ''; }
+                return '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+            })
+            // Wrap consecutive <tr> in <table>
+            .replace(/((?:<tr>.*<\/tr>\n?)+)/g, '<table class="doc-table">$1</table>')
+            .replace(/<tr><\/tr>/g, '')
+            // Wrap consecutive <li> in <ul>
+            .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
+            // Remove newlines adjacent to block elements
+            .replace(/\n+((<\/?(?:h[1-4]|table|ul|pre|div|hr|blockquote)[^>]*>)|$)/g, '$1')
+            .replace(/((<\/?(?:h[1-4]|table|ul|pre|div|hr|blockquote)[^>]*>))\n+/g, '$1')
+            // Paragraphs
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>')
+            .replace(/<p>\s*<\/p>/g, '');
+        return `<div class="doc-rendered">${html}</div>`;
+    }
+
+    /**
+     * Update the Document tab visibility and content
+     * @param {string|undefined} doc - Markdown documentation content
+     */
+    updateDocTab(doc) {
+        this.state.doc = doc;
+        const docContent = document.getElementById('doc-content');
+
+        const toolbarHtml =
+            '<div class="doc-toolbar">' +
+                '<button class="doc-open-file-btn" id="doc-open-file-btn" title="Open documentation in editor">' +
+                    '<span class="codicon codicon-go-to-file"></span> Open File' +
+                '</button>' +
+            '</div>';
+
+        if (doc) {
+            // Render the doc content
+            if (docContent) {
+                docContent.innerHTML = toolbarHtml + this.renderMarkdown(doc);
+            }
+        } else {
+            // Show empty state with Open File button to create doc.md
+            if (docContent) {
+                docContent.innerHTML = toolbarHtml +
+                    '<div class="doc-empty-state">No documentation yet. Click "Open File" to create a doc.md for this request.</div>';
+            }
+        }
+
+        // Attach click handler for Open File button
+        const openFileBtn = document.getElementById('doc-open-file-btn');
+        if (openFileBtn) {
+            openFileBtn.addEventListener('click', () => {
+                vscode.postMessage({ command: 'openDocFile' });
+            });
+        }
     }
 
     populateEnvironmentSelector() {
@@ -863,11 +1031,12 @@ class RequestTesterApp {
         }
 
         allHeaders.forEach(({ value, enabled }, key) => {
-            // Use enum as select options, format as validation pattern from metadata
+            // Use enum as select options, pattern (regex) for validation
             const meta = this.state._headersMeta[key];
             const options = meta && Array.isArray(meta.enum) && meta.enum.length > 0 ? meta.enum : null;
-            const pattern = meta && meta.format ? meta.format : null;
-            this.formManager.addHeaderRow(key, value, true, enabled, options, pattern);
+            const pattern = meta && meta.pattern ? meta.pattern : null;
+            const combobox = !!(options && meta && meta.oneOf && meta.oneOf.length > 0);
+            this.formManager.addHeaderRow(key, value, true, enabled, options, pattern, combobox);
         });
     }
 
@@ -938,6 +1107,39 @@ class RequestTesterApp {
 
         if (this.elements.urlPreview) {
             this.elements.urlPreview.textContent = preview;
+        }
+
+        if (this.debouncedResolveUrlPreview) {
+            this.debouncedResolveUrlPreview();
+        }
+    }
+
+    async requestUrlPreview() {
+        if (!this.requestBuilder) return;
+
+        const request = this.requestBuilder.buildRequest();
+        this.previewRequestSequence += 1;
+        this.latestPreviewRequestSequence = this.previewRequestSequence;
+
+        vscode.postMessage({
+            command: 'resolveUrlPreview',
+            request,
+            sequence: this.previewRequestSequence
+        });
+    }
+
+    handleResolvedUrlPreview(msg) {
+        if (!msg || msg.sequence !== this.latestPreviewRequestSequence) {
+            return;
+        }
+
+        if (msg.error) {
+            console.warn('[RequestTesterApp] URL preview resolution failed:', msg.error);
+            return;
+        }
+
+        if (this.elements.urlPreview && typeof msg.url === 'string' && msg.url) {
+            this.elements.urlPreview.textContent = msg.url;
         }
     }
 
@@ -1065,6 +1267,8 @@ class RequestTesterApp {
     // ========================================
 
     markDirty() {
+        // Suppress dirty events during bulk loading to avoid premature dirtyStateChanged messages
+        if (this.state._suppressDirty) return;
         // Only track dirty state when not readonly, or when allowSave is true
         if (this.state.readonly && !this.state.allowSave) return;
         
@@ -1074,12 +1278,17 @@ class RequestTesterApp {
         if (hasChanges !== this.state.isDirty) {
             this.state.isDirty = hasChanges;
             this.updateSaveButtonState();
-            // Notify extension of dirty state change
-            vscode.postMessage({ command: 'dirtyStateChanged', isDirty: hasChanges });
+            // Notify extension of dirty state change (include request snapshot for save-on-close)
+            vscode.postMessage({
+                command: 'dirtyStateChanged',
+                isDirty: hasChanges,
+                requestState: hasChanges ? this.requestSaver.buildRequestData() : null
+            });
         }
     }
 
     markClean() {
+        if (this.state._suppressDirty) return;
         this.state.isDirty = false;
         this.updateSaveButtonState();
         // Notify extension of dirty state change
@@ -1089,14 +1298,49 @@ class RequestTesterApp {
     updateSaveButtonState() {
         if (!this.elements.btnSave) return;
         
+        const isSuiteMode = !!this.state.suiteId;
         if (this.state.isDirty) {
             this.elements.btnSave.disabled = false;
             this.elements.btnSave.classList.add('has-changes');
-            this.elements.btnSave.title = 'Save changes to collection';
+            this.elements.btnSave.title = isSuiteMode ? 'Save changes to suite' : 'Save changes to collection';
+            this.elements.btnSave.textContent = isSuiteMode ? 'Save to Suite' : 'Save';
         } else {
             this.elements.btnSave.disabled = true;
             this.elements.btnSave.classList.remove('has-changes');
             this.elements.btnSave.title = 'No changes to save';
+            this.elements.btnSave.textContent = isSuiteMode ? 'Save to Suite' : 'Save';
+        }
+    }
+
+    /**
+     * Show or hide suite-edit-mode UI elements
+     */
+    applySuiteEditMode() {
+        const banner = document.getElementById('suite-edit-banner');
+        if (banner) {
+            if (this.state.suiteId) {
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+        // Hide history sidebar in suite edit mode
+        if (this.state.disableHistory) {
+            const historySidebar = document.getElementById('history-sidebar');
+            if (historySidebar) historySidebar.style.display = 'none';
+        }
+        // Hide schema tabs and per-field schema toggles in suite edit mode
+        if (this.state.disableSchemas) {
+            document.body.classList.add('suite-edit-no-schema');
+            const bodySchemaTab = document.querySelector('[data-tab="body-schema"]');
+            const responseSchemaTab = document.querySelector('[data-tab="response-schema"]');
+            if (bodySchemaTab) bodySchemaTab.style.display = 'none';
+            if (responseSchemaTab) responseSchemaTab.style.display = 'none';
+        }
+        // Hide Document tab in suite edit mode
+        if (this.state.suiteId) {
+            const docTab = document.querySelector('[data-tab="doc"]');
+            if (docTab) docTab.style.display = 'none';
         }
     }
 

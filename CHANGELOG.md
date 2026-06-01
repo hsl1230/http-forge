@@ -5,11 +5,228 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.11.27 - 2026-05-28
+
+### Added
+
+- **Duplicate Collection**: Right-click a collection in the Collections tree → **Duplicate Collection**. Creates a full copy including all folders, requests, scripts, schemas, and body files.
+- **Duplicate Folder**: Right-click a folder → **Duplicate Folder**. Copies the folder and all nested requests within the same collection.
+- **Duplicate Request**: Right-click a request → **Duplicate Request**. Copies the request into the same folder.
+
+### Changed
+
+- **Dead code removal**: Removed unused files (unwired V2 / orchestrator / command layer). No public API changes — only internal code that was never imported or referenced.
+- **Dirty indicator on tab title**: The tab title now shows a `●` prefix (e.g., `● GET /users`) when there are unsaved changes, matching VS Code's native editor convention.
+
+## 0.11.26 - 2026-05-26
+
+### Added
+
+- **Save-on-close confirmation**: When closing a request panel with unsaved changes, a modal dialog prompts "Save" or "Don't Save" — preventing accidental data loss. Works for both collection requests and suite request editors.
+- **Confirm-before-overwrite dialog**: When opening a new request in a panel with unsaved changes, a unified modal offers four options: "Save & Continue" (saves then opens new), "Discard" (overwrites without saving), "Open in New Panel" (keeps dirty panel, opens new one), or Cancel. Replaces the previous "Overwrite / Open in New Panel" dialog.
+- **Open Original** menu action: Suite request context menu (`⋯`) now includes "↗ Open Original" — opens the source collection request in a standard Request Tester panel (no suite context), allowing direct editing of the collection version.
+
+### Changed
+
+- **Save button highlight**: The Save button now shows a pulsing visual indicator (`.has-changes` class) when the panel has unsaved modifications, providing clear at-a-glance feedback.
+- **`dirtyStateChanged` includes request state**: The webview dirty notification now sends the full request data snapshot, enabling the extension to save on close without requiring the webview to still be alive.
+
+## 0.11.25 - 2026-05-22
+
+### Added
+
+- **Suite description**: Editable description field in the suite header (between name and Run/Stop buttons). Click to edit via dropdown textarea overlay (no layout shift). Hover shows full multi-line tooltip preserving newlines. Persisted in suite JSON.
+- **Per-request description**: Each request in a suite now has a description line below its name. Same interaction: click to edit (overlay textarea), hover for multi-line tooltip. Documents what each request does in the test flow.
+
+### Changed
+
+- **Modified badge → dot indicator**: The "modified" text badge on customized requests is now a compact 6px colored dot, saving horizontal space while remaining visible at-a-glance.
+- **Menu trigger hover-reveal**: The `⋯` action menu button is now hidden by default and appears on row hover, reducing visual noise.
+
+## 0.11.24 - 2026-05-21
+
+### Fixed
+
+- **Suite runner executes only first instance of duplicate requests**: When the same request was added to a suite multiple times (each with different customizations), only the first instance's data was used for all executions. The runner now resolves each entry by its unique `slug` via `getRequestBySlug()` instead of `getRequestWithContext(collectionId, requestId)` which always matched the first occurrence.
+- **Adding requests to suite produces generic slugs (`request`, `request-2`, ...)**: The webview only sent `collectionId`, `requestId`, and `enabled` when adding requests. Without `name`, slug generation fell back to `'request'`. Now sends `name`, `method`, `collectionName`, and `folderPath` so `generateSlug()` always produces meaningful slugs like `get-content-videourl-t7`.
+
+### Changed
+
+- **Dead code cleanup**: Removed unused `selectedRequestKeys` array from suite run handler.
+
+## 0.11.23 - 2026-05-20
+
+### Added
+
+- **Property/index access in templates**: Use `{{arr[0]}}`, `{{obj.key}}`, or chained access `{{arr[0].name}}` directly in URLs, headers, and body fields. Works with typed variables stored via `pm.*.set()` — consistent behavior with filter pipes like `{{arr | first}}`.
+
+### Fixed
+
+- **Filter pipes in scripts cause syntax errors**: Using `{{variable | filter}}` inside `pm.test()` or other script strings (e.g. `pm.test("Found {{ids | first}}", ...)`) caused "missing ) after argument list" errors. The script executor's `replaceIn` now correctly deserializes typed variables before passing them to filters.
+
+## 0.11.22 - 2026-05-20
+
+### Added
+
+- **Typed variable support in template filters**: Array, object, number, and boolean variables set via `pm.environment.set()` (or any scope) now work directly with filter pipes. For example, `{{users | first}}` correctly extracts the first element from an array variable, and `{{config | prop("retries")}}` reads a nested property from an object variable — no manual `parseJSON` filter needed.
+
+### Changed
+
+- **Type-safe variable serialization**: Non-string values stored via `pm.*.set()` use an internal type marker to distinguish typed values from plain strings. This eliminates the ambiguity where a string `"true"` could be confused with a boolean `true`. The `get()` API always returns the exact type that was stored.
+
+## 0.11.21 - 2026-05-20
+
+### Fixed
+
+- **Save Suite loses request customizations**: The "Save Suite" action now includes the `slug` field when serializing requests. Previously, saving a suite from the webview dropped the slug mapping, causing all folder-based request customizations (body, headers, scripts, auth) to become unlinked.
+- **Duplicate Suite loses request customizations**: The "Duplicate Test Suite" command now copies the source suite's request folders to the new suite directory. Previously, only the suite metadata was duplicated while the actual request data (stored in `<suiteDir>/<slug>/`) was not copied.
+- **Save button enabled without changes in suite edit mode**: When editing a suite request, the save button now starts disabled (clean state) and only enables after actual modifications. Previously it was auto-enabled on panel load.
+- **Delete history run confirmation**: Moved `window.confirm()` (which doesn't work in VS Code webviews) to a proper `vscode.window.showWarningMessage` modal dialog on the extension host.
+- **"Back to latest" reloads correctly**: Clicking "Back to latest" now loads the most recent run via the standard history-load path instead of clearing state to an empty view.
+- **Config inputs not updated on history load**: Loading a historical run now updates the iterations, delay, and stop-on-error inputs to reflect that run's configuration.
+
+### Changed
+
+- **Dead code cleanup**: Removed unused `log()` function and deprecated state properties from test suite `main.js`.
+
+## 0.11.20 - 2026-05-19
+
+### Fixed
+
+- **Test Suite result filename mismatch**: `buildResultFileName()` in the webview now applies `sanitizeName()` to the requestId before interpolating, matching the backend `ResultStorageService` behavior. Previously, result files with uppercase or special characters in requestId could not be loaded from the Results tab.
+
+### Removed
+
+- **Dead code cleanup**: Removed `getStatusIcon()` and `renderResultItem()` from test suite `main.js` — both were unreachable.
+
+## 0.11.19 - 2026-05-01
+
+### Added
+
+- **Suite Request Customization**: Edit individual requests within a test suite without modifying the source collection. Changes are stored in a per-request folder under the suite directory (`<suiteDir>/<slug>/request.json`).
+  - **Edit button**: Open a suite request in the Request Tester panel for editing (URL, params, headers, body, auth, scripts)
+  - **Reset to Collection**: Revert a customized suite request back to the latest version from the source collection
+  - **Modified badge**: Visual indicator on requests that have been customized
+  - **Suite-aware save**: "Save to Suite" button in Request Tester persists changes to the suite folder, not the collection
+  - **Isolated panels**: Suite editors open in separate panels from collection editors — they never overwrite each other
+  - **Schema/Doc restrictions**: Body Schema, Response Schema tabs and per-field OpenAPI schema toggles are hidden in suite edit mode; Document tab is also hidden
+- **Suite Run History**: Browse, load, and delete past suite run results
+  - **History tab**: Lists all past runs with pass rate, duration, and status
+  - **Load historical run**: Populates both the Results tab (with virtual-scrolled request summaries) and the Statistics tab (per-request response times: min, avg, p95, p99, max)
+  - **Delete run**: Remove old run data from disk
+  - **History banner**: Shows which historical run is being viewed with a "Back to Latest" button
+
+### Changed
+
+- **Request list actions dropdown**: The per-request action buttons (Edit, Reset, Delete) are now consolidated into a single `⋯` dropdown menu, reducing row width and preventing layout wrapping. The `request-status` icon has been removed from the request list.
+- **Panel isolation for suite vs collection**: When a suite editor is focused, opening a collection request creates a new panel instead of overwriting the suite editor (and vice versa).
+
+### Fixed
+
+- **History Load button not working**: The `loadHistoryRun` and `deleteHistoryRun` functions were inaccessible from inline `onclick` handlers because the esbuild bundle wraps code in an IIFE. Replaced with `addEventListener` pattern.
+- **Statistics tab not populated on history load**: Loading a historical run now converts `manifest.requestStats` into the format expected by `renderStatistics()` and renders the Statistics tab.
+- **Suite request data not loaded**: When editing a suite request, the panel now skips the collection-merge logic so the resolved request (from suite folder first, collection fallback) is used directly.
+
+## 0.11.18 - 2026-04-30
+
+### Changed
+
+- **Session scope removed**: The separate "session" variable scope has been removed. `pm.environment.set()` now persists to workspace state (matching Postman's behavior). Variable resolution uses a 5-scope cascade: `variables > iterationData > environmentVariables > collectionVariables > globals`. The `pm.session` alias now delegates to `pm.environment`.
+
+### Fixed
+
+- **Request preparer extraVariables**: All request resolutions (params, query, headers, bearer auth, basic auth, API key) now use `extraVariables` when available. Previously only body and URL used extra variables, causing stale `{{variable}}` resolution in auth fields during collection runs.
+
+## 0.11.17 - 2026-04-29
+
+### Added
+
+- **Sensitive data redaction**: History files, shared history, suite test results, and full response files now automatically redact sensitive data before writing to disk. Detected patterns include:
+  - **Headers**: `Authorization`, `Proxy-Authorization`, and any header containing `token`, `cookie`, `secret`, `credential`, `api-key`, `bearer`, or `session-id` (e.g. `avs-token`, `telus-access-token-cookie`, `up-cookie`)
+  - **URL query params**: Parameters with names containing `password`, `token`, `secret`, `api_key`, `client_secret`, etc.
+  - **Request body fields**: JSON keys and URL-encoded form fields matching sensitive name patterns are redacted recursively
+  - **Response headers/cookies**: `Set-Cookie` and other sensitive response headers are redacted in stored full responses
+  - Unresolved templates (`{{variable}}`) in `originalConfig` are preserved untouched — only resolved values are redacted
+  - Redacted values are replaced with `***`
+
+### Fixed
+
+- **Collection runner variable propagation**: Fixed a bug where `pm.environment.set()` in a post-response script did not propagate correctly to `{{variable}}` resolution in subsequent requests. The script session's `modifiedEnvironmentVariables` was returning a stale snapshot instead of the live scope mutated by `pm.environment.set()`. Now uses live scope references for accurate variable extraction.
+- **Cookie jar flush in collection runner**: The cookie jar's `flush()` method is now called in the `finally` block of the suite runner, ensuring script-set cookies are persisted to the shared session store after a collection run completes.
+
+## 0.11.15 - 2026-04-28
+
+### Added
+
+- **Full OpenAPI 3.0 constraint alignment**: The metadata panel for parameters, headers, and query params now supports all OpenAPI 3.0 Schema Object constraint fields organized into type-dependent groups:
+  - **String**: `pattern`, `minLength`, `maxLength`
+  - **Numeric**: `minimum`, `maximum`, `exclusiveMinimum` (boolean checkbox), `exclusiveMaximum` (boolean checkbox), `multipleOf`
+  - **Array**: `minItems`, `maxItems`, `uniqueItems`
+  - **Common**: `nullable`
+- **Type-dependent constraint visibility**: Constraint groups show/hide based on the selected type. Selecting `string` hides Numeric and Array groups; selecting `integer`/`number` hides String and Array groups; selecting `array` hides String and Numeric groups. No type selected shows all groups.
+- **Auto-clear hidden constraint fields**: When the type changes and a constraint group is hidden, its fields are automatically cleared (inputs reset to empty, checkboxes unchecked) to prevent stale values from persisting in the metadata.
+- **Type validation in oneOf variants**: `matchesVariant()` now validates the value against the variant's declared `type` — `integer` requires `/^-?\d+$/`, `number` requires a parseable number, `boolean` requires `true`/`false`. Previously, type-only variants acted as catch-all matches.
+
+### Fixed
+
+- **oneOf/enum leak in OpenAPI export**: When merging parameters with different constraint kinds (e.g., `enum` + `pattern`), top-level constraints like `enum` could survive alongside `oneOf` in the exported schema, producing invalid OpenAPI. `stripConstraints()` now runs after all three branches of the different-kinds merge.
+- **Data loss when incoming parameter has oneOf**: When an existing parameter with simple constraints (e.g., `enum`) collided with an incoming parameter that already had `oneOf` (from a prior import), the incoming's `oneOf` variants were lost because `buildVariantSchema()` doesn't copy nested `oneOf`. Added a dedicated `else if (is.oneOf)` branch that wraps existing as a single variant and flattens the incoming's variants.
+- **Duplicate blur validation listeners**: `attachBlurValidation()` could stack duplicate `blur` event listeners on the same input element when metadata was updated repeatedly (via `syncValueElementFromMeta`). Fixed by storing the handler reference as `inp._blurValidator` and removing the previous listener before attaching a new one.
+- **`exclusiveMinimum`/`exclusiveMaximum` as booleans**: Corrected these fields from numbers (OpenAPI 3.1 style) to booleans (OpenAPI 3.0 style) across types, UI (checkboxes), exporter, importer, and validator. In OpenAPI 3.0.3, `exclusiveMinimum: true` means strict `>` on the `minimum` value.
+
+## 0.11.14 - 2026-04-27
+
+### Added
+
+- **Combobox for oneOf+enum parameters**: When a parameter has both `enum` and `oneOf` (e.g. from collision-merged variants where some variants are pattern-based), the Request Tester renders an editable combobox (`<input>` + `<datalist>`) instead of a strict `<select>`. This allows users to pick from known enum values or type pattern-matched values not in the enum.
+- **Full panel reset on request switch**: Opening a new request in an existing Request Tester panel now performs a comprehensive reset of all tabs and sections before populating the new data. Dirty tracking is suppressed during loading so intermediate form changes don't emit false `dirtyStateChanged` events.
+
+### Fixed
+
+- **API Key auth section not hidden on reset**: When switching to a request without API Key auth, the API Key section and its form fields were not being cleared/hidden. Now all auth sections (Bearer, Basic, API Key, OAuth2) are uniformly reset.
+- **Stale state after request switch**: Fixed multiple state leak issues when switching requests in an existing panel:
+  - OAuth2 cached token and token UI now cleared (new `oauth2Manager.reset()`)
+  - GraphQL cached schema, completions, explorer, and status now cleared (new `graphqlSchemaManager.reset()`)
+  - Body and Response schema editors now cleared before loading (new `clearSchemas()` in schema-editor-manager)
+  - Cookie preview in Settings tab now cleared or updated
+  - History sidebar now always re-rendered (empty list if no history provided)
+  - `lastResponse`, `lastSentRequest`, `activeHistoryEntryId` cleared to `null`
+  - Collection/environment state uses unconditional assignment with fallbacks instead of guarded `if` checks
+
+## 0.11.13 - 2026-04-27
+
+### Added
+
+- **OpenAPI collision-aware export**: When multiple requests normalize to the same path and HTTP method, the exporter now merges them into a single operation — appending descriptions, unioning tags, merging parameters (same constraint kind merged in place, different kinds wrapped in `oneOf`), and adding new response codes and content types.
+- **Full parameter constraint round-trip**: OpenAPI import and export now preserve all schema constraint fields: `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `minLength`, `maxLength`, and `oneOf`. These are stored on `KeyValueEntry` and `PathParamEntry` and round-trip without data loss.
+- **Constraints display in Request Tester**: The inline metadata panel for parameters, headers, and query params now shows a read-only "Constraints" section for `pattern`, min/max values, and length constraints. Parameters with `oneOf` (from merged collision variants) show a "Schema Variants" section.
+
+### Fixed
+
+- **`format` vs `pattern` validation**: Fixed incorrect use of `format` (a semantic hint like `"uuid"`, `"date-time"`) as a regex pattern for blur validation. `pattern` (the actual regex) is now used for validation; `format` is displayed as a tooltip hint only. This aligns with the OpenAPI 3.0 specification where `pattern` is enforced and `format` is advisory.
+
+## 0.11.11 - 2026-04-24
+
+### Added
+
+- **Request Tester URL preview**: The Request Tester now resolves the preview URL using backend environment resolution, dynamic variables, filter/pipe expressions, and auth query params so the preview matches actual request execution.
+
+
+## 0.11.9 - 2026-04-16
+
+### Added
+
+- **Document Tab**: New "Document" tab in the Request Tester panel displays request-level Markdown documentation from `doc.md` files stored alongside `request.json` in folder collections. Includes rendered Markdown view and an "Open File" button to edit the source.
+- **File Watching — Collections**: Collection file changes (create, edit, delete) now auto-refresh the Collections tree view and all open Request Tester panels. No manual refresh needed.
+- **File Watching — Environments**: Environment JSON file changes now auto-refresh the Environments tree view and all open Request Tester panels.
+- **Request Documentation (`doc.md`)**: Each request folder can now include a `doc.md` file for inline API documentation, persisted as a `doc` field on `UnifiedRequest` / `CollectionRequest`.
+- **Panel Auto-reload**: Open Request Tester panels automatically reload data from disk when underlying collection or environment files change externally (e.g. via a text editor, git operations, or another VS Code tab).
+
 ## 0.11.6 - 2026-04-06
 
 ### Fixed / Improved
 
-- **Request Tester**: Path parameters, query parameters, and headers with `enum` arrays in their metadata now render as select dropdowns instead of text inputs. The `format` field provides validation patterns. For path params, metadata takes priority over URL-constraint-derived values.
+- **Request Tester**: Path parameters, query parameters, and headers with `enum` arrays in their metadata now render as select dropdowns instead of text inputs. The `pattern` field provides regex validation on blur; the `format` field is shown as a tooltip hint. For path params, metadata takes priority over URL-constraint-derived values.
 - **Request Tester`: show shared cookie in the header of sent request.
 
 ## 0.11.4 - 2026-03-19
@@ -31,7 +248,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       3. `EnvironmentSelectionHandler` (159 lines) — Environment selection, history grouped by ticket/branch, external environment change handling.
       4. `HistoryHandler` (242 lines) — Request history: use/delete/share entries, rename/move shared groups.
       5. `CookieHandler` (63 lines) — Cookie CRUD via `IAsyncCookieService`.
-      6. `VariableHandler` (150 lines) — Global/environment/collection/session variable management.
+      6. `VariableHandler` (150 lines) — Global/environment/collection variable management.
       7. `SchemaHandler` (555 lines) — Body/response schema operations: get, save, infer, validate, capture, generate examples with JSON Schema support.
       8. `OAuth2Handler` (112 lines) — OAuth 2.0 token lifecycle via `IOAuth2TokenManager`.
       9. `GraphQLHandler` (119 lines) — GraphQL introspection & completions via `IGraphQLSchemaService`.
@@ -122,7 +339,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **5-Step Resolution Pipeline**: Templates resolve in order: `$dynamic` variables → filter chains → variable lookup → JS expressions → original text. Applied consistently in both Request Tester and Script Executor.
 - **Script Template Pre-Resolution**: `{{variable}}` templates now auto-resolve directly in pre-request and post-response script source code before execution — no need to wrap strings in `replaceIn()`. Filters, expressions, dynamic variables, and string concatenation all work inline. Postman-compatible: explicit `replaceIn()` calls remain safe (already-resolved strings are a no-op).
 - **Monaco IntelliSense for Templates & Scripts**: Context-aware code completion in all Monaco editors (request body, GraphQL, pre-request, post-response).
-  - **Template completions**: Type `{{` to see all environment, collection, global, and session variables with live values. Type `$` inside `{{ }}` for 18 dynamic variables. Type `|` for 30+ filter suggestions grouped by category (String, Math, Encoding, Hash, Array, Object, Validation) — filters with parameters include tab-stop snippets.
+  - **Template completions**: Type `{{` to see all environment, collection, and global variables with live values. Type `$` inside `{{ }}` for 18 dynamic variables. Type `|` for 30+ filter suggestions grouped by category (String, Math, Encoding, Hash, Array, Object, Validation) — filters with parameters include tab-stop snippets.
   - **Script API completions**: Type `hf.`, `pm.`, or `ctx.` in script editors to get full IntelliSense for the scripting API — variable scopes (`get`, `set`, `has`, `replaceIn`), request/response objects, cookies, test/expect assertions, `sendRequest`, and `info`. Deep chain support: `hf.response.to.have.status()`, `hf.request.headers.upsert()`, `expect().to.equal()`, etc.
 - **OAuth 2.0 Authentication**: Full OAuth 2.0 support with all four grant types — now at feature parity with Postman for authentication.
   - **Authorization Code + PKCE**: Browser-based authorization via VS Code URI handler callback. PKCE S256 challenge enabled by default for security.
@@ -333,7 +550,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Variable substitution (`{{variableName}}`) in URL, headers, body
   - Environment inheritance for shared variables
   - Local secrets file support (gitignored)
-  - Session variables for temporary data
+  - Environment variable overrides (persisted to workspace state)
   - Quick environment switching from status bar
 
 - **Response Viewer**
@@ -358,7 +575,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cookie Management**
   - Automatic cookie handling across requests
   - Domain-aware cookie storage
-  - Cookie persistence during session
+  - Cookie persistence across requests
   - View cookies in response panel
 
 - **Test Suite** (replaces Collection Runner)

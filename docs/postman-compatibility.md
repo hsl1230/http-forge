@@ -350,7 +350,7 @@ HTTP Forge extends Postman's `{{variable}}` syntax with filter pipes and JavaScr
 HTTP Forge resolves `{{content}}` in this order:
 1. Dynamic variables (`$guid`, `$randomInt(1,100)`)
 2. Filter chains (`variable | upper | trim`)
-3. Environment/collection/session variable lookup
+3. Environment/collection variable lookup
 4. JavaScript expression evaluation (sandboxed)
 5. Original text preserved (unresolved)
 

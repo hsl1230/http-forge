@@ -11,6 +11,7 @@ import {
   HistoryHandler,
   OAuth2Handler,
   RequestExecutionHandler,
+  RequestPreviewHandler,
   SaveRequestHandler,
   SchemaHandler,
   VariableHandler
@@ -29,11 +30,13 @@ import { PanelDataProvider } from './panel-data-provider';
 export class RequestTesterPanel implements vscode.Disposable {
   private panel?: vscode.WebviewPanel;
   private messageDisposable?: vscode.Disposable;
+  private docSaveDisposable?: vscode.Disposable;
   private webviewReady: boolean = false;
   private readonly panelId: string;
   
   // Track dirty state locally (updated by webview notifications)
   private isDirty: boolean = false;
+  private _cachedRequestState: any = null;
 
   // Event emitter for disposal
   private readonly _onDidDispose = new vscode.EventEmitter<void>();
@@ -99,6 +102,11 @@ export class RequestTesterPanel implements vscode.Disposable {
       this.environmentHandler
     );
 
+    const requestPreviewHandler = new RequestPreviewHandler(
+      envConfigService,
+      httpService
+    );
+
     const historyHandler = new HistoryHandler(
       historyService,
       envConfigService,
@@ -106,7 +114,7 @@ export class RequestTesterPanel implements vscode.Disposable {
       this.environmentHandler
     );
 
-    const saveRequestHandler = new SaveRequestHandler(this.dataProvider, collectionService);
+    const saveRequestHandler = new SaveRequestHandler(this.dataProvider, collectionService, envConfigService);
 
     // Schema handler for body/response schema operations
     const schemaInferenceService = container.resolve<any>(Symbol.for('SchemaInferenceService'));
@@ -128,6 +136,7 @@ export class RequestTesterPanel implements vscode.Disposable {
     this.router.registerHandlers([
       this.environmentHandler,
       requestHandler,
+      requestPreviewHandler,
       historyHandler,
       this.cookieHandler,
       this.variableHandler,
@@ -190,6 +199,19 @@ export class RequestTesterPanel implements vscode.Disposable {
   }
 
   /**
+   * Save the currently cached request state (used by manager before overwriting)
+   */
+  public async saveCurrentRequest(): Promise<void> {
+    if (!this._cachedRequestState) {
+      return;
+    }
+    await this.router.route(
+      { command: 'saveRequest', request: this._cachedRequestState },
+      this.messenger
+    );
+  }
+
+  /**
    * Update this panel with new request content
    */
   public async updateContent(context: RequestContext, panelTitle: string): Promise<void> {
@@ -199,6 +221,7 @@ export class RequestTesterPanel implements vscode.Disposable {
 
     // Reset dirty state when loading new content
     this.isDirty = false;
+    this._cachedRequestState = null;
 
     // Update panel title
     this.panel.title = panelTitle;
@@ -221,14 +244,60 @@ export class RequestTesterPanel implements vscode.Disposable {
       return;
     }
 
+    // If there are unsaved changes, prompt user and save before cleanup
+    if (this.isDirty && this._cachedRequestState) {
+      const requestState = this._cachedRequestState;
+      const requestName = requestState.name || 'Untitled Request';
+      // Show dialog asynchronously (panel is already closing)
+      vscode.window.showWarningMessage(
+        `Request "${requestName}" has unsaved changes.`,
+        { modal: true },
+        'Save',
+        'Don\'t Save'
+      ).then(async (choice) => {
+        if (choice === 'Save') {
+          try {
+            await this.router.route(
+              { command: 'saveRequest', request: requestState },
+              this.messenger
+            );
+          } catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to save request: ${error.message}`);
+          }
+        }
+      });
+    }
+
     this._onDidDispose.fire();
     this._onDidDispose.dispose();
     this.webviewReady = false;
     this.messageDisposable?.dispose();
-    
-    const panelToDispose = this.panel;
+    this.docSaveDisposable?.dispose();
     this.panel = undefined;
-    panelToDispose.dispose();
+  }
+
+  /**
+   * Programmatically close this panel (triggers onDidDispose → dispose)
+   */
+  public close(): void {
+    this.panel?.dispose();
+  }
+
+  /**
+   * Update tab title to show dirty indicator (● prefix) like VS Code editors
+   */
+  private updateTitleDirtyIndicator(): void {
+    if (!this.panel) return;
+    const title = this.panel.title;
+    if (this.isDirty) {
+      if (!title.startsWith('● ')) {
+        this.panel.title = `● ${title}`;
+      }
+    } else {
+      if (title.startsWith('● ')) {
+        this.panel.title = title.slice(2);
+      }
+    }
   }
 
   /**
@@ -243,6 +312,21 @@ export class RequestTesterPanel implements vscode.Disposable {
     }
   }
 
+  /**
+   * Reload data from disk and push to webview.
+   * Called when collection files change externally.
+   */
+  public reloadFromDisk(): void {
+    if (this.webviewReady) {
+      try {
+        const data = this.dataProvider.getInitialData();
+        this.messenger.postMessage({ command: 'loadRequest', ...data });
+      } catch {
+        // Context may no longer be valid (e.g. request deleted)
+      }
+    }
+  }
+
   private async createAndShow(context: RequestContext, panelTitle: string): Promise<void> {
     this.dataProvider.setContext(context);
 
@@ -253,6 +337,7 @@ export class RequestTesterPanel implements vscode.Disposable {
 
     // Register message handler BEFORE revealing to avoid missing webviewLoaded
     this.registerMessageHandler();
+    this.registerDocFileWatcher();
     this.panel.reveal(vscode.ViewColumn.One);
   }
 
@@ -304,6 +389,16 @@ export class RequestTesterPanel implements vscode.Disposable {
       // Track dirty state from webview
       if (cmd === 'dirtyStateChanged') {
         this.isDirty = msg.isDirty || false;
+        if (msg.requestState) {
+          this._cachedRequestState = msg.requestState;
+        }
+        this.updateTitleDirtyIndicator();
+        return;
+      }
+
+      // Open doc.md file in editor
+      if (cmd === 'openDocFile') {
+        await this.openDocFile();
         return;
       }
 
@@ -319,6 +414,101 @@ export class RequestTesterPanel implements vscode.Disposable {
     } catch (error) {
       console.error('[RequestTesterPanel] Failed to send initial data:', error);
     }
+  }
+
+  /**
+   * Watch for doc.md saves and push updated content to the webview
+   */
+  private registerDocFileWatcher(): void {
+    this.docSaveDisposable?.dispose();
+
+    this.docSaveDisposable = vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (!this.webviewReady || !doc.fileName.endsWith('doc.md')) {
+        return;
+      }
+
+      const context = this.dataProvider.getCurrentContext();
+      if (!context?.collectionId || !context?.requestId) {
+        return;
+      }
+
+      // Verify this doc.md belongs to the current request
+      const requestJsonPath = path.join(path.dirname(doc.fileName), 'request.json');
+      try {
+        if (!fs.existsSync(requestJsonPath)) return;
+        const metadata = JSON.parse(fs.readFileSync(requestJsonPath, 'utf-8'));
+        if (metadata.id !== context.requestId) return;
+      } catch {
+        return;
+      }
+
+      const newContent = doc.getText();
+      this.messenger.postMessage({ command: 'docUpdated', doc: newContent });
+    });
+  }
+
+  /**
+   * Open the doc.md file for the current request in VS Code editor
+   */
+  private async openDocFile(): Promise<void> {
+    const context = this.dataProvider.getCurrentContext();
+    if (!context?.collectionId || !context?.requestId) {
+      return;
+    }
+
+    const container = getServiceContainer();
+    const collectionsDir = container.config.getCollectionsPath();
+    const docPath = this.findDocFile(collectionsDir, context.requestId);
+
+    if (docPath) {
+      // Create the file if it doesn't exist
+      if (!fs.existsSync(docPath)) {
+        fs.writeFileSync(docPath, '', 'utf-8');
+      }
+      const doc = await vscode.workspace.openTextDocument(docPath);
+      await vscode.window.showTextDocument(doc);
+    }
+  }
+
+  /**
+   * Search for doc.md in the collections directory for the given request ID
+   */
+  private findDocFile(basePath: string, requestId: string): string | undefined {
+    const searchDir = (dir: string): string | undefined => {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return undefined;
+      }
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const entryPath = path.join(dir, entry.name);
+        const requestJsonPath = path.join(entryPath, 'request.json');
+
+        if (fs.existsSync(requestJsonPath)) {
+          try {
+            const content = fs.readFileSync(requestJsonPath, 'utf-8');
+            const metadata = JSON.parse(content);
+            if (metadata.id === requestId) {
+              return path.join(entryPath, 'doc.md');
+            }
+          } catch {
+            // Skip invalid request.json files
+          }
+        }
+
+        // Recurse into subdirectories
+        const found = searchDir(entryPath);
+        if (found) return found;
+      }
+
+      return undefined;
+    };
+
+    return searchDir(basePath);
   }
 
   private getHtmlContent(

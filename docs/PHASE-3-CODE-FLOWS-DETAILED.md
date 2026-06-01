@@ -347,11 +347,10 @@ f.env.set('lastToken', token); // Saves to environment file
 ```
 
 **Why**:
-- Three layers (flow/session/env) is confusing
-- "Session" concept is unclear - when does it start/end?
 - Two layers are sufficient:
   - Temporary (within flow) → `f.set/get`
   - Persistent (shared) → `f.env.set/get`
+- Note: The separate session scope has been removed. `pm.environment.set()` now persists to workspace state, matching Postman behavior.
 
 ### 3.6 Error Handling: Fail Fast with Escape Hatch
 

@@ -7,6 +7,25 @@
 - Install from the VS Code Marketplace: `henry-huang.http-forge`
 - Or load the locally built extension from `http-forge/http-forge-0.11.6.vsix`
 
+## 🧪 Standalone Launcher (QA / Testing)
+
+Run HTTP Forge as an isolated standalone tool — no other extensions, clean profile:
+
+| Platform | Download |
+|----------|----------|
+| Linux / macOS | [http-forge.sh](scripts/http-forge.sh) |
+| Windows | [http-forge.bat](scripts/http-forge.bat) |
+
+```bash
+# Linux / macOS
+./http-forge.sh
+
+# Windows
+http-forge.bat
+```
+
+The launcher auto-detects (or downloads) VS Code and installs HTTP Forge in an isolated profile. Use `--dev` for your full dev environment, or `--both` to run dev + test side by side. See [Launcher Guide](docs/user-guide/cli-standalone.md#launcher-standalone-gui) for details.
+
 ## 📚 Documentation
 
 - Full user guide: [docs/user-guide/index.md](docs/user-guide/index.md)
@@ -56,7 +75,7 @@
 | **Built-in Libraries** | ✅ lodash, moment, uuid, CryptoJS, etc. | ✅ lodash, moment, uuid, CryptoJS, etc. |
 | **Test Assertions** | ✅ Chai-style expect, JSON schema | ✅ Chai-style expect, JSON schema |
 | **Environment Variables** | ✅ Local files | ❌ Cloud-synced only |
-| **Variable Scopes** | ✅ Global, Environment, Collection, Session | ✅ Global, Environment, Collection |
+| **Variable Scopes** | ✅ Global, Environment, Collection | ✅ Global, Environment, Collection |
 | **Template Engine** | ✅ Filters, JS expressions, string concat | ❌ Variable lookup + script-only filters |
 | **IntelliSense / Autocomplete** | ✅ Variables, filters, dynamic vars, script API | ❌ No template IntelliSense |
 | **Script Template Pre-Resolution** | ✅ `{{var}}` auto-resolves in script source | ❌ Requires `replaceIn()` |
@@ -135,6 +154,7 @@
 - **Authentication**: OAuth 2.0 (all 4 grant types with PKCE), Bearer, Basic, API Key
 - **Pre-request Scripts**: Run JavaScript before each request — `{{variable}}` templates auto-resolve in script source
 - **Post-response Scripts**: Process responses with custom scripts — templates, filters, and expressions work inline
+- **Request Documentation**: View request-level Markdown docs from `doc.md` files in the Document tab
 
 ### � Template Engine
 - **Filter Pipes**: Chain filters on any variable — `{{variable | upper | substring(0, 5)}}`
@@ -157,14 +177,19 @@
 - **Import/Export**: Postman-compatible collection format (v2.1)
 - **OpenAPI 3.0**: Import OpenAPI specs to create collections; export collections as OpenAPI 3.0.3 YAML/JSON
 - **Drag & Drop**: Rearrange requests easily
+- **Duplicate**: Right-click to duplicate collections, folders, or requests — copies all nested content including scripts and schemas
 - **Collection Runner**: Execute entire collections with configurable iterations
+- **File Watching**: Collection file changes auto-refresh the tree view and all open panels
+- **Request Documentation**: Each request folder supports a `doc.md` file for inline API docs
 
 ### 🌍 Environment Management
 - **Multiple Environments**: Dev, staging, production, and custom environments
 - **Variable Substitution**: Use `{{variableName}}` anywhere in your requests
 - **Environment Inheritance**: Share common variables across environments
 - **Local Secrets**: Store sensitive data in gitignored files
-- **Session Variables**: Temporary variables that persist during your session
+- **Environment Overrides**: `pm.environment.set()` persists to workspace state (like Postman)
+- **Type-safe Variables**: Store arrays, objects, numbers, and booleans — `get()` returns the exact type you stored
+- **File Watching**: Environment file changes auto-refresh the tree view and all open panels
 
 ### 📊 Response Viewer
 - **Syntax Highlighting**: Beautiful JSON, XML, and HTML formatting
@@ -200,6 +225,8 @@
 
 ### 🧪 Test Suite
 - **Cross-Collection**: Select requests from multiple collections
+- **Suite & Request Descriptions**: Document what the suite tests and what each request does in the flow — inline editing with multi-line hover tooltips
+- **Request Actions Menu**: Per-request `⋯` menu with Edit (suite copy), Open Original (collection source), Reset to Collection, and Remove
 - **Save & Reuse**: Save test configurations for QA teams
 - **Batch Execution**: Run selected requests with iterations
 - **Performance Statistics**: P50/P90/P95/P99 response times
@@ -319,9 +346,11 @@ if (forge.response.status !== 200) {
 
 **Create Test Suite (cross-collection):**
 1. In **Test Suites** view, click **+**
-2. Select requests from multiple collections
-3. Arrange execution order
-4. Save for reuse by QA team
+2. Add a suite description to document the test purpose (click the placeholder in the header)
+3. Select requests from multiple collections
+4. Add per-request descriptions to document each step's role
+5. Arrange execution order
+6. Save for reuse by QA team
 
 **Performance Statistics:**
 - View P50/P90/P95/P99 response times

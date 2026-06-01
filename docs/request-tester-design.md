@@ -41,9 +41,9 @@ resources/features/request-tester/modules/
 ├── request-saver.js           # Save request to collection
 ├── response-handler.js        # Handle and display responses
 ├── url-builder.js             # Build URL with variables
-├── form-manager.js            # Manage form inputs
-├── query-params-manager.js    # Manage query parameters
-├── path-variables-manager.js  # Manage path variables (enum dropdowns, format validation)
+├── form-manager.js            # Form inputs, metadata panels, constraint editing, oneOf variants, blur validation
+├── query-params-manager.js    # Manage query parameters + _queryMeta
+├── path-variables-manager.js  # Manage path variables + _paramsMeta (enum dropdowns, combobox, pattern validation)
 ├── body-type-manager.js       # Manage request body types
 ├── monaco-editors-manager.js  # Monaco editor instances
 ├── history-renderer.js        # Render request history
@@ -58,6 +58,8 @@ resources/features/request-tester/modules/
 └── oauth2-manager.js          # OAuth 2.0 UI manager
 ```
 
+The Document tab (rendered Markdown from `doc.md`) is handled by `main.js` via the `updateDocTab()` and `renderMarkdown()` methods.
+
 ---
 
 ## Configuration
@@ -70,8 +72,14 @@ your-workspace/
       ├── environments.json           ← Shared environments (can be committed)
       ├── environments.local.json     ← Personal credentials (gitignored)
       ├── collections/                ← Request collections
-      │   ├── my-api.json
-      │   └── auth-tests.json
+      │   ├── my-api/
+      │   │   ├── collection.json
+      │   │   └── items/
+      │   │       └── login/
+      │   │           ├── request.json
+      │   │           └── doc.md       ← Optional request documentation
+      │   └── auth-tests/
+      │       └── ...
       └── histories/                  ← Request history (gitignored)
           ├── collection-id/
           │   ├── request-id.json
@@ -355,26 +363,76 @@ Behavior and implementation notes:
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Path Variables (auto-detected from endpoint)                        │
-│ ┌────────────────┬─────────────────────────────────┐               │
-│ │ contentId      │ [{{testContentId}}____________] │  ← Text input │
-│ │ channel        │ [IOS ▼]                         │  ← Select     │
-│ │                │  (IOS, ANDROID_TV_BYOD, ...)    │    (enum > 1) │
-│ └────────────────┴─────────────────────────────────┘               │
+│ ┌────────────────┬─────────────────────────────┬────┬───┐          │
+│ │ contentId      │ [{{testContentId}}________] │ {} │   │ ← input  │
+│ │ channel        │ [IOS ▼]                     │ {} │   │ ← select │
+│ │ appversion     │ [T7.2 ▾ _______________]    │{} *│   │ ← combo  │
+│ └────────────────┴─────────────────────────────┴────┴───┘          │
 │                                                                     │
-│ Path params with enum arrays in their PathParamEntry               │
-│ metadata render as select dropdowns. Missing enum renders as a     │
-│ renders as a text input. Params metadata (enum, format) takes      │
-│ priority over values inferred from URL constraints.                │
+│ {} = Schema toggle button (opens metadata detail panel)             │
+│ * = has-meta indicator (constraint/oneOf data present)              │
+│                                                                     │
+│ Value rendering rules:                                              │
+│ - enum only → strict <select> dropdown                              │
+│ - enum + oneOf → editable combobox (input with dropdown suggestions)│
+│ - pattern only → text input with blur validation                    │
+│ - no constraints → plain text input                                 │
+│                                                                     │
+│ ┌─ Metadata Detail Panel (expanded via {} button) ─────────────────┐│
+│ │ Type: [string ▼]  Format: [____________]                         ││
+│ │ Description: [_______________________________________]           ││
+│ │ ☑ Required  ☐ Deprecated                                        ││
+│ │ Enum Values: [ENG] [FRA] [+___________] [+]                     ││
+│ │ ┌─ Constraints ──────────────────────────────────────┐           ││
+│ │ │ ☐ Nullable                                         │           ││
+│ │ │ ┌─ STRING (shown when type = string or unset) ───┐ │           ││
+│ │ │ │ Pattern: [^[A-Z]+$_______]                      │ │           ││
+│ │ │ │ Min Length: [__]  Max Length: [__]               │ │           ││
+│ │ │ └────────────────────────────────────────────────┘ │           ││
+│ │ │ ┌─ NUMERIC (shown when type = integer/number) ──┐  │           ││
+│ │ │ │ Minimum: [__]      Maximum: [__]               │  │           ││
+│ │ │ │ ☐ Exclusive Min    ☐ Exclusive Max             │  │           ││
+│ │ │ │ Multiple Of: [__]                              │  │           ││
+│ │ │ └────────────────────────────────────────────────┘  │           ││
+│ │ │ ┌─ ARRAY (shown when type = array) ─────────────┐  │           ││
+│ │ │ │ Min Items: [__]    Max Items: [__]             │  │           ││
+│ │ │ │ ☐ Unique Items                                 │  │           ││
+│ │ │ └────────────────────────────────────────────────┘  │           ││
+│ │ └────────────────────────────────────────────────────┘           ││
+│ │ ┌─ Schema Variants (oneOf) ──────────────────────────┐           ││
+│ │ │ Variant 1: type: string, enum: [T2.0, T2.1]       │           ││
+│ │ │ Variant 2: type: string, pattern: T2.2|T7.[0-2]   │           ││
+│ │ │ [+ Add Current as Variant]                         │           ││
+│ │ └────────────────────────────────────────────────────┘           ││
+│ └──────────────────────────────────────────────────────────────────┘│
 │                                                                     │
 │ Query Params (auto-detected from flow analysis)                     │
-│ ┌───┬────────────────┬─────────────────────────────┐               │
-│ │ ☑ │ locale         │ [{{locale}}________________] │               │
-│ │ ☑ │ propertyName   │ [{{propertyName}}__________] │               │
-│ │ ☑ │ startDeltaTime │ [0_______________________] │               │
-│ │ ☐ │ + Add          │                             │               │
-│ └───┴────────────────┴─────────────────────────────┘               │
+│ ┌───┬────────────────┬─────────────────────────────┬────┐          │
+│ │ ☑ │ locale         │ [{{locale}}________________] │ {} │          │
+│ │ ☑ │ propertyName   │ [{{propertyName}}__________] │ {} │          │
+│ │ ☑ │ startDeltaTime │ [0_______________________] │ {} │          │
+│ │ ☐ │ + Add          │                             │    │          │
+│ └───┴────────────────┴─────────────────────────────┴────┘          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+**Constraint group visibility**: Groups show/hide based on selected type. When a group
+is hidden, its fields are automatically cleared (inputs reset, checkboxes unchecked).
+No type selected → all groups visible.
+
+**Blur validation**: Text inputs validate on blur against `pattern` (regex) and/or
+`oneOf` variant constraints. Values starting with `{{` (variables) skip validation.
+Invalid values receive an `invalid` CSS class (red border). Validation checks:
+- `pattern` → regex match
+- `enum` → inclusion check
+- `type` → integer requires `/^-?\d+$/`, number requires parseable, boolean requires `true`/`false`
+- Numeric range → `minimum`/`maximum` with `exclusiveMinimum`/`exclusiveMaximum` (OpenAPI 3.0 booleans)
+- `multipleOf`, `minLength`, `maxLength`
+
+**oneOf variants**: Click a variant to load its constraints into the form fields.
+Click "+ Add Current as Variant" to snapshot the current constraint fields as a new
+variant. Only Schema Object fields are captured (not `description`/`required`/`deprecated`
+which are Parameter Object level).
 
 #### Authorization Tab
 
@@ -398,12 +456,16 @@ Behavior and implementation notes:
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Headers (auto-detected reads from flow analysis)                    │
-│ ┌───┬──────────────────┬───────────────────────────────┐           │
-│ │ ☑ │ Content-Type     │ [application/json____________] │           │
-│ │ ☑ │ x-client-id      │ [{{clientId}}________________] │           │
-│ │ ☑ │ x-correlation-id │ [{{$uuid}}_________________] │           │
-│ │ ☐ │ + Add            │                               │           │
-│ └───┴──────────────────┴───────────────────────────────┘           │
+│ ┌───┬──────────────────┬───────────────────────────────┬────┐      │
+│ │ ☑ │ Content-Type     │ [application/json____________] │ {} │      │
+│ │ ☑ │ x-client-id      │ [{{clientId}}________________] │ {} │      │
+│ │ ☑ │ x-correlation-id │ [{{$uuid}}_________________] │ {} │      │
+│ │ ☐ │ + Add            │                               │    │      │
+│ └───┴──────────────────┴───────────────────────────────┴────┘      │
+│                                                                     │
+│ {} = Schema toggle button (opens metadata detail panel)             │
+│ Same metadata panel, constraint groups, blur validation, and oneOf  │
+│ variant editing as Params Tab (stored in state._headersMeta).       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -852,6 +914,11 @@ let state = {
   bearerToken: '',              // Manual bearer token
   saveResponse: false,          // Save full response flag
   
+  // OpenAPI metadata maps — parallel to param/header state
+  _paramsMeta: {},              // { paramName: { type, format, enum, pattern, oneOf, ... } }
+  _queryMeta: {},               // { queryKey: { type, format, enum, pattern, oneOf, ... } }
+  _headersMeta: {},             // { headerKey: { type, format, enum, pattern, oneOf, ... } }
+  
   settings: {                   // Request settings
     timeout: 30000,
     followRedirects: true,
@@ -877,6 +944,30 @@ let state = {
   }
 };
 ```
+
+**Metadata map structure** (`_paramsMeta`, `_queryMeta`, `_headersMeta`):
+
+Each maps a parameter/header key to an object with OpenAPI Schema Object and Parameter Object fields:
+
+| Field | Type | Level | Description |
+|-------|------|-------|-------------|
+| `type` | `string` | Schema | `string`, `integer`, `number`, `boolean`, `array` |
+| `format` | `string` | Schema | `date-time`, `int32`, `uuid`, etc. (advisory) |
+| `pattern` | `string` | Schema | Regex pattern for validation |
+| `enum` | `string[]` | Schema | Allowed values |
+| `minimum` / `maximum` | `number` | Schema | Numeric range |
+| `exclusiveMinimum` / `exclusiveMaximum` | `boolean` | Schema | OpenAPI 3.0 boolean modifiers |
+| `multipleOf` | `number` | Schema | Numeric divisor constraint |
+| `minLength` / `maxLength` | `number` | Schema | String length range |
+| `minItems` / `maxItems` | `number` | Schema | Array item count range |
+| `uniqueItems` | `boolean` | Schema | Array uniqueness constraint |
+| `nullable` | `boolean` | Schema | Allows null values |
+| `oneOf` | `object[]` | Schema | Array of variant constraint objects |
+| `description` | `string` | Parameter | Human-readable description |
+| `required` | `boolean` | Parameter | Whether the parameter is required |
+| `deprecated` | `boolean` | Parameter | Whether the parameter is deprecated |
+
+These maps are populated during request loading (by `path-variables-manager.js`, `query-params-manager.js`, and `request-loader.js`) and updated in real-time by `form-manager.js` as the user edits metadata panels. On save/export, the maps are merged back into the request entries.
 
 ### Webview Module Architecture
 
@@ -919,7 +1010,7 @@ resources/features/endpoint-tester/
 | `history-renderer.js` | Request history UI rendering |
 | `request-builder.js` | HTTP request object construction |
 | `response-handler.js` | HTTP response display handling |
-| `form-manager.js` | Form element management (params, headers, body) + inline metadata panels |
+| `form-manager.js` | Form element management (params, headers, body), inline metadata panels, constraint editing, oneOf variant management, blur validation |
 | `schema-editor-manager.js` | Body Schema & Response Schema tab editors (Monaco, toolbar, status-code sub-tabs) |
 | `main.js` | Orchestrator - wires modules and handles events |
 

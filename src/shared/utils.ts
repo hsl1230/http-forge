@@ -27,6 +27,11 @@ export interface RequestContext {
     allowSave?: boolean;  // Allow save even in readonly mode (for Endpoint Tester)
     group?: GroupInfo;
     allowDuplicatedName?: boolean; // Allow duplicate request names in collection editor
+    // Suite editing context
+    suiteId?: string;              // Suite being edited
+    suiteRequestKey?: string;      // Slug of the request within the suite
+    disableSchemas?: boolean;      // Hide schema tabs/actions in webview
+    disableHistory?: boolean;      // Hide history tab in webview
 }
 
 /**
@@ -65,6 +70,7 @@ export function ensureRequestDefaults(item: Partial<CollectionRequest>): Collect
         // Preserve OpenAPI metadata
         deprecated: item.deprecated,
         description: item.description,
+        doc: item.doc,
         responseSchema: item.responseSchema,
         bodySchema: item.bodySchema
     };

@@ -331,6 +331,7 @@ export class RequestExecutionHandler implements IMessageHandler {
         sentRequest,
         // Original UI configuration (for reference) - uses combined body format
         originalConfig: {
+          method: sentRequest.method || context?.request?.method || 'GET',
           path: request.url || context?.request?.url || '',
           params: request.params || {},
           query: request.query || {},

@@ -7,6 +7,7 @@ The Request Tester is the main UI for building and executing requests from the e
 - **Path/URL**: Absolute URL or relative path resolved against environment variables (supports Express.js route patterns like `:id`)
 - **Send**: Executes the request
 - **Save**: Saves updates back to the collection
+- **Resolved URL preview**: Shows the final executed URL after inline variables, selected environment values, dynamic variables, filter/pipe expressions, and auth query params are resolved.
 
 ### Example
 ```
@@ -18,14 +19,16 @@ GET {{baseUrl}}/users/:id
 - Automatically detected from `:param` or `{{param}}` patterns
 - Values can be literals or `{{variables}}`
 - **Enum-driven dropdowns**: When a path parameter has an `enum` array in its `PathParamEntry` metadata, it renders as a select dropdown instead of a text input
-- **Validation**: The `format` field (if present) is used as a validation pattern, taking priority over patterns inferred from URL constraints like `:param(regex)`
-- Params metadata (`enum`, `format`) takes priority over URL-constraint-derived values
+- **Combobox mode**: When a path parameter has both `enum` and `oneOf` (e.g. from collision-merged OpenAPI variants), it renders as an editable combobox — an `<input>` with a `<datalist>` providing autocomplete suggestions from the enum values. This allows users to either pick a known value from the dropdown or type a pattern-matched value not in the enum.
+- **Validation**: The `pattern` field (regex) is used for blur validation, taking priority over patterns inferred from URL constraints like `:param(regex)`. The `format` field (e.g., `"uuid"`, `"date-time"`) is shown as a tooltip hint but is **not** used as a regex.
+- Params metadata (`enum`, `pattern`) takes priority over URL-constraint-derived values
 
 ### Query params
 - Each row includes an enable/disable checkbox
 - Disabled rows are ignored without removing them
 - **Enum-driven dropdowns**: Query parameters with an `enum` array in their `KeyValueEntry` metadata render as select dropdowns
-- **Validation**: The `format` field is used as a validation pattern on blur
+- **Combobox mode**: Query parameters with both `enum` and `oneOf` render as an editable combobox (same behavior as path params above)
+- **Validation**: The `pattern` field (regex) is used for blur validation. `format` is shown as a tooltip hint.
 
 Example:
 ```
@@ -53,7 +56,8 @@ Auth settings are properly inherited when running requests in Test Suites.
 - Enable/disable each header row
 - Supports `{{variables}}`
 - **Enum-driven dropdowns**: Headers with an `enum` array in their `KeyValueEntry` metadata render as select dropdowns
-- **Validation**: The `format` field is used as a validation pattern on blur
+- **Combobox mode**: Headers with both `enum` and `oneOf` render as an editable combobox (same behavior as path params above)
+- **Validation**: The `pattern` field (regex) is used for blur validation. `format` is shown as a tooltip hint.
 
 ## Body tab
 - **JSON**: Monaco editor with formatting
@@ -126,6 +130,10 @@ The Body Schema tab lets you view and edit a JSON Schema definition for the requ
 ### Inline metadata (Params / Headers / Query)
 Each parameter, header, and query row has an expand toggle that reveals metadata fields: **type**, **description**, **required**, **format**, **enum**, **deprecated**. These annotations are exported as OpenAPI parameter metadata and saved with the request.
 
+When a parameter has extended constraints from an OpenAPI import (or manual entry), the metadata panel also shows a read-only **Constraints** section displaying `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `minLength`, `maxLength`. If the parameter has a `oneOf` array (from merged collision variants), a **Schema Variants** section shows each variant's properties.
+
+> **`format` vs `pattern`**: Per the OpenAPI 3.0 spec, `format` is a semantic keyword hint (e.g., `"uuid"`, `"email"`, `"date-time"`) that tools may ignore. `pattern` is a regex that must be enforced. In the Request Tester, only `pattern` drives blur validation — `format` is displayed as a tooltip label.
+
 ## Response Schema tab
 The Response Schema tab lets you view and edit response schemas grouped by HTTP status code. Schemas are stored in `response.schema.json` alongside each request.
 
@@ -148,6 +156,21 @@ Third-party extensions (e.g. Spring API Tester) can push `bodySchema` and `respo
 - Max redirects
 - Strict SSL
 - Decompression
+
+## Document tab
+The Document tab displays request-level Markdown documentation stored in a `doc.md` file alongside the request's `request.json`.
+
+- **Rendered Markdown**: The `doc.md` content is rendered as HTML with support for headings, lists, tables, code blocks, links, blockquotes, and horizontal rules.
+- **Open File button**: Click "Open File" in the toolbar to open the `doc.md` source in a VS Code editor tab for editing.
+- **Live reload**: When you save the `doc.md` file in the editor, the Document tab updates automatically.
+- **Hidden when empty**: The Document tab button is hidden when the request has no `doc.md` file. It appears automatically when a `doc.md` file is created.
+
+## Auto-reload on file changes
+Open Request Tester panels automatically reload when underlying files change on disk:
+
+- **Collection files**: Changes to `request.json`, `doc.md`, scripts, or any file under the collections directory trigger a full reload of the panel data and a refresh of the Collections tree view.
+- **Environment files**: Changes to environment JSON files trigger a reload of resolved environment data in all open panels and a refresh of the Environments tree view.
+- **External edits**: This works for edits made in another VS Code tab, an external editor, or via git operations — no manual refresh is needed.
 
 ## Send execution flow
 1. Resolve environment variables
@@ -177,3 +200,56 @@ Behavior notes
 
 ## History
 See: history-shared.md
+
+## Panel lifecycle — loading a new request
+
+When you open a different request in an existing Request Tester panel (via the Collections tree, history sidebar, or extension API), the panel performs a **full reset** before populating the new request data. This ensures no stale state from the previous request leaks through.
+
+### What gets reset
+
+| Area | Reset behavior |
+|------|----------------|
+| **Params / Headers / Query** | DOM rows cleared, metadata maps (`_paramsMeta`, `_queryMeta`, `_headersMeta`) emptied |
+| **Method / URL** | Reset to `GET` / empty, then overwritten by new request |
+| **Body** | Body type, raw format, form-data, urlencoded, binary, and GraphQL editors all cleared |
+| **Authorization** | All auth types reset — Bearer token, Basic credentials, API Key fields, OAuth2 form fields and cached token all cleared |
+| **Scripts** | Pre-request and post-response editors cleared to empty |
+| **Settings** | Reset to defaults (timeout 30s, follow redirects, strict SSL, etc.) then merged with request settings |
+| **Body Schema / Response Schema** | Editor content, status code sub-tabs, and internal schema data cleared |
+| **GraphQL schema** | Cached schema, Monaco completions, explorer tree, operation selector, and status indicator all cleared |
+| **Response section** | Body editor, headers/cookies tables, sent request details, test results, and visualizer iframe all cleared |
+| **Cookie preview** | Updated from message data or cleared to empty |
+| **History sidebar** | Re-rendered from message data or cleared to "No history yet" |
+| **Document tab** | Updated from new request's `doc` field |
+| **URL preview** | Recalculated after loading |
+
+### Dirty state suppression
+
+During the load cycle, dirty tracking is suppressed (`_suppressDirty` flag). This prevents intermediate form-change events from emitting `dirtyStateChanged` messages to the extension host. After all population is complete, a fresh snapshot is taken and `markClean()` is called — so the panel starts in a clean state with no unsaved changes.
+
+### Save-on-close confirmation
+
+When you close a Request Tester panel that has unsaved changes, a modal dialog appears:
+
+| Button | Behavior |
+|--------|----------|
+| **Save** | Saves the current request (to collection or suite) |
+| **Don't Save** | Discards changes |
+
+This works for both regular collection requests and suite request editors.
+
+### Confirm-before-overwrite
+
+When you open a new request while the current panel has unsaved changes, a unified dialog appears:
+
+| Button | Behavior |
+|--------|----------|
+| **Save & Continue** | Saves the dirty request, then loads the new one in the same panel |
+| **Discard** | Discards changes and loads the new request |
+| **Open in New Panel** | Keeps the dirty panel untouched, opens the new request in a fresh panel (hidden at max panel capacity) |
+| **Cancel** (Escape) | Does nothing — stays on the current request |
+
+### Dirty state indicators
+
+- **Tab title**: A `●` prefix appears on the tab title when there are unsaved changes (e.g., `● GET /users`), matching VS Code's native editor convention.
+- **Save button**: Displays a pulsing highlight (`.has-changes`) for at-a-glance feedback.

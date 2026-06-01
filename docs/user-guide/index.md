@@ -13,12 +13,14 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - [Configuration](configuration.md)
 - [Collections & Requests](collections-requests.md)
 - [Environments & Variables](environments-variables.md) — includes Template Engine (filters, expressions, dynamic variables)
+- [Template Syntax Reference](template-syntax.md) — supported `{{ }}` variables, dynamic vars, filters, and expressions
 - [Request Tester](request-tester.md)
 - [Scripts & Assertions](scripts-assertions.md)
 - [Custom Modules](custom-modules.md)
 - [History & Shared History](history-shared.md)
 - [Test Suites](test-suites.md)
 - [Flows](flows.md)
+- [Security & Sensitive Data](security.md) — automatic redaction of tokens, passwords, credentials in persisted files
 - [Import/Export & Postman Compatibility](import-export.md)
 - [Postman Compatibility Reference](postman-compatibility.md)
 - [HTTP Forge vs Postman](comparison-postman.md)

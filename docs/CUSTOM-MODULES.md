@@ -130,7 +130,7 @@ agl.test('Response matches schema', () => {
 // Post-response: 从HTML提取CSRF token
 const $ = require('cheerio').load(agl.response.body);
 const csrfToken = $('meta[name="csrf-token"]').attr('content');
-agl.session.set('csrf', csrfToken);
+agl.environment.set('csrf', csrfToken);
 ```
 
 ### 日期时间处理

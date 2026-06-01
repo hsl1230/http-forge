@@ -87,7 +87,10 @@ export type WebviewToExtensionMessage =
     | { type: 'clearDataFile' }
     | { type: 'exportJSON' }
     | { type: 'exportHTML' }
-    | { type: 'getAvailableRequests' };
+    | { type: 'getAvailableRequests' }
+    | { type: 'getRunHistory' }
+    | { type: 'loadHistoryRun'; runId: string }
+    | { type: 'deleteHistoryRun'; runId: string };
 
 /**
  * Messages from extension to webview
@@ -103,7 +106,10 @@ export type ExtensionToWebviewMessage =
     | { type: 'runStopped' }
     | { type: 'dataFileLoaded'; path: string; content: string; rowCount: number }
     | { type: 'dataFileCleared' }
-    | { type: 'suiteSaved'; suite: any };
+    | { type: 'suiteSaved'; suite: any }
+    | { type: 'runHistory'; runs: RunHistoryEntry[] }
+    | { type: 'historyRunLoaded'; manifest: any; summaries: any[] }
+    | { type: 'historyRunDeleted'; runId: string };
 
 /**
  * Available request for Add Request modal
@@ -115,4 +121,24 @@ export interface AvailableRequest {
     name: string;
     method: string;
     folderPath: string;
+}
+
+/**
+ * Lightweight run history entry for list display
+ */
+export interface RunHistoryEntry {
+    runId: string;
+    startTime: string;
+    endTime?: string;
+    status: 'completed' | 'aborted' | 'error';
+    environment: string;
+    stats: {
+        totalRequests: number;
+        passed: number;
+        failed: number;
+        totalDuration: number;
+    };
+    config: {
+        iterations: number;
+    };
 }
