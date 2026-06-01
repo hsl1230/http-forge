@@ -7,6 +7,25 @@
 - Install from the VS Code Marketplace: `henry-huang.http-forge`
 - Or load the locally built extension from `http-forge/http-forge-0.11.6.vsix`
 
+## 🧪 Standalone Launcher (QA / Testing)
+
+Run HTTP Forge as an isolated standalone tool — no other extensions, clean profile:
+
+| Platform | Download |
+|----------|----------|
+| Linux / macOS | [http-forge.sh](scripts/http-forge.sh) |
+| Windows | [http-forge.bat](scripts/http-forge.bat) |
+
+```bash
+# Linux / macOS
+./http-forge.sh
+
+# Windows
+http-forge.bat
+```
+
+The launcher auto-detects (or downloads) VS Code and installs HTTP Forge in an isolated profile. Use `--dev` for your full dev environment, or `--both` to run dev + test side by side. See [Launcher Guide](docs/user-guide/cli-standalone.md#launcher-standalone-gui) for details.
+
 ## 📚 Documentation
 
 - Full user guide: [docs/user-guide/index.md](docs/user-guide/index.md)
