@@ -18,7 +18,7 @@ AGL Flow Analyzer 是一个 VS Code 扩展，用于可视化分析 AGL middlewar
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Endpoint: GET /TELUS/1.5/.../TRAY/COLLECTION                   │
+│  Endpoint: GET /CORP/1.5/.../TRAY/COLLECTION                   │
 │  Template: collection_1_2-sdk                                   │
 │  Panic: false                                                   │
 ├─────────────────────────────────────────────────────────────────┤
@@ -352,7 +352,7 @@ Command Palette: AGL: Analyze Endpoint Flow
      ↓
 Quick Pick: 显示所有 endpoint 列表（支持搜索过滤）
      ↓
-选择: GET /TELUS/1.5/.../TRAY/COLLECTION
+选择: GET /CORP/1.5/.../TRAY/COLLECTION
      ↓
 打开: Flow Diagram Webview
 ```

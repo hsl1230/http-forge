@@ -520,7 +520,9 @@ All 6 phases of the OpenAPI solution are now complete. See [OPENAPI-SOLUTION.md]
 - **SchemaInferenceService** (`src/services/openapi/schema-inference-service.ts`): Orchestrates history + script + user-edit merge with priority: user-edited > history > script hints. Handles both response and body schema inference.
 
 ### Phase 3 — OpenAPI Export ✅
-- **OpenApiExporter** (`src/services/openapi/openapi-exporter.ts`, 959 lines): Generates valid OpenAPI 3.0.3 YAML/JSON from HTTP Forge collections — maps requests, auth, params, body formats, response schemas; deduplicates components; supports environment-based server URLs
+- **OpenApiExporter** (`src/services/openapi/openapi-exporter.ts`): Generates valid OpenAPI 3.0.3 YAML/JSON from HTTP Forge collections — maps requests, auth, params, body formats, response schemas; deduplicates components; supports environment-based server URLs
+  - **Host-variable stripping**: `normalizeUrl()` strips any leading `{{varName}}` from a request URL and returns it separately. The exporter collects all unique host variables across the collection and resolves them via `augmentServersFromHostVars()` — adding concrete server entries for resolved vars or OAS server-variable entries for unresolvable ones. Previously only `{{baseUrl}}` was stripped; other host vars became spurious path segments.
+  - **Example sanitization**: `{{varName}}` in path/query/header parameter examples and request body examples is replaced with `<varName>` by `sanitizeEnvVar()` / `sanitizeObjectExamples()` — keeping the spec free of raw template syntax.
 
 ### Phase 4 — OpenAPI Import ✅
 - **OpenApiImporter** (`src/services/openapi/openapi-importer.ts`, 766 lines): Parses OpenAPI 3.0 specs → fully hydrated HTTP Forge collections with requests, schemas, metadata, tag-based folder structure

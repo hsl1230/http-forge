@@ -302,6 +302,7 @@ A: File on GitHub — fixes are typically same-day.
 | **Secret managers** | ❌ Local only | ⚠️ Vault (paid) | ❌ No | ✅ AWS/Azure/HashiCorp (paid) |
 | **Auth breadth** | OAuth2, Bearer, Basic, API Key | +OAuth1, NTLM, Digest, AWS Sig | +NTLM, Digest, Hawk, AWS Sig | +OAuth1, AWS Sig, Digest, NTLM |
 | **Custom script modules** | ✅ Configurable | ❌ Sandboxed only | ❌ Sandboxed only | ⚠️ Limited |
+| **AI / Copilot integration** | ✅ File-per-request → Copilot reads, diffs & generates requests natively in VS Code | ❌ Cloud-stored, no file access | ❌ Separate app, no IDE AI | ⚠️ `.bru` files readable but custom format |
 
 ---
 

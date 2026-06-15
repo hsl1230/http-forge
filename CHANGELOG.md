@@ -5,6 +5,29 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.11.28 - 2026-06-03
+
+### Added
+
+- **Script execution — legacy Postman API support**: Added backward-compatible `postman.*` global namespace to the VM sandbox alongside `pm.*`. Old scripts using `postman.setGlobalVariable()`, `postman.setEnvironmentVariable()`, etc. now work unchanged. Both APIs are now fully supported.
+
+- **Script execution — legacy Postman global variables**: Response scripts can now use the legacy Postman API:
+  - `responseBody` (string) — raw response body text, auto-injected before script execution
+  - `tests[]` (object) — assign boolean values to create assertions, e.g. `tests["my check"] = true`. Values are automatically converted to test assertions.
+
+- **Module loader — lodash shim expansion**: Extended lodash shim from basic functions to 25+ utility functions, providing near-complete lodash compatibility:
+  - Object: `keys`, `values`, `entries`, `assign`, `merge`, `omit`, `pick`
+  - Collection: `each`, `forEach`, `map`, `filter`, `find`, `reduce`, `includes`
+  - Type checks: `isObject`, `isArray`, `isString`, `isNumber`, `isFunction`, `isNil`, `isEmpty`
+  - These functions now work even when lodash is not installed via `modules/package.json`
+
+### Fixed
+- **Module loader — error handling**: Built-in modules (uuid, crypto, path, lodash, moment, etc.) are now always available without requiring a `modules/` directory. The error "no valid modules/ directory found" now only appears when attempting to load relative paths or workspace modules. This allows scripts to use `require('crypto')`, `require('uuid')`, etc. without additional setup.
+
+- **OpenAPI export — host-variable URL stripping**: Request URLs that begin with an arbitrary `{{varName}}` host variable (e.g. `{{dcqHost}}/DCQ/templates/GetEpg`) are now handled correctly. Previously, only `{{baseUrl}}`-style names were stripped; any other variable became a spurious path segment (`/{dcqHost}/...`). The exporter now strips any leading `{{varName}}`, resolves it via the selected environments, and adds a concrete server entry. When the variable is unresolvable, an OAS server-variable entry is emitted: `url: '{varName}', variables: { varName: { default: '' } }`.
+
+- **OpenAPI export — environment variable placeholders in examples**: `{{varName}}` tokens in parameter examples (path, query, header) and request body examples are now replaced with `<varName>` so the exported spec contains readable placeholders rather than raw template syntax or exposed configuration values.
+
 ## 0.11.27 - 2026-05-28
 
 ### Added
