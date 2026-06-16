@@ -1,7 +1,10 @@
-import type { Collection, CollectionFolderItem, CollectionItem, CollectionRequestItem } from '@http-forge/core';
-import { CollectionService, ConfigService, CookieService, EnvironmentConfigService, exportCollectionToRestClient, generateId, HttpRequestService, OpenApiExporter, type OpenApiExportOptions, OpenApiImporter, RequestHistoryService, SchemaInferenceService, TestSuite, TestSuiteService } from '@http-forge/core';
+import type { Collection, CollectionFolderItem, CollectionItem, CollectionRequestItem, CollectionService, ConfigService, CookieService, EnvironmentConfigService, HttpRequestService, OpenApiExportOptions, RequestHistoryService } from '@http-forge/core';
+import { exportCollectionToRestClient, generateId, OpenApiExporter, OpenApiImporter, SchemaInferenceService, TestSuite, TestSuiteService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
+import { McpExecutor } from './infrastructure/mcp/mcp-executor';
+import { McpServerService } from './infrastructure/mcp/mcp-server';
+import { McpToolRegistry } from './infrastructure/mcp/mcp-tool-registry';
 import { BootstrapResult, bootstrapServices } from './infrastructure/services/service-bootstrap';
 import { getServiceContainer, ServiceIdentifiers } from './infrastructure/services/service-container';
 import { CollectionsTreeProvider, CollectionTreeItem } from './presentation/components/tree-providers/collections-tree-provider';
@@ -135,6 +138,84 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
     testSuitesView,
     environmentsView
   );
+
+  // ── MCP Server ──────────────────────────────────────────────────────────
+  const container = getServiceContainer();
+  const mcpRegistry = new McpToolRegistry(
+    container.collection,
+    testSuiteService!,
+    container.config
+  );
+  const mcpExecutor = new McpExecutor(
+    container.collection,
+    container.environmentConfig,
+    container.httpRequest,
+    container.scriptExecutor,
+    container.requestPreparer,
+    testSuiteService!,
+    container.config,
+    mcpRegistry
+  );
+  const mcpPort = vscode.workspace.getConfiguration('httpForge').get<number>('mcpServer.port', 3100);
+  const mcpServer = new McpServerService(mcpRegistry, mcpExecutor, mcpPort, container.config);
+
+  const mcpStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  mcpStatusBar.text = '$(radio-tower) MCP';
+  mcpStatusBar.tooltip = 'HTTP Forge MCP Server — click to toggle';
+  mcpStatusBar.command = COMMAND_IDS.mcpToggleServer;
+  context.subscriptions.push(mcpStatusBar);
+
+  const updateMcpStatus = () => {
+    if (mcpServer.isRunning()) {
+      mcpStatusBar.text = `$(radio-tower) MCP ● ${mcpServer.getPort()}`;
+      mcpStatusBar.backgroundColor = undefined;
+      mcpStatusBar.show();
+    } else {
+      mcpStatusBar.text = '$(radio-tower) MCP ○';
+      mcpStatusBar.show();
+    }
+  };
+  updateMcpStatus();
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.mcpStartServer, async () => {
+      try {
+        await mcpServer.start();
+        updateMcpStatus();
+        vscode.window.showInformationMessage(`HTTP Forge MCP Server started on port ${mcpServer.getPort()}`);
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`MCP Server: ${e.message}`);
+      }
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.mcpStopServer, async () => {
+      await mcpServer.stop();
+      updateMcpStatus();
+      vscode.window.showInformationMessage('HTTP Forge MCP Server stopped');
+    }),
+    vscode.commands.registerCommand(COMMAND_IDS.mcpToggleServer, async () => {
+      if (mcpServer.isRunning()) {
+        await mcpServer.stop();
+        updateMcpStatus();
+        vscode.window.showInformationMessage('HTTP Forge MCP Server stopped');
+      } else {
+        try {
+          await mcpServer.start();
+          updateMcpStatus();
+          vscode.window.showInformationMessage(`HTTP Forge MCP Server started on port ${mcpServer.getPort()}`);
+        } catch (e: any) {
+          vscode.window.showErrorMessage(`MCP Server: ${e.message}`);
+        }
+      }
+    })
+  );
+
+  // Auto-start MCP server if configured
+  const mcpAutoStart = vscode.workspace.getConfiguration('httpForge').get<boolean>('mcpServer.autoStart', false);
+  if (mcpAutoStart) {
+    mcpServer.start().then(updateMcpStatus).catch((e: any) => {
+      console.error(`[MCP] Auto-start failed: ${e.message}`);
+    });
+  }
 
   // Create and return the public API
   const api = new HttpForgeApiImpl(

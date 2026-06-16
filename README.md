@@ -1,6 +1,6 @@
 # HTTP Forge 🔨
 
-**Design, Test & Document REST APIs — All Inside VS Code.** Combines the power of Postman + Thunder Client + Swagger UI in a single, free, offline-first extension. Thunder Client-compatible filter pipes and inline JS expressions, full OpenAPI 3.0 round-trip, schema inference from real responses, collection-driven test suites, and advanced scripting — no account, no cloud, no compromises.
+**Design & Test APIs — Offline-First, AI-Ready, Postman-compatible.** Combines the power of Postman + Thunder Client + Swagger UI in a single, free, offline-first extension. Thunder Client-compatible filter pipes and inline JS expressions, full OpenAPI 3.0 round-trip, schema inference from real responses, collection-driven test suites, advanced scripting, and an **MCP server** so AI agents (Claude, Copilot) can discover and execute your requests directly — no account, no cloud, no compromises.
 
 ## 🚀 Install
 
@@ -92,6 +92,7 @@ The launcher auto-detects (or downloads) VS Code and installs HTTP Forge in an i
 | **Extension API** | ✅ Open API for third-party integrations | ❌ Closed ecosystem |
 | **Code Generation** | ✅ TypeScript clients from collections | ❌ Not available |
 | **Playwright Integration** | ✅ Built-in fixtures & runtime | ❌ Not available |
+| **MCP Server** | ✅ Expose collections to AI agents (Claude, Copilot) | ❌ Not available |
 | **Authentication** | ✅ OAuth 2.0, Bearer, Basic, API Key | ✅ OAuth 2.0, Basic, API Key, AWS Sig |
 | **OpenAPI 3.0** | ✅ Full import/export with schema inference | ✅ Import only |
 | **GraphQL** | ✅ Introspection, auto-complete, schema explorer | ✅ Schema introspection, auto-complete |
@@ -135,6 +136,7 @@ The launcher auto-detects (or downloads) VS Code and installs HTTP Forge in an i
 | **Collection Runner** | ✅ Cross-collection, P50/P90/P95/P99 | ✅ Collection runner |
 | **Code Generation** | ✅ TypeScript clients | ❌ Not available |
 | **Playwright Integration** | ✅ Built-in fixtures | ❌ Not available |
+| **MCP Server** | ✅ Expose collections to AI agents (Claude, Copilot) | ❌ Not available |
 | **Extension API** | ✅ Open API for integrations | ❌ Closed |
 | **GraphQL** | ✅ Introspection, auto-complete, schema explorer | ✅ GraphQL support |
 | **WebSocket** | 🔜 Planned | ✅ WebSocket support |
@@ -231,6 +233,17 @@ The launcher auto-detects (or downloads) VS Code and installs HTTP Forge in an i
 - **Batch Execution**: Run selected requests with iterations
 - **Performance Statistics**: P50/P90/P95/P99 response times
 - **Error Analysis**: Error rate and error type breakdown
+- **HTML Reports**: Self-contained HTML report generated after every run — summary cards, P90/P99 stats table, request timeline, and expandable failure details
+
+### 🤖 MCP Server — AI Agent Integration
+- **AI-Accessible Tools**: Expose all your collections and test suites as MCP tools so AI agents (Claude, GitHub Copilot, and others) can discover and execute them directly
+- **Single Request Execution**: AI can run any saved request with full override support — environment, variables, headers, query params, and body — without modifying your collection
+- **Collection Runner**: AI can run an entire collection sequentially and report results
+- **Test Suite Runner**: AI can trigger test suites with iteration count, request filters, stop-on-error, and delay options
+- **Variable Chaining**: Post-response scripts set variables normally; `modifiedVariables` returned so AI can pass tokens from one call to the next
+- **HTML Test Reports**: Report path included in every suite response so AI can direct you to the full results
+- **Project-level Control** (`http-forge.config.json`): `excludedCollections`, `excludedSuites`, `toolPrefix`, `maxRequestsPerCall`, `cors.allowedOrigins`
+- **Toggle from Status Bar**: `⊙ MCP ○` / `⊙ MCP ● 3100` click-to-toggle; or use Command Palette
 
 ## 🚀 Quick Start
 
@@ -249,6 +262,7 @@ Start here: [docs/user-guide/index.md](docs/user-guide/index.md)
 - [CLI & Standalone](docs/user-guide/cli-standalone.md)
 - [Codegen](docs/user-guide/codegen.md)
 - [Playwright Integration](docs/user-guide/playwright.md)
+- [MCP Server — AI Agent Integration](docs/user-guide/mcp-server.md)
 
 ## 📖 Usage Guide
 

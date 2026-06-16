@@ -5,6 +5,24 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.12.0 - 2026-06-16
+
+### Added
+
+- **MCP Server — collection runs now generate HTML reports**: Running a collection via the MCP server (`collection__<colId>` tool) now produces the same rich HTML report as a test suite run. Results are saved to `.http-forge-cache/results/temp-<colId>/run-*/` and the report URI is included in the tool response.
+
+- **MCP Server — `include` parameter for collection tools**: `collection__<colId>` tools now accept the same `include` array as suite tools: `perRequest` (per-request result details), `failedOnly` (failed request details regardless of outcome). Consistent API surface across all multi-request tools.
+
+- **MCP Server — clickable HTML report URI**: The `report` field in tool responses now contains `uri` (a `file://` URI) instead of `path`. AI clients render this as a clickable link that opens the report directly in the browser.
+
+- **Test Suite UI — Export HTML opens rich report**: The "Export HTML" button now opens the same pre-generated HTML report produced at run time (via `HtmlReportGenerator`) rather than building a separate minimal template from in-memory data. The report is opened in the system browser via `vscode.env.openExternal`.
+
+### Fixed
+
+- **MCP Server — headers and query parameters not sent correctly**: When running requests via MCP, collection requests store headers and query parameters as `{key, value, enabled}[]` arrays. The executor was casting them directly as `Record<string, string>`, causing headers to be sent as `"0": "[object Object]"` instead of their real key/value pairs. All three tool types (`request__`, `collection__`, `suite__`) are now fixed — arrays are reduced to objects, disabled items are skipped, and auth/params conversion matches the UI flow exactly.
+
+- **Test Suite — stable result directory for collection-sourced suites**: Temporary suites created from a collection ("Run as Suite" context menu) previously generated a new random ID each time, creating a new result directory per run. They now use a deterministic ID (`temp-<collectionId>`), so all runs of the same collection share a single top-level results directory.
+
 ## 0.11.28 - 2026-06-03
 
 ### Added

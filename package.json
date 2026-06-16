@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge - REST API Designer & Tester (Free Postman & Thunder Client Alternative)",
   "description": "Design, test, and manage REST & GraphQL APIs in VS Code. GraphQL schema introspection, context-aware auto-complete, syntax highlighting, and Schema Explorer. Thunder Client-compatible filter pipes (25+ filters), inline JS expressions, and dynamic variables in {{}}. Full request builder with OAuth 2.0 (PKCE), Bearer, Basic, and API Key auth. OpenAPI import/export, schema editor with inference, codegen, Playwright integration, and test suites with assertions. Postman-compatible scripting and collection import. Git-friendly file storage — no account required.",
-  "version": "0.11.29",
+  "version": "0.12.0",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -51,7 +51,18 @@
   "contributes": {
     "configuration": {
       "title": "HTTP Forge",
-      "properties": {}
+      "properties": {
+        "httpForge.mcpServer.port": {
+          "type": "number",
+          "default": 3100,
+          "description": "Port for the HTTP Forge MCP Server (default: 3100)"
+        },
+        "httpForge.mcpServer.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start the MCP Server when the extension activates"
+        }
+      }
     },
     "jsonValidation": [
       {
@@ -310,6 +321,21 @@
         "command": "httpForge.inferAllResponseSchemas",
         "title": "Infer All Response Schemas",
         "icon": "$(lightbulb-autofix)"
+      },
+      {
+        "command": "httpForge.mcpStartServer",
+        "title": "HTTP Forge: Start MCP Server",
+        "icon": "$(radio-tower)"
+      },
+      {
+        "command": "httpForge.mcpStopServer",
+        "title": "HTTP Forge: Stop MCP Server",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "httpForge.mcpToggleServer",
+        "title": "HTTP Forge: Toggle MCP Server",
+        "icon": "$(radio-tower)"
       }
     ],
     "menus": {
@@ -334,6 +360,15 @@
         },
         {
           "command": "httpForge.inferAllResponseSchemas"
+        },
+        {
+          "command": "httpForge.mcpStartServer"
+        },
+        {
+          "command": "httpForge.mcpStopServer"
+        },
+        {
+          "command": "httpForge.mcpToggleServer"
         }
       ],
       "webview/context": [
@@ -565,13 +600,13 @@
     "@typescript-eslint/eslint-plugin": "^7.x",
     "@typescript-eslint/parser": "^7.x",
     "canvas": "^3.2.1",
-    "esbuild": "^0.27.3",
+    "esbuild": "^0.28.1",
     "eslint": "^8.x",
     "typescript": "^5.x",
-    "vitest": "^1.6.1"
+    "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.2.18",
+    "@http-forge/core": "^0.3.1",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",
