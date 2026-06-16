@@ -102,7 +102,7 @@ export type ExtensionToWebviewMessage =
     | { type: 'requestResult'; result: SuiteRequestResult }
     | { type: 'runProgress'; current: number; total: number; passed: number; failed: number; skipped: number }
     | { type: 'statisticsUpdate'; statistics: any }
-    | { type: 'runComplete'; summary: any }
+    | { type: 'runComplete'; summary: any; reportPath?: string }
     | { type: 'runStopped' }
     | { type: 'dataFileLoaded'; path: string; content: string; rowCount: number }
     | { type: 'dataFileCleared' }

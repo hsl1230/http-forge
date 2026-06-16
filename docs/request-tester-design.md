@@ -100,7 +100,7 @@ your-workspace/
       }
     },
     "dev": {
-      "baseUrl": "https://dev-agl.telus.com",
+      "baseUrl": "https://dev-agl.corp.com",
       "description": "Development environment",
       "variables": {
         "propertyName": "optiktv",
@@ -111,7 +111,7 @@ your-workspace/
       }
     },
     "sit": {
-      "baseUrl": "https://sit-agl.telus.com",
+      "baseUrl": "https://sit-agl.corp.com",
       "description": "System Integration Testing",
       "variables": {
         "propertyName": "optiktv",
@@ -121,17 +121,17 @@ your-workspace/
       }
     },
     "preprod": {
-      "baseUrl": "https://preprod-agl.telus.com",
+      "baseUrl": "https://preprod-agl.corp.com",
       "description": "Pre-production",
       "variables": {}
     },
     "qa": {
-      "baseUrl": "https://qa-agl.telus.com",
+      "baseUrl": "https://qa-agl.corp.com",
       "description": "QA environment",
       "variables": {}
     },
     "prod": {
-      "baseUrl": "https://prod-agl.telus.com",
+      "baseUrl": "https://prod-agl.corp.com",
       "description": "Production",
       "requiresConfirmation": true,
       "variables": {}
@@ -575,9 +575,9 @@ Advanced request configuration options (Postman-style):
 │ ┌──────────────┬───────────────┬──────────┬─────────┬─────────────┐ │
 │ │ Name         │ Value         │ Domain   │ Path    │ Expires     │ │
 │ ├──────────────┼───────────────┼──────────┼─────────┼─────────────┤ │
-│ │ sessionId    │ xyz789...     │ .telus   │ /       │ Session     │ │
-│ │ avsToken     │ eyJhbG...     │ .telus   │ /       │ 1 hour      │ │
-│ │ refreshToken │ abc123...     │ .telus   │ /       │ 7 days      │ │
+│ │ sessionId    │ xyz789...     │ .corp   │ /       │ Session     │ │
+│ │ avsToken     │ eyJhbG...     │ .corp   │ /       │ 1 hour      │ │
+│ │ refreshToken │ abc123...     │ .corp   │ /       │ 7 days      │ │
 │ └──────────────┴───────────────┴──────────┴─────────┴─────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -622,7 +622,7 @@ The sidebar is **resizable** (drag the edge to resize, min 180px, max 500px) and
 
 - Ticket numbers (e.g., `AVS5-17837`) are clickable links
 - Click opens `{jiraBaseUrl}/{ticketNumber}` in default browser
-- Example: `https://jira.telus.com/browse/AVS5-17837`
+- Example: `https://jira.corp.com/browse/AVS5-17837`
 - Branch names without tickets are displayed as plain text (not clickable)
 
 ---
@@ -1292,8 +1292,8 @@ This section describes how request data (endpointUri, method, middlewareName, qu
 │  │      → queryString = "locale=en_CA&format=json"                           │  │
 │  │                                                                           │  │
 │  │    // Step 4c: Combine with baseUrl                                       │  │
-│  │    baseUrl = "https://dev-agl.telus.com"                                  │  │
-│  │    → fullUrl = "https://dev-agl.telus.com/12345/detail?locale=en_CA..."   │  │
+│  │    baseUrl = "https://dev-agl.corp.com"                                  │  │
+│  │    → fullUrl = "https://dev-agl.corp.com/12345/detail?locale=en_CA..."   │  │
 │  │  }                                                                        │  │
 │  └──────────────────────────────────────────────────────────────────────────┘  │
 │                                          │                                      │
@@ -1305,7 +1305,7 @@ This section describes how request data (endpointUri, method, middlewareName, qu
 │  ┌──────────────────────────────────────────────────────────────────────────┐  │
 │  │  execute({                                                                │  │
 │  │    method: "GET",                                                         │  │
-│  │    url: "https://dev-agl.telus.com/12345/detail?locale=en_CA...",         │  │
+│  │    url: "https://dev-agl.corp.com/12345/detail?locale=en_CA...",         │  │
 │  │    headers: { "x-api-key": "abc123", "x-auth-token": "token123" },        │  │
 │  │    body: null,  // or JSON for POST/PUT                                   │  │
 │  │    signal: AbortController.signal,                                        │  │
@@ -1505,7 +1505,7 @@ query = { locale: 'en_CA', format: 'json' };
 resolvedQuery = { locale: 'en_CA', format: 'json' };
 
 // Built into URL
-url = "https://dev-agl.telus.com/12345/detail?locale=en_CA&format=json"
+url = "https://dev-agl.corp.com/12345/detail?locale=en_CA&format=json"
 ```
 
 ### Header Merging Process
@@ -1664,10 +1664,10 @@ A dedicated panel for managing environment configurations using Monaco editor.
 │  Shared Config Tab (environments.json):                             │
 │  ┌─────────────────────────────────────────────────────────────────┐│
 │  │ {                                                               ││
-│  │   "jiraBaseUrl": "https://jira.telus.com/browse",               ││
+│  │   "jiraBaseUrl": "https://jira.corp.com/browse",               ││
 │  │   "environments": {                                             ││
 │  │     "dev": {                                                    ││
-│  │       "baseUrl": "https://dev-agl.telus.com",                   ││
+│  │       "baseUrl": "https://dev-agl.corp.com",                   ││
 │  │       "variables": {                                            ││
 │  │         "propertyName": "optiktv"                               ││
 │  │       }                                                         ││

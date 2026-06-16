@@ -59,7 +59,7 @@ _global.json
 ```json
 {
 	"variables": {
-		"tenant": "TELUS",
+		"tenant": "CORP",
 		"locale": "ENG"
 	},
 	"defaultHeaders": {}
@@ -86,7 +86,7 @@ dev.json
 {
 	"baseUrl": "https://api.example.com",
 	"apiKey": "{{API_KEY}}",
-	"tenant": "telus"
+	"tenant": "corp"
 }
 ```
 

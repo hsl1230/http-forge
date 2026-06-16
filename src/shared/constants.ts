@@ -118,7 +118,11 @@ export const COMMAND_IDS = {
     exportOpenApi: 'httpForge.exportOpenApi',
     importOpenApi: 'httpForge.importOpenApi',
     inferResponseSchema: 'httpForge.inferResponseSchema',
-    inferAllResponseSchemas: 'httpForge.inferAllResponseSchemas'
+    inferAllResponseSchemas: 'httpForge.inferAllResponseSchemas',
+    // MCP Server commands
+    mcpStartServer: 'httpForge.mcpStartServer',
+    mcpStopServer: 'httpForge.mcpStopServer',
+    mcpToggleServer: 'httpForge.mcpToggleServer',
 };
 
 /**

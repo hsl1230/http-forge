@@ -760,7 +760,9 @@ Environment "prod": { baseUrl: "https://api.example.com" }
       description: prod
 ```
 
-Resolution: For each selected environment, resolve `{{baseUrl}}` (or the first `{{...}}` in request URLs) via `envConfigService.resolveVariables()`. Deduplicate.
+Resolution: For each selected environment, resolve any leading `{{varName}}` host variable found in request URLs via `envConfigService.resolveVariables()`. This covers both `{{baseUrl}}` and arbitrary host variables such as `{{dcqHost}}`, `{{stagingHost}}`, etc. Duplicates are suppressed. When a variable cannot be resolved in any configured environment, an OAS server-variable entry is emitted: `url: '{varName}', variables: { varName: { default: '' } }`.
+
+Note: `{{varName}}` tokens that appear **within** the path (not as the host prefix) are kept as `{varName}` path parameters in the OpenAPI spec. Any `{{varName}}` in parameter examples or body examples is replaced with `<varName>` to produce readable placeholders rather than raw template syntax.
 
 ##### Info
 
@@ -1906,6 +1908,7 @@ Add to `package.json`:
 | **OpenAPI 3.1 support** | Upgrade from 3.0.3 to 3.1 (aligns with JSON Schema draft 2020-12) |
 | **Webhook support** | Map callback-style requests to OpenAPI webhooks |
 | **Schema validation** | Validate actual responses against stored schemas during test runs |
+| **OpenAPI 3.1 server variables** | When host vars are unresolvable, OAS 3.1 `url: '{varName}'` entries are already emitted; upgrade exporter to full OAS 3.1 when ready |
 | **Collection-level components** | Shared `components/` directory at collection root for reusable schemas |
 | **Multiple spec export** | Export specific folders as separate specs or merge multiple collections |
 | **Postman export with schemas** | Enhance existing Postman export to include response examples from `response.schema.json` |

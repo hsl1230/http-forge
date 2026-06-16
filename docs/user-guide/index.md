@@ -19,6 +19,7 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - [Custom Modules](custom-modules.md)
 - [History & Shared History](history-shared.md)
 - [Test Suites](test-suites.md)
+- [MCP Server](mcp-server.md) — expose your collections to AI agents (Claude, Copilot, etc.)
 - [Flows](flows.md)
 - [Security & Sensitive Data](security.md) — automatic redaction of tokens, passwords, credentials in persisted files
 - [Import/Export & Postman Compatibility](import-export.md)

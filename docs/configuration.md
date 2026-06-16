@@ -48,6 +48,15 @@ If the file is missing, HTTP Forge uses defaults:
   "environments": {
     "default": "dev"
   },
+  "mcp": {
+    "excludedCollections": [],
+    "excludedSuites": [],
+    "toolPrefix": "",
+    "maxRequestsPerCall": 50,
+    "cors": {
+      "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
+    }
+  },
   "proxy": null
 }
 ```
@@ -69,6 +78,11 @@ If the file is missing, HTTP Forge uses defaults:
 | | `indexPageSize` | `1000` | Pagination size for result index |
 | | `recentErrorsLimit` | `20` | Maximum number of recent errors to track |
 | **environments** | `default` | `"dev"` | Default environment name to use |
+| **mcp** | `excludedCollections` | `[]` | Collection IDs or names to **hide** from the MCP server. Empty = expose all. |
+|  | `excludedSuites` | `[]` | Suite IDs or names to **hide** from the MCP server. Empty = expose all. |
+|  | `toolPrefix` | `""` | Prefix added to every MCP tool name (e.g. `"myapp_"`). |
+|  | `maxRequestsPerCall` | `50` | Maximum requests the MCP server executes in a single collection/suite call. |
+|  | `cors.allowedOrigins` | `["http://localhost","http://127.0.0.1"]` | Origins the MCP server accepts cross-origin requests from. |
 | **proxy** | - | `null` | Proxy URL (set to a URL string to enable proxy) |
 
 ## Directory structure
@@ -132,3 +146,71 @@ Missing fields use defaults:
   }
 }
 ```
+
+## MCP server project settings
+
+The `mcp` section controls what the MCP server exposes to AI agents. All fields are optional — by default everything is exposed.
+
+**Hide sensitive collections from AI:**
+```json
+{
+  "mcp": {
+    "excludedCollections": ["internal-admin", "seed-data"],
+    "excludedSuites": ["load-test"]
+  }
+}
+```
+
+**Add a tool name prefix (useful when multiple projects share the same AI agent):**
+```json
+{
+  "mcp": {
+    "toolPrefix": "myapp_"
+  }
+}
+```
+
+**Raise the request cap for large suites:**
+```json
+{
+  "mcp": {
+    "maxRequestsPerCall": 200
+  }
+}
+```
+
+> **Note:** Port and auto-start are VS Code settings (`httpForge.mcpServer.port`, `httpForge.mcpServer.autoStart`), not project config.
+
+## MCP server project settings
+
+The `mcp` section controls what the MCP server exposes to AI agents. All fields are optional — by default everything is exposed.
+
+**Hide sensitive collections from AI:**
+```json
+{
+  "mcp": {
+    "excludedCollections": ["internal-admin", "seed-data"],
+    "excludedSuites": ["load-test"]
+  }
+}
+```
+
+**Add a tool name prefix (useful when multiple projects share the same AI agent):**
+```json
+{
+  "mcp": {
+    "toolPrefix": "myapp_"
+  }
+}
+```
+
+**Raise the request cap for large suites:**
+```json
+{
+  "mcp": {
+    "maxRequestsPerCall": 200
+  }
+}
+```
+
+> **Note:** Port and auto-start are VS Code settings (`httpForge.mcpServer.port`, `httpForge.mcpServer.autoStart`). See the MCP Server user guide for details.

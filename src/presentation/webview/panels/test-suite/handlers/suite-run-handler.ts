@@ -25,6 +25,7 @@ export class SuiteRunHandler implements IMessageHandler {
     private abortController: AbortController | null = null;
     private statisticsService: StatisticsService;
     private resultStorageService: IResultStorageService | null = null;
+    private _lastReportPath: string | undefined = undefined;
 
     constructor(
         private readonly environmentConfigService: IEnvironmentConfigService | undefined,
@@ -321,10 +322,10 @@ export class SuiteRunHandler implements IMessageHandler {
             // Complete statistics
             this.statisticsService.complete();
 
-            // Finalize storage
+            // Finalize storage and generate HTML report
             if (this.resultStorageService) {
                 const finalStatus = this.abortController?.signal.aborted ? 'aborted' : 'completed';
-                await this.resultStorageService.finalizeRun(finalStatus);
+                this._lastReportPath = await this.resultStorageService.finalizeRun(finalStatus) ?? undefined;
             }
 
             // Send final statistics
@@ -336,7 +337,7 @@ export class SuiteRunHandler implements IMessageHandler {
         } catch (error: any) {
             // Finalize storage with error status
             if (this.resultStorageService) {
-                await this.resultStorageService.finalizeRun('error');
+                this._lastReportPath = await this.resultStorageService.finalizeRun('error') ?? undefined;
             }
             vscode.window.showErrorMessage(error.message || 'An error occurred during the run');
             getServiceContainer().console.error(`Run error: ${error.message}`, 'Test Suite');
@@ -352,7 +353,8 @@ export class SuiteRunHandler implements IMessageHandler {
                 type: 'runComplete',
                 runId,
                 suiteId,
-                summary: stats.summary
+                summary: stats.summary,
+                reportPath: this._lastReportPath
             });
 
             getServiceContainer().console.info(

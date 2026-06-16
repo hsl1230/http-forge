@@ -49,7 +49,7 @@ Custom headers are also detected:
 
 ```
 avs-token: eyJ...         → avs-token: ***
-telus-access-token: abc   → telus-access-token: ***
+corp-access-token: abc   → corp-access-token: ***
 up-cookie: session=xyz    → up-cookie: ***
 ```
 
