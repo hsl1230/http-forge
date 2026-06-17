@@ -3,11 +3,14 @@
  *
  * Implements the three tool-call types:
  *   request__<colId>__<reqId>  — execute a single request
- *   collection__<colId>        — run an entire collection sequentially
- *   suite__<suiteId>           — run a test suite
+ *   collection__<colId>        — run an entire collection sequentially (supports iterations)
+ *   suite__<suiteId>           — run a test suite (supports iterations)
  *
- * All execution goes through the existing CollectionRequestExecutor so scripts,
- * auth, cookie jars, and variable resolution work identically to the UI flow.
+ * Both collections and suites use the unified executeSuite() method which:
+ *   - Supports configurable iterations for stability testing
+ *   - Generates HTML reports
+ *   - Returns results in consistent JSON format
+ *   - Preserves scripts, auth, cookies, and variable resolution identically to UI flow
  */
 
 import {
@@ -31,6 +34,8 @@ import {
     type IConfigService,
     type RequestScripts,
 } from '@http-forge/core';
+import * as fsp from 'fs/promises';
+import * as path from 'path';
 import type { McpToolRegistry } from './mcp-tool-registry';
 
 // ─── Result formatting ─────────────────────────────────────────────────────
@@ -187,6 +192,177 @@ function flattenCollection(
     return result;
 }
 
+function esc(v: unknown): string {
+    return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildSingleRequestHtml(result: ExecutionResult, requestName: string): string {
+    const r = result.response;
+    const req = result.executedRequest;
+    const statusClass = r.status >= 200 && r.status < 300 ? 'ok' : r.status >= 400 ? 'err' : 'warn';
+    const passed = result.passed;
+    const assertions = result.assertions ?? [];
+    const assertPassed = assertions.filter(a => a.passed).length;
+    const assertFailed = assertions.filter(a => !a.passed).length;
+
+    // ── Request ──
+    const reqHeadersHtml = Object.entries(req?.headers ?? {})
+        .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+
+    const reqQueryHtml = Object.entries(req?.query ?? {})
+        .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+
+    const reqParamsHtml = Object.entries(req?.params ?? {})
+        .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+
+    let reqBodyDisplay = '';
+    if (req?.body) {
+        const b = req.body as any;
+        if (b.type === 'raw' && b.raw != null) {
+            try { reqBodyDisplay = JSON.stringify(JSON.parse(b.raw), null, 2); } catch { reqBodyDisplay = String(b.raw); }
+        } else if (b.type === 'form') {
+            reqBodyDisplay = Object.entries(b.form ?? {}).map(([k, v]) => `${k}=${v}`).join('\n');
+        } else if (b.type === 'multipart') {
+            reqBodyDisplay = (b.fields ?? []).map((f: any) => `${f.key}=${f.value}`).join('\n');
+        } else {
+            try { reqBodyDisplay = JSON.stringify(b, null, 2); } catch { reqBodyDisplay = String(b); }
+        }
+    }
+
+    // ── Response ──
+    const resHeadersHtml = Object.entries(r.headers ?? {})
+        .filter(([k]) => k !== 'set-cookie')
+        .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+
+    const cookiesHtml = (r.cookies ?? [])
+        .map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.value)}</td></tr>`).join('');
+
+    const assertHtml = assertions.map(a => `
+        <div class="assert ${a.passed ? 'pass' : 'fail'}">
+            <span class="assert-icon">${a.passed ? '✓' : '✗'}</span>
+            <span>${esc(a.name)}</span>
+            ${a.message ? `<span class="assert-msg">${esc(a.message)}</span>` : ''}
+        </div>`).join('');
+
+    let resBodyDisplay = '';
+    try {
+        resBodyDisplay = typeof r.body === 'string' ? JSON.stringify(JSON.parse(r.body), null, 2) : JSON.stringify(r.body, null, 2);
+    } catch { resBodyDisplay = String(r.body ?? ''); }
+
+    const tab = (id: string, label: string, active = false) =>
+        `<button class="tab${active ? ' active' : ''}" onclick="show('${id}')">${label}</button>`;
+    const panel = (id: string, html: string, active = false) =>
+        `<div id="${id}" class="panel${active ? ' active' : ''}">${html}</div>`;
+
+    const reqBodySection = reqBodyDisplay
+        ? `<pre>${esc(reqBodyDisplay)}</pre>`
+        : '<p class="empty">No body</p>';
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${esc(requestName)} — HTTP Forge</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1e1e1e;color:#d4d4d4;padding:24px;line-height:1.5}
+h1{font-size:1.15em;font-weight:600;margin-bottom:12px;color:#fff}
+h2{font-size:.78em;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.83em;font-weight:700}
+.ok{background:#1a3a1a;color:#4ec94e}.err{background:#3a1a1a;color:#f44}.warn{background:#3a2a1a;color:#fa0}
+.meta{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;font-size:.85em;color:#9e9e9e;align-items:center}
+.card{background:#252526;border-radius:8px;padding:16px;margin-bottom:16px}
+.url{font-size:.88em;color:#9cdcfe;word-break:break-all;margin-bottom:16px;font-family:monospace}
+.tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid #3c3c3c;padding-bottom:0}
+.tab{background:none;border:none;color:#888;padding:6px 14px;font-size:.83em;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:#d4d4d4;border-bottom-color:#0098ff}
+.tab:hover{color:#d4d4d4}
+.panel{display:none}.panel.active{display:block}
+table{width:100%;border-collapse:collapse;font-size:.83em}
+td{padding:5px 8px;border-bottom:1px solid #2d2d2d;word-break:break-all;vertical-align:top}
+td:first-child{color:#9cdcfe;width:35%;white-space:nowrap;font-family:monospace}
+pre{background:#1a1a1a;padding:12px;border-radius:4px;overflow:auto;font-size:.8em;line-height:1.6;white-space:pre-wrap;color:#ce9178}
+.assert{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #2d2d2d;font-size:.85em}
+.assert:last-child{border-bottom:none}
+.assert-icon{font-weight:700;width:16px;flex-shrink:0;margin-top:1px}
+.assert.pass .assert-icon{color:#4ec94e}.assert.fail .assert-icon{color:#f44}
+.assert-msg{color:#f44;margin-left:4px;font-size:.9em}
+.empty{color:#555;font-size:.83em;font-style:italic}
+.section-label{font-size:.72em;color:#666;text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px;font-weight:600}
+</style></head><body>
+<h1>${esc(requestName)}</h1>
+<div class="meta">
+  <span><span class="badge ${statusClass}">${esc(r.status)} ${esc(r.statusText)}</span></span>
+  <span>⏱ ${result.duration}ms</span>
+  <span>${passed
+        ? '<span style="color:#4ec94e">✓ All tests passed</span>'
+        : `<span style="color:#f44">✗ ${assertFailed} test${assertFailed !== 1 ? 's' : ''} failed</span>`}</span>
+</div>
+
+<div class="card">
+  <h2>Request</h2>
+  <div class="url"><strong style="color:#569cd6">${esc(req?.method ?? '')}</strong>  ${esc(req?.url ?? '')}</div>
+  <div class="tabs">
+    ${tab('req-headers', `Headers${reqHeadersHtml ? ` (${Object.keys(req?.headers ?? {}).length})` : ''}`, true)}
+    ${tab('req-query', `Query${reqQueryHtml ? ` (${Object.keys(req?.query ?? {}).length})` : ''}`)}
+    ${tab('req-params', `Path Params${reqParamsHtml ? ` (${Object.keys(req?.params ?? {}).length})` : ''}`)}
+    ${tab('req-body', 'Body')}
+  </div>
+  ${panel('req-headers', reqHeadersHtml ? `<table>${reqHeadersHtml}</table>` : '<p class="empty">No headers</p>', true)}
+  ${panel('req-query', reqQueryHtml ? `<table>${reqQueryHtml}</table>` : '<p class="empty">No query params</p>')}
+  ${panel('req-params', reqParamsHtml ? `<table>${reqParamsHtml}</table>` : '<p class="empty">No path params</p>')}
+  ${panel('req-body', reqBodySection)}
+</div>
+
+<div class="card">
+  <h2>Response</h2>
+  <div class="tabs">
+    ${tab('res-body', 'Body', true)}
+    ${tab('res-headers', `Headers (${Object.keys(r.headers ?? {}).length})`)}
+    ${tab('res-cookies', `Cookies (${(r.cookies ?? []).length})`)}
+  </div>
+  ${panel('res-body', `<pre>${esc(resBodyDisplay)}</pre>`, true)}
+  ${panel('res-headers', resHeadersHtml ? `<table>${resHeadersHtml}</table>` : '<p class="empty">No headers</p>')}
+  ${panel('res-cookies', cookiesHtml ? `<table>${cookiesHtml}</table>` : '<p class="empty">No cookies</p>')}
+</div>
+
+${assertions.length ? `<div class="card"><h2>Tests (${assertPassed}/${assertions.length})</h2>${assertHtml}</div>` : ''}
+${result.consoleOutput?.length ? `<div class="card"><h2>Console Output</h2><pre style="color:#d4d4d4">${result.consoleOutput.map(esc).join('\n')}</pre></div>` : ''}
+${result.error ? `<div class="card"><h2>Error</h2><pre style="color:#f44">${esc(result.error)}</pre></div>` : ''}
+
+<script>
+function show(id) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  const card = panel.closest('.card');
+  card.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  card.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  panel.classList.add('active');
+  card.querySelectorAll('.tab').forEach(t => {
+    if (t.getAttribute('onclick') === "show('" + id + "')") t.classList.add('active');
+  });
+}
+</script>
+</body></html>`;
+}
+
+async function writeSingleRequestReport(
+    result: ExecutionResult,
+    requestName: string,
+    configService: IConfigService
+): Promise<string | null> {
+    try {
+        // Derive reports dir as sibling of results: .http-forge-cache/reports
+        const resultsBase = configService.getResultsPath();
+        const reportsDir = path.join(path.dirname(resultsBase), 'reports');
+        await fsp.mkdir(reportsDir, { recursive: true });
+        const safeName = requestName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+        const fileName = `${safeName}-${Date.now()}.html`;
+        const reportPath = path.join(reportsDir, fileName);
+        await fsp.writeFile(reportPath, buildSingleRequestHtml(result, requestName), 'utf-8');
+        return reportPath;
+    } catch {
+        return null;
+    }
+}
+
 // ─── Executor ─────────────────────────────────────────────────────────────
 
 export class McpExecutor {
@@ -239,125 +415,60 @@ export class McpExecutor {
         );
 
         const result = await executor.execute(execReq, args.variables ?? {});
-        return formatSingleResult(result, args.include ?? []);
+
+        // Write lightweight HTML report to .http-forge-cache/reports/
+        const reportPath = await writeSingleRequestReport(result, found.request.name, this.configService);
+        const out = formatSingleResult(result, args.include ?? []) as Record<string, unknown>;
+        if (reportPath) {
+            out.report = {
+                uri: `file://${reportPath}`,
+                hint: 'Click the URI to open the HTML report in your browser'
+            };
+        }
+        return out;
     }
 
     // ── Entire collection ───────────────────────────────────────────────
+    // Refactored to use shared suite execution logic for consistency with UI
 
     private async runCollection(toolName: string, args: Record<string, any>): Promise<object> {
         const colId = toolName.split('__')[1];
         const collection = this.collectionService.getCollection(colId);
         if (!collection) throw new Error(`Collection "${colId}" not found`);
 
-        const env = args.environment ?? this.envConfigService.getSelectedEnvironment();
-        const stopOnError: boolean = args.stopOnError ?? false;
-        const include: string[] = args.include ?? [];
+        // Create a temporary suite from the collection (same as UI does)
+        // This ensures collection runs and suite runs use identical execution logic
         const flat = flattenCollection(collection);
-        const maxRequests = this.configService.getMcpConfig().maxRequestsPerCall;
+        const suiteRequests = flat.map(({ request }) => ({
+            id: request.id,
+            slug: request.id.toLowerCase().replace(/\s+/g, '-'),
+            collectionId: collection.id,
+            requestId: request.id,
+            name: request.name,
+            method: request.method,
+            collectionName: collection.name,
+            folderPath: '',
+            enabled: true
+        }));
 
-        if (flat.length > maxRequests) {
-            throw new Error(
-                `Collection "${collection.name}" has ${flat.length} requests, which exceeds ` +
-                `maxRequestsPerCall (${maxRequests}). Increase the limit in http-forge.config.json or filter the collection.`
-            );
-        }
-
-        // Use stable temp-<colId> so all runs of the same collection share one results dir
-        const suiteId = `temp-${colId}`;
-        const resultStorage: IResultStorageService = new ResultStorageService(this.configService);
-        await resultStorage.initializeRun(
-            suiteId, collection.name, env,
-            { iterations: 1, delayBetweenRequests: 0, stopOnError }
-        );
-
-        const perRequestResults: object[] = [];
-        const failedResults: object[] = [];
-        let totalPassed = 0;
-        let totalFailed = 0;
-
-        const abortCtrl = new AbortController();
-
-        for (const { request, folderScriptsChain } of flat) {
-            if (abortCtrl.signal.aborted) break;
-
-            const executor = new CollectionRequestExecutor(
-                this.httpService,
-                this.scriptExecutor,
-                this.envConfigService,
-                this.requestPreparer,
-                env,
-                new InMemoryCookieJar(),
-                collection.scripts,
-                folderScriptsChain
-            );
-            const execReq = applyOverrides(toExecutionRequest(request), args);
-            const result: ExecutionResult = await executor.execute(execReq, args.variables ?? {}, abortCtrl.signal);
-
-            await resultStorage.saveResult(1, result);
-
-            if (result.passed) { totalPassed++; } else { totalFailed++; }
-
-            if (include.includes('perRequest')) {
-                perRequestResults.push({
-                    name: request.name,
-                    method: request.method,
-                    status: result.response?.status,
-                    ok: result.response?.status >= 200 && result.response?.status < 300,
-                    duration: `${result.duration}ms`,
-                    allPassed: result.passed,
-                    ...(include.includes('consoleOutput') && result.consoleOutput?.length
-                        ? { consoleOutput: result.consoleOutput } : {})
-                });
-            }
-
-            if (!result.passed) {
-                failedResults.push({
-                    name: request.name,
-                    method: request.method,
-                    status: result.response?.status,
-                    duration: `${result.duration}ms`,
-                    body: tryParseJson(result.response?.body),
-                    failedTests: result.assertions?.filter(a => !a.passed).map(a => ({
-                        name: a.name,
-                        ...(a.message ? { message: a.message } : {})
-                    })),
-                    ...(result.error ? { error: result.error } : {}),
-                    ...(include.includes('consoleOutput') && result.consoleOutput?.length
-                        ? { consoleOutput: result.consoleOutput } : {})
-                });
-                if (stopOnError) { abortCtrl.abort(); }
-            }
-        }
-
-        const reportPath = await resultStorage.finalizeRun('completed');
-
-        const out: Record<string, unknown> = {
-            collection: collection.name,
-            environment: env,
-            summary: {
-                total: totalPassed + totalFailed,
-                passed: totalPassed,
-                failed: totalFailed,
-                allPassed: totalFailed === 0
-            }
+        const tempSuite = {
+            id: `temp-${colId}`,
+            name: collection.name,
+            requests: suiteRequests,
+            config: {
+                iterations: 1,
+                delay: 0,
+                stopOnError: args.stopOnError ?? false,
+                readFromSharedSession: false,
+                writeToSharedSession: false
+            },
+            isTemporary: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
         };
 
-        if (totalFailed > 0 || include.includes('failedOnly')) {
-            out.failedRequests = failedResults;
-        }
-
-        if (include.includes('perRequest')) {
-            out.results = perRequestResults;
-        }
-
-        if (reportPath !== null) {
-            out.report = {
-                uri: `file://${reportPath}`,
-                hint: 'Click the URI to open the HTML report in your browser'
-            };
-        }
-
-        return out;
+        // Use the shared suite execution logic
+        return this.executeSuite(tempSuite, args, 'collection');
     }
 
     // ── Test suite ──────────────────────────────────────────────────────
@@ -367,18 +478,31 @@ export class McpExecutor {
         const suite = await this.testSuiteService.getSuite(suiteId);
         if (!suite) throw new Error(`Test suite "${suiteId}" not found`);
 
+        // Use shared execution logic
+        return this.executeSuite(suite, args, 'suite');
+    }
+
+    // ── Shared suite execution logic ────────────────────────────────────
+    // Used by both runTestSuite and runCollection for consistency
+
+    private async executeSuite(
+        suite: any,
+        args: Record<string, any>,
+        source: 'suite' | 'collection'
+    ): Promise<object> {
         const env = args.environment ?? this.envConfigService.getSelectedEnvironment();
-        const iterations: number = args.iterations ?? suite.config.iterations ?? 1;
-        const stopOnError: boolean = args.stopOnError ?? suite.config.stopOnError ?? false;
-        const delayMs: number = args.delay ?? suite.config.delayBetweenRequests ?? 0;
+        const iterations: number = args.iterations ?? suite.config?.iterations ?? 1;
+        const stopOnError: boolean = args.stopOnError ?? suite.config?.stopOnError ?? false;
+        const delayMs: number = args.delay ?? suite.config?.delayBetweenRequests ?? 0;
         const filter: string[] | undefined = args.requestFilter;
         const include: string[] = args.include ?? [];
 
-        const effectiveRequests = suite.requests.filter(r => {
+        const effectiveRequests = suite.requests.filter((r: any) => {
             if (r.enabled === false) return false;
             if (filter && !filter.some(f => r.name.toLowerCase().includes(f.toLowerCase()))) return false;
             return true;
         });
+
         const maxRequests = this.configService.getMcpConfig().maxRequestsPerCall;
         const totalCalls = effectiveRequests.length * iterations;
         if (totalCalls > maxRequests) {
@@ -391,7 +515,7 @@ export class McpExecutor {
 
         // Set up result storage for HTML report generation
         const resultStorage: IResultStorageService = new ResultStorageService(this.configService);
-        const runId = await resultStorage.initializeRun(
+        await resultStorage.initializeRun(
             suite.id, suite.name, env,
             { iterations, delayBetweenRequests: delayMs, stopOnError }
         );
@@ -402,6 +526,7 @@ export class McpExecutor {
         let totalFailed = 0;
 
         const abortCtrl = new AbortController();
+        const cookieJar = new InMemoryCookieJar(); // shared across all iterations so cookies propagate
 
         try {
             for (let iter = 1; iter <= iterations; iter++) {
@@ -418,7 +543,7 @@ export class McpExecutor {
                         this.envConfigService,
                         this.requestPreparer,
                         env,
-                        new InMemoryCookieJar(),
+                        cookieJar,
                         collection.scripts,
                         found.folderScriptsChain,
                         undefined,
@@ -477,14 +602,16 @@ export class McpExecutor {
 
         const reportPath = await resultStorage.finalizeRun('completed');
 
+        // Format output based on source (collection vs suite)
+        const summaryKey = source === 'collection' ? 'collection' : 'suite';
         const out: Record<string, unknown> = {
-            suite: suite.name,
+            [summaryKey]: suite.name,
             environment: env,
             summary: {
                 total: totalPassed + totalFailed,
                 passed: totalPassed,
                 failed: totalFailed,
-                iterations,
+                ...(iterations > 1 ? { iterations } : {}),
                 allPassed: totalFailed === 0
             }
         };

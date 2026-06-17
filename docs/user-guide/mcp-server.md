@@ -143,11 +143,17 @@ By default the AI only sees `status`, `ok`, `body`, and test results. Ask for mo
 
 ### 4. Run an entire collection
 
+**Basic run:**
 > "Run the entire Auth Flow collection and tell me if everything passed"
 
 > "Run the MyApp collection on staging and stop on the first failure"
 
 > "Run the Data Migration collection and show me the result of each request"
+
+**Multiple iterations for stability testing:**
+> "Run the Payment collection 5 times and tell me if it's stable"
+
+> "Run the Checkout flow on production 10 times and report the failure rate"
 
 ---
 
@@ -223,9 +229,12 @@ The AI calls the same request twice with different environments and compares the
 | Argument | Type | Description |
 |---|---|---|
 | `environment` | string | Environment name (defaults to currently selected) |
+| `iterations` | number | Run the collection multiple times (e.g. for stability testing) |
 | `stopOnError` | boolean | Stop on the first failed request |
+| `delay` | number | Delay between requests (ms) |
 | `variables` | object | Inject variables into every request |
 | `headers` | object | Override headers on every request |
+| `requestFilter` | string[] | Run only requests whose names contain one of these strings |
 | `include` | array | `perRequest` (per-request details), `failedOnly` (failed request details), `consoleOutput` (script console output per request) |
 
 ### Test suite arguments
@@ -276,6 +285,37 @@ When a pre-request script sets a variable (`pm.environment.set('token', ...)`), 
   "ok": true,
   "body": { "token": "eyJhbGc..." },
   "modifiedVariables": { "accessToken": "eyJhbGc..." }
+}
+```
+
+### Collection result (default — summary only)
+
+```json
+{
+  "collection": "Auth Flow",
+  "environment": "dev",
+  "summary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "allPassed": true
+  }
+}
+```
+
+When running with multiple iterations:
+
+```json
+{
+  "collection": "Auth Flow",
+  "environment": "dev",
+  "summary": {
+    "total": 30,
+    "passed": 30,
+    "failed": 0,
+    "iterations": 3,
+    "allPassed": true
+  }
 }
 ```
 

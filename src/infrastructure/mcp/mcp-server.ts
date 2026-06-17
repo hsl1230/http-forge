@@ -13,6 +13,7 @@
  */
 
 import type { IConfigService } from '@http-forge/core';
+import * as fs from 'fs';
 import * as http from 'http';
 import type { McpExecutor } from './mcp-executor';
 import type { McpToolRegistry } from './mcp-tool-registry';
@@ -74,6 +75,11 @@ export class McpServerService {
                     return;
                 }
 
+                if (req.method === 'GET' && req.url?.startsWith('/report?')) {
+                    this.handleReportRequest(req, res);
+                    return;
+                }
+
                 if (req.method === 'POST') {
                     this.handlePost(req, res);
                     return;
@@ -118,6 +124,35 @@ export class McpServerService {
 
     // ── Request handling ──────────────────────────────────────────────────
 
+    private handleReportRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
+        const url = new URL(req.url!, `http://127.0.0.1:${this.port}`);
+        const filePath = url.searchParams.get('path');
+
+        if (!filePath) {
+            res.writeHead(400);
+            res.end('Missing path parameter');
+            return;
+        }
+
+        // Security: only serve .html files inside the workspace .http-forge-cache directory
+        const normalized = require('path').normalize(filePath);
+        if (!normalized.includes('.http-forge-cache') || !normalized.endsWith('.html')) {
+            res.writeHead(403);
+            res.end('Forbidden');
+            return;
+        }
+
+        fs.readFile(normalized, 'utf-8', (err, content) => {
+            if (err) {
+                res.writeHead(404);
+                res.end('Report not found');
+                return;
+            }
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(content);
+        });
+    }
+
     private handlePost(req: http.IncomingMessage, res: http.ServerResponse): void {
         let body = '';
         req.on('data', chunk => { body += chunk; });
@@ -158,7 +193,12 @@ export class McpServerService {
                 const { name, arguments: toolArgs } = rpc.params ?? {};
                 if (!name) throw new Error('Missing tool name');
                 const text = await this.executor.call(name, toolArgs ?? {});
-                return { content: [{ type: 'text', text }] };
+                // Rewrite file:// report URIs to http:// so they open in the browser
+                const rewritten = text.replace(
+                    /"uri"\s*:\s*"file:\/\/([^"]+)"/g,
+                    (_, filePath) => `"uri":"http://127.0.0.1:${this.port}/report?path=${encodeURIComponent(filePath)}"`
+                );
+                return { content: [{ type: 'text', text: rewritten }] };
             }
 
             default:
