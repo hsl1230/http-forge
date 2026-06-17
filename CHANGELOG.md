@@ -5,6 +5,34 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+
+
+// Skip a request conditionally
+if (ctx.response.status === 401) {
+  pm.execution.skipRequest();  // Don't execute next request
+}
+
+// Jump to a named request
+if (ctx.response.status === 503) {
+  pm.execution.setNextRequest('Retry Login');  // Jump back
+}
+
+// Stop the suite
+if (ctx.response.status === 500) {
+  pm.execution.setNextRequest(null);  // Exit suite
+}
+
+
+
+
+## 0.12.1 - 2026-06-17
+
+### Added
+
+- **MCP Server — `iterations` parameter for collections**: The `collection__<colId>` tool now supports the `iterations` parameter, allowing collections to run multiple times (matching test suite behavior). When `iterations > 1`, the summary output includes the iterations count. This enables use cases like stability testing without requiring a test suite.
+
+
 ## 0.12.0 - 2026-06-16
 
 ### Added
