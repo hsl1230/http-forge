@@ -5,26 +5,15 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.12.2 - 2026-06-17
 
+### Changed
 
-
-// Skip a request conditionally
-if (ctx.response.status === 401) {
-  pm.execution.skipRequest();  // Don't execute next request
-}
-
-// Jump to a named request
-if (ctx.response.status === 503) {
-  pm.execution.setNextRequest('Retry Login');  // Jump back
-}
-
-// Stop the suite
-if (ctx.response.status === 500) {
-  pm.execution.setNextRequest(null);  // Exit suite
-}
-
-
-
+- **Documentation — MCP/CLI alignment**: Updated user and architecture docs to match current behavior across extension, core runtime, and CLI:
+  - MCP report links documented as HTTP-served `report.uri` (`/report?path=...`) rather than direct `file://` paths
+  - CLI MCP lifecycle usage documented as `mcp-server start|stop|status`
+  - README now explicitly highlights headless/CI CLI usage and points to the standalone/CLI guide
+- **CLI guide enhancements**: Added npm install instructions for `@http-forge/cli`, CLI repository link, and expanded MCP JSON-RPC usage examples (`initialize`, `tools/list`, `tools/call`, `/health`, and legacy `/tools/execute`).
 
 ## 0.12.1 - 2026-06-17
 
@@ -41,7 +30,7 @@ if (ctx.response.status === 500) {
 
 - **MCP Server — `include` parameter for collection tools**: `collection__<colId>` tools now accept the same `include` array as suite tools: `perRequest` (per-request result details), `failedOnly` (failed request details regardless of outcome). Consistent API surface across all multi-request tools.
 
-- **MCP Server — clickable HTML report URI**: The `report` field in tool responses now contains `uri` (a `file://` URI) instead of `path`. AI clients render this as a clickable link that opens the report directly in the browser.
+- **MCP Server — clickable HTML report URI**: The `report` field in tool responses contains `uri` (served as `http://<host>:<port>/report?path=...`). AI clients render this as a clickable link that opens the report directly in the browser.
 
 - **Test Suite UI — Export HTML opens rich report**: The "Export HTML" button now opens the same pre-generated HTML report produced at run time (via `HtmlReportGenerator`) rather than building a separate minimal template from in-memory data. The report is opened in the system browser via `vscode.env.openExternal`.
 

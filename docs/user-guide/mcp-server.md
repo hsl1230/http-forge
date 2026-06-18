@@ -10,7 +10,7 @@ When the MCP server is running, AI agents see every request in your collections 
 AI Agent
   → POST http://localhost:3100  (JSON-RPC 2.0)
   → HTTP Forge executes the request using your saved config
-  → Returns structured result (status, body, assertions, report path)
+  → Returns structured result (status, body, assertions, report URI)
 ```
 
 ---
@@ -235,7 +235,7 @@ The AI calls the same request twice with different environments and compares the
 | `variables` | object | Inject variables into every request |
 | `headers` | object | Override headers on every request |
 | `requestFilter` | string[] | Run only requests whose names contain one of these strings |
-| `include` | array | `perRequest` (per-request details), `failedOnly` (failed request details), `consoleOutput` (script console output per request) |
+| `include` | array | `perRequest` (per-request details), `failedOnly` (failed request details), `consoleOutput` (script console output per request), `report` (force report metadata in response) |
 
 ### Test suite arguments
 
@@ -247,7 +247,7 @@ The AI calls the same request twice with different environments and compares the
 | `delay` | number | Delay between requests (ms) |
 | `variables` | object | Inject variables into every request |
 | `requestFilter` | string[] | Run only requests whose names contain one of these strings |
-| `include` | array | `perRequest` (per-request details), `failedOnly` (failed request details), `consoleOutput` (script console output per request) |
+| `include` | array | `perRequest` (per-request details), `failedOnly` (failed request details), `consoleOutput` (script console output per request), `report` (force report metadata in response) |
 
 ---
 
@@ -342,7 +342,7 @@ When running with multiple iterations:
     }
   ],
   "report": {
-    "uri": "file:///path/to/.http-forge-cache/results/suite-id/run-id/report.html",
+    "uri": "http://localhost:3100/report?path=%2Fpath%2Fto%2F.http-forge-cache%2Fresults%2Fsuite-id%2Frun-id%2Freport.html",
     "hint": "Click the URI to open the HTML report in your browser"
   }
 }
@@ -360,7 +360,7 @@ The report includes:
 - Request timeline with duration bars
 - Expandable failure details with request/response bodies and assertion results
 
-The report URI is returned in the MCP tool response as `report.uri` (a `file://` path). AI clients render this as a clickable link. In the VS Code test suite panel, the **Export HTML** button opens the same report in your system browser.
+The report URI is returned in the MCP tool response as `report.uri` (an HTTP URL served by HTTP Forge at `/report?path=...`). AI clients render this as a clickable link. In the VS Code test suite panel, the **Export HTML** button opens the same report in your system browser.
 
 Reports are stored under `.http-forge-cache/results/` in your workspace:
 

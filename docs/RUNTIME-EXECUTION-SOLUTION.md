@@ -15,8 +15,8 @@
 
 This solution introduces a shared runtime architecture that supports three consumption modes from one execution path:
 
-1. VS Code extension-hosted MCP (existing path, kept compatible).
-2. Terminal CLI (`mcp-server`, `run-request`, `run-collection`, `run-suite`).
+1. VS Code extension MCP integration backed by core runtime APIs.
+2. Terminal CLI (`mcp-server start|stop|status`, `run-request`, `run-collection`, `run-suite`).
 3. Embeddable + direct library APIs (`createMcpRuntime`, `runRequest`, `runCollection`, `runSuite`).
 
 The design keeps behavior parity by centralizing execution logic in reusable runtime services rather than duplicating extension-specific code.
@@ -149,10 +149,12 @@ Implementation mapping:
 
 Commands:
 
-1. `http-forge mcp-server [--port] [--host]`
-2. `http-forge run-request --collection <id> --request <id> [options]`
-3. `http-forge run-collection --collection <id> [options]`
-4. `http-forge run-suite --suite <id> [options]`
+1. `http-forge mcp-server start [--port] [--host]`
+2. `http-forge mcp-server stop`
+3. `http-forge mcp-server status`
+4. `http-forge run-request --collection <id> --request <id> [options]`
+5. `http-forge run-collection --collection <id> [options]`
+6. `http-forge run-suite --suite <id> [options]`
 
 Common options:
 
@@ -221,8 +223,7 @@ Exit code model:
 
 ## 8. Related Files
 
-- Existing extension MCP flow: `http-forge/src/infrastructure/mcp/mcp-server.ts`
-- Existing extension executor flow: `http-forge/src/infrastructure/mcp/mcp-executor.ts`
+- Extension MCP integration point: `http-forge/src/extension.ts`
 - Extension composition root: `http-forge/src/infrastructure/services/service-bootstrap.ts`
 - Core bootstrap/contracts: `http-forge.core/src/di/core-bootstrap.ts`, `http-forge.core/src/types/platform.ts`
 - Requirements source: `http-forge/docs/RUNTIME-EXECUTION-REQUIREMENTS.md`
