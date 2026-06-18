@@ -65,7 +65,7 @@ This creates these gaps:
 | ID | Requirement | Priority |
 |---|---|---|
 | FR-CLI-1 | System SHALL provide a dedicated CLI package with executable entry point. | Must |
-| FR-CLI-2 | CLI SHALL support `mcp-server` subcommand to start MCP server from terminal. | Must |
+| FR-CLI-2 | CLI SHALL support managed `mcp-server` lifecycle subcommands (`start`, `stop`, `status`) from terminal. | Must |
 | FR-CLI-3 | CLI SHALL support `run-request` subcommand. | Must |
 | FR-CLI-4 | CLI SHALL support `run-collection` subcommand. | Must |
 | FR-CLI-5 | CLI SHALL support `run-suite` subcommand. | Must |

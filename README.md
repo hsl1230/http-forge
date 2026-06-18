@@ -26,6 +26,16 @@ http-forge.bat
 
 The launcher auto-detects (or downloads) VS Code and installs HTTP Forge in an isolated profile. Use `--dev` for your full dev environment, or `--both` to run dev + test side by side. See [Launcher Guide](docs/user-guide/cli-standalone.md#launcher-standalone-gui) for details.
 
+## 🖥️ CLI (Headless / CI)
+
+HTTP Forge also supports CLI-based execution for CI/CD and scripted workflows.
+
+- Run single requests, collections, and suites without opening VS Code
+- Manage MCP server lifecycle from terminal (`mcp-server start`, `stop`, `status`)
+- Use JSON output for machine-readable pipeline integration
+
+See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and examples.
+
 ## 📚 Documentation
 
 - Full user guide: [docs/user-guide/index.md](docs/user-guide/index.md)
@@ -241,7 +251,7 @@ The launcher auto-detects (or downloads) VS Code and installs HTTP Forge in an i
 - **Collection Runner**: AI can run an entire collection sequentially and report results
 - **Test Suite Runner**: AI can trigger test suites with iteration count, request filters, stop-on-error, and delay options
 - **Variable Chaining**: Post-response scripts set variables normally; `modifiedVariables` returned so AI can pass tokens from one call to the next
-- **HTML Test Reports**: Report path included in every suite response so AI can direct you to the full results
+- **HTML Test Reports**: MCP responses include `report.uri` so AI can open/share the full HTML report directly
 - **Project-level Control** (`http-forge.config.json`): `excludedCollections`, `excludedSuites`, `toolPrefix`, `maxRequestsPerCall`, `cors.allowedOrigins`
 - **Toggle from Status Bar**: `⊙ MCP ○` / `⊙ MCP ● 3100` click-to-toggle; or use Command Palette
 

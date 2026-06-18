@@ -59,6 +59,50 @@ You can switch profiles inside VS Code anytime: **Ctrl+Shift+P** → "Profiles: 
 - Execute collections without VS Code
 - Integrate with scripts or pipelines
 
+## CLI Commands
+
+The CLI package provides direct execution commands and MCP server lifecycle management.
+
+Install from npm:
+
+```bash
+npm install -g @http-forge/cli
+```
+
+CLI source on GitHub: [http-forge.cli](https://github.com/hsl1230/http-forge.cli)
+
+### MCP server lifecycle
+
+```bash
+# Start MCP server (foreground)
+http-forge mcp-server start --workspace . --host 127.0.0.1 --port 3100
+
+# Stop previously started managed MCP server
+http-forge mcp-server stop --workspace .
+
+# Check managed MCP server status
+http-forge mcp-server status --workspace .
+```
+
+### Direct execution
+
+```bash
+# Run one request
+http-forge run-request --workspace . --collection my-api --request get-users --environment dev --output json
+
+# Run a collection
+http-forge run-collection --workspace . --collection my-api --iterations 3 --stop-on-error --include perRequest --output json
+
+# Run a suite
+http-forge run-suite --workspace . --suite smoke --environment staging --include perRequest --include report --output json
+```
+
+Common options:
+- `--workspace <path>`
+- `--environment <name>`
+- `--output json|table`
+- `--include <value>` (repeatable)
+
 ## Configure
 Create `http-forge.config.json` in the working directory and set:
 - `storage.root`
