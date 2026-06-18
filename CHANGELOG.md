@@ -5,6 +5,35 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.13.0 - 2026-06-18
+
+### Added
+
+- **Phase 3 — Cloud secret providers (`{{secret:alias/path}}`)**: Secrets stored in external vaults can now be referenced directly in request URLs, headers, body, and auth fields using the `{{secret:alias/path}}` template syntax. Supported providers:
+  - **AWS Secrets Manager** — AWS SDK default credential chain (env vars, IAM roles, ECS task roles); supports `#jsonField`
+  - **Azure Key Vault** — `DefaultAzureCredential` (env vars, managed identity, CLI login); supports `/version`
+  - **Google Secret Manager** — Application Default Credentials; supports `/versions/<n>`
+  - **HashiCorp Vault (KV v2)** — `VAULT_TOKEN` + `VAULT_ADDR`, optional `mountPath` and `X-Vault-Namespace`; no SDK required (built-in `fetch`)
+  - **1Password** — `op` CLI session or `OP_SERVICE_ACCOUNT_TOKEN` service account (optional `@1password/sdk`)
+  - **Doppler** — `DOPPLER_TOKEN` service token; no SDK required (built-in `https`)
+  - Credentials are **never stored** in HTTP Forge — each provider delegates to its SDK/CLI/env default chain
+  - All six providers work **zero-config** when the matching credentials/env vars are present; configure or add aliases in `http-forge.config.json` under `secrets.providers`
+  - Cloud SDKs are **not bundled** with the extension — they're loaded on demand from the project's `scripts.modulePaths`, keeping the extension slim
+  - Tokens are resolved in parallel before variable interpolation; results are request-scoped (no cross-request leakage)
+  - See the [Secret Providers guide](docs/user-guide/secret-providers.md)
+
+- **Phase 2 — OS Keychain secrets (VS Code SecretStorage)**: Environment variables can now be promoted to the OS keychain (Windows Credential Manager, macOS Keychain, Linux Secret Service) directly from the Environment Settings UI. Click the 🔒 lock icon on any environment variable row to promote it. Keychain secrets:
+  - Never appear in any JSON file or git history
+  - Survive VS Code restarts
+  - Are resolved transparently via `{{varName}}` syntax — no change to request files
+  - Can be demoted back to plaintext at any time
+
+- **Phase 1 — CLI `--var` flag + `process.env` bridge**: The `@http-forge/cli` now accepts `--var KEY=VALUE` (repeatable) for injecting variables at runtime, and automatically bridges all `process.env` variables at lowest priority. This enables secret injection in CI/CD pipelines without storing values in config files:
+  ```bash
+  API_KEY=$SECRET http-forge run-suite smoke --env prod
+  http-forge run-suite smoke --env prod --var apiKey=$SECRET
+  ```
+
 ## 0.12.2 - 2026-06-17
 
 ### Changed

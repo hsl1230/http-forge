@@ -92,6 +92,21 @@ API_KEY=mytoken http-forge run-suite smoke --env prod
 
 See [CLI Reference](../cli/README.md) for full details.
 
+## Cloud secret providers (`{{secret:alias/path}}`)
+
+For team environments and CI/CD pipelines, reference secrets stored in external vaults directly in request files using the `{{secret:alias/path}}` syntax. No value is ever stored in HTTP Forge — the provider fetches it at execution time using your ambient credentials.
+
+| Provider | Token syntax |
+|---|---|
+| AWS Secrets Manager | `{{secret:aws/myapp/prod#field}}` |
+| Azure Key Vault | `{{secret:azure/my-secret-name}}` |
+| Google Secret Manager | `{{secret:gcp/my-secret-name}}` |
+| HashiCorp Vault | `{{secret:vault/myapp/prod#field}}` |
+| 1Password | `{{secret:op/item-name/field}}` |
+| Doppler | `{{secret:doppler/API_KEY}}` |
+
+All six aliases work zero-config when the matching credentials/env vars are present. For setup, per-provider configuration, SDK installation, and CLI/CI usage, see the **[Secret Providers guide](secret-providers.md)**.
+
 ## File watching
 Changes to environment JSON files automatically:
 - Refresh the **Environments tree view** in the sidebar

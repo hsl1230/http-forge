@@ -137,6 +137,13 @@ Run collection "auth" against environment "sit" in CI.
 - Variables resolve with `{{var}}`.
 - Use shared/local environment configs for secrets and overrides.
 
+## Secrets
+- Fetch secrets from AWS, Azure, GCP, HashiCorp Vault, 1Password, or Doppler with `{{secret:alias/path}}`.
+- Credentials come from the environment (env vars, cloud identity, CLI session) — never from config.
+- Install the relevant cloud SDK (`optionalDependencies`) for AWS/Azure/GCP; Vault/Doppler/1Password need none.
+
+See: secret-providers.md
+
 ## Scripts and tests
 Scripts and assertions are the same as in the extension.
 
@@ -149,4 +156,5 @@ See: scripts-assertions.md
 ## Reference
 - Collections and requests: collections-requests.md
 - Environments and variables: environments-variables.md
+- Secret providers: secret-providers.md
 - Scripts and assertions: scripts-assertions.md

@@ -23,5 +23,34 @@
   "environments": {
     "default": "dev"
   },
-  "proxy": null
+  "proxy": null,
+  "secrets": {
+    "providers": {
+      "aws": {
+        "provider": "aws",
+        "region": "us-east-1"
+      },
+      "azure": {
+        "provider": "azure",
+        "vaultUrl": "https://my-vault.vault.azure.net"
+      },
+      "vault": {
+        "provider": "vault",
+        "address": "https://vault.corp.com",
+        "mountPath": "secret",
+        "namespace": "admin"
+      },
+      "op": {
+        "provider": "1password",
+        "vault": "Private"
+      },
+      "gcp": {
+        "provider": "gcp",
+        "projectId": "my-project-123"
+      },
+      "doppler": {
+        "provider": "doppler"
+      }
+    }
+  }
 }

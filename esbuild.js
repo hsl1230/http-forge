@@ -24,8 +24,13 @@ async function main() {
     // mark a few optional runtime libraries external so esbuild
     // doesn't try to resolve them during the build.  they are loaded
     // dynamically by ModuleLoader and may not be present in the root
-    // package.json.
-    external: ['vscode', 'lodash', 'moment', 'tv4', 'ajv'],
+    // package.json.  the cloud secret SDKs are resolved at runtime from
+    // the user's project (scripts.modulePaths) rather than bundled.
+    external: [
+      'vscode', 'lodash', 'moment', 'tv4', 'ajv',
+      '@aws-sdk/client-secrets-manager', '@azure/keyvault-secrets',
+      '@azure/identity', '@google-cloud/secret-manager',
+    ],
     logLevel: 'info',
   });
 
