@@ -48,6 +48,50 @@ http-forge/environments/
 └── dev.json
 ```
 
+## OS Keychain secrets (recommended)
+
+For the strongest protection, store secret variable values in the **OS keychain** (Windows Credential Manager, macOS Keychain, or Linux Secret Service) via VS Code's `SecretStorage` API. Values stored this way:
+
+- Never appear in any JSON file on disk
+- Are never committed to version control
+- Survive VS Code restarts — values are retrieved from the OS keychain on startup
+- Are resolved transparently via `{{varName}}` — no change to request syntax needed
+
+### How to use
+
+1. Open **Environment Settings** (gear icon in the Environments sidebar)
+2. Select an environment
+3. Add a variable row with the key name (e.g. `apiKey`)
+4. Click the 🔒 lock icon on that row — the value moves to the keychain
+5. The row now shows `••••••` — the plaintext value is no longer stored in the config file
+
+To update the value: type a new value into the masked input and click **Save**.  
+To remove it from the keychain entirely: click the `×` remove button on the secret row.  
+To move it back to plaintext: click the 🔒 icon again (demote).
+
+### Usage in requests
+
+Reference the secret variable exactly like any other:
+```
+Authorization: Bearer {{apiKey}}
+GET {{baseUrl}}/users
+```
+
+The template engine resolves `{{apiKey}}` from the secure cache at execution time.
+
+### CI/CD (no keychain available)
+
+In headless environments, inject secret values via the `--var` flag or environment variables:
+```bash
+# --var flag
+http-forge run-suite smoke --env prod --var apiKey=$API_KEY
+
+# or via process.env (automatically bridged)
+API_KEY=mytoken http-forge run-suite smoke --env prod
+```
+
+See [CLI Reference](../cli/README.md) for full details.
+
 ## File watching
 Changes to environment JSON files automatically:
 - Refresh the **Environments tree view** in the sidebar

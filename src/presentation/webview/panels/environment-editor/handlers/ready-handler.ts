@@ -51,12 +51,24 @@ export class ReadyHandler implements IMessageHandler {
     }
 
     /**
-     * Send initial configuration data to webview
+     * Send initial configuration data to webview.
+     * Includes secretVariables (key names only, no values) per environment
+     * so the UI can render the lock icon for variables stored in SecretStorage.
      */
     public async sendInitialData(messenger: IWebviewMessenger, selectedEnvironment?: string): Promise<void> {
         const envToUse = selectedEnvironment ?? this.selectedEnvironment;
         const sharedConfig = this.configService.getSharedConfig();
         const localConfig = this.configService.getLocalConfig();
+
+        // Build a map of { envName -> string[] } listing secret variable keys per env
+        const secretVariablesByEnv: Record<string, string[]> = {};
+        if (sharedConfig?.environments) {
+            for (const [envName, envConfig] of Object.entries(sharedConfig.environments)) {
+                if (envConfig.secretVariables && envConfig.secretVariables.length > 0) {
+                    secretVariablesByEnv[envName] = envConfig.secretVariables;
+                }
+            }
+        }
 
         messenger.postMessage({
             type: 'init',
@@ -64,7 +76,8 @@ export class ReadyHandler implements IMessageHandler {
                 sharedConfig,
                 localConfig,
                 hasLocalConfig: localConfig !== null,
-                selectedEnvironment: envToUse
+                selectedEnvironment: envToUse,
+                secretVariablesByEnv
             }
         });
     }

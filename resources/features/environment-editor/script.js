@@ -11,7 +11,9 @@ let state = {
     sharedConfig: null,
     localConfig: null,
     selectedEnvironment: null,
-    hasChanges: false
+    hasChanges: false,
+    // Map of envName -> string[] of secret variable key names
+    secretVariablesByEnv: {}
 };
 
 // DOM Elements
@@ -51,7 +53,7 @@ elements.deleteEnvBtn.addEventListener('click', () => {
     }
 });
 
-elements.addEnvVarBtn.addEventListener('click', () => addVariableRow(elements.envVariables, '', '', true));
+elements.addEnvVarBtn.addEventListener('click', () => addVariableRow(elements.envVariables, '', '', true, false, false, true));
 elements.addLocalVarBtn.addEventListener('click', () => addVariableRow(elements.envLocalVariables, '', '', true, true));
 elements.addGlobalVarBtn.addEventListener('click', () => addVariableRow(elements.globalVariables, '', '', true));
 elements.addGlobalLocalVarBtn.addEventListener('click', () => addVariableRow(elements.globalLocalVariables, '', '', true, true));
@@ -80,16 +82,27 @@ elements.openLocalBtn.addEventListener('click', () => {
 elements.saveBtn.addEventListener('click', saveAllChanges);
 
 /**
- * Add a variable/header row to a container
+ * Add a variable/header row to a container.
+ * @param {boolean} isSecret - true when the value lives in SecretStorage (shown masked)
+ * @param {boolean} showLockBtn - true only for env-scoped shared variable rows
  */
-function addVariableRow(container, key, value, canRemove = true, isLocal = false) {
+function addVariableRow(container, key, value, canRemove = true, isLocal = false, isSecret = false, showLockBtn = false) {
     const row = document.createElement('div');
-    row.className = 'variable-row';
+    row.className = 'variable-row' + (isSecret ? ' secret-row' : '');
     row.dataset.isLocal = isLocal;
+    row.dataset.isSecret = isSecret;
+
+    const lockBtn = showLockBtn
+        ? `<button class="icon-btn lock-btn ${isSecret ? 'locked' : ''}" title="${isSecret ? 'Stored in OS keychain — click to move back to plaintext' : 'Click to store in OS keychain (SecretStorage)'}">🔒</button>`
+        : '';
+    const valueInput = isSecret
+        ? `<input type="password" class="value secret-value" placeholder="Stored in keychain" value="${escapeHtml(value)}">`
+        : `<input type="text" class="value" placeholder="${isLocal ? 'Local value (not committed)' : 'Value'}" value="${escapeHtml(value)}">`;
 
     row.innerHTML = `
         <input type="text" class="key" placeholder="Variable name" value="${escapeHtml(key)}">
-        <input type="text" class="value" placeholder="${isLocal ? 'Secret value (not committed)' : 'Value'}" value="${escapeHtml(value)}">
+        ${valueInput}
+        ${lockBtn}
         ${canRemove ? '<button class="icon-btn remove-btn" title="Remove">×</button>' : ''}
     `;
 
@@ -101,8 +114,51 @@ function addVariableRow(container, key, value, canRemove = true, isLocal = false
     const removeBtn = row.querySelector('.remove-btn');
     if (removeBtn) {
         removeBtn.addEventListener('click', () => {
-            row.remove();
-            markAsChanged();
+            if (row.dataset.isSecret === 'true') {
+                // Secret rows: delete from keychain immediately; DOM removal happens via secretDeleted response
+                const currentKey = row.querySelector('.key').value.trim();
+                if (currentKey) {
+                    vscode.postMessage({
+                        type: 'deleteSecretVariable',
+                        environmentName: state.selectedEnvironment,
+                        key: currentKey
+                    });
+                } else {
+                    // Key was never saved — just remove the row
+                    row.remove();
+                }
+            } else {
+                row.remove();
+                markAsChanged();
+            }
+        });
+    }
+
+    // Lock/unlock toggle
+    const lockBtnEl = row.querySelector('.lock-btn');
+    if (lockBtnEl) {
+        lockBtnEl.addEventListener('click', () => {
+            const currentKey = row.querySelector('.key').value.trim();
+            const currentValue = row.querySelector('.value').value;
+            const currentlySecret = row.dataset.isSecret === 'true';
+            if (!currentKey) return;
+
+            if (currentlySecret) {
+                // Demote: move from SecretStorage back to plaintext
+                vscode.postMessage({
+                    type: 'demoteFromSecret',
+                    environmentName: state.selectedEnvironment,
+                    key: currentKey
+                });
+            } else {
+                // Promote: move from plaintext to SecretStorage
+                vscode.postMessage({
+                    type: 'promoteToSecret',
+                    environmentName: state.selectedEnvironment,
+                    key: currentKey,
+                    value: currentValue
+                });
+            }
         });
     }
 
@@ -166,13 +222,19 @@ function renderEnvironmentDetails() {
 
     elements.envNameDisplay.textContent = state.selectedEnvironment;
 
-    // Render shared variables
+    const secretKeys = state.secretVariablesByEnv[state.selectedEnvironment] || [];
+
+    // Render shared variables (plaintext)
     elements.envVariables.innerHTML = '';
     if (env.variables) {
         Object.entries(env.variables).forEach(([key, value]) => {
-            addVariableRow(elements.envVariables, key, value, true);
+            addVariableRow(elements.envVariables, key, value, true, false, false, true);
         });
     }
+    // Render secret variable placeholders (value comes from keychain)
+    secretKeys.forEach(key => {
+        addVariableRow(elements.envVariables, key, '', true, false, true, true);
+    });
 
     // Render local variables
     elements.envLocalVariables.innerHTML = '';
@@ -235,6 +297,22 @@ async function saveAllChanges() {
         variables: getVariablesFromContainer(elements.globalLocalVariables)
     };
 
+    // Collect secret variable values typed into the UI (only rows with a non-empty value)
+    // Secret values are never included in sharedConfig — they go to SecretStorage via the host
+    if (state.selectedEnvironment) {
+        const secrets = {};
+        elements.envVariables.querySelectorAll('.variable-row[data-is-secret="true"]').forEach(row => {
+            const key = row.querySelector('.key').value.trim();
+            const value = row.querySelector('.value').value;
+            if (key && value) {
+                secrets[key] = value;
+            }
+        });
+        if (Object.keys(secrets).length > 0) {
+            vscode.postMessage({ type: 'saveSecretVariables', environmentName: state.selectedEnvironment, secrets });
+        }
+    }
+
     // Save both
     vscode.postMessage({ type: 'saveSharedConfig', config: sharedConfig });
     vscode.postMessage({ type: 'saveLocalConfig', config: localConfig });
@@ -250,10 +328,19 @@ function collectEnvironments() {
     const result = {};
     Object.entries(state.sharedConfig.environments).forEach(([name, env]) => {
         if (name === state.selectedEnvironment) {
+            // Collect only non-secret rows — secret rows are saved separately via SecretStorage
+            const secretKeys = state.secretVariablesByEnv[name] || [];
+            const allVars = getVariablesFromContainer(elements.envVariables);
+            const plainVars = {};
+            Object.entries(allVars).forEach(([k, v]) => {
+                if (!secretKeys.includes(k)) plainVars[k] = v;
+            });
             result[name] = {
                 description: env.description,
                 requiresConfirmation: env.requiresConfirmation,
-                variables: getVariablesFromContainer(elements.envVariables)
+                variables: plainVars,
+                // Preserve secretVariables list; updated by promoteToSecret/demoteFromSecret
+                secretVariables: env.secretVariables
             };
         } else {
             result[name] = env;
@@ -306,29 +393,52 @@ window.addEventListener('message', event => {
         case 'init':
             state.sharedConfig = message.data.sharedConfig;
             state.localConfig = message.data.localConfig;
-            
+            state.secretVariablesByEnv = message.data.secretVariablesByEnv || {};
+
             renderGlobalVariables();
             renderDefaultHeaders();
-            
+
             // Select environment: use provided one, or first available
             const envNames = Object.keys(state.sharedConfig?.environments || {});
             const targetEnv = message.data.selectedEnvironment && envNames.includes(message.data.selectedEnvironment)
                 ? message.data.selectedEnvironment
                 : envNames[0];
-            
+
             if (targetEnv) {
                 selectEnvironment(targetEnv);
             }
             break;
 
+        case 'secretDeleted':
+            // Remove the deleted key from local state and re-render
+            if (message.environmentName && message.key) {
+                const envSecrets = state.secretVariablesByEnv[message.environmentName] || [];
+                state.secretVariablesByEnv[message.environmentName] = envSecrets.filter(k => k !== message.key);
+                if (message.environmentName === state.selectedEnvironment) {
+                    renderEnvironmentDetails();
+                }
+            }
+            elements.footerStatus.textContent = `🔓 Secret '${message.key}' removed from keychain`;
+            setTimeout(() => { if (!state.hasChanges) elements.footerStatus.textContent = ''; }, 3000);
+            break;
+
         case 'saveSuccess':
             state.hasChanges = false;
-            elements.footerStatus.textContent = `✓ ${message.configType} config saved`;
+            elements.footerStatus.textContent = `✓ ${message.configType} saved`;
             setTimeout(() => {
                 if (!state.hasChanges) {
                     elements.footerStatus.textContent = '';
                 }
             }, 3000);
+            if (message.configType === 'secrets') {
+                // Clear typed values from secret inputs — values are now in the keychain
+                elements.envVariables.querySelectorAll('.variable-row[data-is-secret="true"] .value').forEach(input => {
+                    input.value = '';
+                });
+            } else if (message.configType === 'promote' || message.configType === 'demote') {
+                // Re-request full state so secretVariablesByEnv reflects the change
+                vscode.postMessage({ type: 'ready' });
+            }
             break;
 
         case 'saveError':
