@@ -340,6 +340,43 @@ button.danger:hover {
     color: #f44336;
 }
 
+/* Secret variable rows — stored in OS keychain, not in files */
+.variable-row.secret-row {
+    background-color: rgba(255, 170, 0, 0.05);
+    border-radius: 4px;
+    padding: 2px 4px;
+    border-left: 2px solid var(--vscode-charts-yellow, #ffc107);
+}
+
+.variable-row .lock-btn {
+    padding: 6px 8px;
+    opacity: 0.55;
+    font-size: 13px;
+    flex: 0 0 auto;
+    transition: opacity 0.15s;
+}
+
+.variable-row .lock-btn:hover {
+    opacity: 1;
+}
+
+.variable-row .lock-btn.locked {
+    opacity: 0.85;
+    color: var(--vscode-charts-yellow, #ffc107);
+}
+
+.variable-row input.secret-value {
+    color: var(--vscode-charts-yellow, #ffc107);
+    font-family: monospace;
+    letter-spacing: 0.1em;
+}
+
+.variable-row input.secret-value::placeholder {
+    color: var(--vscode-charts-yellow, #ffc107);
+    opacity: 0.6;
+    font-style: italic;
+}
+
 /* Local variables styling */
 .local-vars {
     background-color: rgba(255, 255, 255, 0.03);

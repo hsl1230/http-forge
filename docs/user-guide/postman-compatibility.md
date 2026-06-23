@@ -42,7 +42,7 @@ Additional scope:
 | `pm.response.status` | `ctx.response.status` | status code |
 | `pm.response.reason()` | `ctx.response.statusText` | status text |
 | `pm.response.headers` | `ctx.response.headers` | headers object |
-| `pm.response.body` | `ctx.response.body` | body string |
+| `pm.response.body` | `ctx.response.body` | raw response **string** (parse with `json()`) |
 | `pm.response.json()` | `ctx.response.json()` | parse JSON |
 | `pm.response.text()` | `ctx.response.text()` | body as text |
 | `pm.response.responseTime` | `ctx.response.responseTime` | time (ms) |
@@ -111,6 +111,60 @@ pm.environment.set('authToken', token);
 - Cookies are handled automatically and exposed via `ctx.response.cookies`.
 - `pm.cookies.toObject()` returns a flat `{name: value}` map.
 - `pm.cookies.jar()` returns a cookie jar with `set()`, `get()`, `clear()`, `getAll()`.
+
+## Response body type
+
+Like Postman, `ctx.response.body` (and `pm.response.body`) is the **raw response string** — it is not eagerly parsed. Parse JSON on demand:
+
+```javascript
+// Postman-compatible: body is a string
+const data = pm.response.json();        // parses ctx.response.body
+const text = pm.response.text();        // raw string
+const obj  = JSON.parse(pm.response.body);
+```
+
+`json()` returns the parsed object (or `null` for non-JSON), and `text()` returns the raw string. An already-parsed object body is still tolerated for backward compatibility.
+
+## Legacy Postman globals
+
+Older Postman scripts and many Newman-exported collections rely on bare globals from the pre-`pm.*` sandbox. HTTP Forge injects these so legacy scripts run unmodified.
+
+Available in **both** pre-request and test scripts:
+
+| Global | Description |
+| --- | --- |
+| `request` | Plain snapshot: `{ id, name, description, url, method, headers, data }` (distinct from the rich `pm.request`) |
+| `environment` | Read snapshot of environment variables (write via `postman.setEnvironmentVariable()`) |
+| `globals` | Read snapshot of globals (write via `postman.setGlobalVariable()`) |
+| `data` | Current data-file / iteration row |
+| `iteration` | Iteration index |
+| `tv4` | JSON Schema validator (`tv4.validate(data, schema)`) — available when the optional `tv4` module is installed |
+
+Available in **test** scripts only:
+
+| Global | Description |
+| --- | --- |
+| `responseBody` | Raw response **string** (use `JSON.parse(responseBody)`) |
+| `responseCode` | `{ code, name, detail }` |
+| `responseHeaders` | Headers object |
+| `responseTime` | Response time in ms |
+| `responseCookies` | Array of `{ name, value }` |
+| `tests` | Legacy assertion bag: `tests['name'] = boolean` |
+| `postman.getResponseHeader(name)` | Case-insensitive header lookup (returns `null` if absent) |
+| `postman.getResponseCookie(name)` | Case-insensitive cookie lookup (returns `null` if absent) |
+
+The legacy `postman.*` namespace also provides variable helpers: `setNextRequest`, `setGlobalVariable` / `getGlobalVariable` / `clearGlobalVariable`, and `setEnvironmentVariable` / `getEnvironmentVariable` / `clearEnvironmentVariable`.
+
+> Note: `environment` and `globals` are read snapshots — direct assignment never persisted in legacy Postman either. Use the `postman.set*` helpers (or the modern `pm.environment.set()` / `pm.globals.set()`) to persist changes.
+
+Example (legacy-style test script):
+
+```javascript
+tests['status 200'] = responseCode.code === 200;
+tests['has token'] = JSON.parse(responseBody).token !== undefined;
+var ct = postman.getResponseHeader('Content-Type');
+tests['is json'] = /application\/json/.test(ct);
+```
 
 ## Execution flow control
 - `pm.execution.setNextRequest(name)` — Jump to a named request in suite runner

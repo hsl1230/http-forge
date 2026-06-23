@@ -23,6 +23,9 @@ import {
     IResultStorageService,
     IScriptExecutor,
     ITestSuiteService,
+    parseMcpToolName,
+    resolveFolderToken,
+    resolveToken,
     ResultStorageService,
     type Collection,
     type CollectionFolderItem,
@@ -177,16 +180,22 @@ function findRequestInCollection(
 function flattenCollection(
     collection: Collection,
     items: CollectionItem[] = collection.items,
-    folderChain: RequestScripts[] = []
-): Array<{ request: CollectionRequestItem; folderScriptsChain: RequestScripts[] }> {
-    const result: Array<{ request: CollectionRequestItem; folderScriptsChain: RequestScripts[] }> = [];
+    folderChain: RequestScripts[] = [],
+    folderNameChain: string[] = []
+): Array<{ request: CollectionRequestItem; folderScriptsChain: RequestScripts[]; folderPath: string }> {
+    const result: Array<{ request: CollectionRequestItem; folderScriptsChain: RequestScripts[]; folderPath: string }> = [];
     for (const item of items) {
         if (item.type === 'request') {
-            result.push({ request: item as CollectionRequestItem, folderScriptsChain: [...folderChain] });
+            result.push({
+                request: item as CollectionRequestItem,
+                folderScriptsChain: [...folderChain],
+                folderPath: folderNameChain.join('/')
+            });
         } else {
             const folder = item as CollectionFolderItem;
             const next = folder.scripts ? [...folderChain, folder.scripts] : [...folderChain];
-            result.push(...flattenCollection(collection, folder.items ?? [], next));
+            const nextNames = [...folderNameChain, folder.name];
+            result.push(...flattenCollection(collection, folder.items ?? [], next, nextNames));
         }
     }
     return result;
@@ -194,6 +203,10 @@ function flattenCollection(
 
 function esc(v: unknown): string {
     return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function slugifyFolderPath(folderPath: string): string {
+    return folderPath.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 function buildSingleRequestHtml(result: ExecutionResult, requestName: string): string {
@@ -378,27 +391,39 @@ export class McpExecutor {
     ) {}
 
     async call(toolName: string, args: Record<string, any>): Promise<string> {
-        if (toolName.startsWith('request__')) {
-            return JSON.stringify(await this.executeRequest(toolName, args), null, 2);
+        const prefix = this.configService.getMcpConfig().toolPrefix ?? '';
+        const bare = prefix && toolName.startsWith(prefix) ? toolName.slice(prefix.length) : toolName;
+        const parsed = parseMcpToolName(bare);
+        switch (parsed.kind) {
+            case 'request':
+                return JSON.stringify(await this.executeRequest(parsed.tokens, args), null, 2);
+            case 'collection':
+                return JSON.stringify(await this.runCollection(parsed.tokens, args), null, 2);
+            case 'folder':
+                return JSON.stringify(await this.runFolder(parsed.tokens, args), null, 2);
+            case 'suite':
+                return JSON.stringify(await this.runTestSuite(parsed.tokens, args), null, 2);
         }
-        if (toolName.startsWith('collection__')) {
-            return JSON.stringify(await this.runCollection(toolName, args), null, 2);
-        }
-        if (toolName.startsWith('suite__')) {
-            return JSON.stringify(await this.runTestSuite(toolName, args), null, 2);
-        }
-        throw new Error(`Unknown tool: ${toolName}`);
+    }
+
+    /** Resolve a collection token (hash or legacy raw id) to a collection. */
+    private resolveCollection(token: string): Collection {
+        const collections = this.collectionService.getAllCollections();
+        const colId = resolveToken(token, collections.map(c => c.id));
+        const collection = colId ? collections.find(c => c.id === colId) : undefined;
+        if (!collection) throw new Error(`Collection not found for tool token "${token}"`);
+        return collection;
     }
 
     // ── Single request ──────────────────────────────────────────────────
 
-    private async executeRequest(toolName: string, args: Record<string, any>): Promise<object> {
-        const [, colId, reqId] = toolName.split('__');
-        const collection = this.collectionService.getCollection(colId);
-        if (!collection) throw new Error(`Collection "${colId}" not found`);
+    private async executeRequest(tokens: string[], args: Record<string, any>): Promise<object> {
+        const [colToken, reqToken] = tokens;
+        const collection = this.resolveCollection(colToken);
 
-        const found = findRequestInCollection(collection, reqId);
-        if (!found) throw new Error(`Request "${reqId}" not found in collection "${collection.name}"`);
+        const requestId = resolveToken(reqToken, flattenCollection(collection).map(f => f.request.id));
+        const found = requestId ? findRequestInCollection(collection, requestId) : undefined;
+        if (!found) throw new Error(`Request not found in collection "${collection.name}"`);
 
         const env = args.environment ?? this.envConfigService.getSelectedEnvironment();
         const execReq = applyOverrides(toExecutionRequest(found.request), args);
@@ -431,15 +456,14 @@ export class McpExecutor {
     // ── Entire collection ───────────────────────────────────────────────
     // Refactored to use shared suite execution logic for consistency with UI
 
-    private async runCollection(toolName: string, args: Record<string, any>): Promise<object> {
-        const colId = toolName.split('__')[1];
-        const collection = this.collectionService.getCollection(colId);
-        if (!collection) throw new Error(`Collection "${colId}" not found`);
+    private async runCollection(tokens: string[], args: Record<string, any>): Promise<object> {
+        const collection = this.resolveCollection(tokens[0]);
+        const colId = collection.id;
 
         // Create a temporary suite from the collection (same as UI does)
         // This ensures collection runs and suite runs use identical execution logic
         const flat = flattenCollection(collection);
-        const suiteRequests = flat.map(({ request }) => ({
+        const suiteRequests = flat.map(({ request, folderPath }) => ({
             id: request.id,
             slug: request.id.toLowerCase().replace(/\s+/g, '-'),
             collectionId: collection.id,
@@ -447,7 +471,7 @@ export class McpExecutor {
             name: request.name,
             method: request.method,
             collectionName: collection.name,
-            folderPath: '',
+            folderPath,
             enabled: true
         }));
 
@@ -471,12 +495,73 @@ export class McpExecutor {
         return this.executeSuite(tempSuite, args, 'collection');
     }
 
+    // ── Single folder within a collection ───────────────────────────────
+    // Scopes a collection run to the requests under one folder. Recursive by
+    // default (set args.recursive === false for that folder level only).
+
+    private async runFolder(tokens: string[], args: Record<string, any>): Promise<object> {
+        const [colToken, folderToken] = tokens;
+        const collection = this.resolveCollection(colToken);
+        const colId = collection.id;
+
+        const folderPaths = this.registry.enumerateFolders(collection).map(f => f.folderPath);
+        const folderPath = resolveFolderToken(folderToken, folderPaths);
+        if (!folderPath) {
+            throw new Error(`Folder not found in collection "${collection.name}"`);
+        }
+
+        const recursive = args.recursive !== false;
+        const target = folderPath.replace(/\/+$/, '');
+        const flat = flattenCollection(collection).filter(({ folderPath: fp }) =>
+            recursive ? fp === target || fp.startsWith(`${target}/`) : fp === target
+        );
+
+        if (flat.length === 0) {
+            throw new Error(
+                `No requests found under folder "${folderPath}" in collection "${collection.name}"`
+            );
+        }
+
+        const suiteRequests = flat.map(({ request, folderPath: fp }) => ({
+            id: request.id,
+            slug: request.id.toLowerCase().replace(/\s+/g, '-'),
+            collectionId: collection.id,
+            requestId: request.id,
+            name: request.name,
+            method: request.method,
+            collectionName: collection.name,
+            folderPath: fp,
+            enabled: true
+        }));
+
+        const tempSuite = {
+            id: `temp-${colId}-${slugifyFolderPath(target)}`,
+            name: `${collection.name} / ${target}`,
+            requests: suiteRequests,
+            config: {
+                iterations: 1,
+                delay: 0,
+                stopOnError: args.stopOnError ?? false,
+                readFromSharedSession: false,
+                writeToSharedSession: false
+            },
+            isTemporary: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        // Reuse the shared suite execution logic; 'collection' keeps the
+        // response shape identical to a collection run.
+        return this.executeSuite(tempSuite, args, 'collection');
+    }
+
     // ── Test suite ──────────────────────────────────────────────────────
 
-    private async runTestSuite(toolName: string, args: Record<string, any>): Promise<object> {
-        const suiteId = toolName.split('__')[1];
-        const suite = await this.testSuiteService.getSuite(suiteId);
-        if (!suite) throw new Error(`Test suite "${suiteId}" not found`);
+    private async runTestSuite(tokens: string[], args: Record<string, any>): Promise<object> {
+        const suites = await this.testSuiteService.getAllSuites();
+        const suiteId = resolveToken(tokens[0], suites.map(s => s.id));
+        const suite = suiteId ? await this.testSuiteService.getSuite(suiteId) : undefined;
+        if (!suite) throw new Error(`Test suite not found for tool token "${tokens[0]}"`);
 
         // Use shared execution logic
         return this.executeSuite(suite, args, 'suite');

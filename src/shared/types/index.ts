@@ -128,7 +128,6 @@ export interface ExecutionResult {
     modifiedVariables?: Record<string, string>;
     modifiedEnvironmentVariables?: Record<string, string>;
     modifiedCollectionVariables?: Record<string, string>;
-    modifiedSessionVariables?: Record<string, string>;
     
     // Flow control (pm.execution.setNextRequest / pm.setNextRequest)
     nextRequest?: string | null;

@@ -13,4 +13,5 @@
 export { ConfigHandler } from './config-handler';
 export { EnvironmentCrudHandler } from './environment-handler';
 export { FileHandler } from './file-handler';
+export { SecretHandler } from './secret-handler';
 

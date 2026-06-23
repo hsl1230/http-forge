@@ -87,11 +87,17 @@ pm.test("Retry count: {{config.retries}}", () => { ... });
 
 ## Tests & assertions
 - `ctx.test(name, fn)` (sync and async callbacks supported)
+- `ctx.test.skip(name, fn?)` — record a skipped test (the callback is **not** executed)
+- `ctx.test.fail(name)` — record an immediate failure
+- `ctx.test.index()` — zero-based index of the next test in execution order
 - `ctx.expect(value)`
 - `ctx.response.to.have.status()`
 - `ctx.response.to.have.header()`
 - `ctx.response.to.have.jsonBody()`
+- `ctx.response.to.have.jsonSchema(schema)` — validate the JSON body against a JSON Schema (dependency-free)
 - `ctx.response.to.be.ok` / `.success` / `.error` / `.clientError` / `.serverError` (getters or functions)
+
+> The `pm.*` aliases (`pm.test`, `pm.expect`, `pm.response.to.have.jsonSchema`, …) behave identically. See the [Postman Compatibility Matrix](postman-compatibility-matrix.md) for the full mapping.
 
 ### Expect chain assertions
 | Method | Notes |
@@ -101,6 +107,7 @@ pm.test("Retry count: {{config.retries}}", () => { ... });
 | `.to.deep.equal()` | Deep equality (alias) |
 | `.to.have.property()` | Object property check |
 | `.to.include()` | Contains value |
+| `.to.contain()` | Contains value (alias of `.include()`; strings, arrays, objects) |
 | `.to.match()` | Regex match |
 | `.to.be.a()` / `.to.be.an()` | Type checking |
 | `.to.have.lengthOf()` | Array/string length |
@@ -150,6 +157,22 @@ ctx.test('has user id', () => {
 	ctx.expect(json).to.have.property('id');
 });
 ```
+
+## Example: validate JSON schema (built-in)
+```javascript
+ctx.test('user matches schema', () => {
+	ctx.response.to.have.jsonSchema({
+		type: 'object',
+		required: ['id', 'name'],
+		properties: {
+			id: { type: 'number' },
+			name: { type: 'string', minLength: 1 },
+			email: { type: 'string', pattern: '@' }
+		}
+	});
+});
+```
+The built-in validator is dependency-free and supports `type`, `properties`, `required`, `items`, `enum`, `additionalProperties`, `minimum`/`maximum`, `minLength`/`maxLength`, and `pattern`.
 
 ## Example: post‑response
 ```javascript

@@ -1,6 +1,6 @@
 # HTTP Forge 🔨
 
-**Design & Test APIs — Offline-First, AI-Ready, Postman-compatible.** Combines the power of Postman + Thunder Client + Swagger UI in a single, free, offline-first extension. Thunder Client-compatible filter pipes and inline JS expressions, full OpenAPI 3.0 round-trip, schema inference from real responses, collection-driven test suites, advanced scripting, and an **MCP server** so AI agents (Claude, Copilot) can discover and execute your requests directly — no account, no cloud, no compromises.
+**Design & Test APIs — Offline-First, AI-Ready, Postman-compatible.** Combines the power of Postman + Thunder Client + Swagger UI in a single, free extension. Thunder Client-compatible filter pipes and inline JS expressions, full OpenAPI 3.0 round-trip, schema inference from real responses, collection-driven test suites, and advanced scripting. Keep credentials safe with OS keychain and **cloud secret providers** (AWS, Azure, GCP, Vault, 1Password, Doppler), and expose your collections to AI agents (Claude, Copilot) through a built-in **MCP server** — no account, no cloud, no compromises.
 
 ## 🚀 Install
 
@@ -199,6 +199,8 @@ See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and
 - **Variable Substitution**: Use `{{variableName}}` anywhere in your requests
 - **Environment Inheritance**: Share common variables across environments
 - **Local Secrets**: Store sensitive data in gitignored files
+- **OS Keychain Secrets**: Promote environment variables to the OS keychain (Windows Credential Manager, macOS Keychain, Linux Secret Service) via VS Code SecretStorage — click the 🔒 lock icon on any variable row
+- **Cloud Secret Providers**: Reference secrets from AWS Secrets Manager, Azure Key Vault, Google Secret Manager, HashiCorp Vault, 1Password, and Doppler with `{{secret:alias/path}}` — credentials never stored in HTTP Forge ([guide](docs/user-guide/secret-providers.md))
 - **Environment Overrides**: `pm.environment.set()` persists to workspace state (like Postman)
 - **Type-safe Variables**: Store arrays, objects, numbers, and booleans — `get()` returns the exact type you stored
 - **File Watching**: Environment file changes auto-refresh the tree view and all open panels
@@ -270,6 +272,7 @@ Start here: [docs/user-guide/index.md](docs/user-guide/index.md)
 
 - [Extension (VS Code)](docs/user-guide/extension.md)
 - [CLI & Standalone](docs/user-guide/cli-standalone.md)
+- [Secret Providers](docs/user-guide/secret-providers.md)
 - [Codegen](docs/user-guide/codegen.md)
 - [Playwright Integration](docs/user-guide/playwright.md)
 - [MCP Server — AI Agent Integration](docs/user-guide/mcp-server.md)

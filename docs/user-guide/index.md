@@ -14,6 +14,7 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - [Collections & Requests](collections-requests.md)
 - [Environments & Variables](environments-variables.md) — includes Template Engine (filters, expressions, dynamic variables)
 - [Template Syntax Reference](template-syntax.md) — supported `{{ }}` variables, dynamic vars, filters, and expressions
+- [Secret Providers](secret-providers.md) — fetch secrets from AWS, Azure, GCP, Vault, 1Password, Doppler via `{{secret:alias/path}}`
 - [Request Tester](request-tester.md)
 - [Scripts & Assertions](scripts-assertions.md)
 - [Custom Modules](custom-modules.md)
@@ -24,6 +25,7 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - [Security & Sensitive Data](security.md) — automatic redaction of tokens, passwords, credentials in persisted files
 - [Import/Export & Postman Compatibility](import-export.md)
 - [Postman Compatibility Reference](postman-compatibility.md)
+- [Postman Compatibility Matrix](postman-compatibility-matrix.md)
 - [HTTP Forge vs Postman](comparison-postman.md)
 - [Public API for Extensions](public-api.md)
 

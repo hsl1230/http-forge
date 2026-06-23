@@ -18,11 +18,12 @@
  * @param {Object} options.elements - DOM elements
  * @param {Object} options.vscode - VS Code API
  * @param {Object} options.editorsManager - Monaco editors manager
- * @param {Function} options.getRequestUrl - Returns current request URL
+ * @param {Function} options.getRequestUrl - Returns current raw request URL
+ * @param {Function} [options.getResolvedRequestUrl] - Returns resolved URL preview if available
  * @param {Function} options.getHeaders - Returns current request headers
  * @returns {Object} GraphQL schema manager interface
  */
-export function createGraphQLSchemaManager({ state, elements, vscode, editorsManager, getRequestUrl, getHeaders }) {
+export function createGraphQLSchemaManager({ state, elements, vscode, editorsManager, getRequestUrl, getResolvedRequestUrl, getHeaders }) {
     /** @type {any|null} Cached schema data from backend */
     let schemaData = null;
     /** @type {any|null} Monaco completion provider disposable */
@@ -104,7 +105,8 @@ export function createGraphQLSchemaManager({ state, elements, vscode, editorsMan
     function fetchSchema() {
         if (isFetching) return;
 
-        const endpointUrl = getRequestUrl();
+        const endpointUrl = (typeof getResolvedRequestUrl === 'function' && getResolvedRequestUrl())
+            || getRequestUrl();
         if (!endpointUrl) {
             setStatus('⚠ Enter a URL first', 'warning');
             return;

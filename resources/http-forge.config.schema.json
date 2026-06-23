@@ -73,6 +73,18 @@
           },
           "default": ["./src", "./lib"],
           "description": "Paths to search for custom modules in pre/post request scripts. Relative to workspace root."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["shared", "isolated"],
+          "default": "shared",
+          "description": "Script scope mode. 'shared' (default): all script levels and the pre/post phases share one JavaScript scope. 'isolated': each script level runs in its own scope (Postman-compatible); state passes through pm.variables/pm.environment/pm.globals."
+        },
+        "timeout": {
+          "type": "number",
+          "minimum": 0,
+          "default": 5000,
+          "description": "Per-script timeout in milliseconds. Bounds both the synchronous script CPU guard and the async event-loop drain budget (pending setTimeout / un-awaited Promises) the runner waits on before advancing to the next request."
         }
       }
     },

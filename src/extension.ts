@@ -456,6 +456,21 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.runFolder, async (item: CollectionTreeItem) => {
+      if (item?.collectionId && item.itemType === 'folder' && testSuiteService) {
+        // Folder runs are recursive: include requests in nested subfolders.
+        const folderPath = (item.itemPath ?? []).join('/');
+        const tempSuite = await testSuiteService.createTempSuiteFromFolder(item.collectionId, folderPath, true);
+        if (tempSuite) {
+          TestSuitePanel.createOrShow(context.extensionUri, tempSuite, testSuiteService);
+        } else {
+          vscode.window.showWarningMessage(`No requests found under folder "${folderPath}".`);
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.importCollection, async () => {
       const fileUri = await vscode.window.showOpenDialog({
         canSelectFiles: true,
@@ -469,7 +484,10 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
 
       if (fileUri?.[0]) {
         try {
-          const collection = await collectionService.importCollection(fileUri[0].fsPath);
+          const collection = await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: 'Importing collection...' },
+            () => collectionService.importCollection(fileUri[0].fsPath)
+          );
           collectionsTreeProvider.refresh();
           vscode.window.showInformationMessage(`Imported collection "${collection.name}"`);
         } catch (error) {
@@ -1311,10 +1329,13 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
       try {
         const container = getServiceContainer();
         const importer = container.resolve<OpenApiImporter>(ServiceIdentifiers.OpenApiImporter);
-        const result = await importer.import(filePath, {
-          collectionName,
-          environmentName: createEnvs.value ? collectionName : undefined
-        });
+        const result = await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: 'Importing OpenAPI spec...' },
+          () => importer.import(filePath, {
+            collectionName,
+            environmentName: createEnvs.value ? collectionName : undefined
+          })
+        );
 
         collectionsTreeProvider.refresh();
         if (result.environmentCreated) {

@@ -30,7 +30,7 @@ This document describes the `ctx` script API with full Postman compatibility. Th
 | `pm.variables.toObject()` | `ctx.variables.toObject()` | ✅ | |
 | `pm.environment.*` | `ctx.environment.*` | ✅ | All methods |
 | `pm.collectionVariables.*` | `ctx.collectionVariables.*` | ✅ | All methods - **Collection scope** |
-| `pm.globals.*` | `ctx.globals.*` | ✅ | All methods - **Workspace-wide scope** |
+| `pm.globals.*` | `ctx.globals.*` | ✅ | All methods - **Workspace-wide scope, persists across requests** |
 
 ### Post-response Script Context
 
@@ -269,6 +269,13 @@ ctx.sendRequest({
 });
 ```
 
+> **Global variable persistence:** values written with `pm.globals.set()` /
+> `ctx.globals.set()` are saved to the shared global store immediately and are
+> visible to every later request in the run (same live mechanism as
+> `pm.environment.set()`). Globals declared in `_global.json` act as defaults —
+> `pm.globals.unset()` / `clear()` remove session-set globals but leave the
+> file-defined defaults in place.
+
 ## Compatibility Alias
 
 The script context is available through three equivalent aliases - `agl`, `pm`, and `ctx`:
@@ -285,6 +292,70 @@ Use whichever feels most natural for your workflow:
 - `agl` - AGL native syntax
 - `pm` - Postman compatibility (drop-in replacement)
 - `ctx` - Concise context alias
+
+## Script Scope
+
+Postman runs every script (collection, folder, request — and the pre-request vs. post-response phases) in its **own isolated sandbox**. State is shared only through `pm.variables` / `pm.environment` / `pm.globals`.
+
+HTTP Forge supports two modes, selected via `scripts.scope` in `http-forge.config.json`:
+
+| Mode | Behavior |
+|---|---|
+| `"shared"` *(default)* | All script levels (collection → folder → request) and both phases run in **one shared scope**. Variables/functions declared in an earlier script are visible to later scripts, and top-level `var`/`function` declarations from the pre-request phase persist into the post-response phase. Lowest overhead. |
+| `"isolated"` | Each script level runs in **its own scope** (Postman-compatible). Declarations cannot collide between levels or leak across phases; share state through `pm.variables` / `pm.environment` / `pm.globals`. |
+
+```jsonc
+// http-forge.config.json
+{
+  "scripts": {
+    "scope": "isolated"   // Postman-compatible; omit or "shared" for default behavior
+  }
+}
+```
+
+**When to use `"isolated"`:** importing Postman collections whose scripts declare the same `const`/`function`/`let` at multiple levels (which throws `Identifier already declared` in shared mode), or any time you want strict Postman scoping semantics.
+
+> **Note:** In `shared` mode only `var`/`function`/global assignments leak across the pre-request → post-response boundary; top-level `let`/`const` are scoped to a single phase and do **not** persist. Always pass cross-phase state through `pm.*` for predictable behavior.
+
+## Async Script Execution (Event-Loop Draining)
+
+Postman does **not** end a script the moment its synchronous code returns. It keeps the sandbox alive and pumps the event loop until pending timers (`setTimeout`/`setInterval`) and microtasks (un-awaited `Promise`s) settle, bounded by a script timeout. Variable scopes are committed **after** the loop drains, so deferred `pm.globals` / `pm.environment` / `pm.variables` writes are still visible to the next request — even without `await`.
+
+HTTP Forge replicates this lifecycle:
+
+| Behavior | HTTP Forge | Notes |
+|---|---|---|
+| Sandbox kept alive after sync return | ✅ | Pending timers/microtasks drained before the request advances |
+| No `await` required for deferred writes | ✅ | `setTimeout(() => pm.globals.set(...), 2000)` is committed for the next request |
+| Un-awaited Promises complete | ✅ | Late `pm.*` writes from a fire-and-forget `async` IIFE are captured |
+| Nested timers drain | ✅ | A `setTimeout` that schedules another `setTimeout` drains within the budget |
+| Errors in deferred callbacks are non-fatal | ✅ | Reported as a console error; the request/test is **not** failed |
+| Infinite timers bounded | ✅ | A runaway `setInterval`/timer loop is force-cancelled at the timeout |
+
+The budget is the `scripts.timeout` config value (default **5000 ms**), which bounds **both** synchronous CPU time and the asynchronous drain window. When exceeded, pending async work is cancelled and a warning is logged.
+
+```javascript
+// Post-response script — no await needed; the value is committed for the next request
+setTimeout(() => {
+  pm.globals.set('authToken', generateToken());
+}, 1500);
+```
+
+```jsonc
+// http-forge.config.json — raise the budget for slow async work
+{
+  "scripts": {
+    "timeout": 10000
+  }
+}
+```
+
+### Divergences from Postman
+
+- HTTP Forge uses **real Node timers** with a poll-based wall-clock drain rather than Postman's bridged sandbox loop. There is no exact pending-promise count, so pathological microtask recursion is bounded by the wall-clock budget rather than a precise idle signal.
+- A `setInterval` that is never cleared runs until the budget, then is force-cleared (matching Postman's "bounded by timeout" guarantee).
+- A single `scripts.timeout` value bounds both CPU time and the async-drain window (rather than two separate limits).
+- Scripts with no pending async work return immediately — draining adds no measurable latency.
 
 ## Migration from Postman
 

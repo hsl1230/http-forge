@@ -66,7 +66,6 @@ export interface EnvironmentData {
   selectedEnvironment: string;
   resolvedEnvironment: any;
   globalVariables: Record<string, string>;
-  sessionVariables: Record<string, string>;
 }
 
 /**

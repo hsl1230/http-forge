@@ -157,7 +157,24 @@ By default the AI only sees `status`, `ok`, `body`, and test results. Ask for mo
 
 ---
 
-### 5. Run a test suite
+### 5. Run a folder within a collection
+
+Every folder in every collection is exposed as its own tool (`folder__<collectionId>__<path>`), so the AI can run just part of a collection. Folder runs are **recursive by default** (they include nested subfolders); ask to exclude subfolders to scope to that level only.
+
+**Basic run:**
+> "Run the Auth/Login folder in the MyApp collection and tell me if everything passed"
+
+> "Run just the Users folder from the API collection on staging"
+
+**Only the folder's own requests (no subfolders):**
+> "Run only the requests directly in the Checkout folder — skip its subfolders"
+
+**Multiple iterations:**
+> "Run the Payments/Refunds folder 5 times and report the failure rate"
+
+---
+
+### 6. Run a test suite
 
 **Basic run:**
 > "Run the Regression suite and summarize the results"
@@ -176,7 +193,7 @@ By default the AI only sees `status`, `ok`, `body`, and test results. Ask for mo
 
 ---
 
-### 6. Chain requests — use output from one as input to the next
+### 7. Chain requests — use output from one as input to the next
 
 This is the most powerful pattern. Your existing post-response scripts set variables automatically (via `pm.environment.set()`), and the AI passes them to the next call.
 
@@ -195,7 +212,7 @@ The AI will:
 
 ---
 
-### 7. Compare environments
+### 8. Compare environments
 
 > "Run GET /api/config on dev and staging and tell me if the responses are different"
 
@@ -203,7 +220,7 @@ The AI calls the same request twice with different environments and compares the
 
 ---
 
-### 8. Validate after deployment
+### 9. Validate after deployment
 
 > "Run the Smoke Test suite on production and tell me if I'm safe to proceed"
 

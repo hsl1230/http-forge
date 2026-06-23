@@ -34,6 +34,9 @@ The environment dropdown controls:
 - Default headers
 - Environment‑specific credentials
 
+### Active run environment (CLI & multi-request runs)
+During a collection or suite run, variables written by scripts (`pm.environment.set()`) are stored against the **environment the run is using**, and subsequent requests in the same run resolve `{{var}}` against that same environment. This makes chained requests work even when running headless — e.g. `http-forge run-suite smoke --env auth` — where the run's `--env` differs from the environment currently selected in the UI. A later request can read a token set by an earlier request without it leaking into, or being read from, the selected environment.
+
 ## Local secrets
 Store secrets in gitignored `.local.json` files alongside your environment configs.
 Reference them by name from environments or scripts.
@@ -47,6 +50,65 @@ http-forge/environments/
 ├── _secrets.json
 └── dev.json
 ```
+
+## OS Keychain secrets (recommended)
+
+For the strongest protection, store secret variable values in the **OS keychain** (Windows Credential Manager, macOS Keychain, or Linux Secret Service) via VS Code's `SecretStorage` API. Values stored this way:
+
+- Never appear in any JSON file on disk
+- Are never committed to version control
+- Survive VS Code restarts — values are retrieved from the OS keychain on startup
+- Are resolved transparently via `{{varName}}` — no change to request syntax needed
+
+### How to use
+
+1. Open **Environment Settings** (gear icon in the Environments sidebar)
+2. Select an environment
+3. Add a variable row with the key name (e.g. `apiKey`)
+4. Click the 🔒 lock icon on that row — the value moves to the keychain
+5. The row now shows `••••••` — the plaintext value is no longer stored in the config file
+
+To update the value: type a new value into the masked input and click **Save**.  
+To remove it from the keychain entirely: click the `×` remove button on the secret row.  
+To move it back to plaintext: click the 🔒 icon again (demote).
+
+### Usage in requests
+
+Reference the secret variable exactly like any other:
+```
+Authorization: Bearer {{apiKey}}
+GET {{baseUrl}}/users
+```
+
+The template engine resolves `{{apiKey}}` from the secure cache at execution time.
+
+### CI/CD (no keychain available)
+
+In headless environments, inject secret values via the `--var` flag or environment variables:
+```bash
+# --var flag
+http-forge run-suite smoke --env prod --var apiKey=$API_KEY
+
+# or via process.env (automatically bridged)
+API_KEY=mytoken http-forge run-suite smoke --env prod
+```
+
+See [CLI Reference](../cli/README.md) for full details.
+
+## Cloud secret providers (`{{secret:alias/path}}`)
+
+For team environments and CI/CD pipelines, reference secrets stored in external vaults directly in request files using the `{{secret:alias/path}}` syntax. No value is ever stored in HTTP Forge — the provider fetches it at execution time using your ambient credentials.
+
+| Provider | Token syntax |
+|---|---|
+| AWS Secrets Manager | `{{secret:aws/myapp/prod#field}}` |
+| Azure Key Vault | `{{secret:azure/my-secret-name}}` |
+| Google Secret Manager | `{{secret:gcp/my-secret-name}}` |
+| HashiCorp Vault | `{{secret:vault/myapp/prod#field}}` |
+| 1Password | `{{secret:op/item-name/field}}` |
+| Doppler | `{{secret:doppler/API_KEY}}` |
+
+All six aliases work zero-config when the matching credentials/env vars are present. For setup, per-provider configuration, SDK installation, and CLI/CI usage, see the **[Secret Providers guide](secret-providers.md)**.
 
 ## File watching
 Changes to environment JSON files automatically:

@@ -1,8 +1,8 @@
 {
   "name": "http-forge",
-  "displayName": "HTTP Forge - REST API Designer & Tester (Free Postman & Thunder Client Alternative)",
-  "description": "Design, test, and manage REST & GraphQL APIs in VS Code. GraphQL schema introspection, context-aware auto-complete, syntax highlighting, and Schema Explorer. Thunder Client-compatible filter pipes (25+ filters), inline JS expressions, and dynamic variables in {{}}. Full request builder with OAuth 2.0 (PKCE), Bearer, Basic, and API Key auth. OpenAPI import/export, schema editor with inference, codegen, Playwright integration, and test suites with assertions. Postman-compatible scripting and collection import. Git-friendly file storage — no account required.",
-  "version": "0.12.2",
+  "displayName": "HTTP Forge — Free Postman Alternative (AI-Ready, Git-native, CI-friendly)",
+  "description": "Design and test REST & GraphQL APIs with AI superpowers. No account, no cloud — your collections live in Git. OAuth 2.0 (PKCE), test suites with assertions, OpenAPI round-trip, and Postman import. Secrets from OS keychain, AWS, Azure, GCP, Vault, 1Password & Doppler — never stored on disk. Template engine with 25+ filter pipes and inline JS. MCP server lets Claude and GitHub Copilot discover and run your APIs directly. CLI- and CI-friendly — run collections and suites headless.",
+  "version": "0.13.7",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -19,6 +19,7 @@
   },
   "categories": [
     "Testing",
+    "AI",
     "Other"
   ],
   "keywords": [
@@ -27,24 +28,30 @@
     "postman replacement",
     "thunder client",
     "thunder client alternative",
-    "free thunder client",
     "postman import",
     "http",
     "api",
-    "testing",
-    "rest-client",
     "rest",
-    "insomnia",
-    "request",
-    "api-client",
-    "http-client",
-    "api testing",
-    "api development",
     "graphql",
-    "collection runner",
-    "template engine",
-    "filter pipes",
-    "openapi"
+    "api testing",
+    "api client",
+    "http-client",
+    "test suite",
+    "test runner",
+    "openapi",
+    "oauth2",
+    "mcp",
+    "mcp server",
+    "ai agent",
+    "model context protocol",
+    "ci",
+    "github actions",
+    "offline",
+    "insomnia",
+    "secrets",
+    "secrets manager",
+    "vault",
+    "key vault"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
@@ -162,6 +169,11 @@
       {
         "command": "httpForge.runCollection",
         "title": "Run Collection",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "httpForge.runFolder",
+        "title": "Run Folder",
         "icon": "$(run-all)"
       },
       {
@@ -447,6 +459,11 @@
           "group": "2_run@1"
         },
         {
+          "command": "httpForge.runFolder",
+          "when": "view == httpForge.collections && viewItem == folder",
+          "group": "2_run@1"
+        },
+        {
           "command": "httpForge.editCollection",
           "when": "view == httpForge.collections && viewItem == collection",
           "group": "3_edit@1"
@@ -606,7 +623,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.3.3",
+    "@http-forge/core": "^0.4.8",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

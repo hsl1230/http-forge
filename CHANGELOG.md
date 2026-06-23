@@ -5,6 +5,146 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.13.7 - 2026-06-23
+
+### Changed
+
+- **Response body is now a raw string (Postman parity)**: `pm.response.body` is no
+  longer eagerly parsed — it holds the raw response text, matching Postman. Use
+  `pm.response.json()` to parse or `pm.response.text()` for the string. The legacy
+  `responseBody` global is likewise always a string. Existing scripts that read
+  parsed objects keep working via `json()`/`text()` and the response assertions.
+  See [docs/user-guide/postman-compatibility.md](docs/user-guide/postman-compatibility.md).
+
+### Added
+
+- **Legacy Postman sandbox globals** so older scripts and Newman-exported
+  collections run unmodified: `request`, `environment`, `globals`, `data`,
+  `iteration` (both phases) and `responseBody`, `responseCode`, `responseHeaders`,
+  `responseTime`, `responseCookies`, `tests[...]`, plus
+  `postman.getResponseHeader()` / `postman.getResponseCookie()` (test phase), and
+  the `tv4` JSON Schema validator global.
+
+
+### Fixed
+
+- **MCP tool names no longer exceed the 128-character limit** enforced by
+  providers such as Anthropic. Names now use short deterministic hash tokens
+  instead of the long embedded IDs; calls resolve back to the right
+  request/collection/folder/suite by scanning current items (with a legacy
+  fallback for already-listed names). Tool **descriptions** were also hardened to
+  consistently name the request/folder/collection for better fuzzy matching.
+
+## 0.13.6 - 2026-06-23
+
+### Added
+
+- **Postman-compatible async script execution**: scripts no longer end the moment
+  their synchronous code returns. Pending timers (`setTimeout`/`setInterval`) and
+  un-awaited Promises are drained before the request advances, so deferred
+  `pm.globals` / `pm.environment` / `pm.variables` writes are committed for the
+  next request — **without** needing `await`. Errors thrown inside timer/Promise
+  callbacks are reported as non-fatal console errors, and runaway timers are
+  bounded by the script timeout. See
+  [docs/postman-compatibility.md](docs/postman-compatibility.md).
+- **`scripts.timeout` config** (default `5000` ms): a per-script budget that
+  bounds both synchronous CPU time and the asynchronous drain window. See
+  [docs/configuration.md](docs/configuration.md).
+
+## 0.13.5 - 2026-06-22
+
+### Fixed
+
+- **`pm.globals` now persists across requests**: a global set with
+  `pm.globals.set()` in one request (or in a pre-request script) is now visible to
+  later requests in the same run, matching Postman's workspace-wide scope.
+  Globals share the same live persistence mechanism as environment variables, so
+  `unset()` and `clear()` propagate too. Globals defined in `_global.json` act as
+  defaults and are not removed by `unset()` / `clear()` (only session-set globals
+  are).
+
+## 0.13.4 - 2026-06-22
+
+### Added
+
+- **Configurable script scope** (`scripts.scope` in `http-forge.config.json`):
+  choose `"shared"` (default — all script levels and both phases share one scope)
+  or `"isolated"` (Postman-compatible — each level runs in its own scope, sharing
+  state only through `pm.variables` / `pm.environment` / `pm.globals`). Use
+  `"isolated"` for Postman collections that re-declare the same identifiers at
+  multiple levels. See [docs/configuration.md](docs/configuration.md) and
+  [docs/postman-compatibility.md](docs/postman-compatibility.md).
+
+## 0.13.3 - 2026-06-22
+
+### Added
+
+- **Import progress feedback**: importing an OpenAPI spec now shows a progress
+  notification ("Importing OpenAPI spec…"), matching the Postman collection
+  import. The Collections tree refreshes once the import completes.
+
+### Changed
+
+- **Faster, quieter collection imports**: the collections filesystem watcher is
+  now debounced, so a single import no longer triggers repeated tree reloads
+  while files are still being written. This removes the burst of
+  `Unexpected end of JSON input` warnings and noticeably speeds up importing
+  large Postman/OpenAPI collections.
+
+
+## 0.13.2 - 2026-06-22
+
+- **Run Folder**: you can now run an individual folder inside a collection. Right-click any folder in the **Collections** tree and choose **Run Folder** — it opens the same Test Suite runner used by **Run Collection**, scoped to just that folder's requests (including nested subfolders). The results, Statistics, grouping, and HTML report are identical to a collection run, and you can **Save** the run as a reusable suite (named `Collection / Folder`).
+  - **CLI**: a new `run-folder` command runs a folder headlessly: `http-forge run-folder --collection <id> --folder "Auth/Login"`. Use `--no-recursive` to run only the requests directly in that folder (excluding subfolders). All other `run-collection` options (`--environment`, `--var`, `--iterations`, `--stop-on-error`, `--delay`, `--include`, `--output`) are supported.
+  - **MCP**: the MCP server now exposes a per-folder tool (`folder__<collectionId>__<path>`) for every folder in every collection, alongside the existing request/collection/suite tools. The tool accepts an optional `recursive` argument (default `true`).
+
+## 0.13.1 - 2026-06-19
+
+### Added
+
+- **Grouped test-suite results**: the Test Suite results list now groups requests by **iteration**, then by **collection + folder** (matching the HTML report). Group headers carry the collection/folder path so each result row only needs the request name. Redundant `NN - ` numeric prefixes are stripped from folder segments.
+- **Statistics — request labels + call counts**: the Statistics tab's Response Time table now shows the full `Collection › Folder › Request` label for each row and a new **Calls** column with the number of executions per request.
+- **CLI runs appear in the History tab**: because the core runtime now always persists results, suite/collection runs executed from the CLI (even without `--include report`) show up in the VS Code **History** tab and can be loaded into the Results and Statistics tabs.
+- **Postman Compatibility Matrix** guide ([docs/user-guide/postman-compatibility-matrix.md](docs/user-guide/postman-compatibility-matrix.md)) documenting supported `pm.*` script APIs and their status, including the newly added `.contain()`, `pm.response.to.have.jsonSchema()`, and `pm.test.skip()` / `fail()` / `index()`.
+
+### Changed
+
+- **GraphQL schema introspection uses the resolved URL**: fetching a GraphQL schema in the Request Tester now uses the resolved URL preview (with `{{variables}}` substituted) when available, falling back to the raw URL.
+- **Jump-to-request expands ancestors**: clicking a request link in the HTML report timeline now opens all parent collapsible sections so the target detail is visible.
+
+### Internal
+
+- **Test Suite webview split into ES modules**: the monolithic `resources/features/test-suite/modules/main.js` was split into focused modules (`state`, `utils`, `statistics`, `results-view`, `suite-editor`, `run`, `history`, and a small `main` entry point) bundled by esbuild. No behavior change.
+
+## 0.13.0 - 2026-06-18
+
+### Added
+
+- **Phase 3 — Cloud secret providers (`{{secret:alias/path}}`)**: Secrets stored in external vaults can now be referenced directly in request URLs, headers, body, and auth fields using the `{{secret:alias/path}}` template syntax. Supported providers:
+  - **AWS Secrets Manager** — AWS SDK default credential chain (env vars, IAM roles, ECS task roles); supports `#jsonField`
+  - **Azure Key Vault** — `DefaultAzureCredential` (env vars, managed identity, CLI login); supports `/version`
+  - **Google Secret Manager** — Application Default Credentials; supports `/versions/<n>`
+  - **HashiCorp Vault (KV v2)** — `VAULT_TOKEN` + `VAULT_ADDR`, optional `mountPath` and `X-Vault-Namespace`; no SDK required (built-in `fetch`)
+  - **1Password** — `op` CLI session or `OP_SERVICE_ACCOUNT_TOKEN` service account (optional `@1password/sdk`)
+  - **Doppler** — `DOPPLER_TOKEN` service token; no SDK required (built-in `https`)
+  - Credentials are **never stored** in HTTP Forge — each provider delegates to its SDK/CLI/env default chain
+  - All six providers work **zero-config** when the matching credentials/env vars are present; configure or add aliases in `http-forge.config.json` under `secrets.providers`
+  - Cloud SDKs are **not bundled** with the extension — they're loaded on demand from the project's `scripts.modulePaths`, keeping the extension slim
+  - Tokens are resolved in parallel before variable interpolation; results are request-scoped (no cross-request leakage)
+  - See the [Secret Providers guide](docs/user-guide/secret-providers.md)
+
+- **Phase 2 — OS Keychain secrets (VS Code SecretStorage)**: Environment variables can now be promoted to the OS keychain (Windows Credential Manager, macOS Keychain, Linux Secret Service) directly from the Environment Settings UI. Click the 🔒 lock icon on any environment variable row to promote it. Keychain secrets:
+  - Never appear in any JSON file or git history
+  - Survive VS Code restarts
+  - Are resolved transparently via `{{varName}}` syntax — no change to request files
+  - Can be demoted back to plaintext at any time
+
+- **Phase 1 — CLI `--var` flag + `process.env` bridge**: The `@http-forge/cli` now accepts `--var KEY=VALUE` (repeatable) for injecting variables at runtime, and automatically bridges all `process.env` variables at lowest priority. This enables secret injection in CI/CD pipelines without storing values in config files:
+  ```bash
+  API_KEY=$SECRET http-forge run-suite smoke --env prod
+  http-forge run-suite smoke --env prod --var apiKey=$SECRET
+  ```
+
 ## 0.12.2 - 2026-06-17
 
 ### Changed
