@@ -81,6 +81,7 @@ export const COMMAND_IDS = {
     duplicateFolder: 'httpForge.duplicateFolder',
     renameItem: 'httpForge.renameItem',
     runCollection: 'httpForge.runCollection',
+    runFolder: 'httpForge.runFolder',
     editCollection: 'httpForge.editCollection',
     selectEnvironment: 'httpForge.selectEnvironment',
     editEnvironment: 'httpForge.editEnvironment',

@@ -2,6 +2,17 @@
 
 ## Import
 
+Both collection imports (Postman and OpenAPI) run behind a progress notification
+("Importing collection…" / "Importing OpenAPI spec…") so you get clear feedback
+while large specs are written to disk. The Collections tree refreshes once when
+the import completes.
+
+> **Large imports:** the collection is built entirely in memory and persisted in a
+> single save pass, and the filesystem watcher that refreshes the tree is
+> debounced — so importing a large collection no longer triggers repeated
+> mid-write reloads (and the transient `Unexpected end of JSON input` warnings
+> that came with them).
+
 ### Import Postman Collection
 You can import Postman collections (v2.1). Imported collections are saved under `storage.root/collections`.
 

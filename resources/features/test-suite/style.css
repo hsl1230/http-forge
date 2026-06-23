@@ -910,6 +910,57 @@ body {
     transition: background-color 0.15s ease;
 }
 
+/* Grouping headers in the results list (iteration + collection/folder) */
+.result-iter-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    font-weight: 700;
+    font-size: 0.95em;
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-sideBar-background);
+    border-bottom: 1px solid var(--panel-border);
+    border-left: 3px solid var(--vscode-focusBorder, #2196f3);
+}
+
+.result-group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px 6px 22px;
+    box-sizing: border-box;
+    font-weight: 600;
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    background-color: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.03));
+    border-bottom: 1px solid var(--panel-border);
+    cursor: pointer;
+    user-select: none;
+}
+
+.result-group-header:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.result-group-header .group-header-toggle {
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+}
+
+.result-group-header .group-header-icon {
+    flex-shrink: 0;
+}
+
+.result-group-header .group-header-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .result-item:last-child {
     border-bottom: none;
 }
@@ -1081,6 +1132,28 @@ body {
 .stats-table td:first-child {
     font-family: inherit;
     font-weight: 500;
+}
+
+.stat-request-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+}
+
+.stat-collection-path {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.85em;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stat-request-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .stats-table tbody tr:hover {

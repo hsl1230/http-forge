@@ -98,6 +98,7 @@ class RequestTesterApp {
         // URL preview request tracking
         this.previewRequestSequence = 0;
         this.latestPreviewRequestSequence = 0;
+        this.latestResolvedUrlPreview = '';
         this.debouncedResolveUrlPreview = this.debounce(() => this.requestUrlPreview(), 500);
     }
 
@@ -216,6 +217,7 @@ class RequestTesterApp {
             vscode,
             editorsManager: this.editorsManager,
             getRequestUrl: () => this.getPath(),
+            getResolvedRequestUrl: () => this.latestResolvedUrlPreview,
             getHeaders: () => this.getHeaders()
         });
     }
@@ -723,6 +725,7 @@ class RequestTesterApp {
     handlePathInputChange() {
         const currentUrl = this.elements.requestPathInput.value;
         this.state.requestPath = currentUrl;
+        this.latestResolvedUrlPreview = '';
         
         // Two-way sync: parse URL and merge params to table
         const keyEditable = !this.state.readonly;
@@ -1134,12 +1137,16 @@ class RequestTesterApp {
         }
 
         if (msg.error) {
+            this.latestResolvedUrlPreview = '';
             console.warn('[RequestTesterApp] URL preview resolution failed:', msg.error);
             return;
         }
 
         if (this.elements.urlPreview && typeof msg.url === 'string' && msg.url) {
+            this.latestResolvedUrlPreview = msg.url;
             this.elements.urlPreview.textContent = msg.url;
+        } else {
+            this.latestResolvedUrlPreview = '';
         }
     }
 

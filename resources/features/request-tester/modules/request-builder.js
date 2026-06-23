@@ -196,19 +196,13 @@ function createRequestBuilder({ elements, state, getMethod, getPath }) {
                 };
             
             case 'graphql':
-                let variables = {};
-                try {
-                    if (state.graphql?.variables?.trim()) {
-                        variables = JSON.parse(state.graphql.variables);
-                    }
-                } catch (e) {
-                    console.warn('Invalid GraphQL variables JSON');
-                }
+                const rawVariables = state.graphql?.variables?.trim();
                 return {
                     type: 'graphql',
                     content: {
                         query: state.graphql?.query || '',
-                        variables,
+                        // Keep raw text so {{env_var}} templates are resolved at runtime.
+                        ...(rawVariables ? { variables: rawVariables } : {}),
                         operationName: state.graphql?.operationName || undefined
                     }
                 };

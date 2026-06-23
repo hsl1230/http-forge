@@ -13,7 +13,9 @@
     "strictSSL": true
   },
   "scripts": {
-    "modulePaths": ["./src", "./lib"]
+    "modulePaths": ["./src", "./lib"],
+    "scope": "shared",
+    "timeout": 5000
   },
   "runner": {
     "resultsRetentionDays": 7,

@@ -34,6 +34,9 @@ The environment dropdown controls:
 - Default headers
 - Environment‑specific credentials
 
+### Active run environment (CLI & multi-request runs)
+During a collection or suite run, variables written by scripts (`pm.environment.set()`) are stored against the **environment the run is using**, and subsequent requests in the same run resolve `{{var}}` against that same environment. This makes chained requests work even when running headless — e.g. `http-forge run-suite smoke --env auth` — where the run's `--env` differs from the environment currently selected in the UI. A later request can read a token set by an earlier request without it leaking into, or being read from, the selected environment.
+
 ## Local secrets
 Store secrets in gitignored `.local.json` files alongside your environment configs.
 Reference them by name from environments or scripts.

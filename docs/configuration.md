@@ -38,7 +38,9 @@ If the file is missing, HTTP Forge uses defaults:
     "strictSSL": true
   },
   "scripts": {
-    "modulePaths": ["./src", "./lib"]
+    "modulePaths": ["./src", "./lib"],
+    "scope": "shared",
+    "timeout": 5000
   },
   "runner": {
     "resultsRetentionDays": 7,
@@ -74,6 +76,8 @@ If the file is missing, HTTP Forge uses defaults:
 | | `maxRedirects` | `10` | Maximum number of redirects to follow |
 | | `strictSSL` | `true` | Whether to verify SSL/TLS certificates |
 | **scripts** | `modulePaths` | `["./src", "./lib"]` | Paths to search for pre/post-request script modules |
+| | `scope` | `"shared"` | Script execution scope. `"shared"` runs all script levels (collection → folder → request) and both phases in one scope, so `var`/`function` declarations leak across them. `"isolated"` runs each script level in its own scope for Postman compatibility — state must pass through `pm.variables` / `pm.environment` / `pm.globals`. |
+| | `timeout` | `5000` | Per-script execution budget in milliseconds. Bounds both synchronous CPU time and asynchronous work. After a script's synchronous code returns, HTTP Forge keeps the sandbox alive and drains pending timers (`setTimeout`/`setInterval`) and microtasks (un-awaited Promises) until they settle or this budget elapses — so late `pm.globals`/`pm.environment`/`pm.variables` writes are committed for the next request (Postman-compatible). When the budget is exceeded, pending async work is cancelled and a warning is logged; the request is not failed. |
 | **runner** | `resultsRetentionDays` | `7` | Number of days to retain test results |
 | | `indexPageSize` | `1000` | Pagination size for result index |
 | | `recentErrorsLimit` | `20` | Maximum number of recent errors to track |

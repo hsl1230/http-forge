@@ -93,6 +93,12 @@ http-forge run-request --workspace . --collection my-api --request get-users --e
 # Run a collection
 http-forge run-collection --workspace . --collection my-api --iterations 3 --stop-on-error --include perRequest --output json
 
+# Run a single folder within a collection (recursive by default)
+http-forge run-folder --workspace . --collection my-api --folder "Auth/Login" --environment dev --include perRequest --output json
+
+# Run only the requests directly in a folder (exclude subfolders)
+http-forge run-folder --workspace . --collection my-api --folder Users --no-recursive --include report
+
 # Run a suite
 http-forge run-suite --workspace . --suite smoke --environment staging --include perRequest --include report --output json
 ```
@@ -102,6 +108,29 @@ Common options:
 - `--environment <name>`
 - `--output json|table`
 - `--include <value>` (repeatable)
+
+> **Addressing by id, slug, or name.** `--collection`, `--request`, and each
+> `--folder` segment accept an **id**, a **slug**, or a **display name**.
+> Resolution tries id, then slug, then name, and stops at the first match — so
+> you can pass whichever is handiest. How each value resolved is printed to
+> stderr (stdout stays reserved for the result). If a name matches more than one
+> item, the command lists the candidates and exits non-zero; pass the id or slug
+> to disambiguate. For `run-request`, an optional `--folder` narrows request
+> resolution to that folder's subtree.
+>
+> ```bash
+> # All three address the same collection
+> http-forge run-collection --workspace . --collection http_forge_showcase_abc123   # id
+> http-forge run-collection --workspace . --collection http-forge-showcase           # slug
+> http-forge run-collection --workspace . --collection "HTTP Forge Showcase"         # name
+>
+> # Scope a request by folder when the name is shared across folders
+> http-forge run-request --workspace . --collection my-api --folder Auth --request "Get User"
+> ```
+
+> **Run Folder.** `run-folder` requires `--collection` **and** `--folder` (a slash-separated folder path; each segment may be an id, slug, or name, e.g. `"Auth/Login"`). It runs every request under that folder — including nested subfolders — using the exact same engine, grouping, and reports as `run-collection`. Pass `--no-recursive` (or `--recursive false`) to run only the requests directly in that folder. All other `run-collection` options apply.
+
+> **Results are always saved.** Collection and suite runs always persist their manifest, per-iteration results, and result index to `storage.results` (`.http-forge-cache/results/<suiteId>/<runId>/`) — you do **not** need `--include report` for this. Because of that, CLI runs automatically show up in the VS Code **History** tab and can be loaded into the Results/Statistics tabs. `--include report` only additionally generates the self-contained `report.html`.
 
 ## Configure
 Create `http-forge.config.json` in the working directory and set:

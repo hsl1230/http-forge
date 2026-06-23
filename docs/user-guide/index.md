@@ -25,6 +25,7 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - [Security & Sensitive Data](security.md) — automatic redaction of tokens, passwords, credentials in persisted files
 - [Import/Export & Postman Compatibility](import-export.md)
 - [Postman Compatibility Reference](postman-compatibility.md)
+- [Postman Compatibility Matrix](postman-compatibility-matrix.md)
 - [HTTP Forge vs Postman](comparison-postman.md)
 - [Public API for Extensions](public-api.md)
 

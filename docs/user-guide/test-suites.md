@@ -34,6 +34,26 @@ Descriptions are persisted in the suite JSON and copied when duplicating a suite
 
 > **Security note:** Suite result files automatically redact sensitive headers (`Authorization`, tokens, cookies) and body fields (passwords, secrets, API keys) before writing to disk. See [Security & Sensitive Data](security.md).
 
+## Run a collection or folder
+
+You don't have to build a suite first to run a group of requests. From the **Collections** tree you can run a whole collection — or just one folder — in the same suite runner.
+
+- **Run Collection**: right-click a collection → **Run Collection**.
+- **Run Folder**: right-click any folder → **Run Folder**.
+
+Both open the Test Suite runner backed by a **temporary suite** (it isn't saved to `storage.root/suites` unless you choose to). The runner behaves exactly like a saved suite: the same execution engine, the iteration → collection → folder result grouping, the Statistics tab, and the self-contained HTML report.
+
+**Run Folder is recursive** — it includes every request in the folder *and* its nested subfolders. The temporary suite is named `Collection / Folder` (e.g. `My API / Auth/Login`).
+
+### Save a collection/folder run as a suite
+A temporary suite can be promoted to a permanent one:
+
+1. After (or before) running, make any edits you want.
+2. Close the panel — when prompted, choose **Save**, **or** use the save action in the runner.
+3. The suite is written to `storage.root/suites` under the displayed name (`Collection` or `Collection / Folder`) and appears in the **Test Suites** tree for reuse.
+
+> **Tip:** To run a folder headlessly (CI/scripts) use the CLI `run-folder` command, and from AI assistants use the per-folder MCP tool. See [CLI / Headless](cli-standalone.md) and [MCP Server](mcp-server.md).
+
 ## Request Customization
 
 You can edit individual requests within a suite without modifying the source collection. This is useful for changing URLs, parameters, headers, or body for a specific test scenario.
@@ -137,6 +157,17 @@ When no assertions are defined, pass/fail is based on HTTP status code:
 - Performance stats: P50/P90/P95/P99
 - Error breakdown
 - Per-request percentile stats (p50, p90, p95, p99) are stored in the run manifest and shown in the Test Suite UI for detailed bottleneck analysis.
+
+### Grouping
+Results are grouped by **iteration**, then by **collection + folder**, so a multi-iteration run reads top-to-bottom in execution order. Each group header carries the `Collection: Folder/Subfolder` path, and the rows beneath it show just the request name, status, and duration. The same grouping is used in the exported HTML report.
+
+The **Statistics** tab's Response Time table shows the full `Collection › Folder › Request` label per row plus a **Calls** column counting how many times each request executed during the run.
+
+## CLI runs & on-disk results
+
+Runs started from the `@http-forge/cli` (or any direct-execution host) **always** persist their results to `.http-forge-cache/results/<suiteId>/<runId>/` — the run manifest, per-iteration result files, and a result index. You do **not** need `--include report` for this.
+
+As a result, suite and collection runs executed from the CLI automatically appear in the **History** tab the next time you open the Test Suite panel, and can be loaded into the Results and Statistics tabs. The `--include report` flag only additionally generates the self-contained `report.html`.
 
 ## Virtual Scrolling
 Results use virtual scrolling for performance with large test runs. The results panel automatically adjusts to container height.

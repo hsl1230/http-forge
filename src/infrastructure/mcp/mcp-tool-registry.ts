@@ -5,14 +5,26 @@
  * test suites, so the AI always sees up-to-date capabilities without restart.
  */
 
-import type {
-    Collection,
-    CollectionFolderItem,
-    CollectionItem,
-    CollectionRequestItem,
-    ICollectionService,
-    IConfigService,
-    ITestSuiteService,
+import {
+    buildCollectionToolDescription,
+    buildCollectionToolName,
+    buildFolderToolDescription,
+    buildFolderToolName,
+    buildRequestToolDescription,
+    buildRequestToolName,
+    buildSuiteToolDescription,
+    buildSuiteToolName,
+    COLLECTION_INPUT_SCHEMA,
+    FOLDER_INPUT_SCHEMA,
+    REQUEST_INPUT_SCHEMA,
+    SUITE_INPUT_SCHEMA,
+    type Collection,
+    type CollectionFolderItem,
+    type CollectionItem,
+    type CollectionRequestItem,
+    type ICollectionService,
+    type IConfigService,
+    type ITestSuiteService,
 } from '@http-forge/core';
 
 export interface McpTool {
@@ -27,81 +39,6 @@ export interface FlatRequest {
     collection: Collection;
     folderPath: string;
 }
-
-const REQUEST_INPUT_SCHEMA = {
-    type: 'object',
-    properties: {
-        environment: {
-            type: 'string',
-            description: 'Environment name to use (defaults to currently selected environment)'
-        },
-        variables: {
-            type: 'object',
-            description: 'Extra variables to inject — merged with environment variables, {{name}} syntax',
-            additionalProperties: { type: 'string' }
-        },
-        headers: {
-            type: 'object',
-            description: 'Override or add request headers',
-            additionalProperties: { type: 'string' }
-        },
-        query: {
-            type: 'object',
-            description: 'Override query parameters',
-            additionalProperties: { type: 'string' }
-        },
-        body: {
-            type: 'string',
-            description: 'Replace the request body (JSON string). Omit to use the saved body.'
-        },
-        include: {
-            type: 'array',
-            items: { type: 'string', enum: ['headers', 'cookies', 'tests', 'consoleOutput'] },
-            description: 'Extra fields to include in the response (default: status, ok, body, allPassed)'
-        }
-    }
-};
-
-const COLLECTION_INPUT_SCHEMA = {
-    type: 'object',
-    properties: {
-        environment: { type: 'string', description: 'Environment name to use' },
-        variables: {
-            type: 'object',
-            description: 'Extra variables injected into every request',
-            additionalProperties: { type: 'string' }
-        },
-        stopOnError: {
-            type: 'boolean',
-            description: 'Stop executing on first request failure (default: false)'
-        }
-    }
-};
-
-const SUITE_INPUT_SCHEMA = {
-    type: 'object',
-    properties: {
-        environment: { type: 'string', description: 'Environment name to use' },
-        iterations: { type: 'number', description: 'Number of iterations (overrides suite default)' },
-        stopOnError: { type: 'boolean', description: 'Stop on first failure' },
-        delay: { type: 'number', description: 'Delay between requests in ms' },
-        variables: {
-            type: 'object',
-            description: 'Extra variables injected into every request',
-            additionalProperties: { type: 'string' }
-        },
-        requestFilter: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Run only requests whose names match one of these strings (case-insensitive)'
-        },
-        include: {
-            type: 'array',
-            items: { type: 'string', enum: ['perRequest', 'failedOnly', 'consoleOutput'] },
-            description: 'Result detail level (default: summary + failedRequests)'
-        }
-    }
-};
 
 export class McpToolRegistry {
     constructor(
@@ -128,20 +65,29 @@ export class McpToolRegistry {
 
             // One tool per request
             for (const { request, folderPath } of flat) {
-                const path = folderPath ? `${folderPath} / ${request.name}` : request.name;
                 tools.push({
-                    name: `${prefix}request__${col.id}__${request.id}`,
-                    description: `[${request.method}] ${path}  (collection: ${col.name})`,
+                    name: buildRequestToolName(prefix, col.id, request.id),
+                    description: buildRequestToolDescription(request.method, request.name, col.name, folderPath),
                     inputSchema: REQUEST_INPUT_SCHEMA
                 });
             }
 
             // One tool per collection (run all)
             tools.push({
-                name: `${prefix}collection__${col.id}`,
-                description: `Run all requests in collection: "${col.name}" (${flat.length} requests)`,
+                name: buildCollectionToolName(prefix, col.id),
+                description: buildCollectionToolDescription(col.name, flat.length),
                 inputSchema: COLLECTION_INPUT_SCHEMA
             });
+
+            // One tool per folder (run all requests under that folder, recursive by default)
+            for (const { folderPath, requestCount } of this.enumerateFolders(col)) {
+                if (requestCount === 0) continue;
+                tools.push({
+                    name: buildFolderToolName(prefix, col.id, folderPath),
+                    description: buildFolderToolDescription(folderPath, col.name, requestCount),
+                    inputSchema: FOLDER_INPUT_SCHEMA
+                });
+            }
         }
 
         // One tool per test suite
@@ -152,8 +98,8 @@ export class McpToolRegistry {
                 continue;
             }
             tools.push({
-                name: `${prefix}suite__${suite.id}`,
-                description: `Run test suite: "${suite.name}" (${suite.requests.length} requests, ${suite.config.iterations} iteration(s) by default)`,
+                name: buildSuiteToolName(prefix, suite.id),
+                description: buildSuiteToolDescription(suite.name, suite.requests.length, suite.config.iterations),
                 inputSchema: SUITE_INPUT_SCHEMA
             });
         }
@@ -178,5 +124,42 @@ export class McpToolRegistry {
             }
         }
         return result;
+    }
+
+    /**
+     * Enumerate every folder in a collection (slash-separated names) along with
+     * the recursive count of requests beneath it.
+     */
+    enumerateFolders(
+        collection: Collection,
+        items: CollectionItem[] = collection.items,
+        prefix = ''
+    ): Array<{ folderPath: string; requestCount: number }> {
+        const result: Array<{ folderPath: string; requestCount: number }> = [];
+        for (const item of items) {
+            if (item.type === 'folder') {
+                const folder = item as CollectionFolderItem;
+                const folderPath = prefix ? `${prefix}/${folder.name}` : folder.name;
+                result.push({
+                    folderPath,
+                    requestCount: this.countRequests(folder.items ?? [])
+                });
+                result.push(...this.enumerateFolders(collection, folder.items ?? [], folderPath));
+            }
+        }
+        return result;
+    }
+
+    /** Recursively count request items within a list of collection items. */
+    private countRequests(items: CollectionItem[]): number {
+        let count = 0;
+        for (const item of items) {
+            if (item.type === 'request') {
+                count++;
+            } else {
+                count += this.countRequests((item as CollectionFolderItem).items ?? []);
+            }
+        }
+        return count;
     }
 }
