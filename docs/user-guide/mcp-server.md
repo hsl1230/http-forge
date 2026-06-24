@@ -78,13 +78,58 @@ Create `.vscode/mcp.json` in your workspace:
 
 ## What the AI can do
 
-Once connected, the AI automatically discovers all tools. There are three tool types:
+Once connected, the AI automatically discovers all tools. In the default **flat** mode there is one tool per request, folder, collection, and suite:
 
 | Tool name pattern | What it does |
 |---|---|
 | `request__<colId>__<reqId>` | Execute a single saved request |
+| `folder__<colId>__<path>` | Run all requests in a folder (recursive by default) |
 | `collection__<colId>` | Run all requests in a collection sequentially |
 | `suite__<suiteId>` | Run a test suite (with full script and assertion support) |
+
+> For very large workspaces you can switch to **drill-down** mode, which exposes a small fixed set of generic tools instead. See [Tool modes — flat vs drill-down](#tool-modes--flat-vs-drill-down).
+
+---
+
+## Tool modes — flat vs drill-down
+
+How collections and requests appear as MCP tools is controlled by `mcp.toolMode` in `http-forge.config.json` (default `"flat"`).
+
+| Mode | What the AI sees | Best for |
+|---|---|---|
+| `flat` (default) | One tool per request, folder, collection, and suite, each with a rich description | Normal workspaces — maximum one-step discoverability |
+| `drilldown` | A small fixed set of generic tools whose **arguments** select the target | Very large workspaces (thousands of requests) |
+| `auto` | `flat` until the per-request tool count exceeds `drilldownThreshold` (default `200`), then `drilldown` | Workspaces that grow over time |
+
+### Why drill-down exists
+
+In `flat` mode every request becomes its own tool. With thousands of requests across many collections, the `tools/list` response becomes very large — which bloats the model's context, slows tool selection, and can hit provider tool-count limits. Drill-down keeps the tool list tiny and constant no matter how many requests you have.
+
+### The generic tools (drill-down mode)
+
+| Tool | Arguments | What it does |
+|---|---|---|
+| `list_collections` | — | List every collection (name, description, request count) |
+| `list_requests` | `collection`, optional `folder` | List the requests in a collection (name, method, folder, description) |
+| `run_request` | `collection`, `request`, + the usual single-request overrides | Run one request |
+| `run_folder` | `collection`, `folder`, + collection-run options | Run every request in a folder |
+| `run_collection` | `collection`, + collection-run options | Run an entire collection |
+| `run_suite` | `suite`, + suite-run options | Run a test suite |
+
+Collection and suite **names are advertised as JSON-schema `enum`s**, so the AI chooses from real values instead of guessing. The typical flow mirrors how you'd think about it: the agent calls `list_collections` → picks one → `list_requests` to find the exact request → `run_request`. The override arguments (`environment`, `variables`, `headers`, `iterations`, `include`, …) are identical to flat mode.
+
+### Enabling it
+
+```json
+{
+  "mcp": {
+    "toolMode": "auto",
+    "drilldownThreshold": 200
+  }
+}
+```
+
+Use `"drilldown"` to force the generic toolset on regardless of size, or `"flat"` to always keep one tool per request.
 
 ---
 
@@ -447,6 +492,8 @@ Add an `mcp` section to control what gets exposed and how:
     "excludedSuites": [],
     "toolPrefix": "",
     "maxRequestsPerCall": 50,
+    "toolMode": "flat",
+    "drilldownThreshold": 200,
     "cors": {
       "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
     }
@@ -460,6 +507,8 @@ Add an `mcp` section to control what gets exposed and how:
 | `excludedSuites` | string[] | `[]` (none) | Suite IDs or names to **hide** from the AI. Empty = expose all. |
 | `toolPrefix` | string | `""` | Prefix for every tool name, e.g. `"acme_"` → `acme_request__...` |
 | `maxRequestsPerCall` | number | `50` | Safety cap on requests per collection/suite call. Prevents runaway executions. |
+| `toolMode` | string | `"flat"` | How tools are exposed: `"flat"`, `"drilldown"`, or `"auto"`. See [Tool modes](#tool-modes--flat-vs-drill-down). |
+| `drilldownThreshold` | number | `200` | In `"auto"` mode, switch to drill-down once the per-request tool count would exceed this. |
 | `cors.allowedOrigins` | string[] | `["http://localhost","http://127.0.0.1"]` | Origins the server accepts cross-origin requests from. |
 
 **Example — hide internal/admin collections from the AI:**

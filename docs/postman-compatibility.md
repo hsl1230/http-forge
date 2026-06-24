@@ -47,19 +47,19 @@ This document describes the `ctx` script API with full Postman compatibility. Th
 #### Response Object
 | Postman | CTX | Status | Notes |
 |---------|-----|--------|-------|
-| `pm.response.code` | `ctx.response.code` | ✅ | Status code |
-| `pm.response.status` | `ctx.response.status` | ✅ | Status code |
+| `pm.response.code` | `ctx.response.code` | ✅ | Status code (number) |
+| `pm.response.status` | `ctx.response.status` | ✅ | Reason phrase string (e.g. `"OK"`) |
 | `pm.response.reason()` | `ctx.response.reason()` | ✅ | Status text |
 | `pm.response.statusText` | `ctx.response.statusText` | ✅ | Status text |
 | `pm.response.headers` | `ctx.response.headers` | ✅ | Headers object |
 | `pm.response.body` | `ctx.response.body` | ✅ | Response body |
 | `pm.response.json()` | `ctx.response.json()` | ✅ | Parse JSON |
 | `pm.response.text()` | `ctx.response.text()` | ✅ | Get as text |
-| `pm.response.cookies` | `ctx.response.cookies` | ✅ | Cookies object |
+| `pm.response.cookies` | `ctx.response.cookies` | ✅ | `CookieList` (`get`, `one`, `has`, `toObject`, iterable) |
+| `pm.response.cookies.get(name)` | `ctx.response.cookies.get(name)` | ✅ | Cookie value string |
+| `pm.response.cookies.has(name)` | `ctx.response.cookies.has(name)` | ✅ | Check cookie exists |
 | `pm.response.responseTime` | `ctx.response.responseTime` | ✅ | Time in ms |
 | `pm.response.responseSize` | `ctx.response.responseSize` | ✅ | Size in bytes |
-| - | `ctx.response.cookie(name)` | ✅ | Get specific cookie |
-| - | `ctx.response.hasCookie(name)` | ✅ | Check cookie exists |
 
 #### Script Metadata
 | Postman | CTX | Status | Notes |
@@ -210,7 +210,7 @@ console.log('Request URL:', ctx.request.url);
 ```javascript
 // Test status code
 ctx.test('Status is 200', () => {
-    ctx.expect(ctx.response.status).to.equal(200);
+    ctx.expect(ctx.response.code).to.equal(200);   // .code is the number; .status is "OK"
 });
 
 // Use globals (workspace-wide variables)
@@ -242,8 +242,8 @@ ctx.test('Response time is acceptable', () => {
 
 // Test cookies
 ctx.test('Has session cookie', () => {
-    ctx.expect(ctx.response.hasCookie('sessionId')).to.be.true;
-    const sessionId = ctx.response.cookie('sessionId');
+    ctx.expect(ctx.response.cookies.has('sessionId')).to.be.true;
+    const sessionId = ctx.response.cookies.get('sessionId');
     ctx.expect(sessionId).to.not.be.empty;
 });
 

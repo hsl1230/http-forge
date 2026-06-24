@@ -15,6 +15,7 @@
 
 import {
     CollectionRequestExecutor,
+    GENERIC_TOOL_NAMES,
     ICollectionService,
     IEnvironmentConfigService,
     IHttpRequestService,
@@ -34,6 +35,7 @@ import {
     type CollectionRequestItem,
     type ExecutionRequest,
     type ExecutionResult,
+    type GenericToolName,
     type IConfigService,
     type RequestScripts,
 } from '@http-forge/core';
@@ -393,6 +395,11 @@ export class McpExecutor {
     async call(toolName: string, args: Record<string, any>): Promise<string> {
         const prefix = this.configService.getMcpConfig().toolPrefix ?? '';
         const bare = prefix && toolName.startsWith(prefix) ? toolName.slice(prefix.length) : toolName;
+
+        if ((Object.values(GENERIC_TOOL_NAMES) as string[]).includes(bare)) {
+            return JSON.stringify(await this.callGeneric(bare as GenericToolName, args), null, 2);
+        }
+
         const parsed = parseMcpToolName(bare);
         switch (parsed.kind) {
             case 'request':
@@ -404,6 +411,98 @@ export class McpExecutor {
             case 'suite':
                 return JSON.stringify(await this.runTestSuite(parsed.tokens, args), null, 2);
         }
+    }
+
+    /** Resolve a collection by its display name or id (case-insensitive fallback). */
+    private resolveCollectionByLabel(label: unknown): Collection {
+        if (typeof label !== 'string' || !label.trim()) {
+            throw new Error('The "collection" argument is required');
+        }
+        const collections = this.collectionService.getAllCollections();
+        const col =
+            collections.find(c => c.id === label || c.name === label) ??
+            collections.find(c => c.name.toLowerCase() === label.toLowerCase());
+        if (!col) throw new Error(`Collection not found: "${label}"`);
+        return col;
+    }
+
+    /**
+     * Dispatch a generic drill-down tool. The target is chosen by ARGUMENTS
+     * (collection/request/folder/suite name) rather than encoded in the tool
+     * name. Resolved ids are forwarded to the existing token-based methods,
+     * which accept raw ids via their legacy fallback.
+     */
+    private async callGeneric(tool: GenericToolName, args: Record<string, any>): Promise<object> {
+        if (tool === GENERIC_TOOL_NAMES.listCollections) {
+            const collections = this.collectionService.getAllCollections();
+            return {
+                collections: collections.map(c => ({
+                    name: c.name,
+                    id: c.id,
+                    description: c.description ?? '',
+                    requestCount: flattenCollection(c).length,
+                })),
+            };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.listRequests) {
+            const col = this.resolveCollectionByLabel(args.collection);
+            const folderFilter = typeof args.folder === 'string' ? args.folder.toLowerCase() : undefined;
+            const requests = flattenCollection(col)
+                .filter(({ folderPath }) => !folderFilter || folderPath.toLowerCase().includes(folderFilter))
+                .map(({ request, folderPath }) => ({
+                    name: request.name,
+                    method: request.method,
+                    folder: folderPath,
+                    description: request.description ?? '',
+                }));
+            return { collection: col.name, requests };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.runRequest) {
+            const col = this.resolveCollectionByLabel(args.collection);
+            const requestArg = args.request;
+            if (typeof requestArg !== 'string' || !requestArg.trim()) {
+                throw new Error('The "request" argument is required');
+            }
+            const flat = flattenCollection(col);
+            const match =
+                flat.find(r => r.request.name === requestArg) ??
+                flat.find(r => r.request.name.toLowerCase() === requestArg.toLowerCase());
+            if (!match) throw new Error(`Request "${requestArg}" not found in collection "${col.name}"`);
+            return this.executeRequest([col.id, match.request.id], args);
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.runFolder) {
+            const col = this.resolveCollectionByLabel(args.collection);
+            const folderArg = args.folder;
+            if (typeof folderArg !== 'string' || !folderArg.trim()) {
+                throw new Error('The "folder" argument is required');
+            }
+            const folderPaths = this.registry.enumerateFolders(col).map(f => f.folderPath);
+            const folderPath =
+                folderPaths.find(p => p === folderArg) ??
+                folderPaths.find(p => p.toLowerCase() === folderArg.toLowerCase());
+            if (!folderPath) throw new Error(`Folder "${folderArg}" not found in collection "${col.name}"`);
+            return this.runFolder([col.id, folderPath], args);
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.runCollection) {
+            const col = this.resolveCollectionByLabel(args.collection);
+            return this.runCollection([col.id], args);
+        }
+
+        // run_suite
+        const suiteArg = args.suite;
+        if (typeof suiteArg !== 'string' || !suiteArg.trim()) {
+            throw new Error('The "suite" argument is required');
+        }
+        const suites = await this.testSuiteService.getAllSuites();
+        const suite =
+            suites.find(s => s.id === suiteArg || s.name === suiteArg) ??
+            suites.find(s => s.name.toLowerCase() === suiteArg.toLowerCase());
+        if (!suite) throw new Error(`Test suite not found: "${suiteArg}"`);
+        return this.runTestSuite([suite.id], args);
     }
 
     /** Resolve a collection token (hash or legacy raw id) to a collection. */

@@ -50,6 +50,8 @@ If the file is missing, HTTP Forge uses defaults:
     "excludedSuites": [],
     "toolPrefix": "",
     "maxRequestsPerCall": 50,
+    "toolMode": "flat",
+    "drilldownThreshold": 200,
     "cors": {
       "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
     }
@@ -82,6 +84,8 @@ If the file is missing, HTTP Forge uses defaults:
 |  | `excludedSuites` | `[]` | Suite IDs or names to **hide** from the MCP server. Empty = expose all. |
 |  | `toolPrefix` | `""` | Prefix added to every MCP tool name (e.g. `"myapp_"`). |
 |  | `maxRequestsPerCall` | `50` | Maximum requests the MCP server executes in a single collection/suite call. |
+|  | `toolMode` | `"flat"` | How tools are exposed: `"flat"` (one tool per request/folder/collection/suite), `"drilldown"` (a few generic tools whose arguments select the target), or `"auto"` (flat until `drilldownThreshold` is exceeded). |
+|  | `drilldownThreshold` | `200` | In `"auto"` mode, switch to drill-down once the per-request tool count would exceed this. |
 |  | `cors.allowedOrigins` | `["http://localhost","http://127.0.0.1"]` | Origins the MCP server accepts cross-origin requests from. |
 | **proxy** | - | `null` | Proxy URL (set to a URL string to enable proxy) |
 
@@ -182,5 +186,21 @@ The `mcp` section controls what the [MCP server](mcp-server.md) exposes to AI ag
   }
 }
 ```
+
+**Large workspaces — keep the tool list small with drill-down mode:**
+```json
+{
+  "mcp": {
+    "toolMode": "auto",
+    "drilldownThreshold": 200
+  }
+}
+```
+With many collections, a tool-per-request list can grow huge. `"auto"` keeps the
+default `"flat"` behavior until the request-tool count exceeds
+`drilldownThreshold`, then switches to a small generic toolset
+(`list_collections`, `list_requests`, `run_request`, `run_folder`,
+`run_collection`, `run_suite`). Use `"drilldown"` to force it on regardless of
+size. See [MCP Server](mcp-server.md#tool-modes--flat-vs-drill-down) for details.
 
 > **Note:** Port and auto-start are VS Code settings (`httpForge.mcpServer.port`, `httpForge.mcpServer.autoStart`), not project config. See [MCP Server](mcp-server.md) for details.
