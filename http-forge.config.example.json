@@ -25,6 +25,17 @@
   "environments": {
     "default": "dev"
   },
+  "mcp": {
+    "toolPrefix": "",
+    "excludedCollections": [],
+    "excludedSuites": [],
+    "maxRequestsPerCall": 50,
+    "toolMode": "flat",
+    "drilldownThreshold": 200,
+    "cors": {
+      "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
+    }
+  },
   "proxy": null,
   "secrets": {
     "providers": {

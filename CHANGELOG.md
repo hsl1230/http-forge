@@ -5,6 +5,61 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.15.1 - 2026-06-24
+
+### Fixed
+
+- **MCP output channel no longer goes silent after `tools/list`**: a regression where
+  calling `tools/list` (or any MCP operation) silently removed the "HTTP Forge" output
+  channel has been resolved. Root cause was `bootstrapNodeRuntime` clearing the global
+  `ServiceContainer` singleton that the extension host uses for its `ConsoleService` and
+  all other VS Code services. MCP sub-runtimes now run in an isolated container that never
+  touches the global singleton.
+
+- **MCP `tools/list` no longer triggers redundant collection reads under concurrent load**:
+  simultaneous `tools/list` requests with a cold tool cache no longer each spawn independent
+  file-system walks. A pending-request registry collapses them into a single build and
+  shares the result.
+
+- **MCP flat-mode `tools/call` stopped leaking a file-system watcher per call**: internal
+  container resources used for collection-ID resolution are now reliably released after each
+  dispatch.
+
+- **Collection mutation operations (`Add Request`, `Create Folder`, `Duplicate Folder`, etc.)
+  no longer trigger a full disk reload on every save**: the collection service now correctly
+  distinguishes self-writes from external file changes. Self-writes update the in-memory
+  state directly and skip the disk reload, keeping the tree view responsive. External
+  changes (e.g. pulling a collection repo) still reload from disk as expected.
+
+- **`Create Folder` and `Add Request` now appear instantly in the tree** without waiting for
+  a file-watcher debounce cycle. Previously the new item was missing from memory until the
+  next reload because both operations read from a stale store cache.
+
+- **`Duplicate Folder` now reflects the full copied tree immediately** instead of showing
+  a partial or empty duplicate until the next background reload.
+
+## 0.15.0 - 2026-06-24
+
+### Added
+
+- **MCP drill-down tool mode for large workspaces** (`mcp.toolMode`:
+  `flat` | `drilldown` | `auto`, default `flat`). `flat` keeps one tool per
+  request (best for normal workspaces). `drilldown` exposes a small fixed set of
+  generic tools — `list_collections`, `list_requests`, `run_request`,
+  `run_folder`, `run_collection`, `run_suite` — whose arguments select the target
+  (collection/suite names provided as `enum`s so AI agents pick real values).
+  `auto` switches to drill-down once the request-tool count exceeds
+  `mcp.drilldownThreshold` (default `200`), keeping the tool list bounded.
+
+### Documentation
+
+- Documented the MCP drill-down tool mode: a new “Tool modes — flat vs
+  drill-down” section in [docs/user-guide/mcp-server.md](docs/user-guide/mcp-server.md)
+  (mode comparison, the six generic tools, the agent drill-down flow), plus
+  `toolMode`/`drilldownThreshold` reference rows and JSON examples in
+  [docs/configuration.md](docs/configuration.md) and
+  [docs/user-guide/configuration.md](docs/user-guide/configuration.md).
+
 ## 0.13.7 - 2026-06-23
 
 ### Changed
@@ -25,7 +80,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `postman.getResponseHeader()` / `postman.getResponseCookie()` (test phase), and
   the `tv4` JSON Schema validator global.
 
-
 ### Fixed
 
 - **MCP tool names no longer exceed the 128-character limit** enforced by
@@ -34,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   request/collection/folder/suite by scanning current items (with a legacy
   fallback for already-listed names). Tool **descriptions** were also hardened to
   consistently name the request/folder/collection for better fuzzy matching.
+
+- **MCP `tools/list` no longer returns duplicate tools**: same-named sibling
+  folders previously produced identical tool names. The list is now de-duplicated
+  by name. The CORS `Access-Control-Allow-Headers` also advertises `Mcp-Session-Id`.
 
 ## 0.13.6 - 2026-06-23
 

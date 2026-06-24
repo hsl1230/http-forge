@@ -9,6 +9,7 @@
  *
  * Endpoints:
  *   POST /        — JSON-RPC dispatch (tools/list, tools/call)
+ *   POST /mcp     — alias of POST / for standard MCP clients
  *   GET  /health  — liveness probe
  */
 
@@ -61,7 +62,7 @@ export class McpServerService {
                     : allowedOrigins[0] ?? 'http://localhost';
                 res.setHeader('Access-Control-Allow-Origin', corsOrigin);
                 res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-                res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+                res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Mcp-Session-Id');
 
                 if (req.method === 'OPTIONS') {
                     res.writeHead(204);

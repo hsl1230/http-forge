@@ -38,18 +38,18 @@ Additional scope:
 ## Post‑response: response API
 | Postman | HTTP Forge | Notes |
 | --- | --- | --- |
-| `pm.response.code` | `ctx.response.status` | status code |
-| `pm.response.status` | `ctx.response.status` | status code |
-| `pm.response.reason()` | `ctx.response.statusText` | status text |
-| `pm.response.headers` | `ctx.response.headers` | headers object |
+| `pm.response.code` | `ctx.response.code` | status **code** (number, e.g. `200`) |
+| `pm.response.status` | `ctx.response.status` | reason **phrase** string (e.g. `"OK"`) — like Postman |
+| `pm.response.reason()` | `ctx.response.reason()` | reason phrase string |
+| `pm.response.headers` | `ctx.response.headers` | `HeaderList` (`get`, `has`, `toObject`, `each`) |
 | `pm.response.body` | `ctx.response.body` | raw response **string** (parse with `json()`) |
 | `pm.response.json()` | `ctx.response.json()` | parse JSON |
 | `pm.response.text()` | `ctx.response.text()` | body as text |
 | `pm.response.responseTime` | `ctx.response.responseTime` | time (ms) |
 | `pm.response.responseSize` | `ctx.response.responseSize` | size (bytes) |
-| — | `ctx.response.cookies` | cookies object |
-| — | `ctx.response.cookie(name)` | get cookie |
-| — | `ctx.response.hasCookie(name)` | check cookie |
+| `pm.response.cookies` | `ctx.response.cookies` | `CookieList` (`get`, `one`, `has`, `toObject`, iterable) |
+| `pm.response.cookies.get(name)` | `ctx.response.cookies.get(name)` | cookie value string |
+| `pm.response.cookies.one(name)` | `ctx.response.cookies.one(name)` | full cookie object (incl. `secure`, `maxAge`, ...) |
 
 ## Tests and assertions
 | Postman | HTTP Forge |
@@ -99,7 +99,8 @@ ctx.sendRequest({
 ## Example: Postman‑style script
 ```javascript
 pm.test('status is 200', () => {
-  pm.expect(pm.response.status).to.equal(200);
+  pm.expect(pm.response.code).to.equal(200);   // .code is the number; .status is "OK"
+  pm.response.to.have.status(200);             // or the Postman assertion form
 });
 
 const token = pm.response.json().token;
@@ -108,7 +109,7 @@ pm.environment.set('authToken', token);
 
 ## Notes
 - Request auth is configured in the UI; scripts can add headers as needed.
-- Cookies are handled automatically and exposed via `ctx.response.cookies`.
+- `pm.response.cookies` is a Postman-compatible `CookieList`: use `cookies.get(name)` for the value string, `cookies.one(name)` for the full cookie object (`name`, `value`, `domain`, `path`, `expires`, `maxAge`, `httpOnly`, `secure`, `sameSite`), `cookies.has(name)`, `cookies.toObject()`, or iterate (`forEach`, `for...of`, numeric index).
 - `pm.cookies.toObject()` returns a flat `{name: value}` map.
 - `pm.cookies.jar()` returns a cookie jar with `set()`, `get()`, `clear()`, `getAll()`.
 
@@ -148,10 +149,10 @@ Available in **test** scripts only:
 | `responseCode` | `{ code, name, detail }` |
 | `responseHeaders` | Headers object |
 | `responseTime` | Response time in ms |
-| `responseCookies` | Array of `{ name, value }` |
+| `responseCookies` | Array of cookie objects with full metadata (`name`, `value`, `domain`, `path`, `expires`, `maxAge`, `httpOnly`, `secure`, `sameSite`) |
 | `tests` | Legacy assertion bag: `tests['name'] = boolean` |
 | `postman.getResponseHeader(name)` | Case-insensitive header lookup (returns `null` if absent) |
-| `postman.getResponseCookie(name)` | Case-insensitive cookie lookup (returns `null` if absent) |
+| `postman.getResponseCookie(name)` | Case-insensitive cookie lookup returning the full cookie object (`name`, `value`, `domain`, `path`, `expires`, `maxAge`, `httpOnly`, `secure`, `sameSite`), or `null` if absent |
 
 The legacy `postman.*` namespace also provides variable helpers: `setNextRequest`, `setGlobalVariable` / `getGlobalVariable` / `clearGlobalVariable`, and `setEnvironmentVariable` / `getEnvironmentVariable` / `clearEnvironmentVariable`.
 
