@@ -24,6 +24,7 @@ import {
     IResultStorageService,
     IScriptExecutor,
     ITestSuiteService,
+    McpRunStore,
     parseMcpToolName,
     resolveFolderToken,
     resolveToken,
@@ -37,6 +38,7 @@ import {
     type ExecutionResult,
     type GenericToolName,
     type IConfigService,
+    type McpRunRecord,
     type RequestScripts,
 } from '@http-forge/core';
 import * as fsp from 'fs/promises';
@@ -378,59 +380,11 @@ async function writeSingleRequestReport(
     }
 }
 
-// ─── Async run store ──────────────────────────────────────────────────────
-
-interface PerRequestRecord {
-    name: string;
-    iteration: number;
-    status: number;
-    ok: boolean;
-    duration: string;
-    allPassed: boolean;
-    body?: unknown;
-    failedTests?: Array<{ name: string; message?: string }>;
-    error?: string;
-    consoleOutput?: string[];
-}
-
-interface RunRecord {
-    id: string;
-    status: 'running' | 'completed' | 'failed';
-    suiteName: string;
-    startedAt: number;
-    completedAt?: number;
-    progress: { completed: number; total: number };
-    summary: { passed: number; failed: number; total: number; allPassed: boolean };
-    failedRequests: PerRequestRecord[];
-    allResults: PerRequestRecord[];
-    reportPath: string | null;
-    error?: string;
-}
-
-/** In-memory store; entries expire after 1 hour to prevent leaks. */
-const RUN_TTL_MS = 60 * 60 * 1000;
-const runStore = new Map<string, RunRecord>();
-
-function pruneExpiredRuns(): void {
-    const cutoff = Date.now() - RUN_TTL_MS;
-    for (const [id, rec] of runStore) {
-        if (rec.startedAt < cutoff) runStore.delete(id);
-    }
-}
-
-function newRunId(): string {
-    return `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function requireRun(runId: string): RunRecord {
-    const rec = runStore.get(runId);
-    if (!rec) throw new Error(`Run "${runId}" not found. It may have expired (1-hour TTL) or never existed.`);
-    return rec;
-}
-
 // ─── Executor ─────────────────────────────────────────────────────────────
 
 export class McpExecutor {
+    private readonly runStore = new McpRunStore();
+
     constructor(
         private readonly collectionService: ICollectionService,
         private readonly envConfigService: IEnvironmentConfigService,
@@ -579,7 +533,7 @@ export class McpExecutor {
         }
 
         if (tool === GENERIC_TOOL_NAMES.getRunStatus) {
-            const rec = requireRun(args.runId as string);
+            const rec = this.runStore.require(args.runId);
             return {
                 runId: rec.id,
                 status: rec.status,
@@ -590,7 +544,7 @@ export class McpExecutor {
         }
 
         if (tool === GENERIC_TOOL_NAMES.getRunSummary) {
-            const rec = requireRun(args.runId as string);
+            const rec = this.runStore.require(args.runId);
             if (rec.status === 'running') {
                 return { runId: rec.id, status: 'running', progress: rec.progress };
             }
@@ -604,7 +558,7 @@ export class McpExecutor {
         }
 
         if (tool === GENERIC_TOOL_NAMES.getFailedRequests) {
-            const rec = requireRun(args.runId as string);
+            const rec = this.runStore.require(args.runId);
             if (rec.status === 'running') {
                 return { runId: rec.id, status: 'running', progress: rec.progress, failedSoFar: rec.failedRequests.length };
             }
@@ -622,7 +576,7 @@ export class McpExecutor {
         }
 
         if (tool === GENERIC_TOOL_NAMES.getRequestResult) {
-            const rec = requireRun(args.runId as string);
+            const rec = this.runStore.require(args.runId);
             const requestName = args.request as string;
             const iteration = typeof args.iteration === 'number' ? args.iteration : 1;
             if (!requestName) throw new Error('The "request" argument is required');
@@ -879,8 +833,7 @@ export class McpExecutor {
         args: Record<string, any>,
         source: 'suite' | 'collection'
     ): object {
-        pruneExpiredRuns();
-        const runId = newRunId();
+        this.runStore.prune();
 
         // Count effective requests for total
         const effectiveRequests = suite.requests.filter((r: any) => {
@@ -892,18 +845,7 @@ export class McpExecutor {
         const iterations: number = args.iterations ?? suite.config?.iterations ?? 1;
         const total = effectiveRequests.length * iterations;
 
-        const record: RunRecord = {
-            id: runId,
-            status: 'running',
-            suiteName: suite.name,
-            startedAt: Date.now(),
-            progress: { completed: 0, total },
-            summary: { passed: 0, failed: 0, total: 0, allPassed: false },
-            failedRequests: [],
-            allResults: [],
-            reportPath: null,
-        };
-        runStore.set(runId, record);
+        const record = this.runStore.create(suite.name, total);
 
         // Fire and forget — do not await
         this.executeSuiteSync(suite, { ...args, _runRecord: record }, source)
@@ -919,7 +861,7 @@ export class McpExecutor {
                 record.error = err.message;
             });
 
-        return { runId, status: 'running', total, message: 'Run started. Use get_run_status to poll.' };
+        return { runId: record.id, status: 'running', total, message: 'Run started. Use get_run_status to poll.' };
     }
 
     private async executeSuiteSync(
@@ -927,7 +869,7 @@ export class McpExecutor {
         args: Record<string, any>,
         source: 'suite' | 'collection'
     ): Promise<object> {
-        const runRecord: RunRecord | undefined = args._runRecord;
+        const runRecord: McpRunRecord | undefined = args._runRecord;
         const env = args.environment ?? this.envConfigService.getSelectedEnvironment();
         const iterations: number = args.iterations ?? suite.config?.iterations ?? 1;
         const stopOnError: boolean = args.stopOnError ?? suite.config?.stopOnError ?? false;

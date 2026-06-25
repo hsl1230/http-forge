@@ -14,6 +14,7 @@
  */
 
 import type { IConfigService } from '@http-forge/core';
+import { decodeCursor, encodeCursor } from '@http-forge/core';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
@@ -32,20 +33,6 @@ interface JsonRpcResponse {
     id: string | number | null;
     result?: any;
     error?: { code: number; message: string };
-}
-
-function encodeCursor(offset: number): string {
-    return Buffer.from(String(offset)).toString('base64url');
-}
-
-function decodeCursor(cursor: string | undefined): number {
-    if (!cursor) return 0;
-    try {
-        const n = parseInt(Buffer.from(cursor, 'base64url').toString(), 10);
-        return Number.isFinite(n) && n >= 0 ? n : 0;
-    } catch {
-        return 0;
-    }
 }
 
 export class McpServerService {
@@ -151,8 +138,11 @@ export class McpServerService {
             return;
         }
 
-        // Security: only serve .html files inside the workspace .http-forge-cache directory
-        const allowedBase = path.resolve(this.workspaceFolder, '.http-forge-cache');
+        // Security: only serve .html files inside the cache directory where reports are written.
+        // Derived from configService so it always matches the actual report location.
+        const allowedBase = this.configService
+            ? path.dirname(this.configService.getResultsPath())
+            : path.resolve(this.workspaceFolder, '.http-forge-cache');
         const normalized = path.resolve(filePath);
         if (!normalized.startsWith(allowedBase + path.sep) || !normalized.endsWith('.html')) {
             res.writeHead(403);
@@ -236,7 +226,12 @@ export class McpServerService {
                     /"uri"\s*:\s*"file:\/\/([^"]+)"/g,
                     (_, filePath) => `"uri":"http://127.0.0.1:${this.port}/report?path=${encodeURIComponent(filePath)}"`
                 );
-                return { content: [{ type: 'text', text: rewritten }] };
+                // Append a Markdown link so the URL is clickable in Copilot Chat
+                const reportUrlMatch = rewritten.match(/"uri"\s*:\s*"(http:\/\/127\.0\.0\.1:[0-9]+\/report\?[^"]+)"/);
+                const linkSuffix = reportUrlMatch
+                    ? `\n\n[View HTML Report](${reportUrlMatch[1]})`
+                    : '';
+                return { content: [{ type: 'text', text: rewritten + linkSuffix }] };
             }
 
             default:

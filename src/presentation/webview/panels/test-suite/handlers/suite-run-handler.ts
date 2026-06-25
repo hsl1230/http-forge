@@ -8,7 +8,7 @@ import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry } 
  */
 
 import type { ITestSuiteStore, SuiteRequestEntry } from '@http-forge/core';
-import { CollectionRequestExecutor, IConfigService, type IDataFileParser, IEnvironmentConfigService, type IHttpRequestService, InMemoryCookieJar, IRequestPreparer, IResultStorageService, type IScriptExecutor, ResultStorageService, StatisticsService } from '@http-forge/core';
+import { CollectionRequestExecutor, type ConsoleOutputSource, IConfigService, type IDataFileParser, IEnvironmentConfigService, type IHttpRequestService, InMemoryCookieJar, IRequestPreparer, IResultStorageService, type IScriptExecutor, ResultStorageService, StatisticsService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { ExecutionResult } from '../../../../../shared/types';
@@ -447,8 +447,8 @@ export class SuiteRunHandler implements IMessageHandler {
 
         // Create callback to log console output to VS Code output channel
         const consoleService = getServiceContainer().console;
-        const onConsoleOutput = (output: string[]) => {
-            consoleService.logRawLines(output, 'Script');
+        const onConsoleOutput = (output: string[], source: ConsoleOutputSource) => {
+            consoleService.logRawLines(output, `${source.requestName} [${source.phase}]`);
         };
 
         // Normalize auth from collection request to the format expected by RequestPreparer:
