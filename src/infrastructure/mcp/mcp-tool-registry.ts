@@ -52,8 +52,8 @@ export class McpToolRegistry {
         const tools: McpTool[] = [];
         const mcpCfg = this.configService.getMcpConfig();
         const prefix = mcpCfg.toolPrefix ?? '';
-        const mode = mcpCfg.toolMode ?? 'flat';
-        const threshold = mcpCfg.drilldownThreshold ?? 200;
+        const mode = mcpCfg.toolMode ?? 'auto';
+        const threshold = mcpCfg.drilldownThreshold ?? 500;
 
         const isCollectionAllowed = (col: Collection): boolean => {
             const excluded = mcpCfg.excludedCollections;

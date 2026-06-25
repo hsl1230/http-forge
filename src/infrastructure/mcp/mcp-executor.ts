@@ -378,6 +378,56 @@ async function writeSingleRequestReport(
     }
 }
 
+// ─── Async run store ──────────────────────────────────────────────────────
+
+interface PerRequestRecord {
+    name: string;
+    iteration: number;
+    status: number;
+    ok: boolean;
+    duration: string;
+    allPassed: boolean;
+    body?: unknown;
+    failedTests?: Array<{ name: string; message?: string }>;
+    error?: string;
+    consoleOutput?: string[];
+}
+
+interface RunRecord {
+    id: string;
+    status: 'running' | 'completed' | 'failed';
+    suiteName: string;
+    startedAt: number;
+    completedAt?: number;
+    progress: { completed: number; total: number };
+    summary: { passed: number; failed: number; total: number; allPassed: boolean };
+    failedRequests: PerRequestRecord[];
+    allResults: PerRequestRecord[];
+    reportPath: string | null;
+    error?: string;
+}
+
+/** In-memory store; entries expire after 1 hour to prevent leaks. */
+const RUN_TTL_MS = 60 * 60 * 1000;
+const runStore = new Map<string, RunRecord>();
+
+function pruneExpiredRuns(): void {
+    const cutoff = Date.now() - RUN_TTL_MS;
+    for (const [id, rec] of runStore) {
+        if (rec.startedAt < cutoff) runStore.delete(id);
+    }
+}
+
+function newRunId(): string {
+    return `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function requireRun(runId: string): RunRecord {
+    const rec = runStore.get(runId);
+    if (!rec) throw new Error(`Run "${runId}" not found. It may have expired (1-hour TTL) or never existed.`);
+    return rec;
+}
+
 // ─── Executor ─────────────────────────────────────────────────────────────
 
 export class McpExecutor {
@@ -419,10 +469,16 @@ export class McpExecutor {
             throw new Error('The "collection" argument is required');
         }
         const collections = this.collectionService.getAllCollections();
+        const q = label.toLowerCase();
         const col =
             collections.find(c => c.id === label || c.name === label) ??
-            collections.find(c => c.name.toLowerCase() === label.toLowerCase());
-        if (!col) throw new Error(`Collection not found: "${label}"`);
+            collections.find(c => c.name.toLowerCase() === q) ??
+            collections.find(c => c.name.toLowerCase().includes(q)) ??
+            collections.find(c => c.id.toLowerCase().includes(q));
+        if (!col) {
+            const names = collections.map(c => `"${c.name}"`).join(', ');
+            throw new Error(`Collection not found: "${label}". Available collections: ${names || '(none)'}. Call list_collections to see all.`);
+        }
         return col;
     }
 
@@ -445,31 +501,161 @@ export class McpExecutor {
             };
         }
 
+        if (tool === GENERIC_TOOL_NAMES.listFolders) {
+            const col = this.resolveCollectionByLabel(args.collection);
+            return {
+                collection: col.name,
+                folders: this.registry.enumerateFolders(col).map(({ folderPath, requestCount }) => ({
+                    path: folderPath,
+                    requestCount,
+                })),
+            };
+        }
+
         if (tool === GENERIC_TOOL_NAMES.listRequests) {
             const col = this.resolveCollectionByLabel(args.collection);
             const folderFilter = typeof args.folder === 'string' ? args.folder.toLowerCase() : undefined;
-            const requests = flattenCollection(col)
+            const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;
+            const limit = typeof args.limit === 'number' ? Math.min(200, Math.max(1, args.limit)) : 50;
+            const all = flattenCollection(col)
                 .filter(({ folderPath }) => !folderFilter || folderPath.toLowerCase().includes(folderFilter))
                 .map(({ request, folderPath }) => ({
+                    id: request.id,
                     name: request.name,
                     method: request.method,
                     folder: folderPath,
                     description: request.description ?? '',
                 }));
-            return { collection: col.name, requests };
+            return {
+                collection: col.name,
+                total: all.length,
+                offset,
+                limit,
+                requests: all.slice(offset, offset + limit),
+            };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.searchRequests) {
+            const col = this.resolveCollectionByLabel(args.collection);
+            const query = typeof args.query === 'string' ? args.query.toLowerCase().trim() : '';
+            if (!query) throw new Error('The "query" argument is required');
+            const matches = flattenCollection(col)
+                .filter(({ request, folderPath }) =>
+                    request.name.toLowerCase().includes(query) ||
+                    request.url.toLowerCase().includes(query) ||
+                    request.method.toLowerCase().includes(query) ||
+                    folderPath.toLowerCase().includes(query) ||
+                    (request.description ?? '').toLowerCase().includes(query)
+                )
+                .map(({ request, folderPath }) => ({
+                    id: request.id,
+                    name: request.name,
+                    method: request.method,
+                    url: request.url,
+                    folder: folderPath,
+                    description: request.description ?? '',
+                }));
+            return { collection: col.name, query: args.query, total: matches.length, requests: matches };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.getEnvironment) {
+            const envName = typeof args.environment === 'string' && args.environment.trim()
+                ? args.environment.trim()
+                : this.envConfigService.getSelectedEnvironment();
+            const resolved = this.envConfigService.getResolvedEnvironment(envName);
+            if (!resolved) throw new Error(`Environment "${envName}" not found`);
+            return { name: resolved.name, variables: resolved.variables };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.setVariable) {
+            const key = typeof args.key === 'string' ? args.key.trim() : '';
+            const value = typeof args.value === 'string' ? args.value : String(args.value ?? '');
+            if (!key) throw new Error('The "key" argument is required');
+            const envName = typeof args.environment === 'string' && args.environment.trim()
+                ? args.environment.trim()
+                : this.envConfigService.getSelectedEnvironment();
+            this.envConfigService.setEnvironmentVariable(key, value, envName);
+            return { set: true, key, environment: envName };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.getRunStatus) {
+            const rec = requireRun(args.runId as string);
+            return {
+                runId: rec.id,
+                status: rec.status,
+                suiteName: rec.suiteName,
+                progress: rec.progress,
+                ...(rec.error ? { error: rec.error } : {}),
+            };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.getRunSummary) {
+            const rec = requireRun(args.runId as string);
+            if (rec.status === 'running') {
+                return { runId: rec.id, status: 'running', progress: rec.progress };
+            }
+            return {
+                runId: rec.id,
+                status: rec.status,
+                suiteName: rec.suiteName,
+                summary: rec.summary,
+                ...(rec.reportPath ? { report: { uri: `file://${rec.reportPath}` } } : {}),
+            };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.getFailedRequests) {
+            const rec = requireRun(args.runId as string);
+            if (rec.status === 'running') {
+                return { runId: rec.id, status: 'running', progress: rec.progress, failedSoFar: rec.failedRequests.length };
+            }
+            const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;
+            const limit = typeof args.limit === 'number' ? Math.min(100, Math.max(1, args.limit)) : 20;
+            const slice = rec.failedRequests.slice(offset, offset + limit);
+            return {
+                runId: rec.id,
+                status: rec.status,
+                totalFailed: rec.failedRequests.length,
+                offset,
+                limit,
+                failedRequests: slice,
+            };
+        }
+
+        if (tool === GENERIC_TOOL_NAMES.getRequestResult) {
+            const rec = requireRun(args.runId as string);
+            const requestName = args.request as string;
+            const iteration = typeof args.iteration === 'number' ? args.iteration : 1;
+            if (!requestName) throw new Error('The "request" argument is required');
+            const result = rec.allResults.find(
+                r => r.iteration === iteration &&
+                     (r.name === requestName || r.name.toLowerCase() === requestName.toLowerCase())
+            );
+            if (!result) {
+                if (rec.status === 'running') {
+                    return { runId: rec.id, status: 'running', message: `Request "${requestName}" has not completed yet.` };
+                }
+                throw new Error(`Request "${requestName}" (iteration ${iteration}) not found in run "${rec.id}".`);
+            }
+            return { runId: rec.id, ...result };
         }
 
         if (tool === GENERIC_TOOL_NAMES.runRequest) {
             const col = this.resolveCollectionByLabel(args.collection);
-            const requestArg = args.request;
-            if (typeof requestArg !== 'string' || !requestArg.trim()) {
-                throw new Error('The "request" argument is required');
-            }
             const flat = flattenCollection(col);
-            const match =
-                flat.find(r => r.request.name === requestArg) ??
-                flat.find(r => r.request.name.toLowerCase() === requestArg.toLowerCase());
-            if (!match) throw new Error(`Request "${requestArg}" not found in collection "${col.name}"`);
+            const requestIdArg = typeof args.requestId === 'string' ? args.requestId.trim() : undefined;
+            const requestArg = args.request;
+            let match: typeof flat[0] | undefined;
+            if (requestIdArg) {
+                match = flat.find(r => r.request.id === requestIdArg);
+                if (!match) throw new Error(`Request with id "${requestIdArg}" not found in collection "${col.name}"`);
+            } else {
+                if (typeof requestArg !== 'string' || !requestArg.trim()) {
+                    throw new Error('The "request" or "requestId" argument is required');
+                }
+                match = flat.find(r => r.request.name === requestArg) ??
+                        flat.find(r => r.request.name.toLowerCase() === requestArg.toLowerCase());
+                if (!match) throw new Error(`Request "${requestArg}" not found in collection "${col.name}"`);
+            }
             return this.executeRequest([col.id, match.request.id], args);
         }
 
@@ -480,10 +666,16 @@ export class McpExecutor {
                 throw new Error('The "folder" argument is required');
             }
             const folderPaths = this.registry.enumerateFolders(col).map(f => f.folderPath);
+            const fq = folderArg.toLowerCase();
             const folderPath =
                 folderPaths.find(p => p === folderArg) ??
-                folderPaths.find(p => p.toLowerCase() === folderArg.toLowerCase());
-            if (!folderPath) throw new Error(`Folder "${folderArg}" not found in collection "${col.name}"`);
+                folderPaths.find(p => p.toLowerCase() === fq) ??
+                folderPaths.find(p => p.toLowerCase().includes(fq)) ??
+                folderPaths.find(p => p.split('/').some(seg => seg.toLowerCase().includes(fq)));
+            if (!folderPath) {
+                const hint = folderPaths.map(p => `"${p}"`).join(', ');
+                throw new Error(`Folder "${folderArg}" not found in collection "${col.name}". Available folders: ${hint || '(none)'}. Call list_folders to see all.`);
+            }
             return this.runFolder([col.id, folderPath], args);
         }
 
@@ -674,6 +866,68 @@ export class McpExecutor {
         args: Record<string, any>,
         source: 'suite' | 'collection'
     ): Promise<object> {
+        const runAsync = args.async === true;
+        if (runAsync) {
+            return this.executeSuiteAsync(suite, args, source);
+        }
+        return this.executeSuiteSync(suite, args, source);
+    }
+
+    /** Start a run in the background, return runId immediately. */
+    private executeSuiteAsync(
+        suite: any,
+        args: Record<string, any>,
+        source: 'suite' | 'collection'
+    ): object {
+        pruneExpiredRuns();
+        const runId = newRunId();
+
+        // Count effective requests for total
+        const effectiveRequests = suite.requests.filter((r: any) => {
+            if (r.enabled === false) return false;
+            const filter: string[] | undefined = args.requestFilter;
+            if (filter && !filter.some(f => r.name.toLowerCase().includes(f.toLowerCase()))) return false;
+            return true;
+        });
+        const iterations: number = args.iterations ?? suite.config?.iterations ?? 1;
+        const total = effectiveRequests.length * iterations;
+
+        const record: RunRecord = {
+            id: runId,
+            status: 'running',
+            suiteName: suite.name,
+            startedAt: Date.now(),
+            progress: { completed: 0, total },
+            summary: { passed: 0, failed: 0, total: 0, allPassed: false },
+            failedRequests: [],
+            allResults: [],
+            reportPath: null,
+        };
+        runStore.set(runId, record);
+
+        // Fire and forget — do not await
+        this.executeSuiteSync(suite, { ...args, _runRecord: record }, source)
+            .then((result: any) => {
+                record.status = 'completed';
+                record.completedAt = Date.now();
+                record.summary = result.summary ?? record.summary;
+                record.reportPath = result.report?.uri?.replace('file://', '') ?? null;
+            })
+            .catch((err: Error) => {
+                record.status = 'failed';
+                record.completedAt = Date.now();
+                record.error = err.message;
+            });
+
+        return { runId, status: 'running', total, message: 'Run started. Use get_run_status to poll.' };
+    }
+
+    private async executeSuiteSync(
+        suite: any,
+        args: Record<string, any>,
+        source: 'suite' | 'collection'
+    ): Promise<object> {
+        const runRecord: RunRecord | undefined = args._runRecord;
         const env = args.environment ?? this.envConfigService.getSelectedEnvironment();
         const iterations: number = args.iterations ?? suite.config?.iterations ?? 1;
         const stopOnError: boolean = args.stopOnError ?? suite.config?.stopOnError ?? false;
@@ -742,6 +996,36 @@ export class McpExecutor {
                     await resultStorage.saveResult(iter, result);
 
                     if (result.passed) { totalPassed++; } else { totalFailed++; }
+
+                    // Always record for async polling (allResults / failedRequests on run record)
+                    const perReqEntry: PerRequestRecord = {
+                        name: suiteReq.name,
+                        iteration: iter,
+                        status: result.response?.status,
+                        ok: result.response?.status >= 200 && result.response?.status < 300,
+                        duration: `${result.duration}ms`,
+                        allPassed: result.passed,
+                        body: tryParseJson(result.response?.body),
+                        ...(result.assertions?.length ? {
+                            failedTests: result.assertions.filter(a => !a.passed).map(a => ({
+                                name: a.name,
+                                ...(a.message ? { message: a.message } : {})
+                            }))
+                        } : {}),
+                        ...(result.error ? { error: result.error } : {}),
+                        ...(result.consoleOutput?.length ? { consoleOutput: result.consoleOutput } : {}),
+                    };
+                    if (runRecord) {
+                        runRecord.allResults.push(perReqEntry);
+                        if (!result.passed) runRecord.failedRequests.push(perReqEntry);
+                        runRecord.progress.completed++;
+                        runRecord.summary = {
+                            passed: totalPassed,
+                            failed: totalFailed,
+                            total: totalPassed + totalFailed,
+                            allPassed: totalFailed === 0,
+                        };
+                    }
 
                     if (include.includes('perRequest')) {
                         perRequestResults.push({

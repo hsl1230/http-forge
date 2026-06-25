@@ -93,13 +93,13 @@ Once connected, the AI automatically discovers all tools. In the default **flat*
 
 ## Tool modes — flat vs drill-down
 
-How collections and requests appear as MCP tools is controlled by `mcp.toolMode` in `http-forge.config.json` (default `"flat"`).
+How collections and requests appear as MCP tools is controlled by `mcp.toolMode` in `http-forge.config.json` (default `"auto"`).
 
 | Mode | What the AI sees | Best for |
 |---|---|---|
-| `flat` (default) | One tool per request, folder, collection, and suite, each with a rich description | Normal workspaces — maximum one-step discoverability |
-| `drilldown` | A small fixed set of generic tools whose **arguments** select the target | Very large workspaces (thousands of requests) |
-| `auto` | `flat` until the per-request tool count exceeds `drilldownThreshold` (default `200`), then `drilldown` | Workspaces that grow over time |
+| `auto` (default) | `flat` below `drilldownThreshold` (100), then switches to `drilldown` | **All workspaces** — adapts automatically |
+| `drilldown` | A small fixed set of generic tools whose **arguments** select the target | Very large workspaces or context-constrained AI clients |
+| `flat` | One tool per request, folder, collection, and suite | Tiny, stable collections (<100 requests). **Avoid for large workspaces** — bloats AI context |
 
 ### Why drill-down exists
 
@@ -124,12 +124,12 @@ Collection and suite **names are advertised as JSON-schema `enum`s**, so the AI 
 {
   "mcp": {
     "toolMode": "auto",
-    "drilldownThreshold": 200
+    "drilldownThreshold": 100
   }
 }
 ```
 
-Use `"drilldown"` to force the generic toolset on regardless of size, or `"flat"` to always keep one tool per request.
+Use `"drilldown"` to always use the generic toolset regardless of size. Use `"flat"` only for small, stable collections — it logs a warning when the workspace exceeds 500 requests.
 
 ---
 
@@ -491,9 +491,10 @@ Add an `mcp` section to control what gets exposed and how:
     "excludedCollections": [],
     "excludedSuites": [],
     "toolPrefix": "",
-    "maxRequestsPerCall": 50,
-    "toolMode": "flat",
-    "drilldownThreshold": 200,
+    "maxRequestsPerCall": 500,
+    "toolMode": "auto",
+    "drilldownThreshold": 100,
+    "toolPageSize": 150,
     "cors": {
       "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
     }
@@ -506,9 +507,10 @@ Add an `mcp` section to control what gets exposed and how:
 | `excludedCollections` | string[] | `[]` (none) | Collection IDs or names to **hide** from the AI. Empty = expose all. |
 | `excludedSuites` | string[] | `[]` (none) | Suite IDs or names to **hide** from the AI. Empty = expose all. |
 | `toolPrefix` | string | `""` | Prefix for every tool name, e.g. `"acme_"` → `acme_request__...` |
-| `maxRequestsPerCall` | number | `50` | Safety cap on requests per collection/suite call. Prevents runaway executions. |
-| `toolMode` | string | `"flat"` | How tools are exposed: `"flat"`, `"drilldown"`, or `"auto"`. See [Tool modes](#tool-modes--flat-vs-drill-down). |
-| `drilldownThreshold` | number | `200` | In `"auto"` mode, switch to drill-down once the per-request tool count would exceed this. |
+| `maxRequestsPerCall` | number | `500` | Safety cap on requests per collection/suite call. Prevents runaway executions. (min 1, max 10000) |
+| `toolMode` | string | `"auto"` | How tools are exposed: `"auto"` (recommended), `"drilldown"`, or `"flat"`. See [Tool modes](#tool-modes--flat-vs-drill-down). |
+| `drilldownThreshold` | number | `100` | In `"auto"` mode, switch to drill-down once the per-request tool count would exceed this. (min 10, max 500) |
+| `toolPageSize` | number | `150` | Max tools per `tools/list` page. `0` disables pagination. (min 10, max 1000) |
 | `cors.allowedOrigins` | string[] | `["http://localhost","http://127.0.0.1"]` | Origins the server accepts cross-origin requests from. |
 
 **Example — hide internal/admin collections from the AI:**

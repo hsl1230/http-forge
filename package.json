@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge — Free Postman Alternative (AI-Ready, Git-native, CI-friendly)",
   "description": "Design and test REST & GraphQL APIs with AI superpowers. No account, no cloud — your collections live in Git. OAuth 2.0 (PKCE), test suites with assertions, OpenAPI round-trip, and Postman import. Secrets from OS keychain, AWS, Azure, GCP, Vault, 1Password & Doppler — never stored on disk. Template engine with 25+ filter pipes and inline JS. MCP server lets Claude and GitHub Copilot discover and run your APIs directly. CLI- and CI-friendly — run collections and suites headless.",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -623,7 +623,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.5.1",
+    "@http-forge/core": "^0.5.2",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

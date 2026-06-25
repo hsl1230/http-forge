@@ -33,6 +33,20 @@ interface JsonRpcResponse {
     error?: { code: number; message: string };
 }
 
+function encodeCursor(offset: number): string {
+    return Buffer.from(String(offset)).toString('base64url');
+}
+
+function decodeCursor(cursor: string | undefined): number {
+    if (!cursor) return 0;
+    try {
+        const n = parseInt(Buffer.from(cursor, 'base64url').toString(), 10);
+        return Number.isFinite(n) && n >= 0 ? n : 0;
+    } catch {
+        return 0;
+    }
+}
+
 export class McpServerService {
     private server: http.Server | null = null;
 
@@ -187,8 +201,21 @@ export class McpServerService {
                     serverInfo: { name: 'http-forge', version: '1.0.0' }
                 };
 
-            case 'tools/list':
-                return { tools: await this.registry.buildToolList() };
+            case 'tools/list': {
+                const allTools = await this.registry.buildToolList();
+                const cursor = typeof rpc.params?.cursor === 'string' ? rpc.params.cursor : undefined;
+                const pageSize = this.configService?.getMcpConfig().toolPageSize ?? 150;
+                if (pageSize <= 0 || allTools.length <= pageSize) {
+                    return { tools: allTools };
+                }
+                const offset = decodeCursor(cursor);
+                const page = allTools.slice(offset, offset + pageSize);
+                const result: Record<string, unknown> = { tools: page };
+                if (offset + pageSize < allTools.length) {
+                    result.nextCursor = encodeCursor(offset + pageSize);
+                }
+                return result;
+            }
 
             case 'tools/call': {
                 const { name, arguments: toolArgs } = rpc.params ?? {};
