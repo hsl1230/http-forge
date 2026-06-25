@@ -16,6 +16,7 @@
 import type { IConfigService } from '@http-forge/core';
 import * as fs from 'fs';
 import * as http from 'http';
+import * as path from 'path';
 import type { McpExecutor } from './mcp-executor';
 import type { McpToolRegistry } from './mcp-tool-registry';
 
@@ -33,6 +34,20 @@ interface JsonRpcResponse {
     error?: { code: number; message: string };
 }
 
+function encodeCursor(offset: number): string {
+    return Buffer.from(String(offset)).toString('base64url');
+}
+
+function decodeCursor(cursor: string | undefined): number {
+    if (!cursor) return 0;
+    try {
+        const n = parseInt(Buffer.from(cursor, 'base64url').toString(), 10);
+        return Number.isFinite(n) && n >= 0 ? n : 0;
+    } catch {
+        return 0;
+    }
+}
+
 export class McpServerService {
     private server: http.Server | null = null;
 
@@ -40,7 +55,8 @@ export class McpServerService {
         private readonly registry: McpToolRegistry,
         private readonly executor: McpExecutor,
         private readonly port: number = 3100,
-        private readonly configService?: IConfigService
+        private readonly configService?: IConfigService,
+        private readonly workspaceFolder: string = ''
     ) {}
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
@@ -81,7 +97,7 @@ export class McpServerService {
                     return;
                 }
 
-                if (req.method === 'POST') {
+                if (req.method === 'POST' && (req.url === '/' || req.url === '/mcp')) {
                     this.handlePost(req, res);
                     return;
                 }
@@ -136,8 +152,9 @@ export class McpServerService {
         }
 
         // Security: only serve .html files inside the workspace .http-forge-cache directory
-        const normalized = require('path').normalize(filePath);
-        if (!normalized.includes('.http-forge-cache') || !normalized.endsWith('.html')) {
+        const allowedBase = path.resolve(this.workspaceFolder, '.http-forge-cache');
+        const normalized = path.resolve(filePath);
+        if (!normalized.startsWith(allowedBase + path.sep) || !normalized.endsWith('.html')) {
             res.writeHead(403);
             res.end('Forbidden');
             return;
@@ -156,8 +173,15 @@ export class McpServerService {
 
     private handlePost(req: http.IncomingMessage, res: http.ServerResponse): void {
         let body = '';
-        req.on('data', chunk => { body += chunk; });
+        req.on('data', chunk => {
+            body += chunk;
+            if (body.length > 1024 * 1024) {
+                this.sendError(res, null, -32700, 'Request body too large (max 1MB)');
+                req.destroy();
+            }
+        });
         req.on('end', async () => {
+            if (body.length > 1024 * 1024) return;
             let rpc: JsonRpcRequest;
             try {
                 rpc = JSON.parse(body);
@@ -187,8 +211,21 @@ export class McpServerService {
                     serverInfo: { name: 'http-forge', version: '1.0.0' }
                 };
 
-            case 'tools/list':
-                return { tools: await this.registry.buildToolList() };
+            case 'tools/list': {
+                const allTools = await this.registry.buildToolList();
+                const cursor = typeof rpc.params?.cursor === 'string' ? rpc.params.cursor : undefined;
+                const pageSize = this.configService?.getMcpConfig().toolPageSize ?? 150;
+                if (pageSize <= 0 || allTools.length <= pageSize) {
+                    return { tools: allTools };
+                }
+                const offset = decodeCursor(cursor);
+                const page = allTools.slice(offset, offset + pageSize);
+                const result: Record<string, unknown> = { tools: page };
+                if (offset + pageSize < allTools.length) {
+                    result.nextCursor = encodeCursor(offset + pageSize);
+                }
+                return result;
+            }
 
             case 'tools/call': {
                 const { name, arguments: toolArgs } = rpc.params ?? {};

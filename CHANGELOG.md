@@ -5,6 +5,80 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.15.3 - 2026-06-25
+
+### Changed
+
+- **Extension MCP server now runs fully in-process**: the VS Code extension no
+  longer delegates to the core's standalone `createMcpRuntime`. Instead it uses
+  its own `McpServerService` / `McpToolRegistry` / `McpExecutor` stack, which
+  are wired directly to the already-loaded in-memory services. Collections and
+  environments are always current (no file re-reads), startup is instant, and
+  there is zero disk I/O on every `tools/list` or `tools/call` request.
+
+### Fixed
+
+- **MCP server accepts `POST /mcp`** in addition to `POST /`, so standard MCP
+  clients that post to the `/mcp` path (e.g. Claude Desktop with a path-qualified
+  URL) work without any extra configuration.
+
+- **MCP server body size limit** (1 MB): oversized request bodies now receive a
+  JSON-RPC `-32700` error rather than being buffered indefinitely.
+
+- **MCP report path traversal hardened**: the `/report?path=` handler now uses
+  `path.resolve()` + `startsWith(allowedBase)` to validate the requested path,
+  replacing the previous weaker `includes('.http-forge-cache')` check.
+
+## 0.15.2 - 2026-06-24
+
+### Changed
+
+- **MCP default `toolMode` changed from `"flat"` to `"auto"`**: the server now
+  automatically switches to drill-down once the request-tool count exceeds
+  `drilldownThreshold` (default `100`). Small workspaces continue to use flat mode;
+  larger ones get the compact generic tool set without any configuration needed.
+
+- **MCP config defaults tightened**:
+  - `maxRequestsPerCall`: `50` → `500` (better default for real-world suites)
+  - `drilldownThreshold`: `200` → `100` (AI tool-selection quality degrades above ~100 tools)
+  - `toolPageSize`: new field, default `150` (covers flat-mode tool list in one page)
+
+- **MCP config values are now clamped to safe ranges** in `getMcpConfig()`:
+  - `drilldownThreshold`: min 10, max 500
+  - `toolPageSize`: min 10, max 1000 (`0` passes through as "no pagination")
+  - `maxRequestsPerCall`: min 1, max 10000
+  - `toolMode`: invalid values silently fall back to `"auto"`
+
+- **`flat` mode logs a warning when request count exceeds 500**: setting
+  `"toolMode": "flat"` on a large workspace now prints a console warning advising
+  the user to switch to `"auto"` or `"drilldown"`. The mode is still honoured.
+
+### Added
+
+- **`list_requests` and `search_requests` now return `id`** on each request entry.
+  Clients and AI agents can use this stable ID with `run_request` to target a
+  specific request unambiguously, even when names are duplicated across folders.
+
+- **`run_request` accepts `requestId`** (from `list_requests`/`search_requests`).
+  When provided it takes precedence over the `request` name argument, eliminating
+  ambiguity with duplicate request names. The name argument remains supported as
+  a fallback.
+
+- **Fuzzy/partial matching for collection and folder resolution**: MCP tools that
+  accept a `collection` or `folder` argument now fall back through
+  exact → case-insensitive → substring → (folder) segment matching before failing.
+  Error messages include the full candidate list so AI agents can self-correct in
+  one round-trip without calling `list_collections`/`list_folders` first.
+
+### Documentation
+
+- Updated all MCP configuration references in
+  [docs/user-guide/mcp-server.md](docs/user-guide/mcp-server.md),
+  [docs/user-guide/configuration.md](docs/user-guide/configuration.md), and
+  [docs/configuration.md](docs/configuration.md) to reflect new defaults,
+  add the `toolPageSize` field, and reframe `"flat"` mode as a footgun for
+  large workspaces.
+
 ## 0.15.1 - 2026-06-24
 
 ### Fixed
