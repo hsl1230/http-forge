@@ -204,7 +204,7 @@ export class McpServerService {
             case 'tools/list': {
                 const allTools = await this.registry.buildToolList();
                 const cursor = typeof rpc.params?.cursor === 'string' ? rpc.params.cursor : undefined;
-                const pageSize = this.configService?.getMcpConfig().toolPageSize ?? 150;
+                const pageSize = this.configService?.getMcpConfig().toolPageSize ?? 200;
                 if (pageSize <= 0 || allTools.length <= pageSize) {
                     return { tools: allTools };
                 }
