@@ -16,6 +16,7 @@
 import type { IConfigService } from '@http-forge/core';
 import * as fs from 'fs';
 import * as http from 'http';
+import * as path from 'path';
 import type { McpExecutor } from './mcp-executor';
 import type { McpToolRegistry } from './mcp-tool-registry';
 
@@ -54,7 +55,8 @@ export class McpServerService {
         private readonly registry: McpToolRegistry,
         private readonly executor: McpExecutor,
         private readonly port: number = 3100,
-        private readonly configService?: IConfigService
+        private readonly configService?: IConfigService,
+        private readonly workspaceFolder: string = ''
     ) {}
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
@@ -95,7 +97,7 @@ export class McpServerService {
                     return;
                 }
 
-                if (req.method === 'POST') {
+                if (req.method === 'POST' && (req.url === '/' || req.url === '/mcp')) {
                     this.handlePost(req, res);
                     return;
                 }
@@ -150,8 +152,9 @@ export class McpServerService {
         }
 
         // Security: only serve .html files inside the workspace .http-forge-cache directory
-        const normalized = require('path').normalize(filePath);
-        if (!normalized.includes('.http-forge-cache') || !normalized.endsWith('.html')) {
+        const allowedBase = path.resolve(this.workspaceFolder, '.http-forge-cache');
+        const normalized = path.resolve(filePath);
+        if (!normalized.startsWith(allowedBase + path.sep) || !normalized.endsWith('.html')) {
             res.writeHead(403);
             res.end('Forbidden');
             return;
@@ -170,8 +173,15 @@ export class McpServerService {
 
     private handlePost(req: http.IncomingMessage, res: http.ServerResponse): void {
         let body = '';
-        req.on('data', chunk => { body += chunk; });
+        req.on('data', chunk => {
+            body += chunk;
+            if (body.length > 1024 * 1024) {
+                this.sendError(res, null, -32700, 'Request body too large (max 1MB)');
+                req.destroy();
+            }
+        });
         req.on('end', async () => {
+            if (body.length > 1024 * 1024) return;
             let rpc: JsonRpcRequest;
             try {
                 rpc = JSON.parse(body);

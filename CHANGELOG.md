@@ -5,6 +5,30 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.15.3 - 2026-06-25
+
+### Changed
+
+- **Extension MCP server now runs fully in-process**: the VS Code extension no
+  longer delegates to the core's standalone `createMcpRuntime`. Instead it uses
+  its own `McpServerService` / `McpToolRegistry` / `McpExecutor` stack, which
+  are wired directly to the already-loaded in-memory services. Collections and
+  environments are always current (no file re-reads), startup is instant, and
+  there is zero disk I/O on every `tools/list` or `tools/call` request.
+
+### Fixed
+
+- **MCP server accepts `POST /mcp`** in addition to `POST /`, so standard MCP
+  clients that post to the `/mcp` path (e.g. Claude Desktop with a path-qualified
+  URL) work without any extra configuration.
+
+- **MCP server body size limit** (1 MB): oversized request bodies now receive a
+  JSON-RPC `-32700` error rather than being buffered indefinitely.
+
+- **MCP report path traversal hardened**: the `/report?path=` handler now uses
+  `path.resolve()` + `startsWith(allowedBase)` to validate the requested path,
+  replacing the previous weaker `includes('.http-forge-cache')` check.
+
 ## 0.15.2 - 2026-06-24
 
 ### Changed

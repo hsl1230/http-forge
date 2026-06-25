@@ -8,10 +8,13 @@ When the MCP server is running, AI agents see every request in your collections 
 
 ```
 AI Agent
-  → POST http://localhost:3100  (JSON-RPC 2.0)
+  → POST http://localhost:3100      (or POST http://localhost:3100/mcp)
   → HTTP Forge executes the request using your saved config
   → Returns structured result (status, body, assertions, report URI)
 ```
+
+> Both `POST /` and `POST /mcp` accept the same JSON-RPC 2.0 payload.
+> Use whichever path your MCP client requires.
 
 ---
 
@@ -53,7 +56,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 {
   "mcpServers": {
     "http-forge": {
-      "url": "http://localhost:3100"
+      "url": "http://localhost:3100/mcp"
     }
   }
 }

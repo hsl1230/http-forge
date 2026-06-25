@@ -42,6 +42,8 @@ export interface FlatRequest {
 }
 
 export class McpToolRegistry {
+    private cachedTools: McpTool[] | null = null;
+
     constructor(
         private readonly collectionService: ICollectionService,
         private readonly testSuiteService: ITestSuiteService,
@@ -49,6 +51,17 @@ export class McpToolRegistry {
     ) {}
 
     async buildToolList(): Promise<McpTool[]> {
+        if (this.cachedTools) return this.cachedTools;
+        const tools = await this.computeToolList();
+        this.cachedTools = tools;
+        return tools;
+    }
+
+    invalidateCache(): void {
+        this.cachedTools = null;
+    }
+
+    private async computeToolList(): Promise<McpTool[]> {
         const tools: McpTool[] = [];
         const mcpCfg = this.configService.getMcpConfig();
         const prefix = mcpCfg.toolPrefix ?? '';
