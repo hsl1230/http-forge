@@ -5,6 +5,50 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.0 - 2026-06-25
+
+### Added
+
+- **27 new MCP management tools** — AI agents (Claude, Copilot) can now author
+  and manage collections, suites, and environments without touching JSON files:
+
+  *Collection management:* `create_collection`, `rename_collection`,
+  `delete_collection`, `duplicate_collection`, `create_folder`, `delete_folder`,
+  `create_request`, `update_request`, `delete_request`, `get_request_script`,
+  `set_request_script`, `reorder_collection_items`
+
+  *Suite management:* `list_suites`, `get_suite`, `create_suite`,
+  `update_suite_config`, `add_suite_requests`, `remove_suite_request`,
+  `reorder_suite_requests`, `duplicate_suite`, `delete_suite`
+
+  *Environment management:* `list_environments`, `get_environment_variables`,
+  `select_environment`, `create_environment`, `delete_environment`,
+  `set_environment_variable`, `unset_environment_variable`, `set_global_variable`,
+  `get_globals`
+
+- **`set_environment_variable` now accepts a `scope` parameter**: `"session"`
+  (default, in-memory) or `"permanent"` (writes the variable to the environment
+  JSON file on disk, surviving restarts).
+
+- **`set_global_variable` now accepts a `scope` parameter**: `"session"` keeps
+  the value in-memory; `"permanent"` writes it to `_global.json`.
+
+### Changed
+
+- **`toolPageSize` default raised from 150 to 200**: better out-of-the-box
+  coverage for the average workspace without configuration.
+
+### Internal
+
+- **`McpExecutor.callGeneric` consolidated**: the 700-line per-tool dispatch
+  table is replaced by a ~20-line delegation to `dispatchGenericTool` from
+  `@http-forge/core`. Both MCP servers (extension + core standalone) now share
+  a single implementation, eliminating all duplication.
+
+- **`CACHE_BUSTING_TOOLS` moved to `mcp-dispatcher.ts`** in core and exported,
+  so both servers invalidate the tool-list cache after the same set of
+  write-operation tools without duplicating the list.
+
 ## 0.15.3 - 2026-06-25
 
 ### Changed

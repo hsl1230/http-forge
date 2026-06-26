@@ -14,7 +14,9 @@
  */
 
 import {
+    CACHE_BUSTING_TOOLS,
     CollectionRequestExecutor,
+    dispatchGenericTool,
     GENERIC_TOOL_NAMES,
     ICollectionService,
     IEnvironmentConfigService,
@@ -24,6 +26,7 @@ import {
     IResultStorageService,
     IScriptExecutor,
     ITestSuiteService,
+    McpRunStore,
     parseMcpToolName,
     resolveFolderToken,
     resolveToken,
@@ -37,6 +40,9 @@ import {
     type ExecutionResult,
     type GenericToolName,
     type IConfigService,
+    type McpDispatchServices,
+    type McpRunCallbacks,
+    type McpRunRecord,
     type RequestScripts,
 } from '@http-forge/core';
 import * as fsp from 'fs/promises';
@@ -378,59 +384,11 @@ async function writeSingleRequestReport(
     }
 }
 
-// ─── Async run store ──────────────────────────────────────────────────────
-
-interface PerRequestRecord {
-    name: string;
-    iteration: number;
-    status: number;
-    ok: boolean;
-    duration: string;
-    allPassed: boolean;
-    body?: unknown;
-    failedTests?: Array<{ name: string; message?: string }>;
-    error?: string;
-    consoleOutput?: string[];
-}
-
-interface RunRecord {
-    id: string;
-    status: 'running' | 'completed' | 'failed';
-    suiteName: string;
-    startedAt: number;
-    completedAt?: number;
-    progress: { completed: number; total: number };
-    summary: { passed: number; failed: number; total: number; allPassed: boolean };
-    failedRequests: PerRequestRecord[];
-    allResults: PerRequestRecord[];
-    reportPath: string | null;
-    error?: string;
-}
-
-/** In-memory store; entries expire after 1 hour to prevent leaks. */
-const RUN_TTL_MS = 60 * 60 * 1000;
-const runStore = new Map<string, RunRecord>();
-
-function pruneExpiredRuns(): void {
-    const cutoff = Date.now() - RUN_TTL_MS;
-    for (const [id, rec] of runStore) {
-        if (rec.startedAt < cutoff) runStore.delete(id);
-    }
-}
-
-function newRunId(): string {
-    return `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function requireRun(runId: string): RunRecord {
-    const rec = runStore.get(runId);
-    if (!rec) throw new Error(`Run "${runId}" not found. It may have expired (1-hour TTL) or never existed.`);
-    return rec;
-}
-
 // ─── Executor ─────────────────────────────────────────────────────────────
 
 export class McpExecutor {
+    private readonly runStore = new McpRunStore();
+
     constructor(
         private readonly collectionService: ICollectionService,
         private readonly envConfigService: IEnvironmentConfigService,
@@ -463,240 +421,33 @@ export class McpExecutor {
         }
     }
 
-    /** Resolve a collection by its display name or id (case-insensitive fallback). */
-    private resolveCollectionByLabel(label: unknown): Collection {
-        if (typeof label !== 'string' || !label.trim()) {
-            throw new Error('The "collection" argument is required');
-        }
-        const collections = this.collectionService.getAllCollections();
-        const q = label.toLowerCase();
-        const col =
-            collections.find(c => c.id === label || c.name === label) ??
-            collections.find(c => c.name.toLowerCase() === q) ??
-            collections.find(c => c.name.toLowerCase().includes(q)) ??
-            collections.find(c => c.id.toLowerCase().includes(q));
-        if (!col) {
-            const names = collections.map(c => `"${c.name}"`).join(', ');
-            throw new Error(`Collection not found: "${label}". Available collections: ${names || '(none)'}. Call list_collections to see all.`);
-        }
-        return col;
-    }
-
     /**
-     * Dispatch a generic drill-down tool. The target is chosen by ARGUMENTS
-     * (collection/request/folder/suite name) rather than encoded in the tool
-     * name. Resolved ids are forwarded to the existing token-based methods,
-     * which accept raw ids via their legacy fallback.
+     * Dispatch a generic (argument-selected) MCP tool by delegating to
+     * dispatchGenericTool from @http-forge/core, then busting the tool-list
+     * cache when the tool modifies collection / suite structure.
      */
     private async callGeneric(tool: GenericToolName, args: Record<string, any>): Promise<object> {
-        if (tool === GENERIC_TOOL_NAMES.listCollections) {
-            const collections = this.collectionService.getAllCollections();
-            return {
-                collections: collections.map(c => ({
-                    name: c.name,
-                    id: c.id,
-                    description: c.description ?? '',
-                    requestCount: flattenCollection(c).length,
-                })),
-            };
+        const services: McpDispatchServices = {
+            collection: this.collectionService,
+            testSuite: this.testSuiteService,
+            environmentConfig: this.envConfigService,
+        };
+        const callbacks: McpRunCallbacks = {
+            runRequest: (col, requestId, runArgs) =>
+                this.executeRequest([col.id, requestId], runArgs as Record<string, any>),
+            runFolder: (col, folderPath, runArgs) =>
+                this.runFolder([col.id, folderPath], runArgs as Record<string, any>),
+            runCollection: (col, runArgs) =>
+                this.runCollection([col.id], runArgs as Record<string, any>),
+            runSuite: (suiteId, _suiteName, runArgs) =>
+                this.runTestSuite([suiteId], runArgs as Record<string, any>),
+        };
+        const result = await dispatchGenericTool(tool, args, services, this.runStore, callbacks);
+        if (CACHE_BUSTING_TOOLS.has(tool)) {
+            this.registry.invalidateCache();
         }
-
-        if (tool === GENERIC_TOOL_NAMES.listFolders) {
-            const col = this.resolveCollectionByLabel(args.collection);
-            return {
-                collection: col.name,
-                folders: this.registry.enumerateFolders(col).map(({ folderPath, requestCount }) => ({
-                    path: folderPath,
-                    requestCount,
-                })),
-            };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.listRequests) {
-            const col = this.resolveCollectionByLabel(args.collection);
-            const folderFilter = typeof args.folder === 'string' ? args.folder.toLowerCase() : undefined;
-            const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;
-            const limit = typeof args.limit === 'number' ? Math.min(200, Math.max(1, args.limit)) : 50;
-            const all = flattenCollection(col)
-                .filter(({ folderPath }) => !folderFilter || folderPath.toLowerCase().includes(folderFilter))
-                .map(({ request, folderPath }) => ({
-                    id: request.id,
-                    name: request.name,
-                    method: request.method,
-                    folder: folderPath,
-                    description: request.description ?? '',
-                }));
-            return {
-                collection: col.name,
-                total: all.length,
-                offset,
-                limit,
-                requests: all.slice(offset, offset + limit),
-            };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.searchRequests) {
-            const col = this.resolveCollectionByLabel(args.collection);
-            const query = typeof args.query === 'string' ? args.query.toLowerCase().trim() : '';
-            if (!query) throw new Error('The "query" argument is required');
-            const matches = flattenCollection(col)
-                .filter(({ request, folderPath }) =>
-                    request.name.toLowerCase().includes(query) ||
-                    request.url.toLowerCase().includes(query) ||
-                    request.method.toLowerCase().includes(query) ||
-                    folderPath.toLowerCase().includes(query) ||
-                    (request.description ?? '').toLowerCase().includes(query)
-                )
-                .map(({ request, folderPath }) => ({
-                    id: request.id,
-                    name: request.name,
-                    method: request.method,
-                    url: request.url,
-                    folder: folderPath,
-                    description: request.description ?? '',
-                }));
-            return { collection: col.name, query: args.query, total: matches.length, requests: matches };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.getEnvironment) {
-            const envName = typeof args.environment === 'string' && args.environment.trim()
-                ? args.environment.trim()
-                : this.envConfigService.getSelectedEnvironment();
-            const resolved = this.envConfigService.getResolvedEnvironment(envName);
-            if (!resolved) throw new Error(`Environment "${envName}" not found`);
-            return { name: resolved.name, variables: resolved.variables };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.setVariable) {
-            const key = typeof args.key === 'string' ? args.key.trim() : '';
-            const value = typeof args.value === 'string' ? args.value : String(args.value ?? '');
-            if (!key) throw new Error('The "key" argument is required');
-            const envName = typeof args.environment === 'string' && args.environment.trim()
-                ? args.environment.trim()
-                : this.envConfigService.getSelectedEnvironment();
-            this.envConfigService.setEnvironmentVariable(key, value, envName);
-            return { set: true, key, environment: envName };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.getRunStatus) {
-            const rec = requireRun(args.runId as string);
-            return {
-                runId: rec.id,
-                status: rec.status,
-                suiteName: rec.suiteName,
-                progress: rec.progress,
-                ...(rec.error ? { error: rec.error } : {}),
-            };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.getRunSummary) {
-            const rec = requireRun(args.runId as string);
-            if (rec.status === 'running') {
-                return { runId: rec.id, status: 'running', progress: rec.progress };
-            }
-            return {
-                runId: rec.id,
-                status: rec.status,
-                suiteName: rec.suiteName,
-                summary: rec.summary,
-                ...(rec.reportPath ? { report: { uri: `file://${rec.reportPath}` } } : {}),
-            };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.getFailedRequests) {
-            const rec = requireRun(args.runId as string);
-            if (rec.status === 'running') {
-                return { runId: rec.id, status: 'running', progress: rec.progress, failedSoFar: rec.failedRequests.length };
-            }
-            const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;
-            const limit = typeof args.limit === 'number' ? Math.min(100, Math.max(1, args.limit)) : 20;
-            const slice = rec.failedRequests.slice(offset, offset + limit);
-            return {
-                runId: rec.id,
-                status: rec.status,
-                totalFailed: rec.failedRequests.length,
-                offset,
-                limit,
-                failedRequests: slice,
-            };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.getRequestResult) {
-            const rec = requireRun(args.runId as string);
-            const requestName = args.request as string;
-            const iteration = typeof args.iteration === 'number' ? args.iteration : 1;
-            if (!requestName) throw new Error('The "request" argument is required');
-            const result = rec.allResults.find(
-                r => r.iteration === iteration &&
-                     (r.name === requestName || r.name.toLowerCase() === requestName.toLowerCase())
-            );
-            if (!result) {
-                if (rec.status === 'running') {
-                    return { runId: rec.id, status: 'running', message: `Request "${requestName}" has not completed yet.` };
-                }
-                throw new Error(`Request "${requestName}" (iteration ${iteration}) not found in run "${rec.id}".`);
-            }
-            return { runId: rec.id, ...result };
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.runRequest) {
-            const col = this.resolveCollectionByLabel(args.collection);
-            const flat = flattenCollection(col);
-            const requestIdArg = typeof args.requestId === 'string' ? args.requestId.trim() : undefined;
-            const requestArg = args.request;
-            let match: typeof flat[0] | undefined;
-            if (requestIdArg) {
-                match = flat.find(r => r.request.id === requestIdArg);
-                if (!match) throw new Error(`Request with id "${requestIdArg}" not found in collection "${col.name}"`);
-            } else {
-                if (typeof requestArg !== 'string' || !requestArg.trim()) {
-                    throw new Error('The "request" or "requestId" argument is required');
-                }
-                match = flat.find(r => r.request.name === requestArg) ??
-                        flat.find(r => r.request.name.toLowerCase() === requestArg.toLowerCase());
-                if (!match) throw new Error(`Request "${requestArg}" not found in collection "${col.name}"`);
-            }
-            return this.executeRequest([col.id, match.request.id], args);
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.runFolder) {
-            const col = this.resolveCollectionByLabel(args.collection);
-            const folderArg = args.folder;
-            if (typeof folderArg !== 'string' || !folderArg.trim()) {
-                throw new Error('The "folder" argument is required');
-            }
-            const folderPaths = this.registry.enumerateFolders(col).map(f => f.folderPath);
-            const fq = folderArg.toLowerCase();
-            const folderPath =
-                folderPaths.find(p => p === folderArg) ??
-                folderPaths.find(p => p.toLowerCase() === fq) ??
-                folderPaths.find(p => p.toLowerCase().includes(fq)) ??
-                folderPaths.find(p => p.split('/').some(seg => seg.toLowerCase().includes(fq)));
-            if (!folderPath) {
-                const hint = folderPaths.map(p => `"${p}"`).join(', ');
-                throw new Error(`Folder "${folderArg}" not found in collection "${col.name}". Available folders: ${hint || '(none)'}. Call list_folders to see all.`);
-            }
-            return this.runFolder([col.id, folderPath], args);
-        }
-
-        if (tool === GENERIC_TOOL_NAMES.runCollection) {
-            const col = this.resolveCollectionByLabel(args.collection);
-            return this.runCollection([col.id], args);
-        }
-
-        // run_suite
-        const suiteArg = args.suite;
-        if (typeof suiteArg !== 'string' || !suiteArg.trim()) {
-            throw new Error('The "suite" argument is required');
-        }
-        const suites = await this.testSuiteService.getAllSuites();
-        const suite =
-            suites.find(s => s.id === suiteArg || s.name === suiteArg) ??
-            suites.find(s => s.name.toLowerCase() === suiteArg.toLowerCase());
-        if (!suite) throw new Error(`Test suite not found: "${suiteArg}"`);
-        return this.runTestSuite([suite.id], args);
+        return result as object;
     }
-
     /** Resolve a collection token (hash or legacy raw id) to a collection. */
     private resolveCollection(token: string): Collection {
         const collections = this.collectionService.getAllCollections();
@@ -879,8 +630,7 @@ export class McpExecutor {
         args: Record<string, any>,
         source: 'suite' | 'collection'
     ): object {
-        pruneExpiredRuns();
-        const runId = newRunId();
+        this.runStore.prune();
 
         // Count effective requests for total
         const effectiveRequests = suite.requests.filter((r: any) => {
@@ -892,18 +642,7 @@ export class McpExecutor {
         const iterations: number = args.iterations ?? suite.config?.iterations ?? 1;
         const total = effectiveRequests.length * iterations;
 
-        const record: RunRecord = {
-            id: runId,
-            status: 'running',
-            suiteName: suite.name,
-            startedAt: Date.now(),
-            progress: { completed: 0, total },
-            summary: { passed: 0, failed: 0, total: 0, allPassed: false },
-            failedRequests: [],
-            allResults: [],
-            reportPath: null,
-        };
-        runStore.set(runId, record);
+        const record = this.runStore.create(suite.name, total);
 
         // Fire and forget — do not await
         this.executeSuiteSync(suite, { ...args, _runRecord: record }, source)
@@ -919,7 +658,7 @@ export class McpExecutor {
                 record.error = err.message;
             });
 
-        return { runId, status: 'running', total, message: 'Run started. Use get_run_status to poll.' };
+        return { runId: record.id, status: 'running', total, message: 'Run started. Use get_run_status to poll.' };
     }
 
     private async executeSuiteSync(
@@ -927,7 +666,7 @@ export class McpExecutor {
         args: Record<string, any>,
         source: 'suite' | 'collection'
     ): Promise<object> {
-        const runRecord: RunRecord | undefined = args._runRecord;
+        const runRecord: McpRunRecord | undefined = args._runRecord;
         const env = args.environment ?? this.envConfigService.getSelectedEnvironment();
         const iterations: number = args.iterations ?? suite.config?.iterations ?? 1;
         const stopOnError: boolean = args.stopOnError ?? suite.config?.stopOnError ?? false;
@@ -998,7 +737,7 @@ export class McpExecutor {
                     if (result.passed) { totalPassed++; } else { totalFailed++; }
 
                     // Always record for async polling (allResults / failedRequests on run record)
-                    const perReqEntry: PerRequestRecord = {
+                    const perReqEntry = {
                         name: suiteReq.name,
                         iteration: iter,
                         status: result.response?.status,

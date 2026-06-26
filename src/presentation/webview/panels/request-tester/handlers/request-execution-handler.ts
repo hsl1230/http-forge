@@ -1,4 +1,4 @@
-import { CollectionRequestExecutor, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PathParamEntry, type PreparedRequest, type RequestScripts } from '@http-forge/core';
+import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PathParamEntry, type PreparedRequest, type RequestScripts } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { RequestContext } from '../../../../../shared/utils';
@@ -120,8 +120,8 @@ export class RequestExecutionHandler implements IMessageHandler {
 
     // Create callback to log console output to VS Code output channel
     const consoleService = getServiceContainer().console;
-    const onConsoleOutput = (output: string[]) => {
-      consoleService.logRawLines(output, 'Script');
+    const onConsoleOutput = (output: string[], source: ConsoleOutputSource) => {
+      consoleService.logRawLines(output, `${source.requestName} [${source.phase}]`);
     };
 
     // Provide collection name so scripts can access pm.info.collectionName

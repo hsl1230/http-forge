@@ -52,7 +52,7 @@ If the file is missing, HTTP Forge uses defaults:
     "maxRequestsPerCall": 500,
     "toolMode": "auto",
     "drilldownThreshold": 100,
-    "toolPageSize": 150,
+    "toolPageSize": 200,
     "cors": {
       "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
     }
@@ -87,7 +87,7 @@ If the file is missing, HTTP Forge uses defaults:
 |  | `maxRequestsPerCall` | `500` | Maximum requests the MCP server executes in a single collection/suite call. (min 1, max 10000) |
 |  | `toolMode` | `"auto"` | How tools are exposed: `"auto"` (recommended — flat below threshold then drilldown), `"drilldown"` (always generic tools), or `"flat"` (one tool per request; avoid for large workspaces). |
 |  | `drilldownThreshold` | `100` | In `"auto"` mode, switch to drill-down once the per-request tool count would exceed this. (min 10, max 500) |
-|  | `toolPageSize` | `150` | Max tools per `tools/list` page. `0` = no pagination. (min 10, max 1000) |
+|  | `toolPageSize` | `200` | Max tools per `tools/list` page. `0` = no pagination. (min 10, max 1000) |
 |  | `cors.allowedOrigins` | `["http://localhost","http://127.0.0.1"]` | Origins the MCP server accepts cross-origin requests from. |
 | **proxy** | - | `null` | Proxy URL (set to a URL string to enable proxy) |
 

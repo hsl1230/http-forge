@@ -110,14 +110,79 @@ In `flat` mode every request becomes its own tool. With thousands of requests ac
 
 ### The generic tools (drill-down mode)
 
-| Tool | Arguments | What it does |
+#### Inspection
+
+| Tool | Key arguments | What it does |
 |---|---|---|
-| `list_collections` | — | List every collection (name, description, request count) |
-| `list_requests` | `collection`, optional `folder` | List the requests in a collection (name, method, folder, description) |
-| `run_request` | `collection`, `request`, + the usual single-request overrides | Run one request |
-| `run_folder` | `collection`, `folder`, + collection-run options | Run every request in a folder |
-| `run_collection` | `collection`, + collection-run options | Run an entire collection |
-| `run_suite` | `suite`, + suite-run options | Run a test suite |
+| `list_collections` | — | List every collection (name, id, description, request count) |
+| `list_folders` | `collection` | List all folder paths in a collection |
+| `list_requests` | `collection`, optional `folder`, `offset`, `limit` | Paginated request list (name, method, folder, id) |
+| `search_requests` | `collection`, `query` | Full-text search across name, URL, method, folder, description |
+
+#### Execution
+
+| Tool | Key arguments | What it does |
+|---|---|---|
+| `run_request` | `collection`, `request` or `requestId`, + overrides | Run one request |
+| `run_folder` | `collection`, `folder`, + run options | Run every request in a folder |
+| `run_collection` | `collection`, + run options | Run an entire collection |
+| `run_suite` | `suite`, + run options | Run a test suite |
+
+#### Async run polling
+
+| Tool | Key arguments | What it does |
+|---|---|---|
+| `get_run_status` | `runId` | Poll a background run's live status and progress |
+| `get_run_summary` | `runId` | Fetch the final summary once a run completes |
+| `get_failed_requests` | `runId`, `offset`, `limit` | Page through failed requests from a completed run |
+| `get_request_result` | `runId`, `request`, `iteration` | Get one request's full result from a completed run |
+
+#### Environment & variables
+
+| Tool | Key arguments | What it does |
+|---|---|---|
+| `get_environment` | optional `environment` | Resolve all variables for an environment |
+| `get_environment_variables` | optional `environment` | Show file variables, session overrides, and resolved values |
+| `list_environments` | — | List all environments (name, active state, variable keys) |
+| `select_environment` | `environment` | Switch the active environment |
+| `create_environment` | `name`, optional `variables` | Create a new environment with optional initial variables |
+| `delete_environment` | `environment`, `confirm: true` | Delete an environment |
+| `set_variable` | `key`, `value`, optional `environment` | Set an environment variable for the current session |
+| `set_environment_variable` | `key`, `value`, optional `environment`, `scope` | Set a variable (`scope: "session"` or `"permanent"` — permanent writes the env file) |
+| `unset_environment_variable` | `key`, optional `environment` | Remove a variable override |
+| `set_global_variable` | `key`, `value`, `scope` | Set a global variable (`"session"` = in-memory; `"permanent"` = writes `_global.json`) |
+| `get_globals` | — | List all global variables |
+
+#### Collection management
+
+| Tool | Key arguments | What it does |
+|---|---|---|
+| `create_collection` | `name` | Create a new empty collection |
+| `rename_collection` | `collection`, `newName` | Rename a collection |
+| `delete_collection` | `collection`, `confirm: true` | Delete a collection and all its requests |
+| `duplicate_collection` | `collection`, `newName` | Copy a collection under a new name |
+| `create_folder` | `collection`, `name`, optional `parentFolder` | Create a folder (optionally nested) |
+| `delete_folder` | `collection`, `folder`, `confirm: true` | Delete a folder and all requests inside it |
+| `create_request` | `collection`, `name`, `url`, optional `method`, `folder`, `body`, `description` | Create a new request |
+| `update_request` | `collection`, `request`, any of `name`, `method`, `url`, `headers`, `body`, `description` | Edit an existing request |
+| `delete_request` | `collection`, `request`, `confirm: true` | Delete a request |
+| `get_request_script` | `collection`, `request`, `phase` | Read a pre-request or post-response script |
+| `set_request_script` | `collection`, `request`, `phase`, `script` | Write a pre-request or post-response script |
+| `reorder_collection_items` | `collection`, `order`, optional `folder` | Reorder requests/folders inside a collection or folder |
+
+#### Suite management
+
+| Tool | Key arguments | What it does |
+|---|---|---|
+| `list_suites` | — | List all test suites |
+| `get_suite` | `suite` | Get full suite details including request list and config |
+| `create_suite` | `name`, optional `fromCollection`, `fromFolder`, `iterations`, `stopOnError`, `delayBetweenRequests` | Create a suite, optionally from a collection |
+| `update_suite_config` | `suite`, any of `name`, `description`, `iterations`, `stopOnError`, `delayBetweenRequests` | Edit suite metadata and run config |
+| `add_suite_requests` | `suite`, `requests` (array of `{collection, request}`), optional `insertAt` | Add requests to a suite |
+| `remove_suite_request` | `suite`, `request` name or `index` | Remove one request from a suite |
+| `reorder_suite_requests` | `suite`, `order` (array of names) | Reorder requests inside a suite |
+| `duplicate_suite` | `suite`, `newName` | Copy a suite under a new name |
+| `delete_suite` | `suite`, `confirm: true` | Delete a suite |
 
 Collection and suite **names are advertised as JSON-schema `enum`s**, so the AI chooses from real values instead of guessing. The typical flow mirrors how you'd think about it: the agent calls `list_collections` → picks one → `list_requests` to find the exact request → `run_request`. The override arguments (`environment`, `variables`, `headers`, `iterations`, `include`, …) are identical to flat mode.
 
@@ -273,6 +338,145 @@ The AI calls the same request twice with different environments and compares the
 > "Run the Smoke Test suite on production and tell me if I'm safe to proceed"
 
 > "Run all requests in the Health Check collection and confirm everything returns 200"
+
+---
+
+### 10. Build a regression suite from a collection (QA)
+
+A QA engineer can ask the AI to create a test suite directly from an existing collection, with no JSON editing required.
+
+> "Create a regression suite called 'Checkout Regression' from the Payments collection"
+
+> "Create a suite from the Auth folder in the MyApp collection, run it 3 times, and stop on the first error"
+
+> "Build a smoke test suite from all requests in the Orders collection — only include the ones in the 'Happy Path' folder"
+
+The AI calls `list_collections`, `create_suite(fromCollection: "Payments", name: "Checkout Regression")` and then optionally configures iterations and `stopOnError` with `update_suite_config`.
+
+---
+
+### 11. Manage a test suite (QA)
+
+Once a suite exists, the AI can add, remove, and reorder requests without touching any files.
+
+**Add requests:**
+> "Add the POST /api/orders and GET /api/orders/{id} requests from the Orders collection to the Checkout Regression suite"
+
+> "Append the DELETE /api/cart request from the Cart collection to the Checkout suite"
+
+**Remove a request:**
+> "Remove the 'Seed test data' request from the Smoke Test suite — it's no longer needed"
+
+> "Delete the request at position 3 in the Full Regression suite"
+
+**Reorder:**
+> "Move the login request to the top of the Checkout Regression suite, then place 'Create order' second"
+
+**Update config:**
+> "Set the Checkout Regression suite to run 5 iterations with a 200ms delay between requests"
+
+> "Enable stop-on-error for the Smoke Test suite"
+
+**Duplicate:**
+> "Duplicate the Checkout Regression suite as 'Checkout Regression — Staging' so I can tune it for staging without touching the original"
+
+---
+
+### 12. Set up environments for a run (QA)
+
+> "List all environments and tell me which one is currently active"
+
+> "Switch to the staging environment before running the suite"
+
+> "Set auth_token to 'Bearer eyJ...' in the staging environment for this session, then run the Auth Regression suite"
+
+> "Show me all the variables in the production environment — I need to know what's configured before I run"
+
+> "Create a new environment called 'SIT' and set base_url to https://sit.example.com, auth_token to abc123"
+
+The AI uses `list_environments`, `select_environment`, `set_environment_variable` (session scope), and `create_environment` — no JSON file editing required.
+
+---
+
+### 13. Investigate a failed run (QA)
+
+> "Run the Full Regression suite asynchronously, then check in on progress every minute"
+
+The AI starts the run with `async: true` (gets back a `runId`), then polls `get_run_status` and finally calls `get_run_summary` to report.
+
+> "Show me the first 10 failures from run abc-123"
+
+> "Get the full response body for the 'POST /api/orders' request from run abc-123, iteration 2"
+
+---
+
+### 14. Build a collection from scratch (Developer)
+
+A developer can ask the AI to scaffold a whole collection with folders and requests without writing a single JSON file.
+
+> "Create a new collection called 'Payments API v3'"
+
+> "Add a 'Checkout' folder to the Payments API v3 collection"
+
+> "Create a POST request called 'Create Order' in the Checkout folder of Payments API v3, URL {{base_url}}/orders, body `{\"productId\": \"{{productId}}\", \"qty\": 1}`"
+
+> "Add a GET request 'Get Order' at {{base_url}}/orders/{{orderId}} to the Checkout folder"
+
+> "Create a DELETE request 'Cancel Order' at {{base_url}}/orders/{{orderId}} in Checkout with a description 'Cancels an order by id'"
+
+The AI chains `create_collection` → `create_folder` → multiple `create_request` calls, building the collection incrementally.
+
+---
+
+### 15. Edit and organise existing requests (Developer)
+
+> "Rename the 'Create Order v1' request in the Payments collection to 'Create Order'"
+
+> "Update the URL of 'Get Order' in Payments to {{base_url}}/v2/orders/{{orderId}}"
+
+> "Add a Content-Type: application/json header to all POST requests in the Checkout folder" *(AI iterates via `list_requests` + `update_request`)*
+
+> "Move the 'Health Check' request to the top of the MyApp collection"
+
+> "Reorder the requests in the Checkout folder: Login first, then Create Order, then Get Order, then Cancel Order"
+
+---
+
+### 16. Write pre-request and post-response scripts (Developer)
+
+> "Add a pre-request script to 'Create Order' in Payments that sets `pm.environment.set('orderId', pm.variables.replaceIn('{{$uuid}}'))`"
+
+> "Add a post-response script to 'Login' in Auth that extracts the access token: `pm.environment.set('accessToken', pm.response.json().token)`"
+
+> "Show me the post-response script on the 'Login' request in the Auth collection"
+
+> "Remove the pre-request script from 'Seed Data' in the Fixtures collection — replace it with an empty string"
+
+The AI uses `get_request_script` to read, `set_request_script` to write, and never touches the filesystem directly.
+
+---
+
+### 17. Duplicate and refactor a collection (Developer)
+
+> "Duplicate the Payments API collection as 'Payments API v3 — Draft' so I can work on the new version without breaking the existing suite"
+
+> "Rename the duplicate to 'Payments API v3'"
+
+> "Delete the 'Legacy Endpoints' folder from Payments API v3 — confirm deletion"
+
+> "Duplicate the Checkout Regression suite as 'Checkout Regression v3' and update it to point at the new collection requests"
+
+---
+
+### 18. Manage global variables (Developer)
+
+> "Set a global variable 'api_version' to 'v3' permanently so all collections pick it up"
+
+> "Show me all current global variables"
+
+> "Set global 'feature_flag_new_checkout' to 'true' for this session only"
+
+Global session variables reset when the server restarts; permanent ones are written to `_global.json` and survive restarts.
 
 ---
 
@@ -497,7 +701,7 @@ Add an `mcp` section to control what gets exposed and how:
     "maxRequestsPerCall": 500,
     "toolMode": "auto",
     "drilldownThreshold": 100,
-    "toolPageSize": 150,
+    "toolPageSize": 200,
     "cors": {
       "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
     }
@@ -513,7 +717,7 @@ Add an `mcp` section to control what gets exposed and how:
 | `maxRequestsPerCall` | number | `500` | Safety cap on requests per collection/suite call. Prevents runaway executions. (min 1, max 10000) |
 | `toolMode` | string | `"auto"` | How tools are exposed: `"auto"` (recommended), `"drilldown"`, or `"flat"`. See [Tool modes](#tool-modes--flat-vs-drill-down). |
 | `drilldownThreshold` | number | `100` | In `"auto"` mode, switch to drill-down once the per-request tool count would exceed this. (min 10, max 500) |
-| `toolPageSize` | number | `150` | Max tools per `tools/list` page. `0` disables pagination. (min 10, max 1000) |
+| `toolPageSize` | number | `200` | Max tools per `tools/list` page. `0` disables pagination. (min 10, max 1000) |
 | `cors.allowedOrigins` | string[] | `["http://localhost","http://127.0.0.1"]` | Origins the server accepts cross-origin requests from. |
 
 **Example — hide internal/admin collections from the AI:**

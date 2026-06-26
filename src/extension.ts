@@ -123,10 +123,10 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
 
           if (accessToken) {
             // Implicit flow callback — access_token in query/fragment
-            oauth2TokenManager.handleImplicitCallback(accessToken, tokenType, expiresIn, state);
+            oauth2TokenManager?.handleImplicitCallback(accessToken, tokenType, expiresIn, state);
           } else {
             // Authorization code flow callback (or error)
-            oauth2TokenManager.handleAuthorizationCallback(code, state, error);
+            oauth2TokenManager?.handleAuthorizationCallback(code, state, error);
           }
         }
       }
