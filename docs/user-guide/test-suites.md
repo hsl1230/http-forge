@@ -219,3 +219,27 @@ pm.test('User name matches', () => {
     pm.expect(pm.response.json().name).to.equal(expected);
 });
 ```
+
+---
+
+## Request history (Git)
+
+Because HTTP Forge stores every request as a plain JSON file in your Git repository, you get a full version history for free — who changed a request, when, and what changed.
+
+### Opening the history view
+
+1. In the **Collections** tree, right-click any request.
+2. Select **Show Request Git History**.
+3. The **Request History (Git)** panel in the sidebar populates with the commit history for that request's `request.json` file.
+
+Each entry shows the commit hash, author, date, and commit message.
+
+### Viewing a diff
+
+Click any commit in the history panel (or right-click → **View Request Diff at Commit**) to open VS Code's built-in diff editor showing what changed in that commit compared to the previous version.
+
+### Reverting to a previous version
+
+Right-click a commit → **Revert Request to Commit**. A confirmation dialog appears. Confirming runs `git checkout <hash> -- request.json`, restoring the file to that exact version. The Collections tree refreshes automatically.
+
+> **Prerequisites:** The workspace must be inside a Git repository. If no history is found, the panel shows a warning. The `git` command must be available on `$PATH`.

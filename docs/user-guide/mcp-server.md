@@ -679,6 +679,80 @@ curl -X POST http://localhost:3100 \
 
 ---
 
+## AI-native generation tools
+
+In addition to the run/list/create/manage tools, the MCP server exposes three tools specifically designed for AI-assisted test authoring and debugging. Your agent (Copilot, Claude, etc.) does the reasoning; these tools provide the grounding data.
+
+### `scaffold_collection_from_openapi`
+
+Import an OpenAPI 3.0 spec and create a complete HTTP Forge collection from it. All operations become requests grouped by tag/path. An optional environment entry is created from the server URL.
+
+**Example agent prompt:** *"Build a collection from the OpenAPI spec at ./api.yml"*
+
+```
+Agent calls: scaffold_collection_from_openapi({
+  "specPath": "./api.yml",
+  "collectionName": "My API",
+  "environmentName": "my-api-dev"
+})
+→ Collection "My API" created with 42 requests.
+→ Environment "my-api-dev" created with BASE_URL=https://api.example.com.
+```
+
+**Inputs:** `specPath` (required), `collectionName`, `environmentName`
+
+---
+
+### `suggest_assertions`
+
+Analyse the most recent run results for a request in the current session and return ready-to-paste `pm.test()` assertion snippets. Suggestions are derived from the observed response — status code, response time, Content-Type, and top-level JSON fields. No LLM required; the tool is fully deterministic.
+
+**Example agent workflow:**
+
+```
+1. run_request({ collection: "my-api", request: "Create Order", environment: "dev" })
+   → { status: 201, body: { orderId: "abc-123" } }
+
+2. suggest_assertions({ collection: "my-api", request: "Create Order" })
+   → [
+       { snippet: 'pm.test("Status code is 201", ...)' },
+       { snippet: 'pm.test("Response has field orderId", ...)' },
+       ...
+     ]
+
+3. set_request_script({ ..., phase: "post-response", script: "<combined snippets>" })
+   → Script saved.
+```
+
+**Inputs:** `collection` (required), `request` (required), `maxSuggestions` (default: 10)
+
+---
+
+### `explain_failure`
+
+Given a run id and request name, return the full request context (URL, method, headers, body), the response received, all assertion results, any script errors, and a plain-English diagnosis with suggested fixes.
+
+**Example agent prompt:** *"Why did the smoke test fail?"*
+
+```
+1. run_suite({ suite: "smoke-tests", environment: "staging" })
+   → { runId: "run-20260626-141501", allPassed: false }
+
+2. explain_failure({ runId: "run-20260626-141501", request: "Create Order" })
+   → {
+       diagnosis: "The server returned 500 — Database connection refused.",
+       suggestedFixes: ["Check that the staging database is running", ...]
+     }
+```
+
+**Inputs:** `runId` + `request` (recommended), or `collection` + `request` (returns a hint to run first)
+
+---
+
+For full input/output schemas, return shapes, and implementation notes, see [`MCP_MANAGEMENT_TOOLS.md`](../../http-forge.core/docs/MCP_MANAGEMENT_TOOLS.md).
+
+---
+
 ## Settings reference
 
 ### VS Code settings (`settings.json`) — per machine / developer

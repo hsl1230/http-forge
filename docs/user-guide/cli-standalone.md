@@ -103,6 +103,63 @@ http-forge run-folder --workspace . --collection my-api --folder Users --no-recu
 http-forge run-suite --workspace . --suite smoke --environment staging --include perRequest --include report --output json
 ```
 
+### Reporters — HTML and JUnit
+
+Use `--reporter <name>` or `--reporter <name>:<path>` to generate machine-readable or human-readable reports. The flag is **repeatable** — pass it multiple times to produce several formats in one run.
+
+```bash
+# JUnit XML — machine-readable, parsed by every CI system
+http-forge run-suite --workspace . --suite smoke-tests \
+  --reporter junit:results/junit.xml
+
+# HTML report — human-friendly, opens in a browser
+http-forge run-suite --workspace . --suite smoke-tests \
+  --reporter html:reports/run.html
+
+# Both at once
+http-forge run-suite --workspace . --suite smoke-tests \
+  --reporter junit:results/junit.xml \
+  --reporter html:reports/run.html
+
+# Gate the CI build: exit 1 when any assertion fails
+http-forge run-suite --workspace . --suite smoke-tests \
+  --reporter junit:results/junit.xml \
+  --exit-code
+```
+
+| Reporter | Output | Best for |
+|---|---|---|
+| `junit` | JUnit 5 XML | CI systems (GitHub Actions, Jenkins, GitLab, CircleCI…) |
+| `html` | Self-contained HTML | Local review, email, Confluence |
+
+When no `:<path>` is specified, the file is written to the HTTP Forge cache (`.http-forge-cache/results/<suite>/<run>/`) and the path is returned in the JSON result under `junitReport.path` / `report.uri`.
+
+### CI integration quick-start
+
+For a complete guide covering GitHub Actions (composite action and npm install), Docker, Jenkins/GitLab/CircleCI/Azure Pipelines, multi-environment matrices, PR annotations, and troubleshooting, see **[ci-guide.md](../../docs/ci-guide.md)** in the CLI package.
+
+**Minimal GitHub Actions example:**
+
+```yaml
+- name: Run API tests
+  run: |
+    http-forge run-suite \
+      --workspace ./http-forge-assets \
+      --suite smoke-tests \
+      --environment staging \
+      --reporter junit:test-results/junit.xml \
+      --exit-code
+  env:
+    API_KEY: ${{ secrets.API_KEY }}
+
+- name: Upload results
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: api-test-results
+    path: test-results/junit.xml
+```
+
 Common options:
 - `--workspace <path>`
 - `--environment <name>`

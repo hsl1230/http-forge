@@ -5,6 +5,37 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.17.0 - 2026-06-26
+
+### Added
+
+- **Request History (Git) view** — a new sidebar panel in the HTTP Forge activity
+  bar shows the full `git log` for any request's on-disk `request.json` file.
+  Right-click any request in the Collections tree → **Show Request Git History**.
+  - Each entry shows the commit hash, author, date, and message.
+  - **View Diff** command (click a commit or right-click → *View Request Diff at Commit*)
+    opens VS Code's built-in diff editor with the before/after content.
+  - **Revert to Commit** command restores the file to a selected commit via
+    `git checkout <hash> -- request.json` with a confirmation modal; the
+    Collections tree refreshes automatically.
+  - Requires the workspace to be inside a Git repository with `git` on `$PATH`.
+
+- **3 AI-native MCP tools** (via `@http-forge/core` 0.7):
+  - **`scaffold_collection_from_openapi`** — import an OpenAPI 3.0 spec (JSON or
+    YAML) from a path and scaffold a complete collection + optional environment
+    in one agent call.
+  - **`suggest_assertions`** — analyse the most recent run results for a request
+    and return ready-to-paste `pm.test()` snippets (status code, response time,
+    Content-Type, JSON field presence).
+  - **`explain_failure`** — given a run id and request name, return the full
+    request/response context, all assertion results, and a plain-English
+    diagnosis with suggested fixes.
+
+### Changed
+
+- **MCP tool count raised to ~53** (was ~47 in 0.16.0) with the three new
+  AI-native tools added to both the extension's MCP server and the core runtime.
+
 ## 0.16.0 - 2026-06-25
 
 ### Added
