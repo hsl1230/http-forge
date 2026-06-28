@@ -9,6 +9,7 @@ import { BootstrapResult, bootstrapServices } from './infrastructure/services/se
 import { getServiceContainer, ServiceIdentifiers } from './infrastructure/services/service-container';
 import { CollectionsTreeProvider, CollectionTreeItem } from './presentation/components/tree-providers/collections-tree-provider';
 import { EnvironmentsTreeProvider, EnvironmentTreeItem } from './presentation/components/tree-providers/environments-tree-provider';
+import { GitCommitTreeItem, RequestGitHistoryProvider } from './presentation/components/tree-providers/request-git-history-provider';
 import { TestSuitesTreeProvider, TestSuiteTreeItem } from './presentation/components/tree-providers/test-suites-tree-provider';
 import { CollectionEditorPanel } from './presentation/webview/panels/collection-editor';
 import { EnvironmentEditorPanel } from './presentation/webview/panels/environment-editor';
@@ -29,6 +30,7 @@ let testSuiteService: TestSuiteService | undefined;
 let collectionsTreeProvider: CollectionsTreeProvider;
 let environmentsTreeProvider: EnvironmentsTreeProvider;
 let testSuitesTreeProvider: TestSuitesTreeProvider;
+let requestGitHistoryProvider: RequestGitHistoryProvider;
 
 // Tree views
 let collectionsView: vscode.TreeView<CollectionTreeItem>;
@@ -103,6 +105,12 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
     treeDataProvider: environmentsTreeProvider
   });
 
+  // Git history view
+  requestGitHistoryProvider = new RequestGitHistoryProvider();
+  const requestHistoryView = vscode.window.createTreeView('httpForge.requestHistory', {
+    treeDataProvider: requestGitHistoryProvider,
+  });
+
   // Register all commands
   registerCommands(context, workspaceFolder);
 
@@ -137,7 +145,8 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
   context.subscriptions.push(
     collectionsView,
     testSuitesView,
-    environmentsView
+    environmentsView,
+    requestHistoryView
   );
   setupMcpServer(context, workspaceFolder);
 
@@ -1457,6 +1466,94 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Failed to infer response schemas: ${message}`);
+      }
+    })
+  );
+
+  // ── Git History Commands ──────────────────────────────────────────────────
+
+  // Show git history for a request in the sidebar tree
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.showRequestGitHistory, async (item: CollectionTreeItem) => {
+      if (!item?.requestId || !item?.collectionId) return;
+
+      const { resolveRequestJsonPath, getGitLog } = await import('./infrastructure/git/request-git-history');
+      const filePath = resolveRequestJsonPath(workspaceFolder, item.collectionId, item.requestId);
+      if (!filePath) {
+        vscode.window.showErrorMessage(`HTTP Forge: Could not locate request.json for "${item.label}".`);
+        return;
+      }
+
+      await requestGitHistoryProvider.showHistoryFor(String(item.label), () => getGitLog(filePath));
+      // Reveal the history view
+      await vscode.commands.executeCommand('httpForge.requestHistory.focus');
+    })
+  );
+
+  // View diff at a specific commit (opens VS Code diff editor)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.viewRequestGitDiff, async (item: GitCommitTreeItem) => {
+      if (!item?.commit) return;
+
+      const { getFileAtCommit } = await import('./infrastructure/git/request-git-history');
+      const { hash, shortHash, message, absoluteFilePath } = item.commit;
+
+      // Get the file content at this commit and its parent
+      const [contentAtCommit, contentAtParent] = await Promise.all([
+        getFileAtCommit(absoluteFilePath, hash),
+        getFileAtCommit(absoluteFilePath, `${hash}~1`).catch(() => ''),
+      ]);
+
+      if (contentAtCommit === null) {
+        vscode.window.showErrorMessage(`HTTP Forge: Could not retrieve file at commit ${shortHash}.`);
+        return;
+      }
+
+      // Write temp files and open diff
+      const scheme = 'httpForge-git-diff';
+      const leftTitle = `${shortHash}~1 (before)`;
+      const rightTitle = `${shortHash}: ${message}`;
+
+      // Use VS Code's built-in git diff via virtual document provider
+      const leftUri = vscode.Uri.parse(`${scheme}:${encodeURIComponent(leftTitle)}`).with({
+        scheme: 'untitled',
+      });
+
+      // Fallback: write to temp files and open standard diff
+      const tmpLeft = require('os').tmpdir() + `/hf-diff-before-${shortHash}.json`;
+      const tmpRight = require('os').tmpdir() + `/hf-diff-after-${shortHash}.json`;
+      require('fs').writeFileSync(tmpLeft, contentAtParent ?? '');
+      require('fs').writeFileSync(tmpRight, contentAtCommit);
+
+      await vscode.commands.executeCommand(
+        'vscode.diff',
+        vscode.Uri.file(tmpLeft),
+        vscode.Uri.file(tmpRight),
+        `${leftTitle} ↔ ${rightTitle}`
+      );
+    })
+  );
+
+  // Revert request.json to the selected commit
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.revertRequestToCommit, async (item: GitCommitTreeItem) => {
+      if (!item?.commit) return;
+
+      const { hash, shortHash, message, absoluteFilePath } = item.commit;
+      const confirm = await vscode.window.showWarningMessage(
+        `Revert request to commit ${shortHash} "${message}"?\n\nThis will overwrite the current request.json on disk.`,
+        { modal: true },
+        'Revert'
+      );
+      if (confirm !== 'Revert') return;
+
+      const { revertFileToCommit } = await import('./infrastructure/git/request-git-history');
+      try {
+        await revertFileToCommit(absoluteFilePath, hash);
+        vscode.window.showInformationMessage(`Request reverted to ${shortHash}.`);
+        collectionsTreeProvider.refresh();
+      } catch (err: unknown) {
+        vscode.window.showErrorMessage(`Revert failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     })
   );

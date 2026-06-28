@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge — Free Postman Alternative (AI-Ready, Git-native, CI-friendly)",
   "description": "Design and test REST & GraphQL APIs with AI superpowers. No account, no cloud — your collections live in Git. OAuth 2.0 (PKCE), test suites with assertions, OpenAPI round-trip, and Postman import. Secrets from OS keychain, AWS, Azure, GCP, Vault, 1Password & Doppler — never stored on disk. Template engine with 25+ filter pipes and inline JS. MCP server lets Claude and GitHub Copilot discover and run your APIs directly. CLI- and CI-friendly — run collections and suites headless.",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -122,6 +122,11 @@
           "id": "httpForge.environments",
           "name": "Environments",
           "icon": "$(server-environment)"
+        },
+        {
+          "id": "httpForge.requestHistory",
+          "name": "Request History (Git)",
+          "icon": "$(git-commit)"
         }
       ]
     },
@@ -348,6 +353,21 @@
         "command": "httpForge.mcpToggleServer",
         "title": "HTTP Forge: Toggle MCP Server",
         "icon": "$(radio-tower)"
+      },
+      {
+        "command": "httpForge.showRequestGitHistory",
+        "title": "HTTP Forge: Show Request Git History",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "httpForge.viewRequestGitDiff",
+        "title": "HTTP Forge: View Request Diff at Commit",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "httpForge.revertRequestToCommit",
+        "title": "HTTP Forge: Revert Request to Commit",
+        "icon": "$(discard)"
       }
     ],
     "menus": {
@@ -577,6 +597,21 @@
           "command": "httpForge.deleteTestSuite",
           "when": "view == httpForge.testSuites && viewItem == testSuite",
           "group": "3_delete@1"
+        },
+        {
+          "command": "httpForge.showRequestGitHistory",
+          "when": "view == httpForge.collections && viewItem == request",
+          "group": "4_git@1"
+        },
+        {
+          "command": "httpForge.viewRequestGitDiff",
+          "when": "view == httpForge.requestHistory && viewItem == gitCommit",
+          "group": "1_diff@1"
+        },
+        {
+          "command": "httpForge.revertRequestToCommit",
+          "when": "view == httpForge.requestHistory && viewItem == gitCommit",
+          "group": "2_revert@1"
         }
       ]
     },
@@ -623,7 +658,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.6.0",
+    "@http-forge/core": "^0.6.1",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

@@ -59,7 +59,8 @@ export const CONTENT_TYPES = {
 export const VIEW_IDS = {
     collections: 'httpForge.collections',
     testSuites: 'httpForge.testSuites',
-    environments: 'httpForge.environments'
+    environments: 'httpForge.environments',
+    requestHistory: 'httpForge.requestHistory',
 };
 
 /**
@@ -124,6 +125,10 @@ export const COMMAND_IDS = {
     mcpStartServer: 'httpForge.mcpStartServer',
     mcpStopServer: 'httpForge.mcpStopServer',
     mcpToggleServer: 'httpForge.mcpToggleServer',
+    // Git history commands
+    showRequestGitHistory: 'httpForge.showRequestGitHistory',
+    viewRequestGitDiff: 'httpForge.viewRequestGitDiff',
+    revertRequestToCommit: 'httpForge.revertRequestToCommit',
 };
 
 /**
