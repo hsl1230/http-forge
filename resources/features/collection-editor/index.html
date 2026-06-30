@@ -48,6 +48,13 @@
                     <textarea id="collection-description" placeholder="Add a description for this collection..."></textarea>
                 </div>
             </div>
+            <div class="section ai-section">
+                <div class="section-title">AI Tools</div>
+                <button id="env-suggest-btn" class="btn btn-secondary ai-tool-btn">
+                    ✨ Suggest Environment Variables
+                </button>
+                <p class="ai-tool-desc">Scans all requests in this collection for hardcoded values and suggests replacing them with environment variables.</p>
+            </div>
         </div>
 
         <!-- Variables Tab -->
@@ -131,5 +138,39 @@
 
     <script src="{{monacoViewerUri}}"></script>
     <script src="{{scriptUri}}"></script>
+
+    <!-- Env Suggestions Overlay -->
+    <div id="env-suggest-overlay" class="env-suggest-overlay hidden">
+        <div class="env-suggest-modal">
+            <div class="env-suggest-header">
+                <div class="env-suggest-title-group">
+                    <span class="env-suggest-title">✨ Suggest Environment Variables</span>
+                    <span id="env-suggest-collection-name" class="env-suggest-coll-name"></span>
+                </div>
+                <button id="env-suggest-close" class="icon-btn" title="Close">✕</button>
+            </div>
+            <div id="env-suggest-body" class="env-suggest-body">
+                <div id="env-suggest-loading" class="env-suggest-loading">
+                    <div class="spinner"></div>
+                    <span>Scanning collection for hardcoded values…</span>
+                </div>
+                <div id="env-suggest-empty" class="env-suggest-empty hidden">
+                    ✅ No hardcoded values detected in this collection.
+                </div>
+                <div id="env-suggest-error" class="env-suggest-error hidden"></div>
+                <div id="env-suggest-list" class="env-suggest-list hidden"></div>
+            </div>
+            <div id="env-suggest-footer" class="env-suggest-footer hidden">
+                <div class="env-suggest-footer-left">
+                    <button id="env-suggest-select-all" class="btn btn-secondary small">Select All</button>
+                    <button id="env-suggest-deselect-all" class="btn btn-secondary small">Deselect All</button>
+                </div>
+                <div class="env-suggest-footer-right">
+                    <button id="env-suggest-cancel" class="btn btn-secondary">Cancel</button>
+                    <button id="env-suggest-apply" class="btn btn-primary">✓ Apply Selected</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

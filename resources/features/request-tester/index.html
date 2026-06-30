@@ -47,6 +47,7 @@
             <!-- Action buttons -->
             <button id="send-btn" class="primary">Send</button>
             <button id="btn-save" class="secondary">Save</button>
+            <button id="btn-scan-request" class="secondary" title="Detect hardcoded values in this request with GitHub Copilot">✨ Scan</button>
         </div>
 
         <!-- Suite edit mode banner (hidden by default) -->
@@ -76,6 +77,15 @@
             <div class="main-content">
                 <!-- Request Section -->
                 <div class="request-section">
+                    <!-- AI scan panel — shown when Detect Hardcoded is triggered -->
+                    <div id="ai-scan-panel" class="ai-scan-panel hidden">
+                        <div class="ai-scan-header">
+                            <span id="ai-scan-title" class="ai-scan-title">🔍 Scanning for hardcoded values…</span>
+                            <button id="ai-scan-close" class="icon-btn" title="Dismiss">✕</button>
+                        </div>
+                        <div id="ai-scan-issues" class="ai-scan-issues"></div>
+                    </div>
+
                     <div class="tab-bar" role="tablist">
                         <button class="tab" data-tab="doc" role="tab" aria-selected="false">Document</button>
                         <button class="tab active" data-tab="params" role="tab" aria-selected="true">Params</button>
@@ -287,6 +297,13 @@
                                         <option value="html">HTML</option>
                                         <option value="javascript">JavaScript</option>
                                     </select>
+                                    <button id="ai-generate-body-btn" class="ai-gen-body-btn" title="Generate request body with GitHub Copilot">✨</button>
+                                </div>
+                                <!-- AI body generation prompt bar -->
+                                <div id="body-ai-bar" class="ai-script-prompt-bar hidden">
+                                    <input id="body-ai-input" class="ai-script-input" type="text" placeholder="Describe the request payload…">
+                                    <button id="body-ai-confirm" class="btn btn-primary">Generate</button>
+                                    <button id="body-ai-cancel" class="icon-btn">✕</button>
                                 </div>
                                 <div id="graphql-toolbar" class="graphql-toolbar hidden">
                                     <button id="graphql-fetch-schema" class="secondary" title="Fetch schema via introspection">⟳ Fetch Schema</button>
@@ -495,11 +512,27 @@
                                 <div class="script-panels">
                                     <!-- Pre-request Script Panel -->
                                     <div id="pre-request-script-panel" class="script-tab-panel active" role="tabpanel">
+                                        <div class="ai-script-toolbar">
+                                            <button id="ai-gen-pre-request-btn" class="ai-script-gen-btn" title="Generate pre-request script with GitHub Copilot">✨ Generate with AI</button>
+                                        </div>
+                                        <div id="pre-request-ai-bar" class="ai-script-prompt-bar hidden">
+                                            <input id="pre-request-ai-input" class="ai-script-input" type="text" placeholder="Describe what the script should do…">
+                                            <button id="pre-request-ai-confirm" class="btn btn-primary">Generate</button>
+                                            <button id="pre-request-ai-cancel" class="icon-btn">✕</button>
+                                        </div>
                                         <div id="pre-request-editor" class="script-editor monaco-editor-wrapper"></div>
                                     </div>
 
                                     <!-- Post-response Script Panel -->
                                     <div id="post-response-script-panel" class="script-tab-panel" role="tabpanel">
+                                        <div class="ai-script-toolbar">
+                                            <button id="ai-gen-post-response-btn" class="ai-script-gen-btn" title="Generate post-response script with GitHub Copilot">✨ Generate with AI</button>
+                                        </div>
+                                        <div id="post-response-ai-bar" class="ai-script-prompt-bar hidden">
+                                            <input id="post-response-ai-input" class="ai-script-input" type="text" placeholder="Describe what the script should do…">
+                                            <button id="post-response-ai-confirm" class="btn btn-primary">Generate</button>
+                                            <button id="post-response-ai-cancel" class="icon-btn">✕</button>
+                                        </div>
                                         <div id="post-response-editor" class="script-editor monaco-editor-wrapper"></div>
                                     </div>
                                 </div>
@@ -538,6 +571,25 @@
 
                     <div class="response-content">
                         <div id="response-body-tab" class="response-panel active">
+                            <!-- AI toolbar — shown after any response -->
+                            <div id="response-ai-toolbar" class="response-ai-toolbar hidden">
+                                <button id="ai-explain-btn" class="tiny-btn" title="Explain this response with GitHub Copilot">✨ Explain</button>
+                                <button id="ai-contract-tests-btn" class="tiny-btn" title="Generate contract assertions for every response field">📋 Contract Tests</button>
+                                <button id="ai-extract-vars-btn" class="tiny-btn" title="Extract response fields to environment variables">⬆ Extract Vars</button>
+                                <button id="ai-generate-types-btn" class="tiny-btn" title="Generate TypeScript interfaces from response JSON">{ } TS Types</button>
+                                <button id="ai-compare-btn" class="tiny-btn" title="Compare with previous response for this endpoint">↔ Compare</button>
+                                <button id="ai-chat-toggle-btn" class="tiny-btn" title="Open AI assistant chat">💬 Chat</button>
+                            </div>
+                            <!-- AI multi-purpose panel (Explain / Contract Tests / Extract Vars / TS Types / Compare) -->
+                            <div id="ai-explain-panel" class="ai-explain-panel hidden">
+                                <div class="ai-panel-header">
+                                    <span id="ai-panel-title" class="ai-panel-title">✨ AI</span>
+                                    <button id="ai-explain-close" class="icon-btn ai-explain-close" title="Close">✕</button>
+                                </div>
+                                <span id="ai-explain-loading" class="ai-explain-loading hidden">⏳ Analyzing…</span>
+                                <div id="ai-explain-content" class="ai-explain-content"></div>
+                                <div id="ai-panel-actions" class="ai-panel-actions hidden"></div>
+                            </div>
                             <div id="response-body-editor" class="monaco-editor-wrapper"></div>
 
                             <!-- HTML preview (iframe) -- appears when Preview is selected for HTML content -->
@@ -635,6 +687,20 @@
                             <div id="test-results-list" class="test-results-list">
                                 <div class="test-placeholder">Run tests to see results</div>
                             </div>
+                            <!-- Suggestion banner: shown when response has no pm.test() calls -->
+                            <div id="suggest-assertions-banner" class="suggest-assertions-banner hidden">
+                                <div class="suggest-assertions-header">
+                                    <span class="suggest-assertions-title">✨ No assertions found — suggested <code>pm.test()</code> snippets based on this response:</span>
+                                    <div class="suggest-assertions-header-actions">
+                                        <button id="ai-enhance-suggestions-btn" class="btn btn-secondary suggest-ai-btn" title="Use GitHub Copilot to generate smarter assertions">✨ Enhance with AI</button>
+                                        <button id="dismiss-suggestions-btn" class="icon-btn" title="Dismiss suggestions">✕</button>
+                                    </div>
+                                </div>
+                                <div id="suggest-assertions-list" class="suggest-assertions-list"></div>
+                                <div class="suggest-assertions-actions">
+                                    <button id="apply-all-assertions-btn" class="btn btn-primary">Apply All to Post-Response Script</button>
+                                </div>
+                            </div>
                         </div>
                         <!-- Visualize Tab (pm.visualizer.set) -->
                         <div id="response-visualize-tab" class="response-panel hidden">
@@ -654,6 +720,20 @@
         </div>
 
         <div id="error-message" class="error-message hidden"></div>
+    </div>
+
+    <!-- AI Chat Panel -->
+    <div id="ai-chat-panel" class="ai-chat-panel hidden">
+        <div class="ai-chat-header">
+            <span class="ai-chat-title">💬 AI Assistant</span>
+            <button id="ai-chat-clear" class="icon-btn" title="Clear chat history">🗑</button>
+            <button id="ai-chat-close" class="icon-btn" title="Close chat">✕</button>
+        </div>
+        <div id="ai-chat-messages" class="ai-chat-messages"></div>
+        <div class="ai-chat-input-area">
+            <input id="ai-chat-input" class="ai-script-input" type="text" placeholder="Ask about this request or response…">
+            <button id="ai-chat-send" class="btn btn-primary">Send</button>
+        </div>
     </div>
 
     <!-- Bundled script (built by esbuild from modules/) -->

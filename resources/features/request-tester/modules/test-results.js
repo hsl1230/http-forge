@@ -15,6 +15,7 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
     let listElement = null;
     let badgeElement = null;
     let onUpdate = null;
+    let onAiFixTest = null;
     
     // Support both old API (function) and new API (options object)
     let escapeHtmlFn;
@@ -23,6 +24,7 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
     } else if (escapeHtmlFnOrOptions && typeof escapeHtmlFnOrOptions === 'object') {
         escapeHtmlFn = escapeHtmlFnOrOptions.escapeHtml || ((s) => s);
         onUpdate = escapeHtmlFnOrOptions.onUpdate || null;
+        onAiFixTest = escapeHtmlFnOrOptions.onAiFixTest || null;
     } else {
         escapeHtmlFn = (s) => s;
     }
@@ -81,13 +83,32 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
         }
         
         const html = results.map(result => `
-            <div class="test-result ${result.passed ? 'passed' : 'failed'}">
-                <span class="test-icon">${result.passed ? '✓' : '✗'}</span>
-                <span class="test-name">${escapeHtmlFn(result.name)}</span>
+            <div class="test-result ${result.passed ? 'passed' : 'failed'}" data-test-name="${escapeHtmlFn(result.name)}">
+                <div class="test-result-header">
+                    <span class="test-icon">${result.passed ? '✓' : '✗'}</span>
+                    <span class="test-name">${escapeHtmlFn(result.name)}</span>
+                    ${!result.passed ? '<button class="test-fix-btn" title="Get AI fix suggestion">✨ Fix</button>' : ''}
+                </div>
                 ${result.error ? `<div class="test-error">${escapeHtmlFn(result.error)}</div>` : ''}
+                ${!result.passed ? '<div class="test-ai-fix hidden"></div>' : ''}
             </div>
         `).join('');
         listElement.innerHTML = html;
+
+        // Delegate fix-button clicks to avoid re-binding on every render
+        if (onAiFixTest) {
+            listElement.onclick = (e) => {
+                const btn = e.target.closest('.test-fix-btn');
+                if (!btn) return;
+                const item = btn.closest('.test-result.failed');
+                if (!item) return;
+                const testName = item.dataset.testName || '';
+                const error = item.querySelector('.test-error')?.textContent || '';
+                btn.disabled = true;
+                btn.textContent = '⏳';
+                onAiFixTest(testName, error);
+            };
+        }
     }
 
     return {
@@ -128,6 +149,31 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
                 passed,
                 failed: results.length - passed
             };
+        },
+
+        /**
+         * Show an AI fix suggestion inline below the failing test.
+         * @param {string} testName
+         * @param {string|null} explanation
+         * @param {string|null} snippet
+         * @param {string|null} error
+         */
+        handleAiFixResult(testName, explanation, snippet, error) {
+            if (!listElement) return;
+            const item = listElement.querySelector(`.test-result.failed[data-test-name="${CSS.escape(testName)}"]`);
+            if (!item) return;
+            const btn = item.querySelector('.test-fix-btn');
+            if (btn) { btn.disabled = false; btn.textContent = '✨ Fix'; }
+            const fixDiv = item.querySelector('.test-ai-fix');
+            if (!fixDiv) return;
+            if (error) {
+                fixDiv.innerHTML = `<span class="ai-fix-error">${escapeHtmlFn(error)}</span>`;
+            } else {
+                fixDiv.innerHTML =
+                    `<div class="ai-fix-explanation">${escapeHtmlFn(explanation || '')}</div>` +
+                    (snippet ? `<pre class="ai-fix-snippet">${escapeHtmlFn(snippet)}</pre>` : '');
+            }
+            fixDiv.classList.remove('hidden');
         }
     };
 }

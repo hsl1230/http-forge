@@ -6,6 +6,7 @@
  */
 
 import { safeSetEditorValue } from './monaco-editors-manager.js';
+import { generateAssertionSuggestions } from './suggest-assertions.js';
 import { isHtmlResponse } from './utils.js';
 
 /**
@@ -25,8 +26,237 @@ function createResponseHandler({
     getResponseBodyEditor,
     escapeHtml, 
     formatDuration, 
-    testResultsManager
+    testResultsManager,
+    onApplyAssertions,
+    onAiEnhance,
+    onAiExplainResponse,
+    onAiContractTests,
+    onAiExtractVars,
+    onAiGenerateTypes,
+    onAiCompareResponses
 }) {
+
+    // --- Suggestion banner helpers ---
+    function getSuggestionBanner() {
+        return document.getElementById('suggest-assertions-banner');
+    }
+
+    function renderSuggestionList(suggestions) {
+        const list = document.getElementById('suggest-assertions-list');
+        if (!list) return;
+        list.innerHTML = suggestions.map(s =>
+            `<div class="suggestion-item">
+                <code class="suggestion-snippet">${escapeHtml(s.snippet)}</code>
+                <small class="suggestion-rationale">${escapeHtml(s.rationale)}</small>
+            </div>`
+        ).join('');
+
+        // Re-wire Apply All to current suggestions
+        const applyBtn = document.getElementById('apply-all-assertions-btn');
+        if (applyBtn) {
+            applyBtn.onclick = () => {
+                const combined = suggestions.map(s => s.snippet).join('\n\n');
+                if (typeof onApplyAssertions === 'function') {
+                    onApplyAssertions(combined);
+                }
+            };
+        }
+    }
+
+    function showAssertionSuggestions(suggestions) {
+        const banner = getSuggestionBanner();
+        if (!banner) return;
+
+        renderSuggestionList(suggestions);
+
+        // Wire up AI Enhance button
+        const aiBtn = document.getElementById('ai-enhance-suggestions-btn');
+        if (aiBtn) {
+            aiBtn.disabled = false;
+            aiBtn.textContent = '✨ Enhance with AI';
+            aiBtn.onclick = () => {
+                aiBtn.disabled = true;
+                aiBtn.textContent = '⏳ Generating...';
+                const lastResponse = state.lastResponse;
+                const contentType = (lastResponse?.headers || [])
+                    .find(h => (h.name || h.key || '').toLowerCase() === 'content-type')?.value || '';
+                if (typeof onAiEnhance === 'function') {
+                    onAiEnhance({
+                        status: lastResponse?.status ?? lastResponse?.statusCode,
+                        body: lastResponse?.body,
+                        contentType
+                    });
+                }
+            };
+        }
+
+        // Wire up Dismiss button
+        const dismissBtn = document.getElementById('dismiss-suggestions-btn');
+        if (dismissBtn) {
+            dismissBtn.onclick = () => banner.classList.add('hidden');
+        }
+
+        banner.classList.remove('hidden');
+    }
+
+    function updateAiSuggestions(suggestions, errorMsg) {
+        const aiBtn = document.getElementById('ai-enhance-suggestions-btn');
+        if (aiBtn) {
+            aiBtn.disabled = false;
+            aiBtn.textContent = '✨ Enhance with AI';
+        }
+        if (errorMsg) {
+            const list = document.getElementById('suggest-assertions-list');
+            if (list) {
+                list.innerHTML = `<div class="suggestion-item"><small class="suggestion-rationale" style="color:var(--vscode-errorForeground)">${escapeHtml(errorMsg)}</small></div>`;
+            }
+            return;
+        }
+        if (suggestions && suggestions.length > 0) {
+            // Update title to reflect AI source
+            const title = document.querySelector('.suggest-assertions-title');
+            if (title) title.innerHTML = '✨ AI-powered <code>pm.test()</code> suggestions for this response:';
+            renderSuggestionList(suggestions);
+        }
+    }
+
+    function hideAssertionSuggestions() {
+        const banner = getSuggestionBanner();
+        if (banner) banner.classList.add('hidden');
+    }
+
+    // --- AI multi-purpose panel helpers ---
+
+    /** Show the shared AI result panel with optional action buttons. */
+    function showAiPanel(title, contentHtml, actions = []) {
+        const panel = document.getElementById('ai-explain-panel');
+        const titleEl = document.getElementById('ai-panel-title');
+        const loading = document.getElementById('ai-explain-loading');
+        const content = document.getElementById('ai-explain-content');
+        const actionsEl = document.getElementById('ai-panel-actions');
+        if (loading) loading.classList.add('hidden');
+        if (titleEl) titleEl.textContent = title;
+        if (panel) panel.classList.remove('hidden');
+        if (content) {
+            content.innerHTML = contentHtml;
+            content.style.color = '';
+        }
+        if (actionsEl) {
+            if (actions.length > 0) {
+                actionsEl.innerHTML = '';
+                actionsEl.classList.remove('hidden');
+                actions.forEach(({ label, onClick, className }) => {
+                    const btn = document.createElement('button');
+                    btn.className = className || 'btn btn-primary';
+                    btn.textContent = label;
+                    btn.onclick = onClick;
+                    actionsEl.appendChild(btn);
+                });
+            } else {
+                actionsEl.classList.add('hidden');
+            }
+        }
+    }
+
+    function setAiPanelLoading(title) {
+        const panel = document.getElementById('ai-explain-panel');
+        const titleEl = document.getElementById('ai-panel-title');
+        const loading = document.getElementById('ai-explain-loading');
+        const content = document.getElementById('ai-explain-content');
+        const actionsEl = document.getElementById('ai-panel-actions');
+        if (titleEl) titleEl.textContent = title;
+        if (panel) panel.classList.remove('hidden');
+        if (loading) loading.classList.remove('hidden');
+        if (content) content.innerHTML = '';
+        if (actionsEl) actionsEl.classList.add('hidden');
+    }
+
+    function showAiExplainPanel(text, error) {
+        const btn = document.getElementById('ai-explain-btn');
+        if (btn) btn.disabled = false;
+        if (error) {
+            showAiPanel('✨ Explain', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+        } else {
+            showAiPanel('✨ Explain', escapeHtml(text || '').replace(/\n/g, '<br>'));
+        }
+    }
+
+    /** Show contract-test snippets in the AI panel with an "Apply to Script" button. */
+    function showAiContractTestsPanel(snippets, error, onApply) {
+        const btn = document.getElementById('ai-contract-tests-btn');
+        if (btn) btn.disabled = false;
+        if (error) {
+            showAiPanel('📋 Contract Tests', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+            return;
+        }
+        const html = snippets.map(s =>
+            `<div class="ai-contract-item">
+                <code class="ai-contract-snippet">${escapeHtml(s.snippet)}</code>
+                <small class="ai-contract-rationale">${escapeHtml(s.rationale ?? s.field ?? '')}</small>
+            </div>`
+        ).join('');
+        showAiPanel('📋 Contract Tests', html, [{
+            label: 'Apply All to Post-Response Script',
+            onClick: () => { if (typeof onApply === 'function') onApply(snippets.map(s => s.snippet).join('\n\n')); },
+            className: 'btn btn-primary'
+        }]);
+    }
+
+    /** Show extracted variable suggestions in the AI panel. */
+    function showAiExtractVarsPanel(variables, script, error, onApply) {
+        const btn = document.getElementById('ai-extract-vars-btn');
+        if (btn) btn.disabled = false;
+        if (error) {
+            showAiPanel('⬆ Extract Vars', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+            return;
+        }
+        const html = (variables || []).map(v =>
+            `<div class="ai-var-item">
+                <span class="ai-var-name"><code>{{${escapeHtml(v.suggestedName)}}}</code></span>
+                <span class="ai-var-field">${escapeHtml(v.field)} <small class="ai-var-path">${escapeHtml(v.path || '')}</small></span>
+                <small class="ai-var-reason">${escapeHtml(v.reason || '')}</small>
+            </div>`
+        ).join('');
+        const actions = script ? [{
+            label: 'Apply pm.environment.set() to Script',
+            onClick: () => { if (typeof onApply === 'function') onApply(script); },
+            className: 'btn btn-primary'
+        }] : [];
+        showAiPanel('⬆ Extract Vars', html, actions);
+    }
+
+    /** Show TypeScript interfaces in the AI panel with a copy button. */
+    function showAiTypesPanel(types, error) {
+        const btn = document.getElementById('ai-generate-types-btn');
+        if (btn) btn.disabled = false;
+        if (error) {
+            showAiPanel('{ } TS Types', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+            return;
+        }
+        const html = `<pre class="ai-types-display">${escapeHtml(types || '')}</pre>`;
+        showAiPanel('{ } TS Types', html, [{
+            label: '📋 Copy to Clipboard',
+            onClick: () => {
+                try {
+                    navigator.clipboard.writeText(types || '');
+                    const btn2 = document.querySelector('#ai-panel-actions button');
+                    if (btn2) { const orig = btn2.textContent; btn2.textContent = 'Copied!'; setTimeout(() => btn2.textContent = orig, 1500); }
+                } catch { /* ignore */ }
+            },
+            className: 'btn btn-secondary'
+        }]);
+    }
+
+    /** Show response comparison text in the AI panel. */
+    function showAiComparePanel(text, error) {
+        const btn = document.getElementById('ai-compare-btn');
+        if (btn) btn.disabled = false;
+        if (error) {
+            showAiPanel('↔ Compare', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+        } else {
+            showAiPanel('↔ Compare', escapeHtml(text || '').replace(/\n/g, '<br>'));
+        }
+    }
 
     // Current view for response body: 'raw' or 'preview'
     let currentBodyView = 'raw';
@@ -516,6 +746,10 @@ function createResponseHandler({
     async function handleResponse(response, scriptResults = {}) {
         elements.responsePlaceholder?.classList.add('hidden');
         
+        // Track previous response for comparison
+        if (state.lastResponse) {
+            state.previousResponse = state.lastResponse;
+        }
         state.lastResponse = response;
 
     // prefer explicit `status` but accept 0 (use nullish coalescing so 0 is preserved)
@@ -529,7 +763,122 @@ function createResponseHandler({
         updateHeadersTable(response.headers);
         updateCookiesTable(response.cookies);
         updateSentRequestTab(state.lastSentRequest);
-        
+
+        // Show AI toolbar and reset panel for each new response
+        const aiToolbar = document.getElementById('response-ai-toolbar');
+        if (aiToolbar) aiToolbar.classList.remove('hidden');
+        document.getElementById('ai-explain-panel')?.classList.add('hidden');
+
+        // Close button (shared for all AI panel features)
+        const closeBtn = document.getElementById('ai-explain-close');
+        if (closeBtn) closeBtn.onclick = () => document.getElementById('ai-explain-panel')?.classList.add('hidden');
+
+        // ── ✨ Explain ──────────────────────────────────────────────────────
+        const explainBtn = document.getElementById('ai-explain-btn');
+        if (explainBtn) {
+            explainBtn.disabled = false;
+            explainBtn.onclick = () => {
+                setAiPanelLoading('✨ Explain');
+                explainBtn.disabled = true;
+                const ct = (state.lastResponse?.headers || [])
+                    .find(h => (h.name || h.key || '').toLowerCase() === 'content-type')?.value || '';
+                if (typeof onAiExplainResponse === 'function') {
+                    onAiExplainResponse({
+                        status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
+                        statusText: state.lastResponse?.statusText || '',
+                        body: state.lastResponse?.body,
+                        contentType: ct,
+                        method: state.lastSentRequest?.method,
+                        url: state.lastSentRequest?.url,
+                    });
+                }
+            };
+        }
+
+        // ── 📋 Contract Tests ────────────────────────────────────────────────
+        const contractBtn = document.getElementById('ai-contract-tests-btn');
+        if (contractBtn) {
+            contractBtn.disabled = false;
+            contractBtn.onclick = () => {
+                setAiPanelLoading('📋 Contract Tests');
+                contractBtn.disabled = true;
+                const ct = (state.lastResponse?.headers || [])
+                    .find(h => (h.name || h.key || '').toLowerCase() === 'content-type')?.value || '';
+                if (typeof onAiContractTests === 'function') {
+                    onAiContractTests({
+                        status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
+                        body: state.lastResponse?.body,
+                        contentType: ct,
+                        method: state.lastSentRequest?.method,
+                        url: state.lastSentRequest?.url,
+                    });
+                }
+            };
+        }
+
+        // ── ⬆ Extract Vars ───────────────────────────────────────────────────
+        const extractVarsBtn = document.getElementById('ai-extract-vars-btn');
+        if (extractVarsBtn) {
+            extractVarsBtn.disabled = false;
+            extractVarsBtn.onclick = () => {
+                setAiPanelLoading('⬆ Extract Vars');
+                extractVarsBtn.disabled = true;
+                if (typeof onAiExtractVars === 'function') {
+                    onAiExtractVars({
+                        body: state.lastResponse?.body,
+                        status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
+                        method: state.lastSentRequest?.method,
+                        url: state.lastSentRequest?.url,
+                    });
+                }
+            };
+        }
+
+        // ── { } TS Types ─────────────────────────────────────────────────────
+        const typesBtn = document.getElementById('ai-generate-types-btn');
+        if (typesBtn) {
+            typesBtn.disabled = false;
+            typesBtn.onclick = () => {
+                setAiPanelLoading('{ } TS Types');
+                typesBtn.disabled = true;
+                if (typeof onAiGenerateTypes === 'function') {
+                    onAiGenerateTypes({
+                        body: state.lastResponse?.body,
+                        method: state.lastSentRequest?.method,
+                        url: state.lastSentRequest?.url,
+                    });
+                }
+            };
+        }
+
+        // ── ↔ Compare ────────────────────────────────────────────────────────
+        const compareBtn = document.getElementById('ai-compare-btn');
+        if (compareBtn) {
+            if (!state.previousResponse) {
+                compareBtn.title = 'Send another request first to compare';
+                compareBtn.style.opacity = '0.4';
+                compareBtn.onclick = null;
+            } else {
+                compareBtn.title = 'Compare with previous response';
+                compareBtn.style.opacity = '';
+                compareBtn.disabled = false;
+                compareBtn.onclick = () => {
+                    setAiPanelLoading('↔ Compare');
+                    compareBtn.disabled = true;
+                    if (typeof onAiCompareResponses === 'function') {
+                        onAiCompareResponses({
+                            currentBody: state.lastResponse?.body,
+                            currentStatus: state.lastResponse?.status ?? state.lastResponse?.statusCode,
+                            previousBody: state.previousResponse?.body,
+                            previousStatus: state.previousResponse?.status ?? state.previousResponse?.statusCode,
+                            method: state.lastSentRequest?.method,
+                            url: state.lastSentRequest?.url,
+                        });
+                    }
+                };
+            }
+        }
+
         // Display script execution results from backend
         if (scriptResults.testResults && scriptResults.testResults.length > 0) {
             // Display test results
@@ -548,6 +897,20 @@ function createResponseHandler({
             });
         }
 
+        // Show assertion suggestions when there are no pm.test() assertions
+        const hasTests = scriptResults.testResults && scriptResults.testResults.length > 0;
+        if (!hasTests) {
+            const contentType = (response.headers || []).find(
+                h => (h.name || h.key || '').toLowerCase() === 'content-type'
+            )?.value || '';
+            const suggestions = generateAssertionSuggestions(statusCode, response.body, contentType);
+            if (suggestions.length > 0) {
+                showAssertionSuggestions(suggestions);
+            }
+        } else {
+            hideAssertionSuggestions();
+        }
+
         // Handle pm.visualizer.set() data
         updateVisualizerTab(scriptResults.visualizerData);
         
@@ -558,7 +921,13 @@ function createResponseHandler({
     return {
         clearResponse,
         handleResponse,
-        updateSentRequestTab
+        updateSentRequestTab,
+        updateAiSuggestions,
+        showAiExplainPanel,
+        showAiContractTestsPanel,
+        showAiExtractVarsPanel,
+        showAiTypesPanel,
+        showAiComparePanel
     };
 }
 

@@ -6,5 +6,6 @@
  */
 
 export { SaveHandler } from './save-handler';
+export { SuggestEnvHandler } from './suggest-env-handler';
 export { UpdateHandler } from './update-handler';
 

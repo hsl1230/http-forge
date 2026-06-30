@@ -197,8 +197,19 @@ export class McpServerService {
                 // MCP handshake
                 return {
                     protocolVersion: '2024-11-05',
-                    capabilities: { tools: {} },
-                    serverInfo: { name: 'http-forge', version: '1.0.0' }
+                    capabilities: { tools: {}, prompts: {} },
+                    serverInfo: { name: 'http-forge', version: '1.0.0' },
+                    instructions:
+                        'You are assisting with HTTP API testing via HTTP Forge. ' +
+                        'When a run_suite, run_collection, or run_folder call completes with failures ' +
+                        '(summary.failed > 0 or allPassed === false), automatically analyze the ' +
+                        '\'failedRequests\' in the response and provide: (1) root cause for each failure, ' +
+                        '(2) specific fix recommendations, (3) updated pm.test() assertion scripts where ' +
+                        'relevant. Do not wait for the user to ask — proactively diagnose and suggest fixes. ' +
+                        'For async runs (status: \'running\'), poll with get_run_status until complete, then ' +
+                        'call get_run_summary. When get_run_summary returns a _nextStep field you MUST execute ' +
+                        'it immediately — the failedRequests array is already included inline so no extra tool ' +
+                        'call is needed. Analyze the failures and provide diagnosis without waiting for the user.'
                 };
 
             case 'tools/list': {
@@ -220,7 +231,25 @@ export class McpServerService {
             case 'tools/call': {
                 const { name, arguments: toolArgs } = rpc.params ?? {};
                 if (!name) throw new Error('Missing tool name');
-                const text = await this.executor.call(name, toolArgs ?? {});
+                let text = await this.executor.call(name, toolArgs ?? {});
+
+                // Inject _nextStep for sync run failures so AI diagnoses immediately
+                try {
+                    const parsed = JSON.parse(text) as Record<string, unknown>;
+                    const summary = parsed?.summary as Record<string, unknown> | undefined;
+                    const hasFailed = (summary?.failed as number ?? 0) > 0 || summary?.allPassed === false;
+                    if (hasFailed && !parsed._nextStep) {
+                        parsed._nextStep =
+                            `REQUIRED ACTION: ${summary?.failed} request(s) failed. ` +
+                            `The failedRequests array contains the full details (method, url, requestBody, ` +
+                            `requestHeaders, status, responseBody, failedTests). ` +
+                            `Immediately analyze each failed request and provide: ` +
+                            `(1) root cause, (2) specific fix, (3) corrected pm.test() assertions if relevant. ` +
+                            `Do NOT wait for the user to ask — diagnose now.`;
+                        text = JSON.stringify(parsed, null, 2);
+                    }
+                } catch { /* non-JSON result — skip injection */ }
+
                 // Rewrite file:// report URIs to http:// so they open in the browser
                 const rewritten = text.replace(
                     /"uri"\s*:\s*"file:\/\/([^"]+)"/g,
@@ -232,6 +261,19 @@ export class McpServerService {
                     ? `\n\n[View HTML Report](${reportUrlMatch[1]})`
                     : '';
                 return { content: [{ type: 'text', text: rewritten + linkSuffix }] };
+            }
+
+            case 'prompts/list':
+                return { prompts: this.executor.getPromptList() };
+
+            case 'prompts/get': {
+                const { name, arguments: promptArgs } = rpc.params ?? {};
+                if (!name) throw new Error('Missing prompt name');
+                const result = await this.executor.callPrompt(
+                    name,
+                    (promptArgs ?? {}) as Record<string, string>
+                );
+                return result;
             }
 
             default:

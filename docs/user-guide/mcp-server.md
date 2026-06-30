@@ -118,6 +118,7 @@ In `flat` mode every request becomes its own tool. With thousands of requests ac
 | `list_folders` | `collection` | List all folder paths in a collection |
 | `list_requests` | `collection`, optional `folder`, `offset`, `limit` | Paginated request list (name, method, folder, id) |
 | `search_requests` | `collection`, `query` | Full-text search across name, URL, method, folder, description |
+| `get_request` | `collection`, `request` | Get full request detail: URL, method, headers, body, auth, scripts |
 
 #### Execution
 
@@ -136,6 +137,7 @@ In `flat` mode every request becomes its own tool. With thousands of requests ac
 | `get_run_summary` | `runId` | Fetch the final summary once a run completes |
 | `get_failed_requests` | `runId`, `offset`, `limit` | Page through failed requests from a completed run |
 | `get_request_result` | `runId`, `request`, `iteration` | Get one request's full result from a completed run |
+| `cancel_run` | `runId` | Best-effort cancellation — skips remaining requests; in-flight request still completes |
 
 #### Environment & variables
 
@@ -169,6 +171,24 @@ In `flat` mode every request becomes its own tool. With thousands of requests ac
 | `get_request_script` | `collection`, `request`, `phase` | Read a pre-request or post-response script |
 | `set_request_script` | `collection`, `request`, `phase`, `script` | Write a pre-request or post-response script |
 | `reorder_collection_items` | `collection`, `order`, optional `folder` | Reorder requests/folders inside a collection or folder |
+
+#### AI analysis & enhancement
+
+| Tool | Key arguments | What it does |
+|---|---|---|
+| `ai_suggest_env_vars` | `collection` | **Agentic** — scan for hardcoded values; AI calls `apply_env_vars` immediately |
+| `ai_enhance_collection` | `collection`, optional `offset` | **Agentic** — AI writes bodies + `pm.test()` scripts; calls `apply_request_enhancements`; self-continues |
+| `suggest_env_vars` | `collection` | Heuristic env var suggestions for manual review |
+| `apply_env_vars` | `collection`, `replacements`, optional `environment` | Replace hardcoded values with `{{VAR}}` placeholders; write originals to env |
+| `get_requests_for_enhancement` | `collection`, optional `offset`, `limit` | Paginated request details for LLM enhancement |
+| `apply_request_enhancements` | `collection`, `enhancements` | Write AI-generated bodies and `pm.test()` scripts back to requests |
+| `analyze_coverage` | `collection`, optional `specPath`, `folder` | Per-request assertion count + collection-level %. Optional spec comparison surfaces untested operations. No LLM. |
+| `ai_analyze_coverage` | `collection`, optional `specPath` | **Agentic** — returns coverage gaps; AI calls `ai_enhance_collection` for unasserted requests and `generate_scenarios` for untested operations |
+| `generate_request_from_intent` | `collection`, `intent`, optional `folder` | **Agentic** — plain-English intent → AI calls `create_request` + `set_request_script` in one shot |
+| `validate_against_spec` | `collection`, `specPath` | Deterministic spec drift: untested operations, matched-but-unasserted requests, requests not in spec |
+| `generate_scenarios` | `collection`, optional `request`, `folder`, `offset` | **Agentic** — AI generates negative/edge-case variants (400/401/403/404/boundary) and calls `create_request` + `set_request_script` |
+| `heal_assertions` | `collection`, `request`, optional `runId` | **Agentic** — AI rewrites stale test script to match observed response; calls `set_request_script` |
+| `generate_iteration_data` | `collection`, `request`, optional `iterations` | **Agentic** — AI produces N varied test data rows (happy-path/boundary/invalid/edge) as a JSON array |
 
 #### Suite management
 
@@ -402,7 +422,7 @@ The AI uses `list_environments`, `select_environment`, `set_environment_variable
 
 > "Run the Full Regression suite asynchronously, then check in on progress every minute"
 
-The AI starts the run with `async: true` (gets back a `runId`), then polls `get_run_status` and finally calls `get_run_summary` to report.
+The AI starts the run with `async: true` (gets back a `runId`), then polls `get_run_status` and finally calls `get_run_summary`. When failures are present, `get_run_summary` returns `failedRequests` inline — the AI diagnoses them automatically without any extra prompting (see [AI auto-diagnosis](#ai-auto-diagnosis)).
 
 > "Show me the first 10 failures from run abc-123"
 
@@ -681,7 +701,290 @@ curl -X POST http://localhost:3100 \
 
 ## AI-native generation tools
 
-In addition to the run/list/create/manage tools, the MCP server exposes three tools specifically designed for AI-assisted test authoring and debugging. Your agent (Copilot, Claude, etc.) does the reasoning; these tools provide the grounding data.
+In addition to the run/list/create/manage tools, the MCP server exposes tools specifically designed for AI-assisted test authoring, debugging, and collection management. Your agent (Copilot, Claude, etc.) does the reasoning; these tools provide the grounding data.
+
+### Agentic AI tools — env scanning and collection enhancement
+
+These two tools follow the **agentic pattern**: each tool returns both raw data *and* a `task.instructions` array telling the calling AI exactly what to do next — which tool to call, with which arguments. The AI executes the workflow in a self-continuing loop. **No external LLM API keys are required on the server side.**
+
+#### `ai_suggest_env_vars`
+
+Scan a collection for hardcoded values (API keys, Bearer tokens, base URLs, tenant IDs) and replace them with `{{ENV_VAR}}` placeholders. The tool returns the full request data so the calling AI can decide which values to replace; the AI then calls `apply_env_vars` with the results.
+
+**Example agent prompt:** *"Find all hardcoded credentials in my 'Payments API' collection and replace them with env vars."*
+
+```
+Agent calls: ai_suggest_env_vars({ "collection": "payments-api" })
+→ {
+    task: {
+      action: "ai_suggest_env_vars",
+      instructions: [
+        "Review the requestSummary and heuristicSuggestions below.",
+        "Identify ALL hardcoded values (API keys, tokens, base URLs, IDs, etc.)",
+        "Call apply_env_vars with your complete list of {value, varName} replacements",
+        "Do NOT ask for confirmation — proceed immediately"
+      ],
+      heuristicSuggestions: [...],
+      requestSummary: [...],
+      expectedCallAfterThis: "apply_env_vars"
+    }
+  }
+
+Agent immediately calls: apply_env_vars({
+  "collection": "payments-api",
+  "replacements": [
+    { "value": "Bearer sk-prod-abc123", "varName": "PAYMENTS_API_KEY" },
+    { "value": "https://api.payments.example.com", "varName": "PAYMENTS_BASE_URL" }
+  ],
+  "environment": "dev"
+})
+→ { replaced: 14, envVarsWritten: 2 }
+```
+
+**Inputs:** `collection` (required), optional `environment`
+
+---
+
+#### `ai_enhance_collection`
+
+Enhance every request in a collection with AI-written example request bodies and `pm.test()` assertion scripts. The tool paginates through requests in batches and tells the calling AI to write enhancements for each batch, then call `apply_request_enhancements`. The AI continues until `hasMore` is false.
+
+**Example agent prompt:** *"Add realistic example bodies and test assertions to all requests in the 'User Service' collection."*
+
+```
+Agent calls: ai_enhance_collection({ "collection": "user-service" })
+→ {
+    task: {
+      action: "ai_enhance_collection",
+      instructions: [
+        "Write a realistic example body and pm.test() assertions for each request below.",
+        "Call apply_request_enhancements with your enhancements.",
+        "If hasMore is true, call ai_enhance_collection again with nextOffset.",
+        "Do NOT ask for confirmation — proceed immediately."
+      ],
+      requests: [ { id, name, method, url, currentBody, currentTestScript }, ... ],
+      total: 42, offset: 0, hasMore: true, nextOffset: 10,
+      expectedCallAfterThis: "apply_request_enhancements"
+    }
+  }
+
+Agent calls: apply_request_enhancements({
+  "collection": "user-service",
+  "enhancements": [
+    {
+      "requestId": "...",
+      "body": "{ \"username\": \"alice\", \"email\": \"alice@example.com\" }",
+      "testScript": "pm.test('Status 201', () => pm.response.to.have.status(201));\npm.test('Has userId', () => pm.expect(pm.response.json().userId).to.be.a('string'));"
+    },
+    ...
+  ]
+})
+→ { applied: 10 }
+
+Agent then calls: ai_enhance_collection({ "collection": "user-service", "offset": 10 })
+→ ... (repeats until hasMore: false)
+```
+
+**Inputs:** `collection` (required), optional `offset` (default: 0)
+
+---
+
+### Data tools — env vars (read → AI analyzes → write)
+
+Use these when you want to control the AI analysis step manually or inspect intermediate data.
+
+#### `suggest_env_vars`
+
+Returns heuristic env var suggestions plus a full request summary (all headers, query params, and URL segments). Use this to let the AI review and filter before applying.
+
+**Inputs:** `collection` (required)
+
+**Output:** `{ heuristicSuggestions: [...], requestSummary: [...], hint: "call apply_env_vars to apply" }`
+
+#### `apply_env_vars`
+
+Apply a list of value-to-var-name replacements across a collection. Optionally writes the original values to a target environment file so they aren't lost.
+
+**Inputs:** `collection` (required), `replacements: { value, varName }[]` (required), optional `environment`
+
+---
+
+### Data tools — request enhancement (read → AI writes → write)
+
+#### `get_requests_for_enhancement`
+
+Return paginated request details including current body and test script. Feed this data to an LLM to generate enhancements, then apply them with `apply_request_enhancements`.
+
+**Inputs:** `collection` (required), optional `offset`, `limit`
+
+**Output:** `{ requests: [...], total, offset, hasMore, nextOffset }`
+
+#### `apply_request_enhancements`
+
+Write AI-generated request bodies and `pm.test()` scripts back to the collection. Skips requests where `body` or `testScript` are not provided.
+
+**Inputs:** `collection` (required), `enhancements: { requestId, body?, testScript? }[]` (required)
+
+---
+
+### Gap-closure tools — coverage, scenarios, healing, and intent
+
+These tools close the gaps between AI-assisted testing and a fully autonomous test platform. All follow the same agentic pattern: they return data and explicit `instructions` the calling AI must act on immediately.
+
+#### `analyze_coverage`
+
+Deterministic coverage report — no LLM needed.
+
+```
+Agent calls: analyze_coverage({ "collection": "payments-api", "specPath": "./openapi.yaml" })
+→ {
+    coveragePct: 42,
+    covered: 5, total: 12,
+    requests: [ { name: "Create Order", hasAssertions: false, assertionCount: 0 }, ... ],
+    untestedOperations: [ { method: "DELETE", path: "/orders/{id}" }, ... ]
+  }
+```
+
+**Inputs:** `collection` (required), optional `specPath` (OpenAPI 3.0 `.json`/`.yaml`), `folder`
+
+---
+
+#### `ai_analyze_coverage`
+
+Agentic variant — returns coverage data and drives the AI to fill the gaps.
+
+```
+Agent calls: ai_analyze_coverage({ "collection": "payments-api" })
+→ task.instructions: [
+    "8 requests have no assertions — call ai_enhance_collection",
+    "3 spec operations have no requests — call generate_scenarios",
+    "Address the highest-impact gap first. Do NOT ask for confirmation."
+  ]
+```
+
+**Inputs:** `collection` (required), optional `specPath`
+
+---
+
+#### `generate_request_from_intent`
+
+Natural language test authoring — describe what to test, AI creates the request and assertions.
+
+**Example agent prompt:** *"Test that creating a user with a duplicate email returns 409"*
+
+```
+Agent calls: generate_request_from_intent({
+  "collection": "user-service",
+  "intent": "creating a user with a duplicate email returns 409"
+})
+→ task.instructions: [
+    "Intent: creating a user with a duplicate email returns 409",
+    "Call create_request with name, method, url, and body",
+    "Immediately call set_request_script with pm.test() status assertion",
+    "Do NOT ask for confirmation"
+  ]
+
+Agent calls: create_request({ name: "Create Duplicate User → 409", method: "POST", ... })
+Agent calls: set_request_script({ phase: "post-response", script: "pm.test('Status 409', ...)" })
+```
+
+**Inputs:** `collection` (required), `intent` (required), optional `folder`
+
+---
+
+#### `validate_against_spec`
+
+Deterministic spec drift detection — compares a collection against an OpenAPI 3.0 spec. No LLM needed.
+
+```
+Agent calls: validate_against_spec({ "collection": "payments-api", "specPath": "./openapi.yaml" })
+→ {
+    untestedOperations: [ { method: "DELETE", path: "/orders/{id}" } ],
+    matchedWithoutAssertions: [ { method: "GET", path: "/orders", requestName: "List Orders" } ],
+    extraRequests: [ { method: "GET", url: "{{BASE_URL}}/internal/debug", requestName: "Debug" } ]
+  }
+```
+
+**Inputs:** `collection` (required), `specPath` (required — relative to workspace folder)
+
+---
+
+#### `generate_scenarios`
+
+Agentic negative and edge-case test generation. The AI creates variants for each request: missing fields → 400, no auth → 401, wrong role → 403, non-existent resource → 404, boundary values.
+
+```
+Agent calls: generate_scenarios({ "collection": "user-service" })
+→ task.instructions: [
+    "For each request below, generate negative/edge-case variants",
+    "Call create_request then set_request_script for each scenario",
+    "If hasMore is true, call generate_scenarios again with nextOffset",
+    "Do NOT ask for confirmation"
+  ]
+→ task.requests: [ { name, method, url, body, headers }, ... ]
+→ task.hasMore: true, task.nextOffset: 5
+```
+
+**Inputs:** `collection` (required), optional `request` (single request focus), `folder`, `offset`, `limit`
+
+---
+
+#### `heal_assertions`
+
+Agentic self-healing — rewrites a stale test script to match the actual observed response.
+
+**Use case:** an API changed, tests are failing. Run the request, then call `heal_assertions`.
+
+```
+1. run_request({ collection: "user-service", request: "Get User" })
+   → { runId: "run-abc123", status: 200, body: { id: "u1", ... } }
+
+2. heal_assertions({ collection: "user-service", request: "Get User", runId: "run-abc123" })
+→ task: {
+    currentScript: "pm.test('Status 201', ...)",   ← stale: was 201, now 200
+    lastResponse: { status: 200, body: { id: "u1" } },
+    instructions: [ "Rewrite script to match observed response", "Call set_request_script" ]
+  }
+
+3. Agent calls: set_request_script({ phase: "post-response", script: "pm.test('Status 200', ...)" })
+```
+
+**Inputs:** `collection` (required), `request` (required), optional `runId`
+
+---
+
+#### `generate_iteration_data`
+
+Agentic parameterized test data generation — produces N varied rows for iteration runs.
+
+```
+Agent calls: generate_iteration_data({
+  "collection": "user-service",
+  "request": "Create User",
+  "iterations": 5
+})
+→ task.instructions: [
+    "Generate 5 rows for POST {{BASE_URL}}/users with placeholders: name, email",
+    "Cover: valid, boundary, invalid, edge cases",
+    "Return rows as JSON array under 'iterationData'"
+  ]
+
+Agent responds with:
+[
+  { "name": "Alice", "email": "alice@example.com" },
+  { "name": "", "email": "alice@example.com" },
+  { "name": "Alice", "email": "not-an-email" },
+  ...
+]
+
+# Use with CLI:
+http-forge run-request --collection user-service --request "Create User" \
+  --variables '[{"name":"Alice","email":"alice@example.com"}]' --iterations 5
+```
+
+**Inputs:** `collection` (required), `request` (required), optional `iterations` (default: 5, max: 50)
+
+---
 
 ### `scaffold_collection_from_openapi`
 
@@ -750,6 +1053,60 @@ Given a run id and request name, return the full request context (URL, method, h
 ---
 
 For full input/output schemas, return shapes, and implementation notes, see [`MCP_MANAGEMENT_TOOLS.md`](../../http-forge.core/docs/MCP_MANAGEMENT_TOOLS.md).
+
+---
+
+## AI auto-diagnosis
+
+HTTP Forge is designed so the AI **automatically diagnoses failures without waiting for you to ask**. This works through two mechanisms:
+
+### Inline failure data
+
+When a run completes with failures, the response includes:
+
+| Field | Description |
+|---|---|
+| `failedRequests` | Full details per failure: `method`, `url`, `requestBody`, `requestHeaders` (auth redacted), `status`, `responseBody`, `failedTests` |
+| `_nextStep` | Starts with `"REQUIRED ACTION:"` — tells the AI to analyze `failedRequests` immediately |
+
+For async runs, both fields are embedded in `get_run_summary` so no extra tool call is needed.
+
+### Assertion coverage hints
+
+After every run, if some requests have no `pm.test()` assertions, the response includes a `_suggestions` field:
+
+| Condition | Suggestion |
+|---|---|
+| ≤ 50% of requests untested | Points AI to `suggest_assertions` tool for the specific requests |
+| > 50% of requests untested | Points AI to the `review-collection` MCP prompt for a full coverage analysis |
+
+### MCP Prompts
+
+In addition to tools, the server exposes three **MCP Prompts** (`prompts/list` + `prompts/get`). Prompts return structured messages that the AI host passes directly to the connected LLM — enabling deeper analysis without any extra configuration.
+
+| Prompt | When triggered | What it does |
+|---|---|---|
+| `analyze-test-failure` | Automatically after any failed run (via `_nextStep`), or on demand | LLM diagnoses root cause and suggests fixes for each failure, using the full request/response context |
+| `suggest-assertions` | Automatically when ≤ 50% of requests lack assertions (via `_suggestions`), or on demand | LLM writes `pm.test()` scripts based on the request definition and observed response |
+| `review-collection` | Automatically when > 50% of requests lack assertions (via `_suggestions`), or on demand | LLM reviews collection structure, naming, coverage gaps, and assertion quality |
+
+**Typical auto-diagnosis flow (async run):**
+
+```
+run_suite(async: true)           → { runId: "...", status: "running" }
+get_run_status(runId)            → { status: "completed" }
+get_run_summary(runId)           → {
+                                     summary: { failed: 3, total: 12 },
+                                     failedRequests: [...],      ← full details inline
+                                     _nextStep: "REQUIRED ACTION: 3 request(s) failed..."
+                                   }
+AI analyzes failedRequests immediately and provides:
+  1. Root cause per failure
+  2. Specific fix (URL, header, body, assertion)
+  3. Updated pm.test() scripts
+```
+
+No user prompt needed — the AI acts on `_nextStep` automatically.
 
 ---
 

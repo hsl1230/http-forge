@@ -15,7 +15,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../infrastructure/services/service-container';
 import { IWebviewMessenger, WebviewMessageRouter, WebviewMessenger } from '../../shared-interfaces';
-import { SaveHandler, UpdateHandler } from './handlers';
+import { SaveHandler, SuggestEnvHandler, UpdateHandler } from './handlers';
 import { ReadyHandler } from './handlers/ready-handler';
 
 export class CollectionEditorPanel implements IWebviewMessenger {
@@ -42,6 +42,7 @@ export class CollectionEditorPanel implements IWebviewMessenger {
         // Get service from container (Dependency Inversion)
         const container = getServiceContainer();
         this.collectionService = container.collection;
+        const envConfigService = container.environmentConfig;
 
         // Create messenger for webview communication
         this.messenger = new WebviewMessenger(panel);
@@ -57,9 +58,10 @@ export class CollectionEditorPanel implements IWebviewMessenger {
         const readyHandler = new ReadyHandler(this.collectionService, collectionId);
         const saveHandler = new SaveHandler(this.collectionService, collectionId, onNameChange);
         const updateHandler = new UpdateHandler(this.collectionService, collectionId, onNameChange);
+        const suggestEnvHandler = new SuggestEnvHandler(collectionId, envConfigService, this.collectionService);
 
         // Register handlers
-        this.router.registerHandlers([readyHandler, saveHandler, updateHandler]);
+        this.router.registerHandlers([readyHandler, saveHandler, updateHandler, suggestEnvHandler]);
 
         this.panel.webview.html = this.getHtmlContent();
         this.setupMessageHandlers();

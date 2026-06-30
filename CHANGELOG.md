@@ -5,7 +5,55 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.17.0 - 2026-06-26
+## 0.16.5 - 2026-06-30
+
+### Added
+
+- **GitHub Copilot integration** — all AI features use your active Copilot subscription. No API keys or external LLM configuration required.
+
+- **Generate Collection from curl (AI)** — Command Palette → `HTTP Forge: Generate Collection from curl (AI)`: paste a curl command and HTTP Forge scaffolds a collection with method, URL, headers, query params, and body already filled in.
+
+- **Enhance Collection with AI** — fills in realistic example request bodies and `pm.test()` assertion scripts for every request in a collection. Offered as an optional step during **Import Collection** (Postman JSON) and **Import OpenAPI Spec** flows; requests that already have both a body and a test script are skipped.
+
+- **Suggest Env Variables (AI)** — scans every header, query param, URL segment, and request body for hardcoded values (API keys, tokens, base URLs, tenant IDs) and proposes `{{ENV_VAR}}` replacements. Applied replacements update the collection in place and write the original values to the active environment. Available from:
+  - Collection Editor → **Overview** tab → **✨ Suggest Environment Variables**
+  - Collections tree → right-click a collection → **Suggest Env Variables (AI)**
+  - Command Palette → `HTTP Forge: Suggest Env Variables (AI)`
+  - A heuristic (non-Copilot) mode is also available via the CLI `suggest-env` command
+
+- **Request Tester — AI toolbar** — the following AI actions are available in every open request panel:
+  - **✨ Scan** (toolbar button next to the URL) — detects hardcoded values in the current request that should become environment variables; results appear inline below the request line
+  - **✨ Generate body** (Body tab ✨ button) — describe the payload in plain English and Copilot writes the JSON body
+  - **✨ Generate with AI** (Scripts tab) — both the pre-request and post-response editors have a ✨ button; describe what the script should do and Copilot writes it
+  - **✨ Enhance with AI** (response suggestion banner) — after a response, HTTP Forge auto-suggests `pm.test()` snippets when no assertions exist; clicking Enhance sends them to Copilot for smarter, context-aware rewrites
+
+- **Response AI toolbar** — appears above the response body after every request:
+
+  | Button | What it does |
+  |---|---|
+  | **✨ Explain** | Plain-English explanation of the response — status, headers, body fields |
+  | **📋 Contract Tests** | Generates `pm.test()` assertions for every field in the response JSON |
+  | **⬆ Extract Vars** | Extracts response fields to environment variables via `pm.environment.set()` scripts |
+  | **{ } TS Types** | Generates TypeScript interfaces from the response JSON |
+  | **↔ Compare** | Diffs the current response against the previous response for the same endpoint |
+  | **💬 Chat** | Opens the embedded AI chat panel |
+
+- **💬 AI Assistant chat panel** — a persistent, multi-turn chat scoped to the current request and response. Every message is sent to GitHub Copilot with an automatic context preamble: request endpoint (`METHOD URL`), last response status, `Content-Type`, and response body (first 800 characters). Chat history is preserved within the session and can be cleared with the 🗑 button.
+
+- **7 gap-closure agentic MCP tools** (via `@http-forge/core` 0.8) — complete the AI testing lifecycle via the MCP server:
+  - **`analyze_coverage`** / **`ai_analyze_coverage`** — report assertion coverage per request and compare against an OpenAPI spec to surface untested paths and methods
+  - **`generate_request_from_intent`** — take a natural-language description and guide the agent to scaffold the matching request + test script
+  - **`validate_against_spec`** — cross-reference a collection against an OpenAPI spec; returns untested operations, requests without assertions, and requests absent from the spec
+  - **`generate_scenarios`** — produce negative/edge-case variants for an existing request (400/401/403/404/boundary inputs); supports paginated output for large collections
+  - **`heal_assertions`** — given a run id and request name, return the broken test script and last response with instructions to rewrite and re-apply the assertions
+  - **`generate_iteration_data`** — extract `{{variable}}` placeholders from a request and return instructions to produce N varied test-data rows for iteration runs
+
+### Fixed
+
+- **`workspaceFolder` missing from `callGeneric` services** — `validate_against_spec`, `analyze_coverage`, and `scaffold_collection_from_openapi` now correctly resolve relative spec paths in the extension host context.
+- **Stale `requestFilter` field removed from `runCollection` calls** in `mcp-executor.ts` — the field does not exist in `RunCollectionOptions`; folder scoping correctly uses the existing `folderPath` field.
+
+## 0.16.1 - 2026-06-26
 
 ### Added
 
@@ -30,6 +78,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **`explain_failure`** — given a run id and request name, return the full
     request/response context, all assertion results, and a plain-English
     diagnosis with suggested fixes.
+
+- **`get_request` MCP tool** — retrieves the full definition of a saved request
+  (URL, method, headers, body, auth, and pre-request/post-response scripts) in
+  one call. Use before `update_request` or `set_request_script` to read current
+  values without calling `list_requests` + `get_request_script` separately.
+
+- **`cancel_run` MCP tool** — requests cancellation of an in-progress async run.
+  The currently-executing HTTP request completes; all remaining requests in the
+  run are skipped. Run status changes to `"cancelled"`.
+
+- **MCP tool annotations** — all 48 generic MCP tools now declare MCP 2025-11
+  `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
+  `openWorldHint`). AI clients that support the annotations spec can now make
+  smarter decisions about when to confirm destructive operations.
+
+- **Richer error messages** — `request not found` and `suite not found` errors
+  now include a list of available names and a hint to call `list_requests` /
+  `list_suites`.
+
+- **Creation hints** — `create_collection`, `create_request`, and `create_suite`
+  responses now include a `hint` field suggesting the next logical action.
 
 ### Changed
 

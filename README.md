@@ -1,11 +1,10 @@
 # HTTP Forge 🔨
 
-**Design & Test APIs — Offline-First, AI-Ready, Postman-compatible.** Combines the power of Postman + Thunder Client + Swagger UI in a single, free extension. Thunder Client-compatible filter pipes and inline JS expressions, full OpenAPI 3.0 round-trip, schema inference from real responses, collection-driven test suites, and advanced scripting. Keep credentials safe with OS keychain and **cloud secret providers** (AWS, Azure, GCP, Vault, 1Password, Doppler), and expose your collections to AI agents (Claude, Copilot) through a built-in **MCP server** — no account, no cloud, no compromises.
+**The AI-driven API testing platform built for VS Code.** Design, test, and automate APIs with GitHub Copilot natively or any MCP-compatible AI (Claude, Cursor, Continue, and more) — no extra API keys, no cloud account required. HTTP Forge combines full Postman compatibility, OpenAPI 3.0 round-trip, headless CLI execution, TypeScript client codegen, cloud secret providers, a 60-tool MCP server for AI agents, and agentic workflows that write tests, fix assertions, and validate your API against its spec — all offline, all local, all free.
 
 ## 🚀 Install
 
 - Install from the VS Code Marketplace: `henry-huang.http-forge`
-- Or load the locally built extension from `http-forge/http-forge-0.11.6.vsix`
 
 ## 🧪 Standalone Launcher (QA / Testing)
 
@@ -36,11 +35,6 @@ HTTP Forge also supports CLI-based execution for CI/CD and scripted workflows.
 
 See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and examples.
 
-## 📚 Documentation
-
-- Full user guide: [docs/user-guide/index.md](docs/user-guide/index.md)
-- API reference, CLI, codegen, and Playwright integration are available from the docs directory.
-
 ## 📸 Screenshots
 
 *Click any screenshot to open the full-size image.*
@@ -60,6 +54,67 @@ See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and
 | OpenAPI Type 2 | <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/open-api-type-2.png" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/open-api-type-2.png" width="360" alt="OpenAPI Type 2" title="Open full-size image"></a> |
 | Template Code Completion | <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/template-code-completion.png" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/template-code-completion.png" width="360" alt="Template Code Completion" title="Open full-size image"></a> |
 | Template Code Completion 2 | <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/template-code-completion-2.png" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/template-code-completion-2.png" width="360" alt="Template Code Completion 2" title="Open full-size image"></a> |
+
+---
+## 🤖 AI-Driven Testing Platform
+
+HTTP Forge is the only VS Code API client with **deep GitHub Copilot integration** and a **full MCP server** — turning AI agents into autonomous API testers that run inside your editor.
+
+| Capability | HTTP Forge | Postman | Thunder Client | Bruno | Insomnia |
+|---|---|---|---|---|---|
+| **GitHub Copilot native** (no extra API key) | ✅ | ❌ Postbot needs account | ❌ | ❌ | ❌ |
+| **MCP server for AI agents** | ✅ 60+ tools | ❌ | ❌ | ❌ | ❌ |
+| **AI coverage analysis vs OpenAPI spec** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **AI assertion healing from live run results** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **AI scenario generation** (400/401/403/boundary) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **AI collection enhancement** (bodies + tests) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Agentic env-var detection & replacement** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Fully local / offline / free** | ✅ | ❌ | ⚠️ | ✅ | ⚠️ |
+
+**What the AI can do for you:**
+- ✨ **Generate** request bodies and test scripts from natural language
+- 🔍 **Scan** collections for hardcoded values and replace them with `{{ENV_VAR}}` placeholders
+- 📊 **Analyse coverage** — compare your requests against an OpenAPI spec and surface untested paths
+- 🩹 **Heal assertions** — given a failed run, rewrite broken `pm.test()` checks automatically
+- 📝 **Generate scenarios** — produce negative/edge-case variants (400/401/403/404/boundary) for any request
+- 📅 **Schedule CI** — generate a GitHub Actions workflow for any test suite (`http-forge schedule --suite smoke`)
+- 🤖 **Agent mode** — Claude or Copilot in agent mode can drive the entire test lifecycle via MCP, no manual steps
+
+> In-editor AI features use your **existing GitHub Copilot subscription**. The MCP server works with **any AI that supports MCP** — Claude, Cursor, Continue, and more. No API keys, no separate accounts, no data leaves your machine.
+
+---
+
+## 🔄 Migrate from Postman — Zero Rewriting Required
+
+Already have Postman collections? **Import and run them unchanged.** HTTP Forge is the only VS Code extension with deep `pm.*` scripting parity — your existing scripts, assertions, and environments work on day one.
+
+**What transfers over automatically:**
+
+| What you have in Postman | Works in HTTP Forge |
+|---|---|
+| Collections v2.1 (requests, folders, auth) | ✅ Full import |
+| Environments & globals | ✅ Full import |
+| `pm.test()` / `pm.expect()` / Chai assertions | ✅ Unchanged |
+| `pm.environment` / `pm.globals` / `pm.collectionVariables` | ✅ Unchanged |
+| `pm.response.json()`, `.text()`, `.headers`, `.cookies` | ✅ Unchanged |
+| `pm.sendRequest()`, `pm.setNextRequest()`, `pm.execution.skipRequest()` | ✅ Unchanged |
+| `pm.visualizer.set()` (Handlebars templates) | ✅ Unchanged |
+| `pm.iterationData` (data-driven runs) | ✅ Unchanged |
+| Legacy globals: `responseBody`, `tests["check"] = bool`, `tv4.validate()` | ✅ Unchanged |
+| Legacy `postman.setEnvironmentVariable()` / `postman.setGlobalVariable()` | ✅ Unchanged |
+| All body modes: raw, urlencoded, form-data, GraphQL, binary | ✅ Unchanged |
+| CryptoJS (AES, HMAC, SHA256, Base64…) | ✅ Unchanged |
+| lodash, moment, uuid (built-in, no install needed) | ✅ Unchanged |
+
+**How to migrate in 3 steps:**
+
+```
+1. In Postman: Collections → ⋯ → Export → Collection v2.1 JSON
+2. In HTTP Forge: Command Palette → "HTTP Forge: Import Collection" → select the file
+3. Optional: choose "✨ Yes, enhance with AI" to add example bodies and test scripts
+```
+
+> Your existing Postman scripts run without modification. HTTP Forge adds on top: async script draining, typed variables, filter pipes, cloud secrets, OS keychain, and 60+ MCP tools for AI agents — without breaking anything you already have.
 
 ---
 
@@ -103,6 +158,8 @@ See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and
 | **Code Generation** | ✅ TypeScript clients from collections | ❌ Not available |
 | **Playwright Integration** | ✅ Built-in fixtures & runtime | ❌ Not available |
 | **MCP Server** | ✅ Expose collections to AI agents (Claude, Copilot) | ❌ Not available |
+| **AI Features (Copilot)** | ✅ Generate bodies, scripts, env vars, coverage, healing | ❌ Postbot (cloud, paid) |
+| **Agentic MCP tools** | ✅ 60+ tools — full test lifecycle | ❌ Not available |
 | **Authentication** | ✅ OAuth 2.0, Bearer, Basic, API Key | ✅ OAuth 2.0, Basic, API Key, AWS Sig |
 | **OpenAPI 3.0** | ✅ Full import/export with schema inference | ✅ Import only |
 | **GraphQL** | ✅ Introspection, auto-complete, schema explorer | ✅ Schema introspection, auto-complete |
@@ -147,7 +204,8 @@ See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and
 | **Code Generation** | ✅ TypeScript clients | ❌ Not available |
 | **Playwright Integration** | ✅ Built-in fixtures | ❌ Not available |
 | **MCP Server** | ✅ Expose collections to AI agents (Claude, Copilot) | ❌ Not available |
-| **Extension API** | ✅ Open API for integrations | ❌ Closed |
+| **AI Features (Copilot)** | ✅ Generate bodies, scripts, env vars, coverage, healing | ❌ Not available |
+| **Agentic MCP tools** | ✅ 60+ tools — full test lifecycle | ❌ Not available |
 | **GraphQL** | ✅ Introspection, auto-complete, schema explorer | ✅ GraphQL support |
 | **WebSocket** | 🔜 Planned | ✅ WebSocket support |
 
@@ -257,6 +315,18 @@ See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and
 - **Project-level Control** (`http-forge.config.json`): `excludedCollections`, `excludedSuites`, `toolPrefix`, `maxRequestsPerCall`, `cors.allowedOrigins`
 - **Toggle from Status Bar**: `⊙ MCP ○` / `⊙ MCP ● 3100` click-to-toggle; or use Command Palette
 
+### 🧠 AI Features — Powered by GitHub Copilot
+
+Uses your active **GitHub Copilot** subscription — no extra API keys, no external LLM config required.
+
+- **Generate Collection from curl** — Command Palette → `HTTP Forge: Generate Collection from curl (AI)`: paste a curl command, get a fully-formed collection.
+- **Enhance Collection with AI** — fills realistic example request bodies and `pm.test()` assertion scripts for every request. Available during Import Collection and Import OpenAPI Spec flows.
+- **Suggest Env Variables** — scans every header, query param, URL, and body for hardcoded values (tokens, base URLs, tenant IDs) and proposes `{{ENV_VAR}}` replacements. Available from the Collection Editor Overview tab, tree right-click, or Command Palette.
+- **Request Tester AI toolbar** — per-request: ✨ **Scan** (hardcoded value detection), ✨ **Generate body** (describe payload → Copilot writes JSON), ✨ **Generate with AI** (describe script → Copilot writes it), ✨ **Enhance with AI** (rewrite auto-suggested `pm.test()` snippets into smarter assertions).
+- **Response AI toolbar** — after every response: **Explain**, **Contract Tests**, **Extract Vars**, **TS Types**, **Compare** (diff vs previous), **💬 Chat** (multi-turn AI chat scoped to the current request/response).
+- **💬 AI Assistant chat** — persistent, multi-turn chat panel. Every message includes the request endpoint, last response status, Content-Type, and body (first 800 chars) as context — ask *"Why did this return a 401?"* without copy-pasting anything.
+- **Agentic MCP tools** — when the MCP server is running, AI agents can drive the full test lifecycle: `ai_suggest_env_vars`, `ai_enhance_collection`, `analyze_coverage`, `validate_against_spec`, `generate_scenarios`, `heal_assertions`, `generate_iteration_data`, and more. See [MCP Server guide](docs/user-guide/mcp-server.md).
+
 ## 🚀 Quick Start
 
 1. **Install**: Search for "HTTP Forge" in VS Code Extensions
@@ -270,173 +340,13 @@ See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and
 
 Start here: [docs/user-guide/index.md](docs/user-guide/index.md)
 
-- [Extension (VS Code)](docs/user-guide/extension.md)
-- [CLI & Standalone](docs/user-guide/cli-standalone.md)
-- [Secret Providers](docs/user-guide/secret-providers.md)
-- [Codegen](docs/user-guide/codegen.md)
+- [Extension (VS Code) — full UI reference + AI features](docs/user-guide/extension.md)
+- [CLI & Standalone — headless runs, CI, schedule](docs/user-guide/cli-standalone.md)
+- [MCP Server — AI agent integration](docs/user-guide/mcp-server.md)
+- [Secret Providers — AWS, Azure, GCP, Vault, 1Password, Doppler](docs/user-guide/secret-providers.md)
+- [Codegen — TypeScript client generation](docs/user-guide/codegen.md)
 - [Playwright Integration](docs/user-guide/playwright.md)
-- [MCP Server — AI Agent Integration](docs/user-guide/mcp-server.md)
-
-## 📖 Usage Guide
-
-### Creating Your First Request
-
-1. In the **Collections** view, click the **+** button
-2. Name your collection (e.g., "My API")
-3. Right-click the collection → **New Request**
-4. Enter the request name and URL
-5. Select HTTP method (GET, POST, etc.)
-6. Add headers or body as needed
-7. Click **Send** to execute
-
-### Working with Environments
-
-Environments let you define variables for different contexts (dev, prod, etc.):
-
-```json
-{
-  "dev": {
-    "baseUrl": "http://localhost:3000",
-    "apiKey": "dev-key-123"
-  },
-  "prod": {
-    "baseUrl": "https://api.example.com",
-    "apiKey": "{{API_KEY}}"
-  }
-}
-```
-
-Use variables in your requests:
-- URL: `{{baseUrl}}/api/users`
-- Header: `Authorization: Bearer {{apiKey}}`
-- Body: `{"token": "{{sessionToken}}"}`
-
-### Template Engine — Filters & Expressions
-
-HTTP Forge supports Thunder Client-compatible filter pipes and JavaScript expressions inside `{{ }}`:
-
-**Filters** — chain with `|`:
-```
-{{username | upper}}                          → "ALICE"
-{{email | lower | trim}}                      → "alice@example.com"
-{{password | btoa}}                            → base64 encoded
-{{price | add(tax)}}                           → adds env variable 'tax'
-{{users | filter(age>25) | map("name")}}       → ["Alice", "Charlie"]
-{{response | prop("data.user.name")}}           → nested property access
-{{@ | format("{0} {1}", lastName)}}             → string formatting
-```
-
-**JavaScript expressions**:
-```
-{{price * quantity}}                           → math
-{{status === 'active' ? 'yes' : 'no'}}         → ternary
-{{firstName + ' ' + lastName}}                 → concatenation
-{{`Hello ${name}`}}                            → template literals
-```
-
-**Dynamic variables with environment args**:
-```
-{{$randomInt(minValue, maxValue)}}             → resolves minValue/maxValue from env
-{{$guid}}                                      → random UUID
-{{$timestamp}}                                 → Unix timestamp
-```
-
-### Pre-request & Post-response Scripts
-
-**Pre-request Script** (runs before the request):
-```javascript
-// Set a timestamp
-forge.setVariable('timestamp', Date.now());
-
-// Generate random ID
-forge.setVariable('requestId', forge.uuid());
-```
-
-**Post-response Script** (runs after receiving response):
-```javascript
-// Extract token from response
-const token = forge.response.json().token;
-forge.setVariable('authToken', token);
-
-// Validate response
-if (forge.response.status !== 200) {
-    forge.log('Request failed!');
-}
-```
-
-### Running Test Suites
-
-**Quick Run (single collection):**
-1. Right-click a collection → **Run All**
-2. Configure iterations and delay
-3. Click **Run** or **Save & Run**
-
-**Create Test Suite (cross-collection):**
-1. In **Test Suites** view, click **+**
-2. Add a suite description to document the test purpose (click the placeholder in the header)
-3. Select requests from multiple collections
-4. Add per-request descriptions to document each step's role
-5. Arrange execution order
-6. Save for reuse by QA team
-
-**Performance Statistics:**
-- View P50/P90/P95/P99 response times
-- Error rate and error breakdown
-- Per-request and overall statistics
-
-## ⚙️ Configuration
-
-HTTP Forge uses a `http-forge.config.json` file in your workspace root for configuration. This allows you to version control your settings and share them across your team.
-
-### Quick Start
-
-Create a `http-forge.config.json` file in your workspace root:
-
-```json
-{
-  "$schema": "./node_modules/http-forge/docs/http-forge.config.schema.json",
-  "version": "1.0",
-  "storage": {
-    "format": "folder",
-    "root": "./http-forge"
-  }
-}
-```
-
-### Configuration Options
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `version` | `"1.0"` | Configuration file version |
-| `storage.format` | `"folder"` | Storage format: `"folder"` or `"json"` |
-| `storage.root` | `"./http-forge"` | Root directory for collections, environments, flows, suites |
-| `storage.history` | `"./.http-forge-cache/histories"` | Request history directory |
-| `storage.results` | `"./.http-forge-cache/results"` | Test results directory |
-| `request.timeout` | `30000` | Default request timeout (ms) |
-| `request.followRedirects` | `true` | Follow HTTP redirects |
-| `request.maxRedirects` | `10` | Maximum redirects to follow |
-| `request.strictSSL` | `true` | Verify SSL certificates |
-| `scripts.modulePaths` | `["./src", "./lib"]` | Paths for custom script modules |
-| `runner.resultsRetentionDays` | `7` | Days to retain test results |
-| `runner.indexPageSize` | `1000` | Entries per result index page |
-| `runner.recentErrorsLimit` | `20` | Max recent errors to track |
-| `environments.default` | `"dev"` | Default environment name |
-| `proxy` | `null` | Proxy configuration |
-
-### Storage Formats
-
-#### Folder Format (Recommended)
-Each request is stored as a folder with separate files:
-- `meta.json` - Request metadata and headers
-- `body.json` / `body.xml` / `body.txt` - Request body
-
-Benefits:
-- Git-friendly diffs
-- Easy to edit manually
-- Better for large request bodies
-
-#### JSON Format (Legacy)
-Collections stored as single JSON files. Simpler but harder to diff.
+- [Configuration reference](docs/user-guide/configuration.md)
 
 ## 🔌 Extension API
 
@@ -509,19 +419,7 @@ Report issues at [GitHub Issues](https://github.com/hsl1230/http-forge/issues)
 
 ## 📝 Release Notes
 
-See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
-
-### 1.1.0 (2025-01-XX)
-- Webview SOLID refactoring - modular architecture with 22 separate modules
-- Improved code maintainability and testability
-
-### 1.0.0 (2024-12-31)
-- Initial release
-- Full-featured HTTP client
-- Collections and environments
-- Request history
-- Collection runner
-- Extension API for integration
+See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ## 🤝 Contributing
 
@@ -534,22 +432,3 @@ This project is licensed under the [MIT License](LICENSE).
 ---
 
 **Enjoy HTTP Forge!** 🔨✨
-- Request builder with full HTTP method support
-- Collections and folders
-- Environment management
-- Request history
-- Cookie management
-- Test Suite with performance statistics
-- Postman import/export
-
-## Contributing
-
-Contributions are welcome! Please see our [contributing guidelines](CONTRIBUTING.md).
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-**Enjoy building and testing APIs with HTTP Forge! 🔨**
