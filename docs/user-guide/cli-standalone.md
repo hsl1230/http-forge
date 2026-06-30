@@ -103,6 +103,61 @@ http-forge run-folder --workspace . --collection my-api --folder Users --no-recu
 http-forge run-suite --workspace . --suite smoke --environment staging --include perRequest --include report --output json
 ```
 
+### Import collections
+
+```bash
+# From a curl command — parses method, URL, headers, and body
+http-forge generate-collection --workspace . \
+  --curl "curl -X POST https://api.example.com/users -H 'Authorization: Bearer sk-abc123' -d '{\"name\":\"Alice\"}'" \
+  --env dev
+
+# From a Postman Collection v2.x export
+http-forge generate-collection --workspace . --postman ./MyApi.postman_collection.json
+
+# From an OpenAPI 3.0 spec — creates a collection and an environment from server URLs
+http-forge generate-collection --workspace . \
+  --openapi ./openapi.yaml --name "Payments API" --create-envs --env staging
+
+# Any source + AI enhancement (writes realistic bodies and pm.test() assertions)
+# Requires OPENAI_API_KEY or ANTHROPIC_API_KEY
+http-forge generate-collection --workspace . --postman ./MyApi.postman_collection.json --ai
+```
+
+**Sources (exactly one required):** `--curl <cmd>`, `--postman <file>`, `--openapi <file>`
+
+**Key options:**
+- `--name <name>` — Collection name (default: derived from source)
+- `--env <name>` — `curl`: write detected vars to this env · `openapi`: create env from server URLs
+- `--create-envs` — OpenAPI: create environments from all server URLs
+- `--ai` — Enhance the collection with AI after import
+- `--output json|table`
+
+### Suggest and apply environment variables
+
+Scan a collection for hardcoded values and replace them with `{{ENV_VAR}}` placeholders.
+
+```bash
+# Dry-run: see what would be replaced (heuristic rules — no LLM needed)
+http-forge suggest-env --workspace . --collection my-api --output table
+
+# AI-powered detection (better recall for complex collections)
+OPENAI_API_KEY=sk-... http-forge suggest-env --workspace . --collection my-api --ai --output table
+
+# Apply: replace in collection and write originals to "staging" env
+http-forge suggest-env --workspace . --collection my-api --apply --env staging
+
+# Apply with AI detection
+http-forge suggest-env --workspace . --collection my-api --ai --apply --env staging
+```
+
+**Key options:**
+- `--collection <ref>` — Collection name, slug, or id (required)
+- `--apply` — Write changes to the collection
+- `--env <name>` — Target environment for `--apply`
+- `--ai` — Use AI for detection (requires `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
+- `--min-occurrences <n>` — Heuristic mode only: only flag values in ≥ N locations (default: 1)
+- `--output json|table`
+
 ### Reporters — HTML and JUnit
 
 Use `--reporter <name>` or `--reporter <name>:<path>` to generate machine-readable or human-readable reports. The flag is **repeatable** — pass it multiple times to produce several formats in one run.

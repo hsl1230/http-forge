@@ -22,5 +22,6 @@ export * from './request-execution-handler';
 export * from './request-preview-handler';
 export * from './save-request-handler';
 export * from './schema-handler';
+export * from './suggest-assertions-handler';
 export * from './variable-handler';
 

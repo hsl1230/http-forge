@@ -1,8 +1,8 @@
 {
   "name": "http-forge",
-  "displayName": "HTTP Forge — Free Postman Alternative (AI-Ready, Git-native, CI-friendly)",
-  "description": "Design and test REST & GraphQL APIs with AI superpowers. No account, no cloud — your collections live in Git. OAuth 2.0 (PKCE), test suites with assertions, OpenAPI round-trip, and Postman import. Secrets from OS keychain, AWS, Azure, GCP, Vault, 1Password & Doppler — never stored on disk. Template engine with 25+ filter pipes and inline JS. MCP server lets Claude and GitHub Copilot discover and run your APIs directly. CLI- and CI-friendly — run collections and suites headless.",
-  "version": "0.16.1",
+  "displayName": "HTTP Forge — AI-Driven API Testing Platform (Git-native, MCP-powered, Postman-compatible)",
+  "description": "The only VS Code API client with deep GitHub Copilot integration and a 60-tool MCP server. Copilot built-in (no extra key): generate request bodies, write test scripts, explain responses, scan for hardcoded env vars, enhance entire collections. MCP server: let Claude, Cursor, or any AI agent drive the full test lifecycle autonomously. Free forever, no account, no cloud. Collections live in Git as plain text files. Drop-in Postman compatibility — import v2.1 collections and run pm.* scripts unchanged. OAuth 2.0 (PKCE), OpenAPI 3.0 round-trip, 25+ template filter pipes, cloud secrets (AWS, Azure, GCP, Vault, 1Password, Doppler), TypeScript codegen, Playwright integration, headless CLI for CI/CD.",
+  "version": "0.16.5",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -29,6 +29,8 @@
     "thunder client",
     "thunder client alternative",
     "postman import",
+    "bruno",
+    "insomnia",
     "http",
     "api",
     "rest",
@@ -43,11 +45,16 @@
     "mcp",
     "mcp server",
     "ai agent",
+    "ai testing",
     "model context protocol",
+    "github copilot",
+    "copilot",
+    "playwright",
+    "codegen",
+    "git",
     "ci",
     "github actions",
     "offline",
-    "insomnia",
     "secrets",
     "secrets manager",
     "vault",
@@ -368,6 +375,16 @@
         "command": "httpForge.revertRequestToCommit",
         "title": "HTTP Forge: Revert Request to Commit",
         "icon": "$(discard)"
+      },
+      {
+        "command": "httpForge.suggestEnvVariables",
+        "title": "Suggest Env Variables (AI)",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "httpForge.generateCollectionFromCurl",
+        "title": "HTTP Forge: Generate Collection from curl (AI)",
+        "icon": "$(sparkle)"
       }
     ],
     "menus": {
@@ -401,6 +418,12 @@
         },
         {
           "command": "httpForge.mcpToggleServer"
+        },
+        {
+          "command": "httpForge.suggestEnvVariables"
+        },
+        {
+          "command": "httpForge.generateCollectionFromCurl"
         }
       ],
       "webview/context": [
@@ -512,6 +535,11 @@
           "command": "httpForge.inferAllResponseSchemas",
           "when": "view == httpForge.collections && viewItem == collection",
           "group": "3_edit@5"
+        },
+        {
+          "command": "httpForge.suggestEnvVariables",
+          "when": "view == httpForge.collections && viewItem == collection",
+          "group": "3_edit@6"
         },
         {
           "command": "httpForge.duplicateCollection",
@@ -658,7 +686,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.6.1",
+    "@http-forge/core": "^0.6.5",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

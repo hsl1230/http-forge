@@ -170,6 +170,83 @@ Import and export Postman‑compatible collections.
 
 See: import-export.md
 
+## 11) AI Features
+
+HTTP Forge integrates directly with your active **GitHub Copilot** subscription — no API keys, no external LLM configuration required.
+
+### Generate Collection from curl (AI)
+
+Parse a curl command into a collection with method, URL, headers, query params, and body already filled in.
+
+Command Palette → `HTTP Forge: Generate Collection from curl (AI)` — paste a curl command and HTTP Forge creates the collection.
+
+### Enhance Collection with AI
+
+Fills in realistic example request bodies and `pm.test()` assertion scripts for every request. Offered as an optional step during import:
+
+- **Import Collection** (Command Palette → `HTTP Forge: Import Collection`) — after selecting a Postman JSON file, choose **✨ Yes, enhance with AI** when prompted.
+- **Import OpenAPI Spec** (Command Palette → `HTTP Forge: Import OpenAPI Spec`) — same prompt after the spec loads.
+
+Requests that already have both a body and a test script are skipped.
+
+### Suggest Env Variables (AI)
+
+Scans every header, query parameter, URL segment, and request body in a collection for hardcoded values (API keys, Bearer tokens, base URLs, tenant IDs) and proposes `{{ENV_VAR}}` replacements.
+
+- **Collection Editor** — Open a collection → **Overview** tab → **✨ Suggest Environment Variables**.
+- **Collections tree** — Right-click a collection → **Suggest Env Variables (AI)**.
+- **Command Palette** → `HTTP Forge: Suggest Env Variables (AI)`.
+
+Applied replacements update the collection in place and write the original values to the active environment. A heuristic (non-AI) mode is also available if Copilot is not active.
+
+### Request Tester — AI features
+
+All of the following are available in the **Request Tester** panel when a request is open.
+
+#### ✨ Scan (hardcoded value detection)
+
+Toolbar button next to the request URL — detects hardcoded values in the current request (headers, query params, body) that should become environment variables. Results appear inline below the request line.
+
+#### ✨ Generate body
+
+In the **Body** tab, click the **✨** button next to the body type selector. Type a description of the payload (e.g. *"a create-user request with name and email"*) and Copilot writes the JSON body.
+
+#### ✨ Generate with AI — scripts
+
+In the **Scripts** tab, both the pre-request and post-response editors have a **✨ Generate with AI** button. Describe what the script should do and Copilot writes it.
+
+#### Response toolbar (appears after any response)
+
+After sending a request, an AI toolbar appears above the response body:
+
+| Button | What it does |
+|---|---|
+| **✨ Explain** | Plain-English explanation of the response — status, headers, body fields |
+| **📋 Contract Tests** | Generates `pm.test()` assertions for every field in the response JSON |
+| **⬆ Extract Vars** | Extracts response fields to environment variables via `pm.environment.set()` scripts |
+| **{ } TS Types** | Generates TypeScript interfaces from the response JSON |
+| **↔ Compare** | Diffs the current response against the previous response for the same endpoint |
+| **💬 Chat** | Opens the embedded AI chat panel (see below) |
+
+#### 💬 AI Assistant chat
+
+Click **💬 Chat** in the response toolbar to open a persistent, multi-turn chat panel scoped to the current request and response. Every message is sent to GitHub Copilot with an automatic context preamble containing:
+
+- The request endpoint (`METHOD URL`)
+- Last response status code
+- Response `Content-Type`
+- Response body (first 800 characters)
+
+This means you can ask questions like *"Why did this return a 401?"* or *"Write a pm.test() that checks every field in this response"* without copy-pasting anything. The chat history is preserved within the session and can be cleared with the 🗑 button.
+
+#### ✨ Enhance with AI — assertion suggestions
+
+After a response, HTTP Forge automatically suggests `pm.test()` snippets when no assertions exist. The suggestion banner has an **✨ Enhance with AI** button — clicking it sends the snippets to Copilot to generate smarter, context-aware assertions.
+
+### AI via MCP (agent mode)
+
+When the MCP server is running, AI agents (Claude, Copilot in agent mode) can trigger collection enhancement and env var scanning autonomously via `ai_suggest_env_vars` and `ai_enhance_collection`. See [MCP Server](mcp-server.md#agentic-ai-tools--env-scanning-and-collection-enhancement).
+
 ## Tips
 - Keep history/results out of version control.
 - Use collection variables for defaults.

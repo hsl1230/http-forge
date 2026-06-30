@@ -98,6 +98,11 @@ function setupEventListeners() {
     // Name change handler
     document.getElementById('collection-name')?.addEventListener('input', markDirty);
     document.getElementById('collection-description')?.addEventListener('input', markDirty);
+
+    // Env suggest overlay
+    document.getElementById('env-suggest-btn')?.addEventListener('click', openEnvSuggestOverlay);
+    document.getElementById('env-suggest-close')?.addEventListener('click', closeEnvSuggestOverlay);
+    document.getElementById('env-suggest-cancel')?.addEventListener('click', closeEnvSuggestOverlay);
 }
 
 // Initialize when DOM is ready
@@ -178,6 +183,12 @@ window.addEventListener('message', event => {
             break;
         case 'saveError':
             showStatus('Failed to save: ' + message.error, 'error');
+            break;
+        case 'envScanResult':
+            handleEnvScanResult(message);
+            break;
+        case 'envApplyResult':
+            handleEnvApplyResult(message);
             break;
     }
 });
@@ -416,4 +427,125 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+// ── Env Suggest Overlay ────────────────────────────────────────────────────
+
+let _envSuggestions = [];
+
+function closeEnvSuggestOverlay() {
+    document.getElementById('env-suggest-overlay')?.classList.add('hidden');
+}
+
+function openEnvSuggestOverlay() {
+    const loading  = document.getElementById('env-suggest-loading');
+    const list     = document.getElementById('env-suggest-list');
+    const empty    = document.getElementById('env-suggest-empty');
+    const errEl    = document.getElementById('env-suggest-error');
+    const footer   = document.getElementById('env-suggest-footer');
+    const collName = document.getElementById('env-suggest-collection-name');
+
+    if (loading) loading.classList.remove('hidden');
+    if (list)    { list.innerHTML = ''; list.classList.add('hidden'); }
+    if (empty)   empty.classList.add('hidden');
+    if (errEl)   { errEl.textContent = ''; errEl.classList.add('hidden'); }
+    if (footer)  footer.classList.add('hidden');
+    if (collName) collName.textContent = '';
+    _envSuggestions = [];
+
+    document.getElementById('env-suggest-overlay')?.classList.remove('hidden');
+    vscode.postMessage({ type: 'scanCollectionForEnv' });
+}
+
+function handleEnvScanResult(msg) {
+    const loading  = document.getElementById('env-suggest-loading');
+    const list     = document.getElementById('env-suggest-list');
+    const empty    = document.getElementById('env-suggest-empty');
+    const errEl    = document.getElementById('env-suggest-error');
+    const footer   = document.getElementById('env-suggest-footer');
+    const collName = document.getElementById('env-suggest-collection-name');
+
+    if (loading) loading.classList.add('hidden');
+    if (msg.collectionName && collName) collName.textContent = msg.collectionName;
+
+    if (msg.error) {
+        if (errEl) { errEl.textContent = `⚠ ${msg.error}`; errEl.classList.remove('hidden'); }
+        return;
+    }
+
+    const suggestions = msg.suggestions || [];
+    if (suggestions.length === 0) {
+        if (empty) empty.classList.remove('hidden');
+        return;
+    }
+
+    if (list) {
+        list.innerHTML = suggestions.map((s, i) => {
+            const occ = s.occurrences || [];
+            const occSummary = occ.length === 1
+                ? `1 occurrence: ${escapeHtml(occ[0].requestName)} (${escapeHtml(occ[0].field)})`
+                : `${occ.length} occurrences: ` + occ.slice(0, 3).map(o => escapeHtml(o.requestName)).join(', ') + (occ.length > 3 ? '…' : '');
+            return `<div class="env-suggest-item" data-index="${i}">
+                <label class="env-suggest-check">
+                    <input type="checkbox" data-index="${i}" checked>
+                    <div class="env-suggest-info">
+                        <div class="env-suggest-value-row">
+                            <code class="env-suggest-hardcoded">${escapeHtml(s.value)}</code>
+                            <span class="env-suggest-arrow">→</span>
+                            <span class="env-suggest-brace">{{</span><input
+                                class="env-suggest-name-input"
+                                type="text"
+                                data-index="${i}"
+                                value="${escapeHtml(s.varName)}"
+                                spellcheck="false"
+                            ><span class="env-suggest-brace">}}</span>
+                        </div>
+                        <div class="env-suggest-occurrences">${occSummary}</div>
+                        <div class="env-suggest-reason">${escapeHtml(s.reason || '')}</div>
+                    </div>
+                </label>
+            </div>`;
+        }).join('');
+        list.classList.remove('hidden');
+    }
+
+    if (footer) footer.classList.remove('hidden');
+    _envSuggestions = suggestions;
+
+    document.getElementById('env-suggest-select-all')?.addEventListener('click', () => {
+        list?.querySelectorAll('input[type=checkbox]').forEach(cb => (cb.checked = true));
+    });
+    document.getElementById('env-suggest-deselect-all')?.addEventListener('click', () => {
+        list?.querySelectorAll('input[type=checkbox]').forEach(cb => (cb.checked = false));
+    });
+
+    const applyBtn = document.getElementById('env-suggest-apply');
+    if (applyBtn) {
+        applyBtn.onclick = () => {
+            const selected = [];
+            list?.querySelectorAll('input[type=checkbox]').forEach(cb => {
+                if (cb.checked) {
+                    const idx = parseInt(cb.dataset.index);
+                    const sugg = _envSuggestions[idx];
+                    const nameInput = list.querySelector(`.env-suggest-name-input[data-index="${idx}"]`);
+                    const varName = nameInput?.value?.trim() || sugg.varName;
+                    selected.push({ value: sugg.value, varName });
+                }
+            });
+            if (selected.length === 0) return;
+            applyBtn.disabled = true;
+            applyBtn.textContent = '⏳ Applying…';
+            vscode.postMessage({ type: 'applyEnvSuggestions', selected });
+        };
+    }
+}
+
+function handleEnvApplyResult(msg) {
+    const applyBtn = document.getElementById('env-suggest-apply');
+    if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = '✓ Apply Selected'; }
+    if (msg.error) {
+        showStatus(msg.error, 'error');
+        return;
+    }
+    closeEnvSuggestOverlay();
 }

@@ -5,16 +5,17 @@ import { getServiceContainer } from '../../../../infrastructure/services/service
 import { RequestContext } from '../../../../shared/utils';
 import { WebviewMessageRouter, WebviewMessenger } from '../../shared-interfaces';
 import {
-  CookieHandler,
-  EnvironmentSelectionHandler,
-  GraphQLHandler,
-  HistoryHandler,
-  OAuth2Handler,
-  RequestExecutionHandler,
-  RequestPreviewHandler,
-  SaveRequestHandler,
-  SchemaHandler,
-  VariableHandler
+    CookieHandler,
+    EnvironmentSelectionHandler,
+    GraphQLHandler,
+    HistoryHandler,
+    OAuth2Handler,
+    RequestExecutionHandler,
+    RequestPreviewHandler,
+    SaveRequestHandler,
+    SchemaHandler,
+    SuggestAssertionsHandler,
+    VariableHandler
 } from './handlers';
 import { PanelDataProvider } from './panel-data-provider';
 
@@ -115,6 +116,7 @@ export class RequestTesterPanel implements vscode.Disposable {
     );
 
     const saveRequestHandler = new SaveRequestHandler(this.dataProvider, collectionService, envConfigService);
+    const suggestAssertionsHandler = new SuggestAssertionsHandler(this.dataProvider, collectionService);
 
     // Schema handler for body/response schema operations
     const schemaInferenceService = container.resolve<any>(Symbol.for('SchemaInferenceService'));
@@ -142,6 +144,7 @@ export class RequestTesterPanel implements vscode.Disposable {
       this.variableHandler,
       saveRequestHandler,
       schemaHandler,
+      suggestAssertionsHandler,
       oauth2Handler,
       graphqlHandler
     ]);

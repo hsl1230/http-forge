@@ -129,6 +129,9 @@ export const COMMAND_IDS = {
     showRequestGitHistory: 'httpForge.showRequestGitHistory',
     viewRequestGitDiff: 'httpForge.viewRequestGitDiff',
     revertRequestToCommit: 'httpForge.revertRequestToCommit',
+    // AI commands
+    suggestEnvVariables: 'httpForge.suggestEnvVariables',
+    generateCollectionFromCurl: 'httpForge.generateCollectionFromCurl',
 };
 
 /**

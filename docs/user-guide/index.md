@@ -21,6 +21,7 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - [History & Shared History](history-shared.md)
 - [Test Suites](test-suites.md)
 - [MCP Server](mcp-server.md) — expose your collections to AI agents (Claude, Copilot, etc.)
+- [AI Features](extension.md#11-ai-features) — enhance collections, scan for env vars (requires GitHub Copilot)
 - [Flows](flows.md)
 - [Security & Sensitive Data](security.md) — automatic redaction of tokens, passwords, credentials in persisted files
 - [Import/Export & Postman Compatibility](import-export.md)
@@ -33,5 +34,6 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - Collections, requests, environments, variables, and history
 - Scripts, tests, and assertions
 - Import/export and compatibility
-- CLI/standalone execution and results
+- CLI/standalone execution and results — including `generate-collection` and `suggest-env`
 - Codegen clients and Playwright integration
+- AI features: collection enhancement, env var scanning, and MCP agentic tools (GitHub Copilot)

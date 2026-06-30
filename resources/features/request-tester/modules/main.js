@@ -227,7 +227,22 @@ class RequestTesterApp {
      */
     initializeFeatureModules() {
         // Test Results Manager
-        this.testResultsManager = createTestResultsManager(escapeHtml);
+        this.testResultsManager = createTestResultsManager({
+            escapeHtml,
+            onAiFixTest: (testName, error) => {
+                const lastResp = this.state.lastResponse;
+                const sentReq = this.state.lastSentRequest;
+                vscode.postMessage({
+                    command: 'aiFixTest',
+                    testName,
+                    error,
+                    method: sentReq?.method,
+                    url: sentReq?.url,
+                    responseStatus: lastResp?.status ?? lastResp?.statusCode,
+                    responseBody: (lastResp?.body ?? '').slice(0, 1500),
+                });
+            }
+        });
         this.testResultsManager.setElements({
             section: document.getElementById('response-tests-tab'),
             summary: this.elements.testResultsSummary,
@@ -283,7 +298,28 @@ class RequestTesterApp {
             getResponseBodyEditor: () => this.editorsManager.getResponseBodyEditor(),
             escapeHtml,
             formatDuration,
-            testResultsManager: this.testResultsManager
+            testResultsManager: this.testResultsManager,
+            onApplyAssertions: (script) => {
+                vscode.postMessage({ command: 'applyAssertions', script });
+            },
+            onAiEnhance: ({ status, body, contentType }) => {
+                vscode.postMessage({ command: 'aiSuggestAssertions', status, body, contentType });
+            },
+            onAiExplainResponse: (data) => {
+                vscode.postMessage({ command: 'aiExplainResponse', ...data });
+            },
+            onAiContractTests: (data) => {
+                vscode.postMessage({ command: 'aiGenerateContractTests', ...data });
+            },
+            onAiExtractVars: (data) => {
+                vscode.postMessage({ command: 'aiExtractVariables', ...data });
+            },
+            onAiGenerateTypes: (data) => {
+                vscode.postMessage({ command: 'aiGenerateTypes', ...data });
+            },
+            onAiCompareResponses: (data) => {
+                vscode.postMessage({ command: 'aiCompareResponses', ...data });
+            }
         });
 
         // Request Executor (scripts now execute on backend)
@@ -357,6 +393,19 @@ class RequestTesterApp {
             'error': (msg) => this.handleError(msg),
             'sendRequestResponse': (msg) => this.handleSendRequestResponse(msg),
             'resolvedUrlPreview': (msg) => this.handleResolvedUrlPreview(msg),
+            'assertionsApplied': (msg) => this.handleAssertionsApplied(msg),
+            'aiAssertionSuggestions': (msg) => this.handleAiAssertionSuggestions(msg),
+            'aiExplainResult':   (msg) => this.handleAiExplainResult(msg),
+            'aiFixTestResult':   (msg) => this.handleAiFixTestResult(msg),
+            'aiGeneratedScript': (msg) => this.handleAiGeneratedScript(msg),
+            'aiGeneratedDocs':   (msg) => this.handleAiGeneratedDocs(msg),
+            'aiGeneratedBody':   (msg) => this.handleAiGeneratedBody(msg),
+            'aiContractTestsResult': (msg) => this.handleAiContractTestsResult(msg),
+            'aiExtractVarsResult':   (msg) => this.handleAiExtractVarsResult(msg),
+            'aiGeneratedTypes':      (msg) => this.handleAiGeneratedTypes(msg),
+            'aiDetectedHardcoded':   (msg) => this.handleAiDetectedHardcoded(msg),
+            'aiCompareResult':       (msg) => this.handleAiCompareResult(msg),
+            'aiChatResponse':        (msg) => this.handleAiChatResponse(msg),
             // Schema editor handlers
             ...this.schemaEditorManager.getMessageHandlers(),
             // OAuth2 handlers
@@ -428,6 +477,9 @@ class RequestTesterApp {
 
         // Initialize body type event listeners
         this.bodyTypeManager.initEventListeners();
+
+        // Initialize AI script and body generation buttons
+        this.initializeAiScriptButtons();
 
         // Initialize tabs
         this.initializeTabs();
@@ -944,6 +996,7 @@ class RequestTesterApp {
                 '<button class="doc-open-file-btn" id="doc-open-file-btn" title="Open documentation in editor">' +
                     '<span class="codicon codicon-go-to-file"></span> Open File' +
                 '</button>' +
+                '<button class="ai-gen-docs-btn" id="ai-gen-docs-btn" title="Generate documentation with GitHub Copilot">✨ Generate Docs</button>' +
             '</div>';
 
         if (doc) {
@@ -964,6 +1017,26 @@ class RequestTesterApp {
         if (openFileBtn) {
             openFileBtn.addEventListener('click', () => {
                 vscode.postMessage({ command: 'openDocFile' });
+            });
+        }
+
+        // Attach click handler for Generate Docs button
+        const genDocsBtn = document.getElementById('ai-gen-docs-btn');
+        if (genDocsBtn) {
+            genDocsBtn.addEventListener('click', () => {
+                genDocsBtn.disabled = true;
+                genDocsBtn.textContent = '⏳ Generating…';
+                const sentReq = this.state.lastSentRequest;
+                const lastResp = this.state.lastResponse;
+                vscode.postMessage({
+                    command: 'aiGenerateDocs',
+                    method: this.getMethod(),
+                    url: this.getPath(),
+                    headers: (sentReq?.headers || []).map(h => h.name || h.key).filter(Boolean),
+                    body: this.state.body || '',
+                    responseStatus: lastResp?.status ?? lastResp?.statusCode,
+                    responseBody: (lastResp?.body ?? '').slice(0, 600),
+                });
             });
         }
     }
@@ -1148,6 +1221,311 @@ class RequestTesterApp {
         } else {
             this.latestResolvedUrlPreview = '';
         }
+    }
+
+    handleAssertionsApplied(msg) {
+        const banner = document.getElementById('suggest-assertions-banner');
+        if (msg.success) {
+            if (banner) banner.classList.add('hidden');
+        } else {
+            this.showError(msg.error || 'Failed to apply assertions.');
+        }
+    }
+
+    handleAiAssertionSuggestions(msg) {
+        this.responseHandler?.updateAiSuggestions(msg.suggestions || null, msg.error || null);
+    }
+
+    handleAiExplainResult(msg) {
+        this.responseHandler?.showAiExplainPanel(msg.text || null, msg.error || null);
+    }
+
+    handleAiFixTestResult(msg) {
+        this.testResultsManager?.handleAiFixResult(msg.testName, msg.explanation, msg.snippet, msg.error);
+    }
+
+    handleAiGeneratedScript(msg) {
+        const confirmId = msg.phase === 'pre-request' ? 'pre-request-ai-confirm' : 'post-response-ai-confirm';
+        const barId    = msg.phase === 'pre-request' ? 'pre-request-ai-bar'    : 'post-response-ai-bar';
+        const confirm = document.getElementById(confirmId);
+        if (confirm) { confirm.disabled = false; confirm.textContent = 'Generate'; }
+        if (msg.error) { this.showError(msg.error); return; }
+        const editor = msg.phase === 'pre-request'
+            ? this.editorsManager.getPreRequestScriptEditor()
+            : this.editorsManager.getPostResponseScriptEditor();
+        if (editor) {
+            editor.getModel()?.setValue(msg.script);
+            document.getElementById(barId)?.classList.add('hidden');
+            this.markDirty();
+        }
+    }
+
+    handleAiGeneratedDocs(msg) {
+        const btn = document.getElementById('ai-gen-docs-btn');
+        if (btn) { btn.disabled = false; btn.textContent = '✨ Generate Docs'; }
+        if (msg.error) { this.showError(msg.error); return; }
+        this.state.doc = msg.markdown;
+        this.updateDocTab(msg.markdown);
+        this.markDirty();
+        // Switch to doc tab so the user sees the result
+        document.querySelector('[data-tab="doc"]')?.click();
+    }
+
+    handleAiGeneratedBody(msg) {
+        const confirm = document.getElementById('body-ai-confirm');
+        const bar = document.getElementById('body-ai-bar');
+        if (confirm) { confirm.disabled = false; confirm.textContent = 'Generate'; }
+        if (msg.error) { this.showError(msg.error); return; }
+        const editor = this.editorsManager.getRequestBodyEditor();
+        if (editor) {
+            editor.getModel()?.setValue(msg.body);
+            bar?.classList.add('hidden');
+            this.markDirty();
+        }
+    }
+
+    handleAiContractTestsResult(msg) {
+        this.responseHandler?.showAiContractTestsPanel(
+            msg.snippets || [],
+            msg.error || null,
+            (script) => vscode.postMessage({ command: 'applyAssertions', script })
+        );
+    }
+
+    handleAiExtractVarsResult(msg) {
+        this.responseHandler?.showAiExtractVarsPanel(
+            msg.variables || [],
+            msg.script || null,
+            msg.error || null,
+            (script) => vscode.postMessage({ command: 'applyAssertions', script })
+        );
+    }
+
+    handleAiGeneratedTypes(msg) {
+        this.responseHandler?.showAiTypesPanel(msg.types || null, msg.error || null);
+    }
+
+    handleAiDetectedHardcoded(msg) {
+        const panel = document.getElementById('ai-scan-panel');
+        const title = document.getElementById('ai-scan-title');
+        const issuesEl = document.getElementById('ai-scan-issues');
+        if (!panel) return;
+        const scanBtn = document.getElementById('btn-scan-request');
+        if (scanBtn) { scanBtn.disabled = false; scanBtn.textContent = '✨ Scan'; }
+        if (msg.error) {
+            if (title) title.textContent = `⚠ ${msg.error}`;
+            if (issuesEl) issuesEl.innerHTML = '';
+            panel.classList.remove('hidden');
+            return;
+        }
+        const issues = msg.issues || [];
+        if (title) title.textContent = issues.length === 0
+            ? '✅ No hardcoded values detected'
+            : `🔍 ${issues.length} hardcoded value${issues.length !== 1 ? 's' : ''} detected`;
+        if (issuesEl) {
+            issuesEl.innerHTML = issues.map(i => {
+                const sev = (i.severity || 'medium').toLowerCase();
+                return `<div class="ai-scan-issue ai-scan-${sev}">
+                    <span class="ai-scan-severity">${sev.toUpperCase()}</span>
+                    <span class="ai-scan-location">${escapeHtml(i.location || '')}</span>
+                    <code class="ai-scan-value">${escapeHtml(String(i.value || ''))}</code>
+                    <span class="ai-scan-arrow">→</span>
+                    <code class="ai-scan-var">{{${escapeHtml(i.suggestedVar || '')}}}</code>
+                    <small class="ai-scan-reason">${escapeHtml(i.reason || '')}</small>
+                </div>`;
+            }).join('');
+        }
+        panel.classList.remove('hidden');
+    }
+
+    handleAiCompareResult(msg) {
+        this.responseHandler?.showAiComparePanel(msg.text || null, msg.error || null);
+    }
+
+    // ─── Chat handlers ──────────────────────────────────────────────────────
+
+    handleAiChatResponse(msg) {
+        const messages = document.getElementById('ai-chat-messages');
+        const sendBtn = document.getElementById('ai-chat-send');
+        const input = document.getElementById('ai-chat-input');
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+        if (input) input.disabled = false;
+        if (!messages) return;
+        // Remove the typing indicator if present
+        const typing = messages.querySelector('.ai-chat-typing');
+        if (typing) typing.remove();
+        if (msg.error) {
+            this._appendChatMessage('assistant', `⚠ ${msg.error}`, true);
+        } else {
+            this._appendChatMessage('assistant', msg.message || '');
+            // Record in state
+            if (!this.state.aiChatMessages) this.state.aiChatMessages = [];
+            this.state.aiChatMessages.push({ role: 'assistant', content: msg.message || '' });
+        }
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    wireAiScriptButton(genBtnId, barId, inputId, confirmId, cancelId, phase) {
+        const genBtn  = document.getElementById(genBtnId);
+        const bar     = document.getElementById(barId);
+        const input   = document.getElementById(inputId);
+        const confirm = document.getElementById(confirmId);
+        const cancel  = document.getElementById(cancelId);
+        if (genBtn)  genBtn.onclick  = () => { bar?.classList.toggle('hidden'); input?.focus(); };
+        if (cancel)  cancel.onclick  = () => bar?.classList.add('hidden');
+        if (confirm) confirm.onclick = () => {
+            const description = input?.value?.trim();
+            if (!description) return;
+            confirm.disabled = true;
+            confirm.textContent = '⏳';
+            const editor = phase === 'pre-request'
+                ? this.editorsManager.getPreRequestScriptEditor()
+                : this.editorsManager.getPostResponseScriptEditor();
+            vscode.postMessage({
+                command: 'aiGenerateScript',
+                phase,
+                description,
+                existingScript: editor?.getValue() ?? '',
+                method: this.getMethod(),
+                url: this.getPath(),
+            });
+        };
+        if (input) input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') confirm?.click();
+            if (e.key === 'Escape') cancel?.click();
+        });
+    }
+
+    initializeAiScriptButtons() {
+        this.wireAiScriptButton(
+            'ai-gen-pre-request-btn', 'pre-request-ai-bar',
+            'pre-request-ai-input', 'pre-request-ai-confirm', 'pre-request-ai-cancel',
+            'pre-request'
+        );
+        this.wireAiScriptButton(
+            'ai-gen-post-response-btn', 'post-response-ai-bar',
+            'post-response-ai-input', 'post-response-ai-confirm', 'post-response-ai-cancel',
+            'post-response'
+        );
+        const genBodyBtn   = document.getElementById('ai-generate-body-btn');
+        const bodyBar      = document.getElementById('body-ai-bar');
+        const bodyInput    = document.getElementById('body-ai-input');
+        const bodyConfirm  = document.getElementById('body-ai-confirm');
+        const bodyCancel   = document.getElementById('body-ai-cancel');
+        if (genBodyBtn)  genBodyBtn.onclick  = () => { bodyBar?.classList.toggle('hidden'); bodyInput?.focus(); };
+        if (bodyCancel)  bodyCancel.onclick  = () => bodyBar?.classList.add('hidden');
+        if (bodyConfirm) bodyConfirm.onclick = () => {
+            const description = bodyInput?.value?.trim();
+            if (!description) return;
+            bodyConfirm.disabled = true;
+            bodyConfirm.textContent = '⏳';
+            vscode.postMessage({
+                command: 'aiGenerateBody',
+                description,
+                method: this.getMethod(),
+                url: this.getPath(),
+                format: document.getElementById('raw-format')?.value || 'json',
+            });
+        };
+        if (bodyInput) bodyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') bodyConfirm?.click();
+            if (e.key === 'Escape') bodyCancel?.click();
+        });
+
+        // ── ✨ Scan button ────────────────────────────────────────────────────
+        const scanBtn = document.getElementById('btn-scan-request');
+        const scanPanel = document.getElementById('ai-scan-panel');
+        const scanClose = document.getElementById('ai-scan-close');
+        if (scanClose) scanClose.onclick = () => scanPanel?.classList.add('hidden');
+        if (scanBtn) {
+            scanBtn.onclick = () => {
+                scanBtn.disabled = true;
+                scanBtn.textContent = '⏳';
+                const titleEl = document.getElementById('ai-scan-title');
+                if (titleEl) titleEl.textContent = '🔍 Scanning for hardcoded values…';
+                const issuesEl = document.getElementById('ai-scan-issues');
+                if (issuesEl) issuesEl.innerHTML = '';
+                scanPanel?.classList.remove('hidden');
+                vscode.postMessage({
+                    command: 'aiDetectHardcoded',
+                    method: this.getMethod(),
+                    url: this.getPath(),
+                    headers: this.getHeaders().map(h => ({ name: h.name, value: h.value })),
+                    body: this.editorsManager.getRequestBodyEditor()?.getValue() ?? '',
+                });
+            };
+        }
+
+        // ── 💬 Chat panel ─────────────────────────────────────────────────────
+        if (!this.state.aiChatMessages) this.state.aiChatMessages = [];
+        const chatPanel  = document.getElementById('ai-chat-panel');
+        const chatToggle = document.getElementById('ai-chat-toggle-btn');
+        const chatClose  = document.getElementById('ai-chat-close');
+        const chatClear  = document.getElementById('ai-chat-clear');
+        const chatInput  = document.getElementById('ai-chat-input');
+        const chatSend   = document.getElementById('ai-chat-send');
+
+        if (chatToggle) chatToggle.onclick = () => chatPanel?.classList.toggle('hidden');
+        if (chatClose)  chatClose.onclick  = () => chatPanel?.classList.add('hidden');
+        if (chatClear) chatClear.onclick = () => {
+            this.state.aiChatMessages = [];
+            const msgs = document.getElementById('ai-chat-messages');
+            if (msgs) msgs.innerHTML = '';
+        };
+
+        const sendChat = () => {
+            const text = chatInput?.value?.trim();
+            if (!text) return;
+            if (chatSend)  { chatSend.disabled = true; chatSend.textContent = '⏳'; }
+            if (chatInput) { chatInput.disabled = true; chatInput.value = ''; }
+            this._appendChatMessage('user', text);
+            // Typing indicator
+            const msgs = document.getElementById('ai-chat-messages');
+            if (msgs) {
+                const typing = document.createElement('div');
+                typing.className = 'ai-chat-message ai-chat-assistant ai-chat-typing';
+                typing.textContent = '…';
+                msgs.appendChild(typing);
+                msgs.scrollTop = msgs.scrollHeight;
+            }
+            const lastResp = this.state.lastResponse;
+            const sentReq  = this.state.lastSentRequest;
+            const ct = (lastResp?.headers || []).find(h => (h.name || h.key || '').toLowerCase() === 'content-type')?.value || '';
+            vscode.postMessage({
+                command: 'aiChat',
+                messages: [...(this.state.aiChatMessages || [])],
+                newMessage: text,
+                context: {
+                    method: sentReq?.method,
+                    url: sentReq?.url,
+                    status: lastResp?.status ?? lastResp?.statusCode,
+                    body: (lastResp?.body ?? '').slice(0, 800),
+                    contentType: ct,
+                },
+            });
+            if (!this.state.aiChatMessages) this.state.aiChatMessages = [];
+            this.state.aiChatMessages.push({ role: 'user', content: text });
+        };
+
+        if (chatSend) chatSend.onclick = sendChat;
+        if (chatInput) chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendChat();
+        });
+    }
+
+    _appendChatMessage(role, content, isError = false) {
+        const msgs = document.getElementById('ai-chat-messages');
+        if (!msgs) return;
+        const div = document.createElement('div');
+        div.className = `ai-chat-message ai-chat-${role}`;
+        if (isError) div.classList.add('ai-chat-error');
+        // Simple markdown-like rendering: code blocks, inline code, newlines
+        div.innerHTML = escapeHtml(content)
+            .replace(/```(\w*)?\n?([\s\S]*?)```/g, '<pre class="ai-chat-code">$2</pre>')
+            .replace(/`([^`]+)`/g, '<code class="ai-chat-inline-code">$1</code>')
+            .replace(/\n/g, '<br>');
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
     }
 
     syncUrlWithQueryParams() {
