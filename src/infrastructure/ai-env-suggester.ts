@@ -53,11 +53,16 @@ export async function applyEnvSuggestions(
 
     await collectionService.saveCollection(collection);
 
-    for (const s of selected) {
-        envConfigService.setEnvironmentVariable(s.varName, s.value);
+    const envName = envConfigService.getSelectedEnvironment();
+    const sharedConfig = envConfigService.getSharedConfig();
+    if (sharedConfig?.environments[envName]) {
+        sharedConfig.environments[envName].variables = sharedConfig.environments[envName].variables ?? {};
+        for (const s of selected) {
+            sharedConfig.environments[envName].variables![s.varName] = s.value;
+        }
+        envConfigService.saveSharedConfig(sharedConfig);
     }
 
-    const envName = (envConfigService as any).getSelectedEnvironment?.() ?? 'environment';
     return { replacedCount, addedVars: selected.length, envName };
 }
 

@@ -1,29 +1,12 @@
 # HTTP Forge 🔨
 
-**The AI-driven API testing platform built for VS Code.** Design, test, and automate APIs with GitHub Copilot natively or any MCP-compatible AI (Claude, Cursor, Continue, and more) — no extra API keys, no cloud account required. HTTP Forge combines full Postman compatibility, OpenAPI 3.0 round-trip, headless CLI execution, TypeScript client codegen, cloud secret providers, a 60-tool MCP server for AI agents, and agentic workflows that write tests, fix assertions, and validate your API against its spec — all offline, all local, all free.
+**Turn GitHub Copilot, Claude Code, Cursor, and other AI assistants into expert API engineers.**
 
-## 🚀 Install
+HTTP Forge is the AI-native API engineering platform for VS Code. Through its built-in MCP server, AI assistants can design requests, execute tests, debug failures, validate OpenAPI specifications, generate TypeScript clients, and automate complete API workflows—all locally, with no extra API keys or cloud accounts.
 
-- Install from the VS Code Marketplace: `henry-huang.http-forge`
+**Works with the AI you already use.** GitHub Copilot, Claude Code, Cursor, Continue, and any MCP-compatible agent—no separate subscription, no API key, no data leaving your machine.
 
-## 🧪 Standalone Launcher (QA / Testing)
-
-Run HTTP Forge as an isolated standalone tool — no other extensions, clean profile:
-
-| Platform | Download |
-|----------|----------|
-| Linux / macOS | [http-forge.sh](scripts/http-forge.sh) |
-| Windows | [http-forge.bat](scripts/http-forge.bat) |
-
-```bash
-# Linux / macOS
-./http-forge.sh
-
-# Windows
-http-forge.bat
-```
-
-The launcher auto-detects (or downloads) VS Code and installs HTTP Forge in an isolated profile. Use `--dev` for your full dev environment, or `--both` to run dev + test side by side. See [Launcher Guide](docs/user-guide/cli-standalone.md#launcher-standalone-gui) for details.
+**Beyond AI, it's a full-featured API engineering platform.** Full Postman compatibility, OpenAPI 3.0 round-trip, headless CLI for CI/CD, cloud secret providers (AWS, Azure, GCP, Vault, 1Password, Doppler), TypeScript client generation, and a programmable runtime.
 
 ## 🖥️ CLI (Headless / CI)
 
@@ -34,6 +17,15 @@ HTTP Forge also supports CLI-based execution for CI/CD and scripted workflows.
 - Use JSON output for machine-readable pipeline integration
 
 See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and examples.
+
+
+AI in action:
+
+
+[![AI in action](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/ai-flow-thumb.png)](https://github.com/user-attachments/assets/70a3c4a0-66cd-4340-bfae-c4579c7d410b)
+
+Http Forge Introduction:
+[![HTTP Forge Introduction](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/intro-thumb.png)](https://github.com/user-attachments/assets/9a20095c-c5f0-44d9-8677-634e83f82517)
 
 ## 📸 Screenshots
 
@@ -56,7 +48,7 @@ See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and
 | Template Code Completion 2 | <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/template-code-completion-2.png" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/template-code-completion-2.png" width="360" alt="Template Code Completion 2" title="Open full-size image"></a> |
 
 ---
-## 🤖 AI-Driven Testing Platform
+## 🤖 The API Platform Built for AI Agents
 
 HTTP Forge is the only VS Code API client with **deep GitHub Copilot integration** and a **full MCP server** — turning AI agents into autonomous API testers that run inside your editor.
 

@@ -116,7 +116,7 @@ export class RequestTesterPanel implements vscode.Disposable {
     );
 
     const saveRequestHandler = new SaveRequestHandler(this.dataProvider, collectionService, envConfigService);
-    const suggestAssertionsHandler = new SuggestAssertionsHandler(this.dataProvider, collectionService);
+    const suggestAssertionsHandler = new SuggestAssertionsHandler(this.dataProvider, collectionService, envConfigService);
 
     // Schema handler for body/response schema operations
     const schemaInferenceService = container.resolve<any>(Symbol.for('SchemaInferenceService'));

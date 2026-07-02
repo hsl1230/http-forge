@@ -21,7 +21,7 @@
             </div>
             <div class="header-right">
                 <label class="save-response-toggle" title="Save full response body to history">
-                    <input type="checkbox" id="save-response-checkbox">
+                    <input type="checkbox" id="save-response-checkbox" checked>
                     <span>Save Response</span>
                 </label>
                 <button id="env-settings-btn" class="icon-btn" title="Edit Environments">✎</button>
@@ -46,7 +46,7 @@
             
             <!-- Action buttons -->
             <button id="send-btn" class="primary">Send</button>
-            <button id="btn-save" class="secondary">Save</button>
+            <button id="btn-save" class="secondary">Save&nbsp;&nbsp;</button>
             <button id="btn-scan-request" class="secondary" title="Detect hardcoded values in this request with GitHub Copilot">✨ Scan</button>
         </div>
 
@@ -302,7 +302,7 @@
                                 <!-- AI body generation prompt bar -->
                                 <div id="body-ai-bar" class="ai-script-prompt-bar hidden">
                                     <input id="body-ai-input" class="ai-script-input" type="text" placeholder="Describe the request payload…">
-                                    <button id="body-ai-confirm" class="btn btn-primary">Generate</button>
+                                    <button id="body-ai-confirm" class="btn primary">Generate</button>
                                     <button id="body-ai-cancel" class="icon-btn">✕</button>
                                 </div>
                                 <div id="graphql-toolbar" class="graphql-toolbar hidden">
@@ -498,26 +498,27 @@
                             <div class="scripts-tabs-container">
                                 <!-- Vertical Script Tabs -->
                                 <div class="script-tabs-vertical" role="tablist">
-                                    <button class="script-tab-vertical active" data-script-tab="pre-request" role="tab" aria-selected="true">
-                                        <span class="script-tab-icon">▶</span>
-                                        <span class="script-tab-label">Pre-request</span>
-                                    </button>
-                                    <button class="script-tab-vertical" data-script-tab="post-response" role="tab" aria-selected="false">
-                                        <span class="script-tab-icon">◀</span>
-                                        <span class="script-tab-label">Post-response</span>
-                                    </button>
+                                    <div class="script-tab-vertical-wrapper">
+                                        <button class="script-tab-vertical active" data-script-tab="pre-request" role="tab" aria-selected="true">
+                                            <span class="script-tab-label">Pre-request</span>
+                                        </button>
+                                        <button id="ai-gen-pre-request-btn" class="ai-gen-tab-icon-btn" title="Generate with AI" tabindex="-1">✨</button>
+                                    </div>
+                                    <div class="script-tab-vertical-wrapper">
+                                        <button class="script-tab-vertical" data-script-tab="post-response" role="tab" aria-selected="false">
+                                            <span class="script-tab-label">Post-response</span>
+                                        </button>
+                                        <button id="ai-gen-post-response-btn" class="ai-gen-tab-icon-btn" title="Generate with AI" tabindex="-1">✨</button>
+                                    </div>
                                 </div>
 
                                 <!-- Script Editor Panels -->
                                 <div class="script-panels">
                                     <!-- Pre-request Script Panel -->
                                     <div id="pre-request-script-panel" class="script-tab-panel active" role="tabpanel">
-                                        <div class="ai-script-toolbar">
-                                            <button id="ai-gen-pre-request-btn" class="ai-script-gen-btn" title="Generate pre-request script with GitHub Copilot">✨ Generate with AI</button>
-                                        </div>
                                         <div id="pre-request-ai-bar" class="ai-script-prompt-bar hidden">
                                             <input id="pre-request-ai-input" class="ai-script-input" type="text" placeholder="Describe what the script should do…">
-                                            <button id="pre-request-ai-confirm" class="btn btn-primary">Generate</button>
+                                            <button id="pre-request-ai-confirm" class="btn primary">Generate</button>
                                             <button id="pre-request-ai-cancel" class="icon-btn">✕</button>
                                         </div>
                                         <div id="pre-request-editor" class="script-editor monaco-editor-wrapper"></div>
@@ -525,12 +526,9 @@
 
                                     <!-- Post-response Script Panel -->
                                     <div id="post-response-script-panel" class="script-tab-panel" role="tabpanel">
-                                        <div class="ai-script-toolbar">
-                                            <button id="ai-gen-post-response-btn" class="ai-script-gen-btn" title="Generate post-response script with GitHub Copilot">✨ Generate with AI</button>
-                                        </div>
                                         <div id="post-response-ai-bar" class="ai-script-prompt-bar hidden">
                                             <input id="post-response-ai-input" class="ai-script-input" type="text" placeholder="Describe what the script should do…">
-                                            <button id="post-response-ai-confirm" class="btn btn-primary">Generate</button>
+                                            <button id="post-response-ai-confirm" class="btn primary">Generate</button>
                                             <button id="post-response-ai-cancel" class="icon-btn">✕</button>
                                         </div>
                                         <div id="post-response-editor" class="script-editor monaco-editor-wrapper"></div>
@@ -561,6 +559,7 @@
                         <button class="tab" data-response-tab="sent-request">Sent Request</button>
                         <button class="tab" data-response-tab="tests">Tests <span id="test-count" class="tab-badge hidden"></span></button>
                         <button class="tab hidden" id="visualize-tab-btn" data-response-tab="visualize">Visualize</button>
+                        <button id="ai-chat-toggle-btn" class="tab" title="Open AI assistant chat">💬 Chat</button>
 
                         <!-- View toggle (Raw / Preview) shown only for HTML responses -->
                         <div id="response-body-toolbar" class="response-body-toolbar hidden" role="toolbar" aria-label="Response body view">
@@ -571,34 +570,74 @@
 
                     <div class="response-content">
                         <div id="response-body-tab" class="response-panel active">
-                            <!-- AI toolbar — shown after any response -->
-                            <div id="response-ai-toolbar" class="response-ai-toolbar hidden">
-                                <button id="ai-explain-btn" class="tiny-btn" title="Explain this response with GitHub Copilot">✨ Explain</button>
-                                <button id="ai-contract-tests-btn" class="tiny-btn" title="Generate contract assertions for every response field">📋 Contract Tests</button>
-                                <button id="ai-extract-vars-btn" class="tiny-btn" title="Extract response fields to environment variables">⬆ Extract Vars</button>
-                                <button id="ai-generate-types-btn" class="tiny-btn" title="Generate TypeScript interfaces from response JSON">{ } TS Types</button>
-                                <button id="ai-compare-btn" class="tiny-btn" title="Compare with previous response for this endpoint">↔ Compare</button>
-                                <button id="ai-chat-toggle-btn" class="tiny-btn" title="Open AI assistant chat">💬 Chat</button>
-                            </div>
-                            <!-- AI multi-purpose panel (Explain / Contract Tests / Extract Vars / TS Types / Compare) -->
-                            <div id="ai-explain-panel" class="ai-explain-panel hidden">
-                                <div class="ai-panel-header">
-                                    <span id="ai-panel-title" class="ai-panel-title">✨ AI</span>
-                                    <button id="ai-explain-close" class="icon-btn ai-explain-close" title="Close">✕</button>
-                                </div>
-                                <span id="ai-explain-loading" class="ai-explain-loading hidden">⏳ Analyzing…</span>
-                                <div id="ai-explain-content" class="ai-explain-content"></div>
-                                <div id="ai-panel-actions" class="ai-panel-actions hidden"></div>
-                            </div>
-                            <div id="response-body-editor" class="monaco-editor-wrapper"></div>
-
-                            <!-- HTML preview (iframe) -- appears when Preview is selected for HTML content -->
-                            <div id="response-html-preview" class="html-preview">
-                                <iframe id="response-preview-iframe" sandbox="allow-same-origin"></iframe>
-                            </div>
-
+                            <!-- Placeholder before first response -->
                             <div id="response-placeholder" class="response-placeholder">
                                 Click Send to execute the request
+                            </div>
+                            <!-- AI vertical tabs + per-tab panels (shown after first response) -->
+                            <div id="response-ai-vtabs-container" class="ai-vtabs-container hidden">
+                                <div class="ai-vtabs" role="tablist">
+                                    <button class="ai-vtab active" data-ai-tab="raw" role="tab" aria-selected="true">📄 Raw Body</button>
+                                    <div class="ai-vtab-wrapper">
+                                        <button class="ai-vtab" data-ai-tab="explain" id="ai-explain-btn" role="tab" aria-selected="false" title="Explain this response with GitHub Copilot">✨ Explain</button>
+                                        <button class="ai-tab-refresh-btn" tabindex="-1" title="Refresh">↺</button>
+                                    </div>
+                                    <div class="ai-vtab-wrapper">
+                                        <button class="ai-vtab" data-ai-tab="contract" id="ai-contract-tests-btn" role="tab" aria-selected="false" title="Generate contract assertions for every response field">📋 Contract Tests</button>
+                                        <button class="ai-tab-refresh-btn" tabindex="-1" title="Refresh">↺</button>
+                                    </div>
+                                    <div class="ai-vtab-wrapper">
+                                        <button class="ai-vtab" data-ai-tab="extract" id="ai-extract-vars-btn" role="tab" aria-selected="false" title="Extract response fields to environment variables">⬆ Extract Vars</button>
+                                        <button class="ai-tab-refresh-btn" tabindex="-1" title="Refresh">↺</button>
+                                    </div>
+                                    <div class="ai-vtab-wrapper">
+                                        <button class="ai-vtab" data-ai-tab="types" id="ai-generate-types-btn" role="tab" aria-selected="false" title="Generate TypeScript interfaces from response JSON">{ } TS Types</button>
+                                        <button class="ai-tab-refresh-btn" tabindex="-1" title="Refresh">↺</button>
+                                    </div>
+                                    <div class="ai-vtab-wrapper">
+                                        <button class="ai-vtab" data-ai-tab="compare" id="ai-compare-btn" role="tab" aria-selected="false" title="Compare with previous response for this endpoint">↔ Compare</button>
+                                        <button class="ai-tab-refresh-btn" tabindex="-1" title="Refresh">↺</button>
+                                    </div>
+                                </div>
+                                <div class="ai-vtab-panels">
+                                    <!-- Raw Body -->
+                                    <div id="ai-vtab-panel-raw" class="ai-vtab-panel active">
+                                        <div id="response-body-editor" class="monaco-editor-wrapper"></div>
+                                        <div id="response-html-preview" class="html-preview">
+                                            <iframe id="response-preview-iframe" sandbox="allow-same-origin"></iframe>
+                                        </div>
+                                    </div>
+                                    <!-- Explain -->
+                                    <div id="ai-vtab-panel-explain" class="ai-vtab-panel">
+                                        <span class="ai-loading hidden">⏳ Analyzing…</span>
+                                        <div class="ai-vtab-content"></div>
+                                        <div class="ai-vtab-actions hidden"></div>
+                                    </div>
+                                    <!-- Contract Tests -->
+                                    <div id="ai-vtab-panel-contract" class="ai-vtab-panel">
+                                        <span class="ai-loading hidden">⏳ Analyzing…</span>
+                                        <div class="ai-vtab-content"></div>
+                                        <div class="ai-vtab-actions hidden"></div>
+                                    </div>
+                                    <!-- Extract Vars -->
+                                    <div id="ai-vtab-panel-extract" class="ai-vtab-panel">
+                                        <span class="ai-loading hidden">⏳ Analyzing…</span>
+                                        <div class="ai-vtab-content"></div>
+                                        <div class="ai-vtab-actions hidden"></div>
+                                    </div>
+                                    <!-- TS Types -->
+                                    <div id="ai-vtab-panel-types" class="ai-vtab-panel">
+                                        <span class="ai-loading hidden">⏳ Analyzing…</span>
+                                        <div class="ai-vtab-content"></div>
+                                        <div class="ai-vtab-actions hidden"></div>
+                                    </div>
+                                    <!-- Compare -->
+                                    <div id="ai-vtab-panel-compare" class="ai-vtab-panel">
+                                        <span class="ai-loading hidden">⏳ Analyzing…</span>
+                                        <div class="ai-vtab-content"></div>
+                                        <div class="ai-vtab-actions hidden"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div id="response-headers-tab" class="response-panel hidden">
@@ -698,7 +737,7 @@
                                 </div>
                                 <div id="suggest-assertions-list" class="suggest-assertions-list"></div>
                                 <div class="suggest-assertions-actions">
-                                    <button id="apply-all-assertions-btn" class="btn btn-primary">Apply All to Post-Response Script</button>
+                                    <button id="apply-all-assertions-btn" class="btn primary">Apply All to Post-Response Script</button>
                                 </div>
                             </div>
                         </div>
@@ -732,7 +771,7 @@
         <div id="ai-chat-messages" class="ai-chat-messages"></div>
         <div class="ai-chat-input-area">
             <input id="ai-chat-input" class="ai-script-input" type="text" placeholder="Ask about this request or response…">
-            <button id="ai-chat-send" class="btn btn-primary">Send</button>
+            <button id="ai-chat-send" class="btn primary">Send</button>
         </div>
     </div>
 

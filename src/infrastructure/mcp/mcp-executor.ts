@@ -19,6 +19,7 @@ import {
     runCollection as coreRunCollection,
     runRequest as coreRunRequest,
     runSuite as coreRunSuite,
+    decodeFolderPath,
     dispatchGenericTool,
     flattenRequests,
     GENERIC_TOOL_NAMES,
@@ -206,7 +207,7 @@ export class McpExecutor {
             );
         }
 
-        const label = `${collection.name} / ${target}`;
+        const label = `${collection.name} / ${decodeFolderPath(target)}`;
 
         if (args.async === true) {
             return this.startAsyncCoreRun(label, args, scopedCount,

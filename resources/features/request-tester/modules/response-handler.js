@@ -7,7 +7,7 @@
 
 import { safeSetEditorValue } from './monaco-editors-manager.js';
 import { generateAssertionSuggestions } from './suggest-assertions.js';
-import { isHtmlResponse } from './utils.js';
+import { getHeaderValue, isHtmlResponse } from './utils.js';
 
 /**
  * Create a response handler instance
@@ -35,6 +35,14 @@ function createResponseHandler({
     onAiGenerateTypes,
     onAiCompareResponses
 }) {
+
+    // Normalize response body to string before sending to extension.
+    // The body may be a pre-parsed object when the content-type is JSON.
+    function serializeBody(body) {
+        if (body == null) return '';
+        if (typeof body === 'object') return JSON.stringify(body);
+        return String(body);
+    }
 
     // --- Suggestion banner helpers ---
     function getSuggestionBanner() {
@@ -78,8 +86,7 @@ function createResponseHandler({
                 aiBtn.disabled = true;
                 aiBtn.textContent = '⏳ Generating...';
                 const lastResponse = state.lastResponse;
-                const contentType = (lastResponse?.headers || [])
-                    .find(h => (h.name || h.key || '').toLowerCase() === 'content-type')?.value || '';
+                const contentType = getHeaderValue(lastResponse?.headers, 'content-type');
                 if (typeof onAiEnhance === 'function') {
                     onAiEnhance({
                         status: lastResponse?.status ?? lastResponse?.statusCode,
@@ -125,29 +132,55 @@ function createResponseHandler({
         if (banner) banner.classList.add('hidden');
     }
 
-    // --- AI multi-purpose panel helpers ---
+    // --- AI vertical-tab helpers ---
 
-    /** Show the shared AI result panel with optional action buttons. */
-    function showAiPanel(title, contentHtml, actions = []) {
-        const panel = document.getElementById('ai-explain-panel');
-        const titleEl = document.getElementById('ai-panel-title');
-        const loading = document.getElementById('ai-explain-loading');
-        const content = document.getElementById('ai-explain-content');
-        const actionsEl = document.getElementById('ai-panel-actions');
+    /** Return the panel element for a given AI tab id. */
+    function getAiTabPanel(tabId) {
+        return document.getElementById(`ai-vtab-panel-${tabId}`);
+    }
+
+    /** Switch the active AI vertical tab (updates both tab buttons and panels). */
+    function switchAiTab(tabId) {
+        document.querySelectorAll('.ai-vtab').forEach(t => {
+            const active = t.dataset.aiTab === tabId;
+            t.classList.toggle('active', active);
+            t.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        document.querySelectorAll('.ai-vtab-panel').forEach(p => {
+            p.classList.toggle('active', p.id === `ai-vtab-panel-${tabId}`);
+        });
+    }
+
+    /** Show a small right-click context menu for AI tabs. */
+    function showAiTabContextMenu(event, onRefresh) {
+        document.querySelectorAll('.ai-tab-contextmenu').forEach(m => m.remove());
+        const menu = document.createElement('div');
+        menu.className = 'ai-tab-contextmenu';
+        menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;z-index:9999;`;
+        const item = document.createElement('button');
+        item.textContent = '↺ Refresh';
+        item.onclick = () => { menu.remove(); onRefresh(); };
+        menu.appendChild(item);
+        document.body.appendChild(menu);
+        const close = () => { menu.remove(); document.removeEventListener('click', close); };
+        setTimeout(() => document.addEventListener('click', close), 10);
+    }
+
+    /** Show content in a specific AI tab panel. */
+    function showAiPanel(panelEl, contentHtml, actions = []) {
+        if (!panelEl) return;
+        const loading = panelEl.querySelector('.ai-loading');
+        const content = panelEl.querySelector('.ai-vtab-content');
+        const actionsEl = panelEl.querySelector('.ai-vtab-actions');
         if (loading) loading.classList.add('hidden');
-        if (titleEl) titleEl.textContent = title;
-        if (panel) panel.classList.remove('hidden');
-        if (content) {
-            content.innerHTML = contentHtml;
-            content.style.color = '';
-        }
+        if (content) content.innerHTML = contentHtml;
         if (actionsEl) {
             if (actions.length > 0) {
                 actionsEl.innerHTML = '';
                 actionsEl.classList.remove('hidden');
                 actions.forEach(({ label, onClick, className }) => {
                     const btn = document.createElement('button');
-                    btn.className = className || 'btn btn-primary';
+                    btn.className = className || 'primary';
                     btn.textContent = label;
                     btn.onclick = onClick;
                     actionsEl.appendChild(btn);
@@ -158,88 +191,189 @@ function createResponseHandler({
         }
     }
 
-    function setAiPanelLoading(title) {
-        const panel = document.getElementById('ai-explain-panel');
-        const titleEl = document.getElementById('ai-panel-title');
-        const loading = document.getElementById('ai-explain-loading');
-        const content = document.getElementById('ai-explain-content');
-        const actionsEl = document.getElementById('ai-panel-actions');
-        if (titleEl) titleEl.textContent = title;
-        if (panel) panel.classList.remove('hidden');
+    /** Show loading spinner in a specific AI tab panel. */
+    function setAiPanelLoading(panelEl) {
+        if (!panelEl) return;
+        const loading = panelEl.querySelector('.ai-loading');
+        const content = panelEl.querySelector('.ai-vtab-content');
+        const actionsEl = panelEl.querySelector('.ai-vtab-actions');
         if (loading) loading.classList.remove('hidden');
         if (content) content.innerHTML = '';
         if (actionsEl) actionsEl.classList.add('hidden');
     }
 
+    /** Reset all AI tabs to unloaded state and clear their panels. */
+    function resetAiTabs() {
+        document.querySelectorAll('.ai-vtab[data-ai-tab]').forEach(tab => {
+            if (tab.dataset.aiTab === 'raw') return;
+            delete tab.dataset.loaded;
+            tab.style.opacity = '';
+            tab.onclick = null;
+            tab.oncontextmenu = null;
+            const refreshBtn = tab.parentElement?.querySelector('.ai-tab-refresh-btn');
+            if (refreshBtn) refreshBtn.onclick = null;
+            const panel = getAiTabPanel(tab.dataset.aiTab);
+            if (panel) {
+                const loading = panel.querySelector('.ai-loading');
+                const content = panel.querySelector('.ai-vtab-content');
+                const actions = panel.querySelector('.ai-vtab-actions');
+                if (loading) loading.classList.add('hidden');
+                if (content) content.innerHTML = '';
+                if (actions) { actions.innerHTML = ''; actions.classList.add('hidden'); }
+            }
+        });
+    }
+
+    /** Wire an AI tab: first click triggers AI; subsequent clicks just switch; right-click = refresh. */
+    function wireAiTab(tabId, triggerFn) {
+        const tab = document.querySelector(`.ai-vtab[data-ai-tab="${tabId}"]`);
+        if (!tab) return;
+        const trigger = () => {
+            if (tab.dataset.loaded === 'loading') return; // already in-flight
+            switchAiTab(tabId);
+            tab.dataset.loaded = 'loading';
+            const panel = getAiTabPanel(tabId);
+            if (panel) setAiPanelLoading(panel);
+            try {
+                triggerFn();
+            } catch (err) {
+                // If sending the request itself fails, show the error instead of
+                // leaving the spinner stuck forever.
+                tab.dataset.loaded = '';
+                if (panel) showAiPanel(panel,
+                    `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(err?.message || 'AI request failed')}</span>`);
+            }
+        };
+        tab.onclick = () => {
+            if (tab.dataset.loaded === 'true') { switchAiTab(tabId); } else { trigger(); }
+        };
+        const refreshBtn = tab.parentElement?.querySelector('.ai-tab-refresh-btn');
+        if (refreshBtn) refreshBtn.onclick = (e) => { e.stopPropagation(); tab.dataset.loaded = ''; trigger(); };
+        tab.oncontextmenu = (e) => { e.preventDefault(); showAiTabContextMenu(e, () => { tab.dataset.loaded = ''; trigger(); }); };
+    }
+
     function showAiExplainPanel(text, error) {
-        const btn = document.getElementById('ai-explain-btn');
-        if (btn) btn.disabled = false;
+        const tab = document.querySelector('.ai-vtab[data-ai-tab="explain"]');
+        if (tab) tab.dataset.loaded = 'true';
+        const panel = getAiTabPanel('explain');
+        if (!panel) return;
         if (error) {
-            showAiPanel('✨ Explain', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+            showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
         } else {
-            showAiPanel('✨ Explain', escapeHtml(text || '').replace(/\n/g, '<br>'));
+            showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>'));
         }
     }
 
-    /** Show contract-test snippets in the AI panel with an "Apply to Script" button. */
+    /** Show contract-test snippets in the AI tab panel with a selective apply button. */
     function showAiContractTestsPanel(snippets, error, onApply) {
-        const btn = document.getElementById('ai-contract-tests-btn');
-        if (btn) btn.disabled = false;
+        const tab = document.querySelector('.ai-vtab[data-ai-tab="contract"]');
+        if (tab) tab.dataset.loaded = 'true';
+        const panel = getAiTabPanel('contract');
+        if (!panel) return;
         if (error) {
-            showAiPanel('📋 Contract Tests', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+            showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
             return;
         }
-        const html = snippets.map(s =>
+        const html = snippets.map((s, idx) =>
             `<div class="ai-contract-item">
-                <code class="ai-contract-snippet">${escapeHtml(s.snippet)}</code>
+                <div class="ai-item-row">
+                    <input type="checkbox" class="ai-item-check" data-idx="${idx}" checked>
+                    <code class="ai-contract-snippet">${escapeHtml(s.snippet)}</code>
+                </div>
                 <small class="ai-contract-rationale">${escapeHtml(s.rationale ?? s.field ?? '')}</small>
             </div>`
         ).join('');
-        showAiPanel('📋 Contract Tests', html, [{
-            label: 'Apply All to Post-Response Script',
-            onClick: () => { if (typeof onApply === 'function') onApply(snippets.map(s => s.snippet).join('\n\n')); },
-            className: 'btn btn-primary'
+        showAiPanel(panel, html, [{
+            label: 'Apply Selected to Script',
+            onClick: () => {
+                const content = panel.querySelector('.ai-vtab-content');
+                const checked = Array.from(content?.querySelectorAll('.ai-item-check:checked') || []);
+                const selected = checked
+                    .map(cb => snippets[parseInt(cb.dataset.idx, 10)]?.snippet)
+                    .filter(Boolean)
+                    .join('\n\n');
+                if (selected && typeof onApply === 'function') onApply(selected);
+            },
+            className: 'btn primary'
         }]);
     }
 
-    /** Show extracted variable suggestions in the AI panel. */
-    function showAiExtractVarsPanel(variables, script, error, onApply) {
-        const btn = document.getElementById('ai-extract-vars-btn');
-        if (btn) btn.disabled = false;
+    /** Show extracted variable suggestions in the AI tab panel. */
+    function showAiExtractVarsPanel(variables, script, error, onApply, onAddToEnv) {
+        const tab = document.querySelector('.ai-vtab[data-ai-tab="extract"]');
+        if (tab) tab.dataset.loaded = 'true';
+        const panel = getAiTabPanel('extract');
+        if (!panel) return;
         if (error) {
-            showAiPanel('⬆ Extract Vars', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+            showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
             return;
         }
-        const html = (variables || []).map(v =>
+        const vars = variables || [];
+        const html = vars.map((v, idx) =>
             `<div class="ai-var-item">
-                <span class="ai-var-name"><code>{{${escapeHtml(v.suggestedName)}}}</code></span>
+                <div class="ai-item-row">
+                    <input type="checkbox" class="ai-item-check" data-idx="${idx}" checked>
+                    <span class="ai-var-name"><code>{{${escapeHtml(v.suggestedName)}}}</code></span>
+                </div>
                 <span class="ai-var-field">${escapeHtml(v.field)} <small class="ai-var-path">${escapeHtml(v.path || '')}</small></span>
                 <small class="ai-var-reason">${escapeHtml(v.reason || '')}</small>
             </div>`
         ).join('');
-        const actions = script ? [{
-            label: 'Apply pm.environment.set() to Script',
-            onClick: () => { if (typeof onApply === 'function') onApply(script); },
-            className: 'btn btn-primary'
-        }] : [];
-        showAiPanel('⬆ Extract Vars', html, actions);
+        const actions = vars.length ? [
+            {
+                label: 'Apply Selected to Script',
+                onClick: () => {
+                    const content = panel.querySelector('.ai-vtab-content');
+                    const checked = Array.from(content?.querySelectorAll('.ai-item-check:checked') || []);
+                    const selectedVars = checked
+                        .map(cb => vars[parseInt(cb.dataset.idx, 10)])
+                        .filter(Boolean);
+                    if (!selectedVars.length || typeof onApply !== 'function') return;
+                    const selectedScript = selectedVars
+                        .map(v => {
+                            const path = (v.path || '').replace(/^\$\.?/, '') || v.field || v.suggestedName;
+                            return `pm.environment.set('${v.suggestedName}', pm.response.json().${path});`;
+                        })
+                        .join('\n');
+                    onApply(selectedScript);
+                },
+                className: 'btn primary'
+            },
+            {
+                label: '➕ Add to Environment',
+                onClick: () => {
+                    const content = panel.querySelector('.ai-vtab-content');
+                    const checked = Array.from(content?.querySelectorAll('.ai-item-check:checked') || []);
+                    const selectedVars = checked
+                        .map(cb => vars[parseInt(cb.dataset.idx, 10)])
+                        .filter(Boolean);
+                    if (!selectedVars.length || typeof onAddToEnv !== 'function') return;
+                    onAddToEnv(selectedVars);
+                },
+                className: 'btn btn-secondary'
+            }
+        ] : [];
+        showAiPanel(panel, html, actions);
     }
 
-    /** Show TypeScript interfaces in the AI panel with a copy button. */
+    /** Show TypeScript interfaces in the AI tab panel with a copy button. */
     function showAiTypesPanel(types, error) {
-        const btn = document.getElementById('ai-generate-types-btn');
-        if (btn) btn.disabled = false;
+        const tab = document.querySelector('.ai-vtab[data-ai-tab="types"]');
+        if (tab) tab.dataset.loaded = 'true';
+        const panel = getAiTabPanel('types');
+        if (!panel) return;
         if (error) {
-            showAiPanel('{ } TS Types', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+            showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
             return;
         }
         const html = `<pre class="ai-types-display">${escapeHtml(types || '')}</pre>`;
-        showAiPanel('{ } TS Types', html, [{
+        showAiPanel(panel, html, [{
             label: '📋 Copy to Clipboard',
             onClick: () => {
                 try {
                     navigator.clipboard.writeText(types || '');
-                    const btn2 = document.querySelector('#ai-panel-actions button');
+                    const actionsEl = panel.querySelector('.ai-vtab-actions');
+                    const btn2 = actionsEl?.querySelector('button');
                     if (btn2) { const orig = btn2.textContent; btn2.textContent = 'Copied!'; setTimeout(() => btn2.textContent = orig, 1500); }
                 } catch { /* ignore */ }
             },
@@ -247,14 +381,16 @@ function createResponseHandler({
         }]);
     }
 
-    /** Show response comparison text in the AI panel. */
+    /** Show response comparison text in the AI tab panel. */
     function showAiComparePanel(text, error) {
-        const btn = document.getElementById('ai-compare-btn');
-        if (btn) btn.disabled = false;
+        const tab = document.querySelector('.ai-vtab[data-ai-tab="compare"]');
+        if (tab) tab.dataset.loaded = 'true';
+        const panel = getAiTabPanel('compare');
+        if (!panel) return;
         if (error) {
-            showAiPanel('↔ Compare', `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
+            showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
         } else {
-            showAiPanel('↔ Compare', escapeHtml(text || '').replace(/\n/g, '<br>'));
+            showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>'));
         }
     }
 
@@ -356,6 +492,14 @@ function createResponseHandler({
         }
 
         elements.responsePlaceholder?.classList.remove('hidden');
+        // Hide AI vtabs container and reset to raw tab
+        const vtabsContainer = document.getElementById('response-ai-vtabs-container');
+        if (vtabsContainer) vtabsContainer.classList.add('hidden');
+        switchAiTab('raw');
+        resetAiTabs();
+        // Clear previous response so Compare doesn't carry over stale data from another request
+        state.previousResponse = null;
+        state.responseHistory  = [];
         // Hide HTML preview and toolbar when clearing
         if (elements.responseBodyToolbar) elements.responseBodyToolbar.classList.add('hidden');
         if (elements.responseHtmlPreview) elements.responseHtmlPreview.classList.remove('active');
@@ -752,9 +896,19 @@ function createResponseHandler({
         }
         state.lastResponse = response;
 
-    // prefer explicit `status` but accept 0 (use nullish coalescing so 0 is preserved)
-    const statusCode = response.status ?? response.statusCode;
+        // Maintain rolling response history (last 5) for AI context
+        if (!state.responseHistory) state.responseHistory = [];
+        const statusCode = response.status ?? response.statusCode;
         const statusText = response.statusText || response.statusMessage || '';
+        state.responseHistory.push({
+            status: statusCode,
+            statusText,
+            contentType: getHeaderValue(response.headers, 'content-type'),
+            bodyPreview: String(serializeBody(response.body) ?? '').slice(0, 300),
+            timestamp: Date.now(),
+        });
+        if (state.responseHistory.length > 5) state.responseHistory.shift();
+
         const duration = response.time || response.duration;
 
         updateStatusBadge(statusCode, statusText);
@@ -764,118 +918,94 @@ function createResponseHandler({
         updateCookiesTable(response.cookies);
         updateSentRequestTab(state.lastSentRequest);
 
-        // Show AI toolbar and reset panel for each new response
-        const aiToolbar = document.getElementById('response-ai-toolbar');
-        if (aiToolbar) aiToolbar.classList.remove('hidden');
-        document.getElementById('ai-explain-panel')?.classList.add('hidden');
+        // Show AI vertical tabs container and reset all AI tab states
+        const vtabsContainer = document.getElementById('response-ai-vtabs-container');
+        if (vtabsContainer) vtabsContainer.classList.remove('hidden');
+        resetAiTabs();
+        switchAiTab('raw');
 
-        // Close button (shared for all AI panel features)
-        const closeBtn = document.getElementById('ai-explain-close');
-        if (closeBtn) closeBtn.onclick = () => document.getElementById('ai-explain-panel')?.classList.add('hidden');
+        // Wire Raw Body tab to switch back to the editor panel
+        const rawTab = document.querySelector('.ai-vtab[data-ai-tab="raw"]');
+        if (rawTab) rawTab.onclick = () => switchAiTab('raw');
+
+        // Helper: read content-type from the latest response
+        const getCt = () => getHeaderValue(state.lastResponse?.headers, 'content-type');
 
         // ── ✨ Explain ──────────────────────────────────────────────────────
-        const explainBtn = document.getElementById('ai-explain-btn');
-        if (explainBtn) {
-            explainBtn.disabled = false;
-            explainBtn.onclick = () => {
-                setAiPanelLoading('✨ Explain');
-                explainBtn.disabled = true;
-                const ct = (state.lastResponse?.headers || [])
-                    .find(h => (h.name || h.key || '').toLowerCase() === 'content-type')?.value || '';
-                if (typeof onAiExplainResponse === 'function') {
-                    onAiExplainResponse({
-                        status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
-                        statusText: state.lastResponse?.statusText || '',
-                        body: state.lastResponse?.body,
-                        contentType: ct,
-                        method: state.lastSentRequest?.method,
-                        url: state.lastSentRequest?.url,
-                    });
-                }
-            };
-        }
+        wireAiTab('explain', () => {
+            if (typeof onAiExplainResponse === 'function') {
+                onAiExplainResponse({
+                    status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
+                    statusText: state.lastResponse?.statusText || '',
+                    body: serializeBody(state.lastResponse?.body),
+                    contentType: getCt(),
+                    method: state.lastSentRequest?.method,
+                    url: state.lastSentRequest?.url,
+                });
+            }
+        });
 
         // ── 📋 Contract Tests ────────────────────────────────────────────────
-        const contractBtn = document.getElementById('ai-contract-tests-btn');
-        if (contractBtn) {
-            contractBtn.disabled = false;
-            contractBtn.onclick = () => {
-                setAiPanelLoading('📋 Contract Tests');
-                contractBtn.disabled = true;
-                const ct = (state.lastResponse?.headers || [])
-                    .find(h => (h.name || h.key || '').toLowerCase() === 'content-type')?.value || '';
-                if (typeof onAiContractTests === 'function') {
-                    onAiContractTests({
-                        status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
-                        body: state.lastResponse?.body,
-                        contentType: ct,
-                        method: state.lastSentRequest?.method,
-                        url: state.lastSentRequest?.url,
-                    });
-                }
-            };
-        }
+        wireAiTab('contract', () => {
+            if (typeof onAiContractTests === 'function') {
+                onAiContractTests({
+                    status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
+                    body: serializeBody(state.lastResponse?.body),
+                    contentType: getCt(),
+                    method: state.lastSentRequest?.method,
+                    url: state.lastSentRequest?.url,
+                });
+            }
+        });
 
         // ── ⬆ Extract Vars ───────────────────────────────────────────────────
-        const extractVarsBtn = document.getElementById('ai-extract-vars-btn');
-        if (extractVarsBtn) {
-            extractVarsBtn.disabled = false;
-            extractVarsBtn.onclick = () => {
-                setAiPanelLoading('⬆ Extract Vars');
-                extractVarsBtn.disabled = true;
-                if (typeof onAiExtractVars === 'function') {
-                    onAiExtractVars({
-                        body: state.lastResponse?.body,
-                        status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
-                        method: state.lastSentRequest?.method,
-                        url: state.lastSentRequest?.url,
-                    });
-                }
-            };
-        }
+        wireAiTab('extract', () => {
+            if (typeof onAiExtractVars === 'function') {
+                onAiExtractVars({
+                    body: serializeBody(state.lastResponse?.body),
+                    status: state.lastResponse?.status ?? state.lastResponse?.statusCode,
+                    method: state.lastSentRequest?.method,
+                    url: state.lastSentRequest?.url,
+                });
+            }
+        });
 
         // ── { } TS Types ─────────────────────────────────────────────────────
-        const typesBtn = document.getElementById('ai-generate-types-btn');
-        if (typesBtn) {
-            typesBtn.disabled = false;
-            typesBtn.onclick = () => {
-                setAiPanelLoading('{ } TS Types');
-                typesBtn.disabled = true;
-                if (typeof onAiGenerateTypes === 'function') {
-                    onAiGenerateTypes({
-                        body: state.lastResponse?.body,
-                        method: state.lastSentRequest?.method,
-                        url: state.lastSentRequest?.url,
-                    });
-                }
-            };
-        }
+        wireAiTab('types', () => {
+            if (typeof onAiGenerateTypes === 'function') {
+                onAiGenerateTypes({
+                    body: serializeBody(state.lastResponse?.body),
+                    method: state.lastSentRequest?.method,
+                    url: state.lastSentRequest?.url,
+                });
+            }
+        });
 
         // ── ↔ Compare ────────────────────────────────────────────────────────
-        const compareBtn = document.getElementById('ai-compare-btn');
-        if (compareBtn) {
+        const compareTab = document.querySelector('.ai-vtab[data-ai-tab="compare"]');
+        if (compareTab) {
             if (!state.previousResponse) {
-                compareBtn.title = 'Send another request first to compare';
-                compareBtn.style.opacity = '0.4';
-                compareBtn.onclick = null;
+                compareTab.title = 'Send another request first to compare';
+                compareTab.style.opacity = '0.4';
+                compareTab.onclick = null;
+                compareTab.oncontextmenu = null;
+                const compareRefresh = compareTab.parentElement?.querySelector('.ai-tab-refresh-btn');
+                if (compareRefresh) compareRefresh.onclick = null;
             } else {
-                compareBtn.title = 'Compare with previous response';
-                compareBtn.style.opacity = '';
-                compareBtn.disabled = false;
-                compareBtn.onclick = () => {
-                    setAiPanelLoading('↔ Compare');
-                    compareBtn.disabled = true;
+                compareTab.title = 'Compare with previous response';
+                compareTab.style.opacity = '';
+                wireAiTab('compare', () => {
                     if (typeof onAiCompareResponses === 'function') {
                         onAiCompareResponses({
-                            currentBody: state.lastResponse?.body,
+                            currentBody: serializeBody(state.lastResponse?.body),
                             currentStatus: state.lastResponse?.status ?? state.lastResponse?.statusCode,
-                            previousBody: state.previousResponse?.body,
+                            previousBody: serializeBody(state.previousResponse?.body),
                             previousStatus: state.previousResponse?.status ?? state.previousResponse?.statusCode,
                             method: state.lastSentRequest?.method,
                             url: state.lastSentRequest?.url,
                         });
                     }
-                };
+                });
             }
         }
 
@@ -900,9 +1030,7 @@ function createResponseHandler({
         // Show assertion suggestions when there are no pm.test() assertions
         const hasTests = scriptResults.testResults && scriptResults.testResults.length > 0;
         if (!hasTests) {
-            const contentType = (response.headers || []).find(
-                h => (h.name || h.key || '').toLowerCase() === 'content-type'
-            )?.value || '';
+            const contentType = getHeaderValue(response.headers, 'content-type');
             const suggestions = generateAssertionSuggestions(statusCode, response.body, contentType);
             if (suggestions.length > 0) {
                 showAssertionSuggestions(suggestions);

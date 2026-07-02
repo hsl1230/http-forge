@@ -108,7 +108,12 @@ export class WebviewMessageRouter {
         // Fast lookup using command map
         const handler = this.commandMap.get(command);
         if (handler) {
-            return await handler.handle(command, message, messenger);
+            try {
+                return await handler.handle(command, message, messenger);
+            } catch (err: any) {
+                console.error(`[WebviewMessageRouter] Unhandled error for command "${command}":`, err);
+                return false;
+            }
         }
 
         console.warn(`[WebviewMessageRouter] No handler found for command: ${command}`);

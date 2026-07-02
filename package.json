@@ -1,8 +1,8 @@
 {
   "name": "http-forge",
-  "displayName": "HTTP Forge — AI-Driven API Testing Platform (Git-native, MCP-powered, Postman-compatible)",
-  "description": "The only VS Code API client with deep GitHub Copilot integration and a 60-tool MCP server. Copilot built-in (no extra key): generate request bodies, write test scripts, explain responses, scan for hardcoded env vars, enhance entire collections. MCP server: let Claude, Cursor, or any AI agent drive the full test lifecycle autonomously. Free forever, no account, no cloud. Collections live in Git as plain text files. Drop-in Postman compatibility — import v2.1 collections and run pm.* scripts unchanged. OAuth 2.0 (PKCE), OpenAPI 3.0 round-trip, 25+ template filter pipes, cloud secrets (AWS, Azure, GCP, Vault, 1Password, Doppler), TypeScript codegen, Playwright integration, headless CLI for CI/CD.",
-  "version": "0.16.5",
+  "displayName": "HTTP Forge — The API Platform Built for AI Agents",
+  "description": "Turn GitHub Copilot, Claude Code, and Cursor into expert API engineers. 60+ MCP tools. No extra API keys. No cloud account. Full Postman compatibility, OpenAPI 3.0, headless CLI, and TypeScript codegen — all local.",
+  "version": "0.16.6",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -16,6 +16,10 @@
   "homepage": "https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge",
   "bugs": {
     "url": "https://github.com/hsl1230/http-forge/issues"
+  },
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
   },
   "categories": [
     "Testing",
