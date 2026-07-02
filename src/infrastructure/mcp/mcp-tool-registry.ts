@@ -7,6 +7,7 @@
 
 import {
     buildMcpToolList,
+    encodeFolderName,
     type Collection,
     type CollectionFolderItem,
     type CollectionItem,
@@ -62,7 +63,8 @@ export class McpToolRegistry {
         for (const item of items) {
             if (item.type === 'folder') {
                 const folder = item as CollectionFolderItem;
-                const folderPath = prefix ? `${prefix}/${folder.name}` : folder.name;
+                const encoded = encodeFolderName(folder.name);
+                const folderPath = prefix ? `${prefix}/${encoded}` : encoded;
                 result.push({
                     folderPath,
                     requestCount: this.countRequests(folder.items ?? [])

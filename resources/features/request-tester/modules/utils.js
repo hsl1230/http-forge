@@ -145,6 +145,26 @@ function generateUUID() {
     });
 }
 
+/**
+ * Get a header value from either format:
+ *   - Plain object: { "Content-Type": "application/json" }  (from backend responses)
+ *   - Array: [{ name: "Content-Type", value: "..." }]       (from history / saved requests)
+ * @param {Object|Array|null} headers
+ * @param {string} name  Header name (case-insensitive)
+ * @returns {string}
+ */
+function getHeaderValue(headers, name) {
+    if (!headers) return '';
+    const lower = name.toLowerCase();
+    if (Array.isArray(headers)) {
+        return headers.find(h => (h.name || h.key || '').toLowerCase() === lower)?.value || '';
+    }
+    const key = Object.keys(headers).find(k => k.toLowerCase() === lower);
+    if (!key) return '';
+    const val = headers[key];
+    return Array.isArray(val) ? (val[0] || '') : (val || '');
+}
+
 // ES Module export
 export {
     createCaseInsensitiveMap,
@@ -153,7 +173,7 @@ export {
     escapeHtml, formatDuration,
     formatTime,
     generateId,
-    generateUUID, isHtmlResponse
+    generateUUID, getHeaderValue, isHtmlResponse
 };
 
 

@@ -1,4 +1,4 @@
-import { ICollectionService } from '@http-forge/core';
+import { ICollectionService, IEnvironmentConfigService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { IPanelContextProvider } from '../interfaces';
@@ -25,7 +25,8 @@ import { IPanelContextProvider } from '../interfaces';
 export class SuggestAssertionsHandler implements IMessageHandler {
   constructor(
     private contextProvider: IPanelContextProvider,
-    private collectionService?: ICollectionService
+    private collectionService?: ICollectionService,
+    private envConfigService?: IEnvironmentConfigService
   ) {}
 
   getSupportedCommands(): string[] {
@@ -43,36 +44,63 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       'aiDetectHardcoded',
       'aiCompareResponses',
       'aiChat',
+      'addExtractedVarsToEnv',
     ];
   }
 
+  /** Maps each AI command to the result command the webview expects back. */
+  private static readonly resultCommands: Record<string, string> = {
+    aiExplainResponse:       'aiExplainResult',
+    aiSuggestAssertions:     'aiAssertionSuggestions',
+    aiFixTest:               'aiFixTestResult',
+    aiGenerateScript:        'aiGeneratedScript',
+    aiGenerateDocs:          'aiGeneratedDocs',
+    aiGenerateBody:          'aiGeneratedBody',
+    aiGenerateContractTests: 'aiContractTestsResult',
+    aiExtractVariables:      'aiExtractVarsResult',
+    aiGenerateTypes:         'aiGeneratedTypes',
+    aiDetectHardcoded:       'aiDetectedHardcoded',
+    aiCompareResponses:      'aiCompareResult',
+    aiChat:                  'aiChatResponse',
+  };
+
   async handle(command: string, message: any, messenger: IWebviewMessenger): Promise<boolean> {
-    switch (command) {
-      case 'applyAssertions':         await this.handleApplyAssertions(message, messenger);         return true;
-      case 'aiSuggestAssertions':     await this.handleAiSuggestAssertions(message, messenger);     return true;
-      case 'aiExplainResponse':       await this.handleAiExplainResponse(message, messenger);       return true;
-      case 'aiFixTest':               await this.handleAiFixTest(message, messenger);               return true;
-      case 'aiGenerateScript':        await this.handleAiGenerateScript(message, messenger);        return true;
-      case 'aiGenerateDocs':          await this.handleAiGenerateDocs(message, messenger);          return true;
-      case 'aiGenerateBody':          await this.handleAiGenerateBody(message, messenger);          return true;
-      case 'aiGenerateContractTests': await this.handleAiGenerateContractTests(message, messenger); return true;
-      case 'aiExtractVariables':      await this.handleAiExtractVariables(message, messenger);      return true;
-      case 'aiGenerateTypes':         await this.handleAiGenerateTypes(message, messenger);         return true;
-      case 'aiDetectHardcoded':       await this.handleAiDetectHardcoded(message, messenger);       return true;
-      case 'aiCompareResponses':      await this.handleAiCompareResponses(message, messenger);      return true;
-      case 'aiChat':                  await this.handleAiChat(message, messenger);                  return true;
-      default:                        return false;
+    try {
+      switch (command) {
+        case 'applyAssertions':         await this.handleApplyAssertions(message, messenger);         return true;
+        case 'aiSuggestAssertions':     await this.handleAiSuggestAssertions(message, messenger);     return true;
+        case 'aiExplainResponse':       await this.handleAiExplainResponse(message, messenger);       return true;
+        case 'aiFixTest':               await this.handleAiFixTest(message, messenger);               return true;
+        case 'aiGenerateScript':        await this.handleAiGenerateScript(message, messenger);        return true;
+        case 'aiGenerateDocs':          await this.handleAiGenerateDocs(message, messenger);          return true;
+        case 'aiGenerateBody':          await this.handleAiGenerateBody(message, messenger);          return true;
+        case 'aiGenerateContractTests': await this.handleAiGenerateContractTests(message, messenger); return true;
+        case 'aiExtractVariables':      await this.handleAiExtractVariables(message, messenger);      return true;
+        case 'aiGenerateTypes':         await this.handleAiGenerateTypes(message, messenger);         return true;
+        case 'aiDetectHardcoded':       await this.handleAiDetectHardcoded(message, messenger);       return true;
+        case 'aiCompareResponses':      await this.handleAiCompareResponses(message, messenger);      return true;
+        case 'aiChat':                  await this.handleAiChat(message, messenger);                  return true;
+        case 'addExtractedVarsToEnv':   await this.handleAddExtractedVarsToEnv(message, messenger);   return true;
+        default:                        return false;
+      }
+    } catch (err: any) {
+      // Ensure the webview always gets a response so it never stays stuck on the loading spinner.
+      const resultCmd = SuggestAssertionsHandler.resultCommands[command];
+      if (resultCmd) {
+        messenger.postMessage({ command: resultCmd, error: err?.message ?? 'AI request failed.' });
+      }
+      return false;
     }
   }
 
   // ─── Shared LM helper ────────────────────────────────────────────────────────
 
   private async callLm(prompt: string): Promise<{ raw: string } | { error: string }> {
-    const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
-    if (!models.length) {
-      return { error: 'GitHub Copilot is not available. Please sign in to use AI features.' };
-    }
     try {
+      const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
+      if (!models.length) {
+        return { error: 'GitHub Copilot is not available. Please sign in to use AI features.' };
+      }
       const cts = new vscode.CancellationTokenSource();
       const response = await models[0].sendRequest(
         [vscode.LanguageModelChatMessage.User(prompt)],
@@ -89,10 +117,23 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     }
   }
 
+  // ─── Shared helper ───────────────────────────────────────────────────────
+
+  private buildChatBlock(chatHistory?: Array<{ role: string; content: string }>): string {
+    if (!chatHistory?.length) return '';
+    return `\nRecent chat context (use if relevant):\n` +
+      chatHistory.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content.slice(0, 200)}`).join('\n');
+  }
+
+  private buildHistoryBlock(historyContext?: string): string {
+    if (!historyContext?.trim()) return '';
+    return `\nPast calls to this endpoint (most recent first):\n${historyContext}\n`;
+  }
+
   // ─── Feature 1: Explain / diagnose response ──────────────────────────────
 
   private async handleAiExplainResponse(
-    message: { status?: number; statusText?: string; body?: string; contentType?: string; method?: string; url?: string },
+    message: { status?: number; statusText?: string; body?: string; contentType?: string; method?: string; url?: string; chatHistory?: Array<{ role: string; content: string }>; historyContext?: string },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const truncatedBody = (message.body ?? '').slice(0, 2000);
@@ -104,8 +145,10 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `${message.method ?? 'GET'} ${message.url ?? ''}\n` +
       `Status: ${message.status ?? '?'} ${message.statusText ?? ''}\n` +
       `Content-Type: ${message.contentType ?? 'unknown'}\n` +
-      `Body:\n${truncatedBody}\n\n` +
-      `Reply with plain text only (no markdown headers or fences). Under 150 words.`;
+      `Body:\n${truncatedBody}\n` +
+      this.buildChatBlock(message.chatHistory) +
+      this.buildHistoryBlock(message.historyContext) +
+      `\nReply with plain text only (no markdown headers or fences). Under 150 words.`;
 
     const result = await this.callLm(prompt);
     if ('error' in result) {
@@ -138,7 +181,8 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       return;
     }
     try {
-      const jsonMatch = result.raw.match(/\{[\s\S]*\}/);
+      const cleaned = result.raw.replace(/^```(?:json)?\n?/gm, '').replace(/^```\s*$/gm, '').trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON in response');
       const parsed = JSON.parse(jsonMatch[0]);
       messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, ...parsed });
@@ -150,7 +194,12 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   // ─── Feature 3: Generate pre/post-request script ──────────────────────────
 
   private async handleAiGenerateScript(
-    message: { phase?: string; description?: string; existingScript?: string; method?: string; url?: string },
+    message: {
+      phase?: string; description?: string; existingScript?: string; method?: string; url?: string;
+      responseStatus?: number; responseBody?: string; responseContentType?: string;
+      chatHistory?: Array<{ role: string; content: string }>;
+      historyContext?: string;
+    },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const phase = message.phase ?? 'post-response';
@@ -158,13 +207,31 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       ? `Existing script (extend or improve it):\n${message.existingScript.slice(0, 1000)}`
       : 'No existing script — write from scratch.';
 
+    const responseBlock = message.responseStatus
+      ? `\nLast response: HTTP ${message.responseStatus}` +
+        (message.responseContentType ? ` | Content-Type: ${message.responseContentType}` : '') +
+        (message.responseBody ? `\nResponse body (truncated):\n${message.responseBody}` : '')
+      : '';
+
+    const chatBlock = (message.chatHistory?.length ?? 0) > 0
+      ? `\nRecent chat context (use if relevant):\n` +
+        (message.chatHistory ?? []).map(m =>
+          `${m.role === 'user' ? 'User' : 'AI'}: ${m.content.slice(0, 200)}`
+        ).join('\n')
+      : '';
+
+    const historyBlock = this.buildHistoryBlock(message.historyContext);
+
     const prompt =
       `You are a Postman/Newman pm.js script expert.\n` +
       `Generate a ${phase} JavaScript script for this HTTP request.\n\n` +
       `Request: ${message.method ?? 'GET'} ${message.url ?? ''}\n` +
       `Instruction: "${message.description ?? ''}"\n` +
-      `${existingBlock}\n\n` +
-      `Return ONLY the raw JavaScript. No markdown fences, no explanation.\n` +
+      `${existingBlock}` +
+      responseBlock +
+      chatBlock +
+      historyBlock +
+      `\n\nReturn ONLY the raw JavaScript. No markdown fences, no explanation.\n` +
       `Use pm.* Postman sandbox APIs. Keep it concise and correct.`;
 
     const result = await this.callLm(prompt);
@@ -179,7 +246,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   // ─── Feature 4: Generate request documentation ───────────────────────────
 
   private async handleAiGenerateDocs(
-    message: { method?: string; url?: string; headers?: string[]; body?: string; responseStatus?: number; responseBody?: string },
+    message: { method?: string; url?: string; headers?: string[]; body?: string; responseStatus?: number; responseBody?: string; chatHistory?: Array<{ role: string; content: string }>; historyContext?: string },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const headerList = (message.headers ?? []).join(', ') || 'none';
@@ -194,6 +261,8 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `${message.method ?? 'GET'} ${message.url ?? ''}` +
       `\nHeaders: ${headerList}` +
       bodyBlock + responseBlock +
+      this.buildChatBlock(message.chatHistory) +
+      this.buildHistoryBlock(message.historyContext) +
       `\n\nReturn ONLY markdown. Use ## headings. Under 200 words.`;
 
     const result = await this.callLm(prompt);
@@ -207,15 +276,17 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   // ─── Feature 5: Generate request body ────────────────────────────────────
 
   private async handleAiGenerateBody(
-    message: { description?: string; method?: string; url?: string; format?: string },
+    message: { description?: string; method?: string; url?: string; format?: string; chatHistory?: Array<{ role: string; content: string }>; historyContext?: string },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const format = message.format ?? 'json';
     const prompt =
       `Generate a realistic sample ${format.toUpperCase()} request body for this API endpoint.\n\n` +
       `${message.method ?? 'POST'} ${message.url ?? ''}\n` +
-      `Description: "${message.description ?? 'a typical request payload'}"\n\n` +
-      `Return ONLY the raw ${format.toUpperCase()} body. No explanation, no markdown fences.`;
+      `Description: "${message.description ?? 'a typical request payload'}"` +
+      this.buildChatBlock(message.chatHistory) +
+      this.buildHistoryBlock(message.historyContext) +
+      `\n\nReturn ONLY the raw ${format.toUpperCase()} body. No explanation, no markdown fences.`;
 
     const result = await this.callLm(prompt);
     if ('error' in result) {
@@ -230,7 +301,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   // ─── Feature 6: Generate Contract Tests ────────────────────────────────────
 
   private async handleAiGenerateContractTests(
-    message: { status?: number; body?: string; contentType?: string; method?: string; url?: string },
+    message: { status?: number; body?: string; contentType?: string; method?: string; url?: string; chatHistory?: Array<{ role: string; content: string }>; historyContext?: string },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const truncatedBody = (message.body ?? '').slice(0, 2000);
@@ -242,8 +313,10 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `${message.method ?? 'GET'} ${message.url ?? ''}\n` +
       `Status: ${message.status ?? '?'}\n` +
       `Content-Type: ${message.contentType ?? 'unknown'}\n` +
-      `Body:\n${truncatedBody}\n\n` +
-      `Return ONLY a valid JSON array, no markdown fences:\n` +
+      `Body:\n${truncatedBody}\n` +
+      this.buildChatBlock(message.chatHistory) +
+      this.buildHistoryBlock(message.historyContext) +
+      `\nReturn ONLY a valid JSON array, no markdown fences:\n` +
       `[{"snippet":"pm.test(\\"...\\",...);","field":"fieldName","rationale":"why this check matters"}]`;
 
     const result = await this.callLm(prompt);
@@ -252,7 +325,8 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       return;
     }
     try {
-      const jsonMatch = result.raw.match(/\[[\s\S]*\]/);
+      const cleaned = result.raw.replace(/^```(?:json)?\n?/gm, '').replace(/^```\s*$/gm, '').trim();
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('No JSON array in response');
       const snippets: Array<{ snippet: string; field: string; rationale: string }> = JSON.parse(jsonMatch[0]);
       messenger.postMessage({ command: 'aiContractTestsResult', snippets });
@@ -264,7 +338,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   // ─── Feature 7: Extract Variables ────────────────────────────────────────
 
   private async handleAiExtractVariables(
-    message: { body?: string; status?: number; method?: string; url?: string },
+    message: { body?: string; status?: number; method?: string; url?: string; chatHistory?: Array<{ role: string; content: string }>; historyContext?: string },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const truncatedBody = (message.body ?? '').slice(0, 2000);
@@ -274,8 +348,10 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `Look for: tokens, IDs, URLs, session keys, resource identifiers, pagination cursors.\n\n` +
       `${message.method ?? 'GET'} ${message.url ?? ''}\n` +
       `Status: ${message.status ?? '?'}\n` +
-      `Body:\n${truncatedBody}\n\n` +
-      `Return ONLY valid JSON, no markdown fences:\n` +
+      `Body:\n${truncatedBody}\n` +
+      this.buildChatBlock(message.chatHistory) +
+      this.buildHistoryBlock(message.historyContext) +
+      `\nReturn ONLY valid JSON, no markdown fences:\n` +
       `{"variables":[{"field":"fieldName","path":"$.path.to.field","suggestedName":"envVarName","reason":"one-line reason"}],"script":"pm.environment.set('envVarName', pm.response.json().path);\\n..."}`;
 
     const result = await this.callLm(prompt);
@@ -284,7 +360,8 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       return;
     }
     try {
-      const jsonMatch = result.raw.match(/\{[\s\S]*\}/);
+      const cleaned = result.raw.replace(/^```(?:json)?\n?/gm, '').replace(/^```\s*$/gm, '').trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON object in response');
       const parsed = JSON.parse(jsonMatch[0]);
       messenger.postMessage({ command: 'aiExtractVarsResult', ...parsed });
@@ -296,15 +373,17 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   // ─── Feature 8: Generate TypeScript Types ────────────────────────────────
 
   private async handleAiGenerateTypes(
-    message: { body?: string; method?: string; url?: string },
+    message: { body?: string; method?: string; url?: string; chatHistory?: Array<{ role: string; content: string }>; historyContext?: string },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const truncatedBody = (message.body ?? '').slice(0, 2000);
     const prompt =
       `Generate TypeScript interface definitions for this HTTP API response.\n\n` +
       `${message.method ?? 'GET'} ${message.url ?? ''}\n` +
-      `Response body:\n${truncatedBody}\n\n` +
-      `Return ONLY the TypeScript interfaces — no explanation, no markdown fences.\n` +
+      `Response body:\n${truncatedBody}\n` +
+      this.buildChatBlock(message.chatHistory) +
+      this.buildHistoryBlock(message.historyContext) +
+      `\nReturn ONLY the TypeScript interfaces — no explanation, no markdown fences.\n` +
       `Use union types for enums, optional fields (?), and nested interfaces. Name the root interface after the endpoint resource.`;
 
     const result = await this.callLm(prompt);
@@ -333,8 +412,9 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `URL: ${message.url ?? ''}\n` +
       `Headers:\n${headers}\n` +
       `Body: ${(message.body ?? '').slice(0, 500)}\n\n` +
-      `Return ONLY valid JSON, no markdown fences:\n` +
-      `{"issues":[{"location":"URL|Header name|Body","value":"hardcoded value","suggestedVar":"varName","severity":"high|medium|low","reason":"explanation"}]}`;
+      `Return ONLY valid JSON — no markdown fences, no explanation text.\n` +
+      `If no issues are found, return exactly: {"issues":[]}\n` +
+      `Format: {"issues":[{"location":"URL|Header name|Body","value":"hardcoded value","suggestedVar":"varName","severity":"high|medium|low","reason":"explanation"}]}`;
 
     const result = await this.callLm(prompt);
     if ('error' in result) {
@@ -342,9 +422,11 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       return;
     }
     try {
-      const jsonMatch = result.raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON object in response');
-      const parsed = JSON.parse(jsonMatch[0]);
+      // Strip markdown fences before attempting to parse
+      const cleaned = result.raw.replace(/^```(?:json)?\n?/gm, '').replace(/^```\s*$/gm, '').trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      // If no JSON found the response was plain text (e.g. "nothing found") — treat as no issues
+      const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { issues: [] };
       messenger.postMessage({ command: 'aiDetectedHardcoded', ...parsed });
     } catch {
       messenger.postMessage({ command: 'aiDetectedHardcoded', error: 'Could not parse AI response. Try again.' });
@@ -354,7 +436,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   // ─── Feature 10: Compare Responses ───────────────────────────────────────
 
   private async handleAiCompareResponses(
-    message: { currentBody?: string; currentStatus?: number; previousBody?: string; previousStatus?: number; method?: string; url?: string },
+    message: { currentBody?: string; currentStatus?: number; previousBody?: string; previousStatus?: number; method?: string; url?: string; chatHistory?: Array<{ role: string; content: string }>; historyContext?: string },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const currentTrunc  = (message.currentBody ?? '').slice(0, 1500);
@@ -363,8 +445,10 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `You are an API testing expert. Compare these two HTTP responses for the same endpoint.\n\n` +
       `Endpoint: ${message.method ?? 'GET'} ${message.url ?? ''}\n\n` +
       `PREVIOUS response (HTTP ${message.previousStatus ?? '?'}):\n${previousTrunc}\n\n` +
-      `CURRENT response (HTTP ${message.currentStatus ?? '?'}):\n${currentTrunc}\n\n` +
-      `Explain the key differences in plain English. Cover: new/removed/changed fields, status differences, structural changes.\n` +
+      `CURRENT response (HTTP ${message.currentStatus ?? '?'}):\n${currentTrunc}\n` +
+      this.buildChatBlock(message.chatHistory) +
+      this.buildHistoryBlock(message.historyContext) +
+      `\nExplain the key differences in plain English. Cover: new/removed/changed fields, status differences, structural changes.\n` +
       `Reply with plain text only. 3-8 sentences. No markdown headers or fences.`;
 
     const result = await this.callLm(prompt);
@@ -381,21 +465,54 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     message: {
       messages?: Array<{ role: string; content: string }>;
       newMessage?: string;
-      context?: { method?: string; url?: string; status?: number; body?: string; contentType?: string };
+      context?: {
+        method?: string; url?: string;
+        headers?: string; requestBody?: string; requestBodyType?: string;
+        status?: number; statusText?: string;
+        responseBody?: string; contentType?: string;
+        responseHistorySummary?: string;
+        endpointHistory?: string;
+      };
     },
     messenger: IWebviewMessenger
   ): Promise<void> {
     const ctx = message.context ?? {};
-    const contextPreamble =
-      `You are an AI assistant embedded in HTTP Forge, a VS Code API testing extension.\n` +
-      `Current request context:\n` +
-      `- Endpoint: ${ctx.method ?? 'GET'} ${ctx.url ?? '(not set)'}\n` +
-      (ctx.status    ? `- Last response: HTTP ${ctx.status}\n`                                  : '') +
-      (ctx.contentType ? `- Content-Type: ${ctx.contentType}\n`                                 : '') +
-      (ctx.body      ? `- Response body (truncated):\n${(ctx.body ?? '').slice(0, 800)}\n`       : '') +
-      `\nHelp the user with API testing: write pm.test() scripts, explain errors, suggest improvements.`;
+
+    const requestSection =
+      `Request: ${ctx.method ?? 'GET'} ${ctx.url || '(URL not set)'}` +
+      (ctx.headers ? `\nHeaders:\n${ctx.headers}` : '') +
+      (ctx.requestBody && ctx.requestBodyType !== 'none'
+        ? `\nRequest body (${ctx.requestBodyType ?? 'raw'}):\n${ctx.requestBody}`
+        : '');
 
     const history = message.messages ?? [];
+
+    const responseSection = ctx.status
+      ? `Last HTTP response: HTTP ${ctx.status}${ctx.statusText ? ` ${ctx.statusText}` : ''}` +
+        (ctx.contentType ? `\nContent-Type: ${ctx.contentType}` : '') +
+        (ctx.responseBody ? `\nResponse body (truncated):\n${ctx.responseBody}` : '')
+      : 'No HTTP response received yet in this session.';
+
+    const historySection = ctx.responseHistorySummary
+      ? `\nResponse run history (all sends in this session):\n${ctx.responseHistorySummary}`
+      : '';
+
+    const endpointHistorySection = ctx.endpointHistory
+      ? `\nPersistent call history for this endpoint (most recent first):\n${ctx.endpointHistory}`
+      : '';
+
+    const conversationNote = history.length > 0
+      ? `\nThis is a continuation of an ongoing conversation (${Math.ceil(history.length / 2)} previous exchange${history.length > 2 ? 's' : ''}). ` +
+        `Refer to the conversation history below to maintain context.`
+      : '';
+
+    const contextPreamble =
+      `You are an AI assistant embedded in HTTP Forge, a VS Code API testing extension.${conversationNote}\n` +
+      `The user is working on the following API request:\n\n` +
+      `${requestSection}\n\n` +
+      `${responseSection}${historySection}${endpointHistorySection}\n\n` +
+      `Help the user with API testing: write pm.test() scripts, explain responses, suggest improvements.`;
+
     const allMessages: vscode.LanguageModelChatMessage[] = [
       vscode.LanguageModelChatMessage.User(contextPreamble),
       vscode.LanguageModelChatMessage.Assistant("Ready to help with your API testing. What would you like to know?"),
@@ -407,12 +524,12 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       vscode.LanguageModelChatMessage.User(message.newMessage ?? ''),
     ];
 
-    const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
-    if (!models.length) {
-      messenger.postMessage({ command: 'aiChatResponse', error: 'GitHub Copilot is not available.' });
-      return;
-    }
     try {
+      const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
+      if (!models.length) {
+        messenger.postMessage({ command: 'aiChatResponse', error: 'GitHub Copilot is not available.' });
+        return;
+      }
       const cts = new vscode.CancellationTokenSource();
       const response = await models[0].sendRequest(allMessages, {}, cts.token);
       let raw = '';
@@ -523,5 +640,33 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     } catch (err: any) {
       messenger.postMessage({ command: 'assertionsApplied', success: false, error: err?.message ?? 'Unknown error.' });
     }
+  }
+
+  // ─── Add extracted variables to the active environment ───────────────────
+
+  private async handleAddExtractedVarsToEnv(
+    message: { variables?: Array<{ suggestedName: string }> },
+    messenger: IWebviewMessenger
+  ): Promise<void> {
+    const vars = message.variables ?? [];
+    if (!vars.length) {
+      messenger.postMessage({ command: 'extractedVarsAddedToEnv', success: false, error: 'No variables provided.' });
+      return;
+    }
+    if (!this.envConfigService) {
+      messenger.postMessage({ command: 'extractedVarsAddedToEnv', success: false, error: 'Environment service unavailable.' });
+      return;
+    }
+    for (const v of vars) {
+      if (v.suggestedName) {
+        // Add as empty placeholder — the pm.environment.set() script will populate the value at runtime
+        this.envConfigService.setEnvironmentVariable(v.suggestedName, '');
+      }
+    }
+    const envName = this.envConfigService.getSelectedEnvironment?.() ?? 'environment';
+    vscode.window.showInformationMessage(
+      `✅ Added ${vars.length} variable${vars.length !== 1 ? 's' : ''} to "${envName}". Values will be populated when the post-response script runs.`
+    );
+    messenger.postMessage({ command: 'extractedVarsAddedToEnv', success: true, count: vars.length });
   }
 }

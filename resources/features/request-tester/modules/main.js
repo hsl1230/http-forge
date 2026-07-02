@@ -24,7 +24,7 @@ import { createState } from './state.js';
 
 // Utility modules
 import { buildUrlPreview } from './url-builder.js';
-import { createCaseInsensitiveMap, escapeHtml, formatDuration, formatTime, isHtmlResponse } from './utils.js';
+import { createCaseInsensitiveMap, escapeHtml, formatDuration, formatTime, getHeaderValue, isHtmlResponse } from './utils.js';
 
 // Manager modules (SOLID compliant)
 import { createBodyTypeManager } from './body-type-manager.js';
@@ -306,19 +306,19 @@ class RequestTesterApp {
                 vscode.postMessage({ command: 'aiSuggestAssertions', status, body, contentType });
             },
             onAiExplainResponse: (data) => {
-                vscode.postMessage({ command: 'aiExplainResponse', ...data });
+                vscode.postMessage({ command: 'aiExplainResponse', ...data, chatHistory: (this.state.aiChatMessages || []).slice(-10), historyContext: this.getHistorySummary() });
             },
             onAiContractTests: (data) => {
-                vscode.postMessage({ command: 'aiGenerateContractTests', ...data });
+                vscode.postMessage({ command: 'aiGenerateContractTests', ...data, chatHistory: (this.state.aiChatMessages || []).slice(-10), historyContext: this.getHistorySummary() });
             },
             onAiExtractVars: (data) => {
-                vscode.postMessage({ command: 'aiExtractVariables', ...data });
+                vscode.postMessage({ command: 'aiExtractVariables', ...data, chatHistory: (this.state.aiChatMessages || []).slice(-10), historyContext: this.getHistorySummary() });
             },
             onAiGenerateTypes: (data) => {
-                vscode.postMessage({ command: 'aiGenerateTypes', ...data });
+                vscode.postMessage({ command: 'aiGenerateTypes', ...data, chatHistory: (this.state.aiChatMessages || []).slice(-10), historyContext: this.getHistorySummary() });
             },
             onAiCompareResponses: (data) => {
-                vscode.postMessage({ command: 'aiCompareResponses', ...data });
+                vscode.postMessage({ command: 'aiCompareResponses', ...data, chatHistory: (this.state.aiChatMessages || []).slice(-10), historyContext: this.getHistorySummary() });
             }
         });
 
@@ -379,7 +379,7 @@ class RequestTesterApp {
             'requestError': (msg) => this.handleRequestError(msg),
             'requestCancelled': (msg) => this.handleRequestCancelled(),
             'scriptProgress': (msg) => this.handleScriptProgress(msg),
-            'historyUpdated': (msg) => this.historyRenderer.render(msg.history || msg.data?.history),
+            'historyUpdated': (msg) => this.renderHistory(msg.history ?? msg.data?.history),
             'applyHistoryEntry': (msg) => this.requestLoader.applyHistoryEntry(
                 msg.entry || msg.data, 
                 msg.fullResponse,
@@ -402,6 +402,7 @@ class RequestTesterApp {
             'aiGeneratedBody':   (msg) => this.handleAiGeneratedBody(msg),
             'aiContractTestsResult': (msg) => this.handleAiContractTestsResult(msg),
             'aiExtractVarsResult':   (msg) => this.handleAiExtractVarsResult(msg),
+            'extractedVarsAddedToEnv': (msg) => { if (msg.error) this.showError(msg.error); },
             'aiGeneratedTypes':      (msg) => this.handleAiGeneratedTypes(msg),
             'aiDetectedHardcoded':   (msg) => this.handleAiDetectedHardcoded(msg),
             'aiCompareResult':       (msg) => this.handleAiCompareResult(msg),
@@ -543,7 +544,7 @@ class RequestTesterApp {
             this.elements.historyEnv.textContent = this.state.selectedEnvironment;
         }
         if (msg.data?.history || msg.history) {
-            this.historyRenderer.render(msg.data?.history || msg.history);
+            this.renderHistory(msg.data?.history || msg.history);
         }
         this.updateUrlPreview();
     }
@@ -562,7 +563,7 @@ class RequestTesterApp {
             msg.data?.scriptResults
         );
         if (msg.data?.history) {
-            this.historyRenderer.render(msg.data.history);
+            this.renderHistory(msg.data.history);
         }
     }
 
@@ -658,7 +659,7 @@ class RequestTesterApp {
                 this.updateDocTab(msg.request?.doc);
 
                 // Render history (clear if not provided so stale entries don't persist)
-                this.historyRenderer.render(msg.history || []);
+                this.renderHistory(msg.history || []);
 
                 // Cookie preview — load if provided, clear otherwise
                 if (msg.cookies && this.cookieManager) {
@@ -858,7 +859,7 @@ class RequestTesterApp {
 
         // Render history
         if (data.history) {
-            this.historyRenderer.render(data.history);
+            this.renderHistory(data.history);
         }
 
         // Load and render cookies
@@ -1036,6 +1037,8 @@ class RequestTesterApp {
                     body: this.state.body || '',
                     responseStatus: lastResp?.status ?? lastResp?.statusCode,
                     responseBody: (lastResp?.body ?? '').slice(0, 600),
+                    chatHistory: (this.state.aiChatMessages || []).slice(-10),
+                    historyContext: this.getHistorySummary(),
                 });
             });
         }
@@ -1046,6 +1049,40 @@ class RequestTesterApp {
         if (this.elements.historyEnv) {
             this.elements.historyEnv.textContent = this.state.selectedEnvironment || 'dev';
         }
+    }
+
+    /**
+     * Render history in the sidebar and store a copy in state for AI context.
+     * @param {Array|undefined} history - HistoryUIEntry[] or undefined (no-op on undefined)
+     */
+    renderHistory(history) {
+        if (history != null) this.state.historyEntries = history;
+        this.historyRenderer.render(history || []);
+    }
+
+    /**
+     * Build a compact summary of the last 20 persistent history entries for AI context.
+     * Returns an empty string if no history is available.
+     * @returns {string}
+     */
+    getHistorySummary() {
+        const groups = this.state.historyEntries || [];
+        const allEntries = [];
+        for (const group of groups) {
+            for (const entry of (group.entries || [])) allEntries.push(entry);
+        }
+        if (!allEntries.length) return '';
+        // Most recent first
+        allEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        return allEntries.slice(0, 20).map((e, i) => {
+            const method = e.sentRequest?.method || e.method || '?';
+            const status = e.response?.status ?? '?';
+            const statusText = e.response?.statusText ? ' ' + e.response.statusText : '';
+            const time = e.response?.time ? ` ${e.response.time}ms` : '';
+            const date = e.timestamp ? new Date(e.timestamp).toLocaleDateString() : '';
+            const branch = e.branch && e.branch !== 'unknown' ? ` [${e.branch}]` : '';
+            return `[${i + 1}] ${method} → HTTP ${status}${statusText}${time}${branch} (${date})`;
+        }).join('\n');
     }
 
     setupQueryParams(requestData) {
@@ -1297,7 +1334,8 @@ class RequestTesterApp {
             msg.variables || [],
             msg.script || null,
             msg.error || null,
-            (script) => vscode.postMessage({ command: 'applyAssertions', script })
+            (script) => vscode.postMessage({ command: 'applyAssertions', script }),
+            (selectedVars) => vscode.postMessage({ command: 'addExtractedVarsToEnv', variables: selectedVars })
         );
     }
 
@@ -1323,9 +1361,10 @@ class RequestTesterApp {
             ? '✅ No hardcoded values detected'
             : `🔍 ${issues.length} hardcoded value${issues.length !== 1 ? 's' : ''} detected`;
         if (issuesEl) {
-            issuesEl.innerHTML = issues.map(i => {
+            issuesEl.innerHTML = issues.map((i, idx) => {
                 const sev = (i.severity || 'medium').toLowerCase();
                 return `<div class="ai-scan-issue ai-scan-${sev}">
+                    <input type="checkbox" class="ai-item-check" data-idx="${idx}" checked>
                     <span class="ai-scan-severity">${sev.toUpperCase()}</span>
                     <span class="ai-scan-location">${escapeHtml(i.location || '')}</span>
                     <code class="ai-scan-value">${escapeHtml(String(i.value || ''))}</code>
@@ -1335,6 +1374,29 @@ class RequestTesterApp {
                 </div>`;
             }).join('');
         }
+        // Apply Selected footer
+        let footerEl = panel.querySelector('.ai-scan-footer');
+        if (!footerEl) {
+            footerEl = document.createElement('div');
+            footerEl.className = 'ai-scan-footer';
+            panel.appendChild(footerEl);
+        }
+        footerEl.innerHTML = '';
+        if (issues.length > 0) {
+            const applyBtn = document.createElement('button');
+            applyBtn.className = 'btn primary';
+            applyBtn.textContent = 'Apply Selected';
+            applyBtn.onclick = () => {
+                const checked = Array.from(issuesEl?.querySelectorAll('.ai-item-check:checked') || []);
+                checked.forEach(cb => {
+                    const issue = issues[parseInt(cb.dataset.idx, 10)];
+                    if (issue) this.applyHardcodedFix(issue.location || '', String(issue.value || ''), issue.suggestedVar || '');
+                });
+                applyBtn.textContent = `✓ Applied ${checked.length} fix${checked.length !== 1 ? 'es' : ''}`;
+                applyBtn.disabled = true;
+            };
+            footerEl.appendChild(applyBtn);
+        }
         panel.classList.remove('hidden');
     }
 
@@ -1342,9 +1404,49 @@ class RequestTesterApp {
         this.responseHandler?.showAiComparePanel(msg.text || null, msg.error || null);
     }
 
+    /**
+     * Replace a hardcoded value with {{varName}} in the URL, a header, or the request body.
+     * @param {string} location - 'URL', 'Body', or a header name (e.g. 'Authorization')
+     * @param {string} rawValue - the literal string to replace
+     * @param {string} varName  - the suggested environment variable name
+     */
+    applyHardcodedFix(location, rawValue, varName) {
+        if (!rawValue || !varName) return;
+        const replacement = `{{${varName}}}`;
+        const loc = location.toLowerCase();
+        if (loc === 'url') {
+            const currentUrl = this.getPath();
+            const newUrl = currentUrl.split(rawValue).join(replacement);
+            if (this.elements.requestPathInput) {
+                this.elements.requestPathInput.value = newUrl;
+                this.elements.requestPathInput.dispatchEvent(new Event('input'));
+            }
+        } else if (loc === 'body') {
+            const editor = this.editorsManager.getRequestBodyEditor();
+            if (editor) {
+                const newBody = editor.getValue().split(rawValue).join(replacement);
+                editor.setValue(newBody);
+            }
+        } else {
+            // Treat location as a header name — replace in any header whose value contains rawValue
+            this.elements.headersList?.querySelectorAll('.param-row').forEach(row => {
+                const valueInput = row.querySelector('.value');
+                if (valueInput && valueInput.value.includes(rawValue)) {
+                    valueInput.value = valueInput.value.split(rawValue).join(replacement);
+                    valueInput.dispatchEvent(new Event('input'));
+                }
+            });
+        }
+    }
+
     // ─── Chat handlers ──────────────────────────────────────────────────────
 
     handleAiChatResponse(msg) {
+        // Clear the safety-net timeout — a response arrived
+        if (this.state.aiChatTimeoutId) {
+            clearTimeout(this.state.aiChatTimeoutId);
+            this.state.aiChatTimeoutId = null;
+        }
         const messages = document.getElementById('ai-chat-messages');
         const sendBtn = document.getElementById('ai-chat-send');
         const input = document.getElementById('ai-chat-input');
@@ -1381,6 +1483,9 @@ class RequestTesterApp {
             const editor = phase === 'pre-request'
                 ? this.editorsManager.getPreRequestScriptEditor()
                 : this.editorsManager.getPostResponseScriptEditor();
+            const lastResp = this.state.lastResponse;
+            const respBody = lastResp?.body == null ? '' : typeof lastResp.body === 'object' ? JSON.stringify(lastResp.body) : String(lastResp.body);
+            const respCt   = getHeaderValue(lastResp?.headers, 'content-type');
             vscode.postMessage({
                 command: 'aiGenerateScript',
                 phase,
@@ -1388,6 +1493,11 @@ class RequestTesterApp {
                 existingScript: editor?.getValue() ?? '',
                 method: this.getMethod(),
                 url: this.getPath(),
+                responseStatus:      lastResp?.status ?? lastResp?.statusCode,
+                responseBody:        respBody.slice(0, 600),
+                responseContentType: respCt,
+                chatHistory:         (this.state.aiChatMessages || []).slice(-10),
+                historyContext:      this.getHistorySummary(),
             });
         };
         if (input) input.addEventListener('keydown', (e) => {
@@ -1425,6 +1535,8 @@ class RequestTesterApp {
                 method: this.getMethod(),
                 url: this.getPath(),
                 format: document.getElementById('raw-format')?.value || 'json',
+                chatHistory: (this.state.aiChatMessages || []).slice(-10),
+                historyContext: this.getHistorySummary(),
             });
         };
         if (bodyInput) bodyInput.addEventListener('keydown', (e) => {
@@ -1452,6 +1564,7 @@ class RequestTesterApp {
                     url: this.getPath(),
                     headers: this.getHeaders().map(h => ({ name: h.name, value: h.value })),
                     body: this.editorsManager.getRequestBodyEditor()?.getValue() ?? '',
+                    historyContext: this.getHistorySummary(),
                 });
             };
         }
@@ -1489,20 +1602,67 @@ class RequestTesterApp {
                 msgs.scrollTop = msgs.scrollHeight;
             }
             const lastResp = this.state.lastResponse;
-            const sentReq  = this.state.lastSentRequest;
-            const ct = (lastResp?.headers || []).find(h => (h.name || h.key || '').toLowerCase() === 'content-type')?.value || '';
-            vscode.postMessage({
-                command: 'aiChat',
-                messages: [...(this.state.aiChatMessages || [])],
-                newMessage: text,
-                context: {
-                    method: sentReq?.method,
-                    url: sentReq?.url,
-                    status: lastResp?.status ?? lastResp?.statusCode,
-                    body: (lastResp?.body ?? '').slice(0, 800),
-                    contentType: ct,
-                },
-            });
+            const ct = getHeaderValue(lastResp?.headers, 'content-type');
+            const respBodyStr = lastResp?.body == null ? '' : typeof lastResp.body === 'object' ? JSON.stringify(lastResp.body) : String(lastResp.body);
+            // Current form state (what's configured right now, regardless of last send)
+            const currentMethod = this.getMethod();
+            const currentUrl    = this.getPath();
+            const currentHeaders = this.getHeaders()
+                .filter(h => h.enabled !== false && h.key)
+                .map(h => `${h.key}: ${h.value}`)
+                .join('\n');
+            const currentBody = this.editorsManager.getRequestBodyEditor()?.getValue() ?? '';
+            const bodyType = document.querySelector('input[name="body-type"]:checked')?.value || 'none';
+            // Cap history to last 20 messages (10 turns) to avoid LM context-limit hangs
+            const history = (this.state.aiChatMessages || []).slice(-20);
+            // Build a compact response history summary (all runs, not just the last)
+            const responseHistorySummary = (this.state.responseHistory || []).map((r, i, arr) => {
+                const secsAgo = Math.round((Date.now() - r.timestamp) / 1000);
+                const label = i === arr.length - 1 ? ' ← current' : '';
+                return `[${i + 1}] HTTP ${r.status}${r.statusText ? ' ' + r.statusText : ''}${r.contentType ? ', ' + r.contentType : ''} (${secsAgo}s ago)${label}`;
+            }).join('\n');
+            try {
+                vscode.postMessage({
+                    command: 'aiChat',
+                    messages: history,
+                    newMessage: text,
+                    context: {
+                        // Current request (form state)
+                        method: currentMethod,
+                        url: currentUrl,
+                        headers: currentHeaders,
+                        requestBody: bodyType !== 'none' ? currentBody.slice(0, 600) : '',
+                        requestBodyType: bodyType,
+                        // Last response
+                        status: lastResp?.status ?? lastResp?.statusCode,
+                        statusText: lastResp?.statusText || '',
+                        responseBody: respBodyStr.slice(0, 800),
+                        contentType: ct,
+                        // All recent responses (last 5 runs)
+                        responseHistorySummary: responseHistorySummary || '',
+                        // Persistent history for this endpoint (last 20 saves)
+                        endpointHistory: this.getHistorySummary(),
+                    },
+                });
+            } catch (err) {
+                // Restore UI if the message can't be sent
+                if (chatSend)  { chatSend.disabled = false; chatSend.textContent = 'Send'; }
+                if (chatInput) chatInput.disabled = false;
+                const typingEl = document.getElementById('ai-chat-messages')?.querySelector('.ai-chat-typing');
+                if (typingEl) typingEl.remove();
+                this._appendChatMessage('assistant', `⚠ ${err?.message || 'Failed to send message'}`, true);
+                return;
+            }
+            // Safety-net timeout: if no response arrives within 30s, unlock the UI
+            if (this.state.aiChatTimeoutId) clearTimeout(this.state.aiChatTimeoutId);
+            this.state.aiChatTimeoutId = setTimeout(() => {
+                this.state.aiChatTimeoutId = null;
+                if (chatSend && chatSend.disabled)  { chatSend.disabled = false; chatSend.textContent = 'Send'; }
+                if (chatInput && chatInput.disabled) chatInput.disabled = false;
+                const typingEl = document.getElementById('ai-chat-messages')?.querySelector('.ai-chat-typing');
+                if (typingEl) typingEl.remove();
+                this._appendChatMessage('assistant', '⚠ Request timed out. Please try again.', true);
+            }, 30000);
             if (!this.state.aiChatMessages) this.state.aiChatMessages = [];
             this.state.aiChatMessages.push({ role: 'user', content: text });
         };
@@ -1959,6 +2119,8 @@ class RequestTesterApp {
         this.elements.responseTabButtons?.forEach(button => {
             button.addEventListener('click', () => {
                 const tabName = button.dataset.responseTab;
+                // Buttons without data-response-tab (e.g. Chat toggle) handle their own click
+                if (!tabName) return;
                 const targetId = `response-${tabName}-tab`;
 
                 this.elements.responseTabButtons.forEach(btn => btn.classList.remove('active'));

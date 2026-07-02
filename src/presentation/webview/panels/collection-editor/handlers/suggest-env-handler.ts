@@ -41,7 +41,14 @@ export class SuggestEnvHandler implements IMessageHandler {
                 this.collectionId,
                 this.collectionService
             );
-            messenger.postMessage({ type: 'envScanResult', suggestions, collectionName });
+
+            // Filter out values already present in the active environment config
+            const selectedEnv = this.envConfigService.getSelectedEnvironment();
+            const resolvedEnv = this.envConfigService.getResolvedEnvironment(selectedEnv);
+            const existingValues = new Set(Object.values(resolvedEnv?.variables ?? {}));
+            const filtered = suggestions.filter(s => !existingValues.has(s.value));
+
+            messenger.postMessage({ type: 'envScanResult', suggestions: filtered, collectionName });
         } catch (err: any) {
             messenger.postMessage({ type: 'envScanResult', error: err?.message ?? 'Scan failed.' });
         }

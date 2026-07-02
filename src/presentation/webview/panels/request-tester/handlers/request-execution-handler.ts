@@ -1,6 +1,7 @@
 import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PathParamEntry, type PreparedRequest, type RequestScripts } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
+import { trackRequestAndPromptReview } from '../../../../../shared/review-prompt';
 import { RequestContext } from '../../../../../shared/utils';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { HistoryUIEntry, IPanelContextProvider, UIRequest } from '../interfaces';
@@ -89,6 +90,9 @@ export class RequestExecutionHandler implements IMessageHandler {
 
     try {
       await this.executeWithCollectionContext(request, context!, environment, messenger);
+      // Track executions and prompt for a review after the 10th request
+      const ctx = getServiceContainer().resolve<vscode.ExtensionContext>(Symbol.for('ExtensionContext'));
+      void trackRequestAndPromptReview(ctx.globalState);
     } catch (error: any) {
       this.handleRequestError(error, messenger);
     } finally {

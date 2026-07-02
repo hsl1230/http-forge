@@ -20,6 +20,8 @@ See [CLI & Standalone Guide](docs/user-guide/cli-standalone.md) for commands and
 
 
 AI in action:
+
+
 [![AI in action](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/ai-flow-thumb.png)](https://github.com/user-attachments/assets/70a3c4a0-66cd-4340-bfae-c4579c7d410b)
 
 Http Forge Introduction:
