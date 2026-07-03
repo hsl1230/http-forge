@@ -5,6 +5,19 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.7 - 2026-07-02
+
+### Added
+
+- **Marketplace review prompt** — after 10 and 50 successful request executions, HTTP Forge shows a single non-intrusive notification asking users to leave a Marketplace review. Dismissing with "No Thanks" defers to the next threshold; clicking "Leave a Review" stops future prompts permanently. State persists in `globalState` across restarts.
+
+### Fixed
+
+- **MCP `run_folder` fails for folders whose names contain `/`** — the MCP server now encodes `/` inside folder names as `%2F` in internal path strings, making the path separator unambiguous. All path-building sites (`flattenRequests`, `enumerateFolders`, `flattenCollection`, `resolveFolderRef`, `extractRequestsFromCollection`) are consistent. Display output (`list_folders`, `list_requests`, `search_requests`) decodes back to human-readable ` / ` separators.
+- **`delete_folder`, `create_request`, `reorder_collection_items` MCP tools use wrong folder when name contains `/`** — replaced `split('/').pop()` tree walk with `findFolderById` (ID-based lookup via `enumerateFolders`). No path parsing involved.
+- **Collection-level post-response response-time threshold** raised from 15 s to 30 s to accommodate real-world redirect and slow-network scenarios.
+- **HTTP Forge Showcase collection** — fixed 15 missing environment variables in the `demo` environment, corrected GraphQLZero mutation body (removed invalid `userId` field, added missing `body.graphql` file), fixed filter-pipe expressions in `body.json` to use single-quoted string arguments, and made tests resilient to external service instability (httpbin.org 502, restful-api.dev rate limits, dummyjson clock skew).
+
 ## 0.16.5 - 2026-06-30
 
 ### Added
