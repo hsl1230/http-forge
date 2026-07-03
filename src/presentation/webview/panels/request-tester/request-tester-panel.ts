@@ -5,17 +5,17 @@ import { getServiceContainer } from '../../../../infrastructure/services/service
 import { RequestContext } from '../../../../shared/utils';
 import { WebviewMessageRouter, WebviewMessenger } from '../../shared-interfaces';
 import {
-    CookieHandler,
-    EnvironmentSelectionHandler,
-    GraphQLHandler,
-    HistoryHandler,
-    OAuth2Handler,
-    RequestExecutionHandler,
-    RequestPreviewHandler,
-    SaveRequestHandler,
-    SchemaHandler,
-    SuggestAssertionsHandler,
-    VariableHandler
+  CookieHandler,
+  EnvironmentSelectionHandler,
+  GraphQLHandler,
+  HistoryHandler,
+  OAuth2Handler,
+  RequestExecutionHandler,
+  RequestPreviewHandler,
+  SaveRequestHandler,
+  SchemaHandler,
+  SuggestAssertionsHandler,
+  VariableHandler
 } from './handlers';
 import { PanelDataProvider } from './panel-data-provider';
 
@@ -124,7 +124,7 @@ export class RequestTesterPanel implements vscode.Disposable {
 
     // OAuth2 handler for token management
     const oauth2Handler = new OAuth2Handler(
-      container.oauth2TokenManager,
+      container.oauth2TokenManager!,
       envConfigService,
       this.dataProvider
     );

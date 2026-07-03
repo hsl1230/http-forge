@@ -90,13 +90,20 @@ export class RequestExecutionHandler implements IMessageHandler {
 
     try {
       await this.executeWithCollectionContext(request, context!, environment, messenger);
-      // Track executions and prompt for a review after the 10th request
-      const ctx = getServiceContainer().resolve<vscode.ExtensionContext>(Symbol.for('ExtensionContext'));
-      void trackRequestAndPromptReview(ctx.globalState);
     } catch (error: any) {
       this.handleRequestError(error, messenger);
     } finally {
       this.currentAbortController = undefined;
+    }
+
+    // Track executions outside the main try/catch so a tracking failure
+    // never triggers handleRequestError or affects the request result.
+    try {
+      const extensionCtx = getServiceContainer().resolve<vscode.ExtensionContext>(Symbol.for('ExtensionContext'));
+      const consoleService = getServiceContainer().console;
+      void trackRequestAndPromptReview(extensionCtx.globalState, msg => consoleService.info(msg, 'HTTP Forge'));
+    } catch {
+      // Non-critical — ignore silently
     }
   }
 
