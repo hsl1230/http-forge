@@ -86,6 +86,11 @@ function createState() {
         /** Readonly mode - method/URL are not editable */
         readonly: false,
 
+        /** Layout mode for request/response panes: 'stack' | 'split' */
+        layoutMode: 'stack',
+        /** Split ratio used in side-by-side mode */
+        layoutSplitRatio: 0.5,
+
         /** @type {RequestSettings} */
         settings: {
             timeout: 30000,
