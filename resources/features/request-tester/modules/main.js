@@ -95,6 +95,10 @@ class RequestTesterApp {
         this.responseHandler = null;
         this.requestExecutor = null;
 
+        // Layout state
+        this.layoutMode = 'stack';
+        this.layoutSplitRatio = 0.5;
+
         // URL preview request tracking
         this.previewRequestSequence = 0;
         this.latestPreviewRequestSequence = 0;
@@ -112,6 +116,7 @@ class RequestTesterApp {
             
             // Phase 2: Create state
             this.state = createState();
+            this.restoreLayoutState();
             
             // Phase 3: Initialize managers (in dependency order)
             this.initializeManagers();
@@ -488,6 +493,9 @@ class RequestTesterApp {
         // Initialize settings listeners
         this.initializeSettingsListeners();
 
+        // Initialize layout listeners
+        this.initializeLayoutListeners();
+
         // Initialize auth listeners
         this.initializeAuthListeners();
 
@@ -514,6 +522,8 @@ class RequestTesterApp {
             } finally {
                 this.state._suppressDirty = false;
             }
+
+            this.applyLayoutMode(this.state.layoutMode || 'stack', { persist: false });
 
             // For Endpoint Tester mode (allowSave=true, no suiteId), enable save button
             // by default since the endpoint test configuration isn't saved yet.
@@ -2331,23 +2341,43 @@ class RequestTesterApp {
             let isResizing = false;
             let startY = 0;
             let startHeight = 0;
+            let startX = 0;
+            let startWidth = 0;
 
             handle.addEventListener('mousedown', (e) => {
+                const isSplit = this.state.layoutMode === 'split';
                 isResizing = true;
                 startY = e.clientY;
+                startX = e.clientX;
                 startHeight = requestSection.offsetHeight;
+                startWidth = requestSection.offsetWidth;
                 handle.classList.add('dragging');
                 document.body.classList.add('resizing');
+                document.body.classList.toggle('layout-split', isSplit);
                 e.preventDefault();
             });
 
             document.addEventListener('mousemove', (e) => {
                 if (!isResizing) return;
-                const deltaY = e.clientY - startY;
-                const newHeight = startHeight + deltaY;
-                const containerHeight = mainContent.offsetHeight;
-                const constrainedHeight = Math.max(100, Math.min(containerHeight * 0.7, newHeight));
-                requestSection.style.height = `${constrainedHeight}px`;
+                if (this.state.layoutMode === 'split') {
+                    const requirements = this.getSplitLayoutRequirements();
+
+                    const deltaX = e.clientX - startX;
+                    const newWidth = startWidth + deltaX;
+                    const minRequestWidth = requirements.requestMinWidth;
+                    const maxRequestWidth = requirements.maxRequestWidth;
+                    const constrainedWidth = Math.max(minRequestWidth, Math.min(maxRequestWidth, newWidth));
+                    this.state.layoutSplitRatio = constrainedWidth / Math.max(requirements.availableWidth, 1);
+                    requestSection.style.width = `${constrainedWidth}px`;
+                    requestSection.style.height = 'auto';
+                    requestSection.style.minHeight = '0';
+                } else {
+                    const deltaY = e.clientY - startY;
+                    const newHeight = startHeight + deltaY;
+                    const containerHeight = mainContent.offsetHeight;
+                    const constrainedHeight = Math.max(100, Math.min(containerHeight * 0.7, newHeight));
+                    requestSection.style.height = `${constrainedHeight}px`;
+                }
                 this.editorsManager.layoutAll();
             });
 
@@ -2356,7 +2386,9 @@ class RequestTesterApp {
                     isResizing = false;
                     handle.classList.remove('dragging');
                     document.body.classList.remove('resizing');
+                    document.body.classList.remove('layout-split');
                     this.editorsManager.layoutAll();
+                    this.persistLayoutState();
                 }
             });
         }
@@ -2394,6 +2426,129 @@ class RequestTesterApp {
                 }
             });
         }
+    }
+
+    initializeLayoutListeners() {
+        this.elements.layoutStackBtn?.addEventListener('click', () => this.applyLayoutMode('stack'));
+        this.elements.layoutSplitBtn?.addEventListener('click', () => this.applyLayoutMode('split'));
+
+        this.updateSplitAvailability();
+
+        window.addEventListener('resize', () => {
+            if (this.state.layoutMode === 'split') {
+                this.applyLayoutMode('split', { persist: false });
+            }
+        });
+    }
+
+    restoreLayoutState() {
+        try {
+            const saved = vscode.getState?.();
+            if (saved && typeof saved === 'object') {
+                this.layoutMode = saved.layoutMode === 'split' ? 'split' : 'stack';
+                this.layoutSplitRatio = typeof saved.layoutSplitRatio === 'number' ? saved.layoutSplitRatio : 0.5;
+            }
+        } catch {
+            // Ignore restore errors and fall back to defaults.
+        }
+
+        this.state.layoutMode = this.layoutMode;
+        this.state.layoutSplitRatio = this.layoutSplitRatio;
+    }
+
+    persistLayoutState() {
+        try {
+            const current = vscode.getState?.() || {};
+            vscode.setState({
+                ...current,
+                layoutMode: this.state.layoutMode,
+                layoutSplitRatio: this.state.layoutSplitRatio
+            });
+        } catch {
+            // Best effort persistence only.
+        }
+    }
+
+    applyLayoutMode(mode, { persist = true } = {}) {
+        let nextMode = mode === 'split' ? 'split' : 'stack';
+        this.layoutMode = nextMode;
+        this.state.layoutMode = nextMode;
+
+        const mainContent = this.elements.mainContent;
+        const requestSection = this.elements.requestSection;
+        const handle = this.elements.resizeHandle;
+
+        const splitRequirements = this.getSplitLayoutRequirements();
+
+        if (mainContent) {
+            mainContent.classList.toggle('layout-split', nextMode === 'split');
+            mainContent.classList.toggle('layout-split-compact', nextMode === 'split');
+        }
+
+        if (this.elements.layoutStackBtn && this.elements.layoutSplitBtn) {
+            this.elements.layoutStackBtn.classList.toggle('active', nextMode === 'stack');
+            this.elements.layoutSplitBtn.classList.toggle('active', nextMode === 'split');
+        }
+
+        if (requestSection) {
+            if (nextMode === 'split') {
+                const availableWidth = splitRequirements.availableWidth;
+                const minRequestWidth = splitRequirements.requestMinWidth;
+                const maxRequestWidth = splitRequirements.maxRequestWidth;
+                const splitWidth = availableWidth > 0
+                    ? Math.max(minRequestWidth, Math.min(maxRequestWidth, availableWidth * this.layoutSplitRatio))
+                    : 0;
+                requestSection.style.width = splitWidth > 0 ? `${splitWidth}px` : '50%';
+                requestSection.style.height = 'auto';
+                requestSection.style.minHeight = '0';
+                this.state.layoutSplitRatio = availableWidth > 0 ? splitWidth / availableWidth : this.state.layoutSplitRatio;
+            } else {
+                requestSection.style.width = '';
+                requestSection.style.height = '';
+                requestSection.style.minHeight = '';
+            }
+        }
+
+        if (handle) {
+            handle.title = nextMode === 'split'
+                ? 'Drag to resize request and response panes'
+                : 'Drag to resize request and response panes';
+        }
+
+        if (persist) {
+            this.persistLayoutState();
+        }
+
+        this.editorsManager?.layoutAll();
+        this.updateSplitAvailability();
+    }
+
+    getSplitLayoutRequirements() {
+        const mainContent = this.elements.mainContent;
+        const handleWidth = this.elements.resizeHandle?.offsetWidth || 8;
+        const availableWidth = mainContent?.offsetWidth || 0;
+
+        // Split is always enabled. These values are only drag/sizing constraints.
+        const minPaneWidth = 80;
+        const responseMinWidth = minPaneWidth;
+        const maxRequestWidth = Math.max(0, availableWidth - responseMinWidth - handleWidth);
+        const requestMinWidth = Math.min(minPaneWidth, maxRequestWidth);
+
+        return {
+            requestMinWidth,
+            responseMinWidth,
+            maxRequestWidth,
+            handleWidth,
+            availableWidth
+        };
+    }
+
+    updateSplitAvailability() {
+        const splitBtn = this.elements.layoutSplitBtn;
+        if (!splitBtn) return;
+
+        splitBtn.disabled = false;
+        splitBtn.title = 'Show request and response side by side';
     }
 }
 

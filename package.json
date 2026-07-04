@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge",
   "description": "The API Platform Built for AI Agents.Lightweight Postman/Insomnia/Bruno/Thunder client alternative inside VS Code",
-  "version": "0.16.9",
+  "version": "0.16.10",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -690,7 +690,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.6.6",
+    "@http-forge/core": "^0.6.10",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

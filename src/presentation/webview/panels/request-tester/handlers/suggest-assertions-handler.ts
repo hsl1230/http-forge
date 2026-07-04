@@ -564,6 +564,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `Content-Type: ${message.contentType ?? 'unknown'}\n` +
       `Body:\n${truncatedBody}\n\n` +
       `Generate up to 6 Postman/Newman pm.test() assertion snippets that are specific and meaningful for this response.\n` +
+      `For numeric bounds, prefer pm.expect(value).to.be.gte(n) and pm.expect(value).to.be.lte(n) instead of at.least/at.most.\n` +
       `Return ONLY a valid JSON array in this exact shape (no markdown fences, no extra text):\n` +
       `[{"snippet":"pm.test(...) {...};","rationale":"Why this assertion is useful."}]`;
 
@@ -589,7 +590,14 @@ export class SuggestAssertionsHandler implements IMessageHandler {
         return;
       }
 
-      const suggestions: Array<{ snippet: string; rationale: string }> = JSON.parse(jsonMatch[0]);
+      const suggestions: Array<{ snippet: string; rationale: string }> = JSON.parse(jsonMatch[0]).map(
+        (suggestion: { snippet: string; rationale: string }) => ({
+          ...suggestion,
+          snippet: suggestion.snippet
+            .replace(/\.to\.be\.at\.least\(/g, '.to.be.gte(')
+            .replace(/\.to\.be\.at\.most\(/g, '.to.be.lte(')
+        })
+      );
       messenger.postMessage({ command: 'aiAssertionSuggestions', suggestions });
     } catch (err: any) {
       messenger.postMessage({

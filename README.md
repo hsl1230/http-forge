@@ -11,6 +11,8 @@ Free alternative to Postman, Bruno, Thunder Client & Insomnia — with a built-i
 [![Marketplace](https://img.shields.io/visual-studio-marketplace/v/henry-huang.http-forge?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge)
 [![Downloads](https://img.shields.io/visual-studio-marketplace/d/henry-huang.http-forge)](https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![MCP Server](https://img.shields.io/badge/MCP-60%2B%20tools-blueviolet)](docs/user-guide/mcp-server.md)
+[![GitHub Copilot](https://img.shields.io/badge/GitHub%20Copilot-native-blue?logo=github)](docs/user-guide/mcp-server.md)
 
 [📖 Docs](docs/user-guide/index.md) • [🐛 Issues](https://github.com/hsl1230/http-forge/issues) • [📝 Changelog](CHANGELOG.md)
 
@@ -21,6 +23,58 @@ Free alternative to Postman, Bruno, Thunder Client & Insomnia — with a built-i
 [![AI in action — click to watch](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/ai-flow-thumb.png)](https://github.com/user-attachments/assets/70a3c4a0-66cd-4340-bfae-c4579c7d410b)
 
 [![Introduction — click to watch](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/intro-thumb.png)](https://github.com/user-attachments/assets/9a20095c-c5f0-44d9-8677-634e83f82517)
+
+---
+
+## ⚡ 1-Minute Quickstart
+
+**Install → Send your first request → Run AI agent — in under 60 seconds.**
+
+**1. Install**
+Open VS Code, press `Ctrl+Shift+X`, search **HTTP Forge**, click Install.
+
+**2. Create a request**
+Open the HTTP Forge panel in the sidebar → click **+** → choose a collection → name your request.
+
+**3. Send it**
+Set the URL to `https://jsonplaceholder.typicode.com/posts/1`, hit **Send** — you'll see the JSON response instantly.
+
+**4. Let AI write your tests**
+Open GitHub Copilot Chat and type:
+```
+@http-forge suggest assertions for the last response
+```
+Copilot reads the response schema and generates `pm.test()` assertions automatically.
+
+**5. Run the whole collection**
+```
+@http-forge run collection "My Collection"
+```
+Full results, timing stats, and a self-contained HTML report — no terminal required.
+
+> Full guide: [Extension User Guide](docs/user-guide/extension.md) • [MCP Server Setup](docs/user-guide/mcp-server.md)
+
+---
+
+## 🎯 Use Cases
+
+### 🧑‍💻 Developer — explore & debug APIs
+Build requests, inspect responses, and iterate fast — all without leaving VS Code. No account, no cloud, no subscription.
+
+### 🤖 AI-assisted API testing
+Ask GitHub Copilot to generate tests, heal broken assertions, analyse coverage against your OpenAPI spec, and run the entire suite autonomously. HTTP Forge is the only VS Code API tool with a native MCP server.
+
+### 🔄 Postman migration
+Import your Postman v2.1 collection — all `pm.*` scripts, environments, and globals work unchanged. No rewriting, no learning curve.
+
+### 🔐 Enterprise / secrets management
+Connect to AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, HashiCorp Vault, 1Password, or Doppler. Credentials never touch your filesystem.
+
+### 🚀 CI/CD pipeline testing
+Run `http-forge run my-collection --reporter junit` in any pipeline. Zero GUI dependencies, JUnit XML output, exit codes for pass/fail.
+
+### 🧪 Contract testing with OpenAPI
+Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then validate every response against the spec — catch drift before it reaches production.
 
 ---
 
@@ -40,6 +94,7 @@ Free alternative to Postman, Bruno, Thunder Client & Insomnia — with a built-i
 ✅ OAuth 2.0 (all 4 grant types + PKCE), Bearer, Basic, API Key  
 ✅ Pre/post scripts with full `pm.*` Postman API compatibility  
 ✅ IntelliSense for variables, filters, dynamic vars, and scripting API  
+✅ Split/stack layout modes — view request and response side-by-side or stacked with resizable dividers  
 
 ### 📁 Collections
 ✅ Git-friendly folder structure — one file per request  

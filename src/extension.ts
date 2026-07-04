@@ -1,5 +1,5 @@
 import type { Collection, CollectionFolderItem, CollectionItem, CollectionRequestItem, CollectionService, ConfigService, CookieService, EnvironmentConfigService, HttpRequestService, OpenApiExportOptions, RequestHistoryService } from '@http-forge/core';
-import { exportCollectionToRestClient, generateId, OpenApiExporter, OpenApiImporter, SchemaInferenceService, TestSuite, TestSuiteService } from '@http-forge/core';
+import { encodeFolderName, exportCollectionToRestClient, generateId, OpenApiExporter, OpenApiImporter, SchemaInferenceService, TestSuite, TestSuiteService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { enhanceCollectionWithAi } from './infrastructure/ai-collection-enhancer';
@@ -479,12 +479,13 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
     vscode.commands.registerCommand(COMMAND_IDS.runFolder, async (item: CollectionTreeItem) => {
       if (item?.collectionId && item.itemType === 'folder' && testSuiteService) {
         // Folder runs are recursive: include requests in nested subfolders.
-        const folderPath = (item.itemPath ?? []).join('/');
+        const displayPath = (item.itemPath ?? []).join('/');
+        const folderPath = (item.itemPath ?? []).map(encodeFolderName).join('/');
         const tempSuite = await testSuiteService.createTempSuiteFromFolder(item.collectionId, folderPath, true);
         if (tempSuite) {
           TestSuitePanel.createOrShow(context.extensionUri, tempSuite, testSuiteService);
         } else {
-          vscode.window.showWarningMessage(`No requests found under folder "${folderPath}".`);
+          vscode.window.showWarningMessage(`No requests found under folder "${displayPath}".`);
         }
       }
     })

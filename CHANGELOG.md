@@ -5,6 +5,21 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.10 - 2026-07-03
+
+### Added
+
+- **Request Tester — Split/Stack layout modes** — new layout toggle buttons in the request panel header allow switching between:
+  - **Split mode** — request section and response section displayed side-by-side with a draggable divider for resizing
+  - **Stack mode** — request section above response section with a draggable divider for vertical resizing
+  - Layout preference is persisted across sessions
+
+- **Tab wrapping in split mode** — when the request or response panes are narrow, tab bars automatically wrap to multiple lines so all tabs remain visible without horizontal scrolling. Tab size is reduced in split mode to fit more tabs per line.
+
+### Fixed
+
+- **Collection item duplication** — creating a new folder or request in a collection no longer produces duplicate items in the collection tree. The issue occurred when `createFolder()` and `createRequest()` did not synchronize the in-memory collection cache after persisting to disk, causing the file watcher reload to add the item twice. Now both methods reload and sync the collection immediately after save.
+
 ## 0.16.7 - 2026-07-02
 
 ### Added

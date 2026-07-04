@@ -167,6 +167,10 @@ function initElements() {
         envSettingsBtn: document.getElementById('env-settings-btn'),
 
         // Layout
+        layoutStackBtn: document.getElementById('layout-stack-btn'),
+        layoutSplitBtn: document.getElementById('layout-split-btn'),
+
+        // Layout
         requestSection: document.querySelector('.request-section'),
         responseSection: document.querySelector('.response-section'),
         mainContent: document.querySelector('.main-content'),

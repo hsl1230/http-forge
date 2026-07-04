@@ -1,4 +1,4 @@
-import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry } from '@http-forge/core';
+import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry, RequestAuth } from '@http-forge/core';
 /**
  * Suite Run Handler
  * 
@@ -13,6 +13,7 @@ import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { ExecutionResult } from '../../../../../shared/types';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
+import { resolveInheritedAuth } from '../../../shared/auth-resolution';
 import { SuiteRunConfiguration } from '../interfaces';
 
 /**
@@ -205,6 +206,8 @@ export class SuiteRunHandler implements IMessageHandler {
                         iterationVariables,
                         cookieJar,
                         environmentId,
+                        (entry as any).folderAuthChain,
+                        (entry as any).collectionAuth,
                         iteration + 1,
                         config.iterations
                     );
@@ -391,10 +394,32 @@ export class SuiteRunHandler implements IMessageHandler {
      * @returns ExecutionRequest
      */
     private collectionRequestToExecutionRequest(collectionRequest: CollectionRequest): ExecutionRequest {
+        return this.collectionRequestToExecutionRequestWithAuth(collectionRequest, [], undefined);
+    }
+
+    private collectionRequestToExecutionRequestWithAuth(
+        collectionRequest: CollectionRequest,
+        folderAuthChain: RequestAuth[] = [],
+        collectionAuth?: RequestAuth
+    ): ExecutionRequest {
         const allowedAuthTypes = ['none', 'inherit', 'basic', 'bearer', 'apikey', 'oauth2'] as const;
         const authType = (collectionRequest.auth?.type && (allowedAuthTypes as readonly string[]).includes(collectionRequest.auth.type))
             ? (collectionRequest.auth.type as 'none' | 'inherit' | 'basic' | 'bearer' | 'apikey' | 'oauth2')
             : undefined;
+
+        const effectiveAuth = resolveInheritedAuth(
+            authType
+                ? {
+                    type: authType,
+                    bearerToken: collectionRequest.auth?.bearerToken,
+                    basicAuth: collectionRequest.auth?.basicAuth,
+                    apikey: collectionRequest.auth?.apikey,
+                    oauth2: collectionRequest.auth?.oauth2
+                }
+                : collectionRequest.auth,
+            folderAuthChain,
+            collectionAuth
+        );
 
         // Convert headers and query from arrays to objects if necessary
         const executionRequest: ExecutionRequest = {
@@ -419,13 +444,7 @@ export class SuiteRunHandler implements IMessageHandler {
                 }, {})
                 : undefined,
             // include authorization info so CollectionRequestExecutor can apply auth
-            auth: {
-                type: authType === 'inherit' ? 'none' : authType,
-                bearerToken: collectionRequest.auth?.bearerToken,
-                basicAuth: collectionRequest.auth?.basicAuth,
-                apikey: collectionRequest.auth?.apikey,
-                oauth2: collectionRequest.auth?.oauth2
-            }
+            auth: effectiveAuth
         };
 
         return executionRequest;
@@ -438,6 +457,8 @@ export class SuiteRunHandler implements IMessageHandler {
         variables: Record<string, string>,
         cookieJar: ICookieJar,
         environment: string,
+        folderAuthChain: RequestAuth[],
+        collectionAuth?: RequestAuth,
         iteration?: number,
         iterationCount?: number
     ): Promise<ExecutionResult> {
@@ -453,10 +474,14 @@ export class SuiteRunHandler implements IMessageHandler {
 
         // Normalize auth from collection request to the format expected by RequestPreparer:
         // input.auth = { type, bearerToken?, basicAuth?, apikey?, oauth2? }
-        let normalizedRequest: ExecutionRequest = this.collectionRequestToExecutionRequest(entry.request);
+        let normalizedRequest: ExecutionRequest = this.collectionRequestToExecutionRequestWithAuth(
+            entry.request,
+            folderAuthChain,
+            collectionAuth
+        );
 
         // Pass collection name into executor so scripts can access pm.info.collectionName
-        const executorWithCollectionName = new CollectionRequestExecutor(
+        const executorWithCollectionName = new (CollectionRequestExecutor as any)(
             this.httpService,
             this.scriptExecutor,
             this.environmentConfigService,
@@ -467,6 +492,7 @@ export class SuiteRunHandler implements IMessageHandler {
             entry.folderScriptsChain,
             onConsoleOutput,
             entry.suiteRequest?.collectionName,
+            collectionAuth,
             iteration,
             iterationCount
         );

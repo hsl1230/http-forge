@@ -1,9 +1,10 @@
-import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PathParamEntry, type PreparedRequest, type RequestScripts } from '@http-forge/core';
+import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PathParamEntry, type PreparedRequest, type RequestAuth, type RequestScripts } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { trackRequestAndPromptReview } from '../../../../../shared/review-prompt';
 import { RequestContext } from '../../../../../shared/utils';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
+import { resolveInheritedAuth } from '../../../shared/auth-resolution';
 import { HistoryUIEntry, IPanelContextProvider, UIRequest } from '../interfaces';
 import { EnvironmentSelectionHandler } from './environment-handler';
 
@@ -124,7 +125,9 @@ export class RequestExecutionHandler implements IMessageHandler {
     // Find the request in the collection to get folder scripts chain
     const requestData = this.findRequestInCollection(collection, context.requestId!);
     const folderScriptsChain = requestData?.folderScriptsChain || [];
+    const folderAuthChain = requestData?.folderAuthChain || [];
     const collectionScripts = collection?.scripts;
+    const collectionAuth = collection?.auth;
 
     // Create cookie jar adapter
     const cookieJar = getServiceContainer().persistentCookieJar;
@@ -137,7 +140,6 @@ export class RequestExecutionHandler implements IMessageHandler {
 
     // Provide collection name so scripts can access pm.info.collectionName
     // (collection object was available earlier in this scope)
-    // Note: we can't change the previous executor variable, so recreate with collection name
     const executorWithCollectionName = new CollectionRequestExecutor(
       this.httpService,
       this.scriptExecutor,
@@ -160,6 +162,20 @@ export class RequestExecutionHandler implements IMessageHandler {
       ? (uiRequest.auth.type as 'none' | 'inherit' | 'basic' | 'bearer' | 'apikey' | 'oauth2')
       : undefined;
 
+    const effectiveAuth = resolveInheritedAuth(
+      authType
+        ? {
+          type: authType,
+          bearerToken: uiRequest.auth?.bearerToken,
+          basicAuth: uiRequest.auth?.basicAuth,
+          apikey: uiRequest.auth?.apikey,
+          oauth2: uiRequest.auth?.oauth2
+        }
+        : uiRequest.auth,
+      folderAuthChain,
+      collectionAuth
+    );
+
     const request: ExecutionRequest = {
       id: uiRequest.id || context?.requestId || 'standalone',
       name: uiRequest.name || context?.request?.name || 'Request',
@@ -173,13 +189,7 @@ export class RequestExecutionHandler implements IMessageHandler {
       scripts: uiRequest.scripts || context?.request?.scripts,
       settings: uiRequest.settings || context?.request?.settings,
       // include authorization info so CollectionRequestExecutor can apply auth
-      auth: {
-        type: authType === 'inherit' ? 'none' : authType,
-        bearerToken: uiRequest.auth?.bearerToken,
-        basicAuth: uiRequest.auth?.basicAuth,
-        apikey: uiRequest.auth?.apikey,
-        oauth2: uiRequest.auth?.oauth2
-      }
+      auth: effectiveAuth
     };
 
     // Execute the request
@@ -252,7 +262,7 @@ export class RequestExecutionHandler implements IMessageHandler {
   private findRequestInCollection(
     collection: any,
     requestId: string
-  ): { request: any; folderScriptsChain: RequestScripts[] } | undefined {
+  ): { request: any; folderScriptsChain: RequestScripts[]; folderAuthChain: RequestAuth[] } | undefined {
     const items = collection?.items || [];
     return this.searchItemsForRequest(items, requestId, []);
   }
@@ -263,22 +273,27 @@ export class RequestExecutionHandler implements IMessageHandler {
   private searchItemsForRequest(
     items: any[],
     requestId: string,
-    currentScripts: RequestScripts[]
-  ): { request: any; folderScriptsChain: RequestScripts[] } | undefined {
+    currentScripts: RequestScripts[],
+    currentAuth: RequestAuth[] = []
+  ): { request: any; folderScriptsChain: RequestScripts[]; folderAuthChain: RequestAuth[] } | undefined {
     for (const item of items) {
       if (item.type === 'folder' || item.items) {
         // It's a folder - add its scripts to the chain
         const newScripts = item.scripts
           ? [...currentScripts, item.scripts]
           : currentScripts;
+        const newAuth = item.auth
+          ? [...currentAuth, item.auth]
+          : currentAuth;
 
-        const found = this.searchItemsForRequest(item.items || [], requestId, newScripts);
+        const found = this.searchItemsForRequest(item.items || [], requestId, newScripts, newAuth);
         if (found) return found;
       } else if (item.id === requestId) {
         // Found the request
         return {
           request: item,
-          folderScriptsChain: currentScripts
+          folderScriptsChain: currentScripts,
+          folderAuthChain: currentAuth
         };
       }
     }

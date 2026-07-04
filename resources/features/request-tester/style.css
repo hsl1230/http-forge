@@ -59,6 +59,44 @@ body {
     gap: 0px;
 }
 
+.layout-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 6px;
+    padding: 0;
+}
+
+.layout-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+}
+
+.layout-btn .codicon {
+    font-size: 14px;
+}
+
+.layout-btn.active {
+    background-color: var(--vscode-toolbar-hoverBackground, #2a2d2e);
+    color: var(--vscode-focusBorder, #007acc);
+    opacity: 1;
+}
+
+.layout-btn:hover {
+    opacity: 1;
+}
+
+.layout-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
 .save-response-toggle {
     display: flex;
     align-items: center;
@@ -463,6 +501,10 @@ button.primary.cancel:hover {
     overflow: hidden;
 }
 
+.main-content.layout-split {
+    flex-direction: row;
+}
+
 /* Request Section */
 .request-section {
     flex: 0 0 auto;
@@ -476,6 +518,16 @@ button.primary.cancel:hover {
     overflow: hidden;
 }
 
+.main-content.layout-split .request-section {
+    flex: 0 0 auto;
+    width: 50%;
+    min-width: 320px;
+    height: auto;
+    min-height: 0;
+    border-bottom: none;
+    border-right: 1px solid var(--vscode-panel-border, #424242);
+}
+
 /* Resize Handle */
 .resize-handle {
     flex: 0 0 8px;
@@ -487,6 +539,15 @@ button.primary.cancel:hover {
     position: relative;
     z-index: 100;
     transition: background-color 0.2s;
+}
+
+.main-content.layout-split .resize-handle {
+    cursor: ew-resize;
+}
+
+.main-content.layout-split .resize-handle-line {
+    width: 3px;
+    height: 40px;
 }
 
 .resize-handle:hover,
@@ -516,6 +577,11 @@ button.primary.cancel:hover {
     cursor: ns-resize !important;
 }
 
+.resizing.layout-split,
+.resizing.layout-split * {
+    cursor: ew-resize !important;
+}
+
 .tab-bar {
     display: flex;
     background-color: var(--vscode-tab-inactiveBackground, #2d2d2d);
@@ -529,8 +595,10 @@ button.primary.cancel:hover {
     background: transparent;
     border: none;
     color: var(--vscode-tab-inactiveForeground, #808080);
+    flex: 0 0 auto;
     cursor: pointer;
     font-size: 13px;
+    white-space: nowrap;
     border-bottom: 2px solid transparent;
     transition: all 0.2s;
     position: relative;
@@ -547,6 +615,29 @@ button.primary.cancel:hover {
     border-bottom-color: var(--vscode-focusBorder, #007acc);
 }
 
+/* In split mode, always allow tab rows to wrap so all tab buttons stay reachable. */
+.main-content.layout-split .tab-bar,
+.main-content.layout-split .response-tabs,
+.main-content.layout-split-compact .tab-bar,
+.main-content.layout-split-compact .response-tabs {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    align-content: flex-start;
+}
+
+.main-content.layout-split .tab,
+.main-content.layout-split-compact .tab {
+    font-size: 12px;
+    padding: 3px 8px;
+}
+
+.main-content.layout-split .response-tabs .response-body-toolbar,
+.main-content.layout-split-compact .response-tabs .response-body-toolbar {
+    position: static;
+    margin-left: auto;
+    margin-top: 2px;
+}
+
 .tab-content {
     flex: 1;
     overflow: hidden;
@@ -556,7 +647,7 @@ button.primary.cancel:hover {
 }
 
 .tab-panel {
-    padding: 0 16px 8px 16px;
+    padding: 8px 8px;
     flex: 1;
     overflow-y: auto;
     min-height: 0;
@@ -586,7 +677,6 @@ button.primary.cancel:hover {
     flex-wrap: wrap;
     gap: 4px;
     margin-bottom: 8px;
-    padding: 4px 0;
     border-bottom: 1px solid var(--vscode-widget-border, #454545);
 }
 
@@ -1041,7 +1131,6 @@ button.primary.cancel:hover {
 }
 
 .param-list {
-    margin-top: 8px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -1842,7 +1931,6 @@ button.primary.cancel:hover {
 
 /* Settings Section */
 .settings-section {
-    padding: 8px 0;
 }
 
 .settings-section h3 {
@@ -2070,6 +2158,31 @@ button.primary.cancel:hover {
     z-index: 1;
 }
 
+.main-content.layout-split .response-section {
+    min-width: 320px;
+}
+
+@media (max-width: 1100px) {
+    .main-content.layout-split {
+        flex-direction: column;
+    }
+
+    .main-content.layout-split .request-section {
+        width: auto;
+        border-right: none;
+        border-bottom: none;
+    }
+
+    .main-content.layout-split .resize-handle {
+        cursor: ns-resize;
+    }
+
+    .main-content.layout-split .resize-handle-line {
+        width: 40px;
+        height: 3px;
+    }
+}
+
 .response-header {
     display: flex;
     align-items: center;
@@ -2153,7 +2266,7 @@ button.primary.cancel:hover {
     display: none;
     flex: 1;
     flex-direction: column;
-    padding: 16px;
+    padding: 8px;
     box-sizing: border-box;
     overflow: auto;
     min-height: 0;
@@ -2266,7 +2379,7 @@ button.primary.cancel:hover {
 
 /* Sent Request Tab */
 .sent-request-container {
-    padding: 12px;
+    padding: 0px;
     height: 100%;
     overflow-y: auto;
 }
@@ -2823,6 +2936,7 @@ button.primary.cancel:hover {
 /* Explain Response toolbar */
 /* AI vertical tabs layout */
 .ai-vtabs-container {
+    padding: 8px;
     display: flex;
     flex-direction: row;
     flex: 1;
@@ -3340,7 +3454,7 @@ button.primary.cancel:hover {
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    padding: 12px 16px;
+    padding: 8px 0px 8px 8px;
     overflow: hidden;
 }
 
@@ -3431,6 +3545,10 @@ button.secondary:hover {
 button.secondary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+#btn-save {
+    padding-right: 15px;
 }
 
 /* Save button with unsaved changes indicator */
@@ -3589,7 +3707,6 @@ button.secondary:disabled {
 .schema-toolbar {
     display: flex;
     gap: 8px;
-    padding: 8px 0;
     align-items: center;
     flex-wrap: wrap;
 }
@@ -3685,7 +3802,7 @@ button.secondary:disabled {
    ======================================== */
 
 .doc-content {
-    padding: 16px 20px;
+    padding: 0px 0px;
     overflow-y: auto;
     max-height: calc(100vh - 180px);
 }
