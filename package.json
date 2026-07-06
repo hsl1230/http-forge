@@ -661,7 +661,7 @@
     ]
   },
   "scripts": {
-    "clean": "rm -rf out && cd resources && npx @mermaid-js/mermaid-cli -i architecture.mmd -o architecture.svg && cd ..",
+    "clean": "rm -rf out && cd resources && npx @mermaid-js/mermaid-cli -i architecture.mmd -o architecture.png && cd ..",
     "esbuild-base": "node esbuild.js",
     "build": "npm run esbuild-base",
     "build:dev": "npm run esbuild-base",

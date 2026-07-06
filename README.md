@@ -24,15 +24,32 @@ Designed for teams comparing Postman, Bruno, Thunder Client, and Insomnia altern
 
 <img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/e2e-api-testing-through-ai.gif" alt="AI in action" width="100%"/>
 
+<br>
+
+---
+
+<br>
+
 <img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/introduction.gif" alt="Introduction" width="100%"/>
 
 ---
 
-## 🏗️ Architecture
+## 👨‍👩‍👧‍👦 HTTP Forge Family
 
-![HTTP Forge architecture diagram](resources/architecture.svg)
+HTTP Forge is a family of components that share the same workspace model and work together across local development, AI workflows, and CI/CD.
 
-HTTP Forge is one product with multiple entry points: a VS Code extension for editing and running requests, a runtime core for execution and import/export, a CLI for headless workflows, and an MCP server for agent-driven automation.
+| Component | Purpose | Best for |
+|---|---|---|
+| [`http-forge` (VS Code extension)](https://github.com/hsl1230/http-forge) | Main UI for creating requests, running collections/suites, and managing environments | Daily API development inside VS Code |
+| [`@http-forge/cli`](https://github.com/hsl1230/http-forge.cli) | Terminal and CI entry point (`run`, `mcp`, `generate`, `schedule`, etc.) | Pipelines, headless runs, scripting |
+| [`@http-forge/codegen`](https://github.com/hsl1230/http-forge.codegen) | Generates typed TypeScript API clients from collections | Type-safe API testing/client workflows |
+| [`@http-forge/playwright`](https://github.com/hsl1230/http-forge.playwright) | Runtime + shared types for generated Playwright clients | Executing generated clients in Playwright tests |
+| [`@http-forge/core`](https://github.com/hsl1230/http-forge.core) | Headless runtime engine and compatibility layer | Shared execution logic and Node automation |
+| [`http-forge-mcp` (HTTP Forge AI extension)](https://github.com/hsl1230/http-forge.ai) | Companion extension that activates and configures MCP workflows for AI clients | Copilot/Claude/Cursor-driven API automation |
+
+Typical flow: design and validate in the extension, automate with CLI/MCP, and generate typed clients for Playwright when needed.
+
+> Deep architecture details: [Architecture diagram](resources/architecture.png) • [User Guide](docs/user-guide/index.md)
 
 ## Why developers switch
 

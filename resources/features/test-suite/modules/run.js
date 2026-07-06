@@ -191,6 +191,9 @@ export function updateProgress() {
         const passPercent = (state.passed / completed) * percent;
         elements.progressBar.classList.add('has-failures');
         elements.progressBar.style.setProperty('--pass-percent', `${passPercent}%`);
+    } else {
+        // Remove has-failures class when there are no failures
+        elements.progressBar.classList.remove('has-failures');
     }
 
     // Update stats summary in real-time (both in progress section and Statistics tab)

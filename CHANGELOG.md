@@ -5,6 +5,18 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.12 - 2026-07-06
+
+### Changed
+
+- **README family-first positioning** — replaced the top architecture-focused section with a clearer **HTTP Forge Family** overview so users can quickly understand each component and where to start.
+- **Family component ordering updated** — user-facing components are listed first; internal/wrapper components are listed lower for better discoverability.
+- **Family table now links to component repositories** — each component in the README table links directly to its GitHub repo.
+- **Architecture diagram updated** (`resources/architecture.mmd` + regenerated `resources/architecture.png`) to explicitly include:
+  - `@http-forge/codegen`
+  - `@http-forge/playwright`
+  - generated Playwright API test flow from codegen/runtime
+
 ## 0.16.11 - 2026-07-05
 
 ### Changed
