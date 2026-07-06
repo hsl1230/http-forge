@@ -10,6 +10,8 @@ import type {
     BodySchemaDefinition,
     JsonValue,
     KeyValueEntry,
+    OperationExample,
+    OperationResponse,
     ParsedCookie,
     PathParamEntry,
     PreparedRequest,
@@ -77,6 +79,12 @@ export interface UIRequest {
     
     // OpenAPI metadata (preserved through save round-trip)
     deprecated?: boolean;
+    operationId?: string;
+    summary?: string;
+    tags?: string[];
+    examples?: OperationExample[];
+    responses?: Record<string, OperationResponse>;
+    security?: Record<string, string[]>[];
     responseSchema?: ResponseSchemaDefinition;
     bodySchema?: BodySchemaDefinition;
 }

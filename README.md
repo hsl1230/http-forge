@@ -4,9 +4,11 @@
 
 # HTTP Forge 🔨
 
-**The AI-native API platform for VS Code.**
+**A Git-native API client and Postman alternative for VS Code.**
 
-Free alternative to Postman, Bruno, Thunder Client & Insomnia — with a built-in MCP server that lets GitHub Copilot, Claude, and Cursor run your API tests autonomously.
+Build, test, automate, and version REST, GraphQL, and OpenAPI APIs in one local workspace — offline, merge-friendly, and ready for AI agents.
+
+Designed for teams comparing Postman, Bruno, Thunder Client, and Insomnia alternatives.
 
 [![Marketplace](https://img.shields.io/visual-studio-marketplace/v/henry-huang.http-forge?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge)
 [![Downloads](https://img.shields.io/visual-studio-marketplace/d/henry-huang.http-forge)](https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge)
@@ -25,6 +27,38 @@ Free alternative to Postman, Bruno, Thunder Client & Insomnia — with a built-i
 [![Introduction — click to watch](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/intro-thumb.png)](https://github.com/user-attachments/assets/9a20095c-c5f0-44d9-8677-634e83f82517)
 
 ---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+	A[VS Code Extension] --> B[HTTP Forge Workspace]
+	B --> C[Git-friendly collections]
+	B --> D[Request editor]
+	B --> E[MCP server]
+	E --> F[Copilot / Claude / Cursor]
+	B --> G[OpenAPI import/export]
+	B --> H[AI / automation]
+	B --> I[Runtime core]
+	I --> J[CLI]
+	I --> K[Codegen]
+```
+
+HTTP Forge is one product with multiple entry points: a VS Code extension for editing and running requests, a runtime core for execution and import/export, a CLI for headless workflows, and an MCP server for agent-driven automation.
+
+## Why developers switch
+
+- If you are looking for a Postman alternative, Bruno alternative, Thunder Client alternative, or Insomnia alternative, HTTP Forge keeps your API workspace in Git.
+- Your API workspace stays in Git.
+- No cloud account is required.
+- Works offline.
+- Merge-friendly one-file-per-request storage.
+- Postman-compatible import and OpenAPI import/export.
+- AI agent support through MCP.
+
+## What it is
+
+HTTP Forge is an API development platform. The extension is the primary user interface, while `@http-forge/core`, the CLI, and the MCP server extend the same workspace into automation, CI/CD, and agent workflows.
 
 ## ⚡ 1-Minute Quickstart
 
@@ -74,7 +108,7 @@ Connect to AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, HashiCorp V
 Run `http-forge run my-collection --reporter junit` in any pipeline. Zero GUI dependencies, JUnit XML output, exit codes for pass/fail.
 
 ### 🧪 Contract testing with OpenAPI
-Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then validate every response against the spec — catch drift before it reaches production.
+Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then validate every response against the spec — catch drift before it reaches production and reuse the same contract for your own docs, QA, and automation.
 
 ---
 
@@ -157,6 +191,8 @@ Export Postman collection (v2.1) → Import into HTTP Forge → Done. All `pm.*`
 | TypeScript codegen | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Playwright integration | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Cloud secrets (AWS/Azure/GCP…) | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+Your OpenAPI contract is not just for import or export — it can also be reused by your own team for documentation, testing, and downstream tooling.
 
 ---
 

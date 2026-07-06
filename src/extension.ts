@@ -1010,9 +1010,15 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
             // Preserve OpenAPI metadata
             deprecated: requestData.deprecated,
             description: requestData.description,
+            operationId: requestData.operationId,
+            summary: requestData.summary,
+            tags: requestData.tags,
+            examples: requestData.examples,
+            responses: requestData.responses,
+            security: requestData.security,
             responseSchema: requestData.responseSchema,
             bodySchema: requestData.bodySchema
-          });
+          } as any);
           collectionsTreeProvider.refresh();
           return true;
         }
@@ -1065,10 +1071,16 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
         // Preserve OpenAPI metadata
         deprecated: requestData.deprecated,
         description: requestData.description,
+        operationId: requestData.operationId,
+        summary: requestData.summary,
+        tags: requestData.tags,
+        examples: requestData.examples,
+        responses: requestData.responses,
+        security: requestData.security,
         doc: requestData.doc,
         responseSchema: requestData.responseSchema,
         bodySchema: requestData.bodySchema
-      });
+      } as any);
 
       // Create a tree item for the new request
       const newRequestTreeItem = new CollectionTreeItem(
@@ -1122,10 +1134,16 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
           // Preserve OpenAPI metadata
           deprecated: requestData.deprecated,
           description: requestData.description,
+          operationId: requestData.operationId,
+          summary: requestData.summary,
+          tags: requestData.tags,
+          examples: requestData.examples,
+          responses: requestData.responses,
+          security: requestData.security,
           doc: requestData.doc,
           responseSchema: requestData.responseSchema,
           bodySchema: requestData.bodySchema
-        }
+        } as any
       );
       collectionsTreeProvider.refresh();
     })

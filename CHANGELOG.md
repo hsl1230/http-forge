@@ -5,6 +5,23 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.11 - 2026-07-05
+
+### Changed
+
+- **README repositioned for discoverability** — the top of the project README now leads with a clearer product promise, stronger alternative-search language, and a simpler architecture story focused on Git-native API workflows.
+- **OpenAPI reuse messaging clarified** — documentation now makes it explicit that imported/exported OpenAPI contracts can be reused for documentation, QA, automation, and downstream tooling.
+- **Architecture diagram simplified** — the main diagram now explains HTTP Forge as one platform with a VS Code UI, runtime core, CLI/codegen, and MCP server capabilities rather than presenting the stack as disconnected products.
+- **OpenAPI metadata round-trip preservation in Request Tester save flows** — request save/create/update paths now preserve and forward extended metadata fields:
+  - `operationId`, `summary`, `tags`, `examples`, `responses`, `security`
+  - Existing schema/doc fields (`responseSchema`, `bodySchema`, `doc`) remain preserved
+
+- **Panel merge behavior updated** — when merging generated Spring requests with saved requests, metadata fields are now merged using saved values as precedence, preventing metadata loss during repeated edits.
+
+### Fixed
+
+- **Metadata loss when saving Spring-discovered endpoints** — previously, only legacy metadata (`description`, `deprecated`, schemas) survived the save pipeline. Extended OpenAPI metadata now remains intact across `saveRequestToCollection`, `createRequestWithData`, and `updateRequest` command flows.
+
 ## 0.16.10 - 2026-07-03
 
 ### Added

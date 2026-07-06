@@ -126,6 +126,12 @@ export class SaveRequestHandler implements IMessageHandler {
         // Preserve OpenAPI metadata
         deprecated: request.deprecated ?? context?.request?.deprecated,
         description: request.description ?? context?.request?.description,
+        operationId: request.operationId ?? context?.request?.operationId,
+        summary: request.summary ?? context?.request?.summary,
+        tags: request.tags ?? context?.request?.tags,
+        examples: request.examples ?? context?.request?.examples,
+        responses: request.responses ?? context?.request?.responses,
+        security: request.security ?? context?.request?.security,
         doc: request.doc ?? context?.request?.doc,
         responseSchema: request.responseSchema ?? context?.request?.responseSchema,
         bodySchema: request.bodySchema ?? context?.request?.bodySchema
@@ -167,6 +173,12 @@ export class SaveRequestHandler implements IMessageHandler {
           // Preserve OpenAPI metadata
           deprecated: request.deprecated ?? context?.request?.deprecated,
           description: request.description ?? context?.request?.description,
+          operationId: request.operationId ?? context?.request?.operationId,
+          summary: request.summary ?? context?.request?.summary,
+          tags: request.tags ?? context?.request?.tags,
+          examples: request.examples ?? context?.request?.examples,
+          responses: request.responses ?? context?.request?.responses,
+          security: request.security ?? context?.request?.security,
           doc: request.doc ?? context?.request?.doc,
           responseSchema: request.responseSchema ?? context?.request?.responseSchema,
           bodySchema: request.bodySchema ?? context?.request?.bodySchema
@@ -200,6 +212,12 @@ export class SaveRequestHandler implements IMessageHandler {
           // Preserve OpenAPI metadata
           deprecated: request.deprecated ?? context?.request?.deprecated,
           description: request.description ?? context?.request?.description,
+          operationId: request.operationId ?? context?.request?.operationId,
+          summary: request.summary ?? context?.request?.summary,
+          tags: request.tags ?? context?.request?.tags,
+          examples: request.examples ?? context?.request?.examples,
+          responses: request.responses ?? context?.request?.responses,
+          security: request.security ?? context?.request?.security,
           doc: request.doc ?? context?.request?.doc,
           responseSchema: request.responseSchema ?? context?.request?.responseSchema,
           bodySchema: request.bodySchema ?? context?.request?.bodySchema
@@ -234,7 +252,18 @@ export class SaveRequestHandler implements IMessageHandler {
       body: request.body ?? context.request?.body ?? null,
       auth: request.auth ?? context.request?.auth,
       settings: request.settings ?? context.request?.settings,
-      scripts: request.scripts ?? context.request?.scripts
+      scripts: request.scripts ?? context.request?.scripts,
+      deprecated: request.deprecated ?? context.request?.deprecated,
+      description: request.description ?? context.request?.description,
+      operationId: request.operationId ?? context.request?.operationId,
+      summary: request.summary ?? context.request?.summary,
+      tags: request.tags ?? context.request?.tags,
+      examples: request.examples ?? context.request?.examples,
+      responses: request.responses ?? context.request?.responses,
+      security: request.security ?? context.request?.security,
+      doc: request.doc ?? context.request?.doc,
+      responseSchema: request.responseSchema ?? context.request?.responseSchema,
+      bodySchema: request.bodySchema ?? context.request?.bodySchema
     };
 
     // Update the suite's request folder

@@ -38,7 +38,7 @@ export interface RequestContext {
  * Ensure a CollectionRequest has all default values set
  * Normalizes headers/query enabled flags and provides defaults for optional fields.
  * Preserves all extended KeyValueEntry fields (type, required, description, format, enum, deprecated)
- * and top-level metadata (deprecated, description, responseSchema, bodySchema).
+ * and top-level metadata (deprecated, description, operationId, tags, responses, security, responseSchema, bodySchema).
  */
 export function ensureRequestDefaults(item: Partial<CollectionRequest>): CollectionRequest {
     // Ensure enabled defaults to true for headers/query — spread to preserve extended fields
@@ -70,6 +70,12 @@ export function ensureRequestDefaults(item: Partial<CollectionRequest>): Collect
         // Preserve OpenAPI metadata
         deprecated: item.deprecated,
         description: item.description,
+        operationId: item.operationId,
+        summary: item.summary,
+        tags: item.tags,
+        examples: item.examples,
+        responses: item.responses,
+        security: item.security,
         doc: item.doc,
         responseSchema: item.responseSchema,
         bodySchema: item.bodySchema
