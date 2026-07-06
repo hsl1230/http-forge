@@ -1,8 +1,8 @@
 {
   "name": "http-forge",
-  "displayName": "HTTP Forge",
-  "description": "Git-native Postman, Bruno, Thunder Client, and Insomnia alternative for VS Code with CLI, MCP server, and OpenAPI support",
-  "version": "0.16.11",
+  "displayName": "HTTP Forge — The API Platform Built for AI Agents",
+  "description": "Turn GitHub Copilot, Claude Code, and Cursor into expert API engineers. 60+ MCP tools. No extra API keys. No cloud account. Full Postman compatibility, OpenAPI 3.0, headless CLI, and TypeScript codegen — all local.",
+  "version": "0.16.12",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -661,7 +661,7 @@
     ]
   },
   "scripts": {
-    "clean": "rm -rf out",
+    "clean": "rm -rf out && cd resources && npx @mermaid-js/mermaid-cli -i architecture.mmd -o architecture.svg && cd ..",
     "esbuild-base": "node esbuild.js",
     "build": "npm run esbuild-base",
     "build:dev": "npm run esbuild-base",
@@ -675,6 +675,7 @@
   },
   "devDependencies": {
     "@apidevtools/json-schema-ref-parser": "^11.0.0",
+    "@mermaid-js/mermaid-cli": "^11.16.0",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.21",
     "@types/node": "^20.x",

@@ -4,9 +4,9 @@
 
 # HTTP Forge 🔨
 
-**A Git-native API client and Postman alternative for VS Code.**
+**An AI-native and fully Postman-compatible API client for VS Code.**
 
-Build, test, automate, and version REST, GraphQL, and OpenAPI APIs in one local workspace — offline, merge-friendly, and ready for AI agents.
+Build, test, automate, and version REST, GraphQL, and OpenAPI APIs in one local workspace — offline, Git-native, merge-friendly, and ready for AI agents.
 
 Designed for teams comparing Postman, Bruno, Thunder Client, and Insomnia alternatives.
 
@@ -22,27 +22,15 @@ Designed for teams comparing Postman, Bruno, Thunder Client, and Insomnia altern
 
 ---
 
-[![AI in action — click to watch](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/ai-flow-thumb.png)](https://github.com/user-attachments/assets/70a3c4a0-66cd-4340-bfae-c4579c7d410b)
+[![AI in action — click to watch](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/ai-flow-thumb.png)](docs/videos/e2e-api-testing-through-ai.mp4)
 
-[![Introduction — click to watch](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/intro-thumb.png)](https://github.com/user-attachments/assets/9a20095c-c5f0-44d9-8677-634e83f82517)
+[![Introduction — click to watch](https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/thumbnails/intro-thumb.png)](docs/videos/introduction.mp4)
 
 ---
 
 ## 🏗️ Architecture
 
-```mermaid
-flowchart LR
-	A[VS Code Extension] --> B[HTTP Forge Workspace]
-	B --> C[Git-friendly collections]
-	B --> D[Request editor]
-	B --> E[MCP server]
-	E --> F[Copilot / Claude / Cursor]
-	B --> G[OpenAPI import/export]
-	B --> H[AI / automation]
-	B --> I[Runtime core]
-	I --> J[CLI]
-	I --> K[Codegen]
-```
+![HTTP Forge architecture diagram](resources/architecture.svg)
 
 HTTP Forge is one product with multiple entry points: a VS Code extension for editing and running requests, a runtime core for execution and import/export, a CLI for headless workflows, and an MCP server for agent-driven automation.
 
