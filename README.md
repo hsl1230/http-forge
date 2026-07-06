@@ -22,9 +22,9 @@ Designed for teams comparing Postman, Bruno, Thunder Client, and Insomnia altern
 
 ---
 
-![AI in action](https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/e2e-api-testing-through-ai.gif)
+<img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/e2e-api-testing-through-ai.gif" alt="AI in action" width="100%"/>
 
-![Introduction](https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/introduction.gif)
+<img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/introduction.gif" alt="Introduction" width="100%"/>
 
 ---
 
