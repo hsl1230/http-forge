@@ -160,6 +160,12 @@ export class PanelDataProvider implements IPanelContextProvider {
       // edits. Users can delete the saved request to pick up fresh base values.
       deprecated: saved.deprecated ?? base.deprecated,
       description: saved.description ?? base.description,
+      operationId: saved.operationId ?? base.operationId,
+      summary: saved.summary ?? base.summary,
+      tags: saved.tags ?? base.tags,
+      examples: saved.examples ?? base.examples,
+      responses: saved.responses ?? base.responses,
+      security: saved.security ?? base.security,
       responseSchema: saved.responseSchema ?? base.responseSchema,
       bodySchema: saved.bodySchema ?? base.bodySchema
     };
