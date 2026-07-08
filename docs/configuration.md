@@ -208,7 +208,7 @@ The `mcp` section controls what the MCP server exposes to AI agents. All fields 
 }
 ```
 
-> **Note:** Port and auto-start are VS Code settings (`httpForge.mcpServer.port`, `httpForge.mcpServer.autoStart`), not project config.
+> **Note:** MCP port is project config (`mcp.port` in `http-forge.config.json`, default `3100`). Auto-start remains a VS Code setting (`httpForge.mcpServer.autoStart`).
 
 ## MCP server project settings
 
@@ -261,4 +261,4 @@ The `mcp` section controls what the MCP server exposes to AI agents. All fields 
 }
 ```
 
-> **Note:** Port and auto-start are VS Code settings (`httpForge.mcpServer.port`, `httpForge.mcpServer.autoStart`). See the MCP Server user guide for details.
+> **Note:** MCP port is project config (`mcp.port` in `http-forge.config.json`, default `3100`). Auto-start remains a VS Code setting (`httpForge.mcpServer.autoStart`). See the MCP Server user guide for details.

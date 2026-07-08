@@ -205,4 +205,4 @@ default `"flat"` behavior until the request-tool count exceeds
 `run_collection`, `run_suite`). Use `"drilldown"` to force it on regardless of
 size. See [MCP Server](mcp-server.md#tool-modes--flat-vs-drill-down) for details.
 
-> **Note:** Port and auto-start are VS Code settings (`httpForge.mcpServer.port`, `httpForge.mcpServer.autoStart`), not project config. See [MCP Server](mcp-server.md) for details.
+> **Note:** MCP port is project config (`mcp.port` in `http-forge.config.json`, default `3100`). Auto-start remains a VS Code setting (`httpForge.mcpServer.autoStart`). See [MCP Server](mcp-server.md) for details.

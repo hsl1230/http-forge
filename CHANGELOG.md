@@ -5,6 +5,14 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.15 - 2026-07-08
+
+### Changed
+
+- **MCP server port source of truth moved to project config** — the extension now resolves the embedded MCP server port from `http-forge.config.json` (`mcp.port`, default `3100`) instead of `httpForge.mcpServer.port` in VS Code settings.
+- **VS Code settings surface simplified** — `httpForge.mcpServer.port` has been removed from extension settings; `httpForge.mcpServer.autoStart` remains as a user/machine preference.
+- **MCP documentation updated for config-first behavior** — user guides now document `mcp.port` in project config as the shared team setting and keep auto-start documented as a local VS Code preference.
+
 ## 0.16.12 - 2026-07-06
 
 ### Changed

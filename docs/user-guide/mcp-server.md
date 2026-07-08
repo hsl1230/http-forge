@@ -39,8 +39,17 @@ Add to your VS Code `settings.json`:
 
 ```json
 {
-  "httpForge.mcpServer.autoStart": true,
-  "httpForge.mcpServer.port": 3100
+  "httpForge.mcpServer.autoStart": true
+}
+```
+
+Set server port in `http-forge.config.json` (project-shared, default `3100`):
+
+```json
+{
+  "mcp": {
+    "port": 3100
+  }
 }
 ```
 
@@ -1116,7 +1125,6 @@ No user prompt needed — the AI acts on `_nextStep` automatically.
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `httpForge.mcpServer.port` | number | `3100` | Port the server listens on |
 | `httpForge.mcpServer.autoStart` | boolean | `false` | Start the server automatically when VS Code opens |
 
 ### Project config (`http-forge.config.json`) — shared with the team
@@ -1126,6 +1134,7 @@ Add an `mcp` section to control what gets exposed and how:
 ```json
 {
   "mcp": {
+    "port": 3100,
     "excludedCollections": [],
     "excludedSuites": [],
     "toolPrefix": "",
