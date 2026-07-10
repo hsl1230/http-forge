@@ -43,7 +43,7 @@ Add to your VS Code `settings.json`:
 }
 ```
 
-Set server port in `http-forge.config.json` (project-shared, default `3100`):
+Set server port in `.http-forge/http-forge.config.json` (project-shared, default `3100`):
 
 ```json
 {
@@ -105,7 +105,7 @@ Once connected, the AI automatically discovers all tools. In the default **flat*
 
 ## Tool modes — flat vs drill-down
 
-How collections and requests appear as MCP tools is controlled by `mcp.toolMode` in `http-forge.config.json` (default `"auto"`).
+How collections and requests appear as MCP tools is controlled by `mcp.toolMode` in `.http-forge/http-forge.config.json` (default `"auto"`).
 
 | Mode | What the AI sees | Best for |
 |---|---|---|
@@ -640,7 +640,7 @@ When running with multiple iterations:
     }
   ],
   "report": {
-    "uri": "http://localhost:3100/report?path=%2Fpath%2Fto%2F.http-forge-cache%2Fresults%2Fsuite-id%2Frun-id%2Freport.html",
+    "uri": "http://localhost:3100/report?path=%2Fpath%2Fto%2F.http-forge/.cache%2Fresults%2Fsuite-id%2Frun-id%2Freport.html",
     "hint": "Click the URI to open the HTML report in your browser"
   }
 }
@@ -660,10 +660,10 @@ The report includes:
 
 The report URI is returned in the MCP tool response as `report.uri` (an HTTP URL served by HTTP Forge at `/report?path=...`). AI clients render this as a clickable link. In the VS Code test suite panel, the **Export HTML** button opens the same report in your system browser.
 
-Reports are stored under `.http-forge-cache/results/` in your workspace:
+Reports are stored under `.http-forge/.cache/results/` in your workspace:
 
 ```
-.http-forge-cache/results/
+.http-forge/.cache/results/
 └── <suiteId>/
     ├── run-20260616-120841-388/
     │   ├── manifest.json
@@ -1127,7 +1127,7 @@ No user prompt needed — the AI acts on `_nextStep` automatically.
 |---|---|---|---|
 | `httpForge.mcpServer.autoStart` | boolean | `false` | Start the server automatically when VS Code opens |
 
-### Project config (`http-forge.config.json`) — shared with the team
+### Project config (`.http-forge/http-forge.config.json`) — shared with the team
 
 Add an `mcp` section to control what gets exposed and how:
 

@@ -165,7 +165,7 @@ The **Statistics** tab's Response Time table shows the full `Collection › Fold
 
 ## CLI runs & on-disk results
 
-Runs started from the `@http-forge/cli` (or any direct-execution host) **always** persist their results to `.http-forge-cache/results/<suiteId>/<runId>/` — the run manifest, per-iteration result files, and a result index. You do **not** need `--include report` for this.
+Runs started from the `@http-forge/cli` (or any direct-execution host) **always** persist their results to `.http-forge/.cache/results/<suiteId>/<runId>/` — the run manifest, per-iteration result files, and a result index. You do **not** need `--include report` for this.
 
 As a result, suite and collection runs executed from the CLI automatically appear in the **History** tab the next time you open the Test Suite panel, and can be loaded into the Results and Statistics tabs. The `--include report` flag only additionally generates the self-contained `report.html`.
 

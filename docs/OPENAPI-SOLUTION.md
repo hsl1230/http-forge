@@ -1852,7 +1852,7 @@ Add to `package.json`:
 | Test Suite | Scope |
 |------------|-------|
 | `schema-inferrer.test.ts` | Primitives, nested objects, arrays, nulls (`nullable: true`), mixed types, format detection, schema merging, `readOnly`/`writeOnly` preservation |
-| `script-analyzer.test.ts` | All recognized patterns, edge cases (comments, string literals), real script samples from `http-forge-assets` |
+| `script-analyzer.test.ts` | All recognized patterns, edge cases (comments, string literals), real script samples from `.http-forge/assets` |
 | `history-analyzer.test.ts` | Mock history service, multiple samples, status code grouping |
 | `openapi-exporter.test.ts` | Full collection export, auth mapping, parameter types, body formats, component dedup, `deprecated` flag, header filtering, cookie parameter splitting, `default` response, multiple content types, `allOf`/`oneOf`/`anyOf` round-trip, `readOnly`/`writeOnly`, multipart `encoding` |
 | `openapi-importer.test.ts` | Full spec import, `$ref` resolution, example generation, tag → folder mapping, `deprecated` operations/params, cookie params → header, `default` response, multiple content types, schema composition, `readOnly`/`writeOnly`, multipart `encoding` |

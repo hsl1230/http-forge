@@ -80,14 +80,14 @@ The extension loads SDKs from your **project's** `node_modules`, resolved throug
 `scripts.modulePaths` entry that contains a `package.json`. Install the SDK there:
 
 ```jsonc
-// http-forge.config.json
+// .http-forge/http-forge.config.json
 {
-  "scripts": { "modulePaths": ["./http-forge-assets/lib"] }
+  "scripts": { "modulePaths": ["./.http-forge/assets/lib"] }
 }
 ```
 
 ```bash
-cd http-forge-assets/lib
+cd .http-forge/assets/lib
 npm install @aws-sdk/client-secrets-manager
 ```
 
@@ -97,7 +97,7 @@ If an SDK is missing, the resolver throws a clear message telling you exactly wh
 
 ## Configuration
 
-Add a `secrets.providers` block to `http-forge.config.json`. The **key** is the alias used in
+Add a `secrets.providers` block to `.http-forge/http-forge.config.json`. The **key** is the alias used in
 the token (`{{secret:<alias>/...}}`); the `provider` field selects the implementation.
 
 ```json

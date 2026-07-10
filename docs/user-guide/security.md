@@ -57,10 +57,10 @@ up-cookie: session=xyz    → up-cookie: ***
 
 | Storage location | Gitignored? | Redacted? |
 |-----------------|-------------|-----------|
-| Local history (`.http-forge-cache/histories/`) | Yes | Yes |
+| Local history (`.http-forge/.cache/histories/`) | Yes | Yes |
 | Shared history (`shared-histories/`) | No — can be committed | Yes |
 | Full responses (`{entryId}.json`) | Yes | Yes |
-| Suite results (`.http-forge-cache/results/`) | Yes | Yes |
+| Suite results (`.http-forge/.cache/results/`) | Yes | Yes |
 | Environment files (`environments/*.local.json`) | Yes | No redaction needed — these are source files |
 | Request files (`request.json`, `body.json`) | No | No redaction needed — contain `{{variable}}` templates, not resolved values |
 

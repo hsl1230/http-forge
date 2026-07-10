@@ -142,7 +142,7 @@ export class McpServerService {
         // Derived from configService so it always matches the actual report location.
         const allowedBase = this.configService
             ? path.dirname(this.configService.getResultsPath())
-            : path.resolve(this.workspaceFolder, '.http-forge-cache');
+            : path.resolve(this.workspaceFolder, '.http-forge', '.cache');
         const normalized = path.resolve(filePath);
         if (!normalized.startsWith(allowedBase + path.sep) || !normalized.endsWith('.html')) {
             res.writeHead(403);

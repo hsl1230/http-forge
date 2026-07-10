@@ -21,17 +21,17 @@
         },
         "root": {
           "type": "string",
-          "default": "./http-forge",
+          "default": "./.http-forge/assets",
           "description": "Root directory for HTTP Forge data (collections, environments, flows, suites)"
         },
         "history": {
           "type": "string",
-          "default": "./.http-forge-cache/histories",
+          "default": "./.http-forge/.cache/histories",
           "description": "Directory for request history storage (can be gitignored)"
         },
         "results": {
           "type": "string",
-          "default": "./.http-forge-cache/results",
+          "default": "./.http-forge/.cache/results",
           "description": "Directory for test suite results storage (can be gitignored)"
         }
       }
@@ -71,7 +71,7 @@
           "items": {
             "type": "string"
           },
-          "default": ["./src", "./lib"],
+          "default": ["./.http-forge/assets/src", "./.http-forge/assets/lib"],
           "description": "Paths to search for custom modules in pre/post request scripts. Relative to workspace root."
         },
         "scope": {

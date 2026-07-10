@@ -1,112 +1,1812 @@
-"use strict";(()=>{var u=acquireVsCodeApi(),h={itemHeight:45,bufferSize:10},m={startIndex:0,endIndex:0,scrollTop:0},n={suite:null,requests:[],environments:[],selectedEnvironment:null,dataFile:null,isRunning:!1,results:[],displayItems:[],collapsedGroups:new Set,statistics:null,passed:0,failed:0,skipped:0,selectedResultIndex:-1,currentRunId:null,suiteId:null,autoScroll:!0,totalRequests:0,iterations:1,isDirty:!1,availableRequests:[],runStartTime:null,historyRuns:[],viewingHistoryRun:null,historyManifest:null,loadingAsLatest:!1,reportPath:null},f={responseBodyMonacoEditor:null},t={};var Re={0:"GET",1:"POST",2:"PUT",3:"DELETE",4:"PATCH",5:"HEAD",6:"OPTIONS",7:"TRACE",8:"CONNECT"};function Be(e){return e.replace(/[^a-zA-Z0-9-_]/g,"_").replace(/\s+/g,"-").toLowerCase().substring(0,100)}function P(e,s,a){let o=String(e).padStart(6,"0"),r=String(s).padStart(4,"0"),i=Be(a);return`result-${o}-iter-${r}-${i}.json`}function x(e){if(e.i!==void 0){let s=e.r;return{index:e.i,iteration:e.it,name:e.n,method:Re[e.m]||"GET",status:e.s,duration:e.d,passed:e.p,assertionsPassed:e.ap,assertionsFailed:e.af,requestId:s,folderPath:e.fp??"",collectionName:e.cn??"",resultFile:P(e.i,e.it,s),error:e.e}}return{index:e.index??0,iteration:e.iteration??1,name:e.name||e.requestName||"Unknown",method:e.method||"GET",status:e.status,duration:e.duration,passed:e.passed,assertionsPassed:e.assertionsPassed||0,assertionsFailed:e.assertionsFailed||0,requestId:e.requestId||e.r,folderPath:e.folderPath??e.fp??"",collectionName:e.collectionName??e.cn??"",resultFile:e.resultFile||(e.index!==void 0&&e.iteration!==void 0&&(e.requestId||e.r)?P(e.index,e.iteration,e.requestId||e.r):null),error:e.error||null}}function c(e){if(!e)return"";let s=document.createElement("div");return s.textContent=e,s.innerHTML}function ke(e){let s=n.results[e];if(!s)return;let a=x(s);if(n.selectedResultIndex=e,Ce(a),a.resultFile&&n.suiteId&&n.currentRunId){let o=n.viewingHistoryRun||n.currentRunId;u.postMessage({type:"getResultDetails",suiteId:n.suiteId,runId:o,resultFile:a.resultFile})}else N(a)}function Ce(e){t.modalStatusIcon&&(t.modalStatusIcon.textContent=e.passed?"\u2713":"\u2717",t.modalStatusIcon.className=`modal-status-icon ${e.passed?"passed":"failed"}`),t.modalRequestName&&(t.modalRequestName.textContent=e.name),t.modalRequestMeta&&(t.modalRequestMeta.textContent=`${e.method} ${e.status} \u2022 ${e.duration}ms`),t.modalTabs?.forEach(s=>s.classList.remove("active")),t.modalPanels?.forEach(s=>s.classList.remove("active")),t.modalTabs?.[0]?.classList.add("active"),t.modalPanels?.[0]?.classList.add("active"),f.responseBodyMonacoEditor&&f.responseBodyMonacoEditor.setValue("Loading..."),t.responseModal.classList.remove("hidden")}function A(e){e&&N(e)}function F(e){f.responseBodyMonacoEditor&&f.responseBodyMonacoEditor.setValue(`Error loading details: ${e}`)}function N(e){let s=e.response?.body??e.responseBody,a=e.response?.headers??e.responseHeaders??{},o=e.request?.body??e.requestBody,r=e.request?.headers??e.requestHeaders??{};H(s),t.responseHeadersTable&&(t.responseHeadersTable.innerHTML=Object.entries(a).map(([i,d])=>`<tr><td>${c(i)}</td><td>${c(String(d))}</td></tr>`).join("")||'<tr><td colspan="2">No headers</td></tr>'),t.requestUrl&&(t.requestUrl.textContent=e.url||""),t.requestMethod&&(t.requestMethod.textContent=e.method||""),t.requestDuration&&(t.requestDuration.textContent=`${e.duration}ms`),t.requestHeadersTable&&(t.requestHeadersTable.innerHTML=Object.entries(r).map(([i,d])=>`<tr><td>${c(i)}</td><td>${c(String(d))}</td></tr>`).join("")||'<tr><td colspan="2">No headers</td></tr>'),t.requestBodyContent&&(o?t.requestBodyContent.textContent=typeof o=="object"?JSON.stringify(o,null,2):String(o):t.requestBodyContent.textContent="No body"),Te(e.assertions||[])}function M(){t.responseBodyEditor&&!f.responseBodyMonacoEditor&&window.monaco&&(f.responseBodyMonacoEditor=monaco.editor.create(t.responseBodyEditor,{value:"// Response body will appear here",language:"json",theme:"vs-dark",readOnly:!0,minimap:{enabled:!1},lineNumbers:"on",scrollBeyondLastLine:!1,automaticLayout:!0,wordWrap:"on",folding:!0}))}function H(e){let s=t.bodyFormatSelect?.value||"auto",a="",o="json";if(e==null)a="// No response body";else if(s==="auto")if(typeof e=="object")a=JSON.stringify(e,null,2);else if(typeof e=="string")try{let r=JSON.parse(e);a=JSON.stringify(r,null,2)}catch{a=e,o="text"}else a=String(e),o="text";else if(s==="json")try{let r=typeof e=="object"?e:JSON.parse(e);a=JSON.stringify(r,null,2)}catch{a=String(e)}else a=typeof e=="object"?JSON.stringify(e,null,2):String(e),o=s==="xml"?"xml":"text";!f.responseBodyMonacoEditor&&window.monaco&&M(),f.responseBodyMonacoEditor?(monaco.editor.setModelLanguage(f.responseBodyMonacoEditor.getModel(),o),f.responseBodyMonacoEditor.setValue(a)):t.responseBodyEditor&&(t.responseBodyEditor.textContent=a)}function Te(e){if(!t.testSummary||!t.testList)return;let s=e.filter(o=>o.passed).length,a=e.filter(o=>!o.passed).length;if(t.testSummary.innerHTML=`
-        <div class="test-summary-item passed">\u2713 ${s} passed</div>
-        <div class="test-summary-item failed">\u2717 ${a} failed</div>
-    `,e.length===0){t.testList.innerHTML='<div class="test-item"><span class="test-content">No tests defined</span></div>';return}t.testList.innerHTML=e.map(o=>`
-        <div class="test-item ${o.passed?"passed":"failed"}">
-            <span class="test-icon ${o.passed?"passed":"failed"}">${o.passed?"\u2713":"\u2717"}</span>
+"use strict";
+(() => {
+  // resources/features/test-suite/modules/state.js
+  var vscode = acquireVsCodeApi();
+  var VIRTUAL_SCROLL = {
+    itemHeight: 45,
+    // Height of each result item in pixels
+    bufferSize: 10
+    // Extra items to render above/below visible area
+  };
+  var virtualScrollState = {
+    startIndex: 0,
+    endIndex: 0,
+    scrollTop: 0
+  };
+  var state = {
+    suite: null,
+    requests: [],
+    environments: [],
+    selectedEnvironment: null,
+    dataFile: null,
+    isRunning: false,
+    results: [],
+    // Now stores compact ResultSummary objects (not full results)
+    displayItems: [],
+    // Flat list of header + result rows for grouped virtual scroll
+    collapsedGroups: /* @__PURE__ */ new Set(),
+    // Keys of collapsed collection+folder groups in the results list
+    statistics: null,
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    selectedResultIndex: -1,
+    currentRunId: null,
+    suiteId: null,
+    autoScroll: true,
+    totalRequests: 0,
+    iterations: 1,
+    isDirty: false,
+    // Track unsaved changes
+    availableRequests: [],
+    // Available requests for Add modal
+    runStartTime: null,
+    // Track start time for duration calculation
+    // History state
+    historyRuns: [],
+    // List of RunHistoryEntry objects
+    viewingHistoryRun: null,
+    // runId of loaded history run (null = live/latest)
+    historyManifest: null,
+    // Manifest of loaded history run
+    loadingAsLatest: false,
+    // Flag: loading the latest run (suppresses history banner)
+    reportPath: null
+    // Path to the HTML report generated by the last run
+  };
+  var editorState = {
+    responseBodyMonacoEditor: null
+  };
+  var elements = {};
+
+  // resources/features/test-suite/modules/utils.js
+  var HTTP_METHOD_REVERSE = {
+    0: "GET",
+    1: "POST",
+    2: "PUT",
+    3: "DELETE",
+    4: "PATCH",
+    5: "HEAD",
+    6: "OPTIONS",
+    7: "TRACE",
+    8: "CONNECT"
+  };
+  function sanitizeName(name) {
+    return name.replace(/[^a-zA-Z0-9-_]/g, "_").replace(/\s+/g, "-").toLowerCase().substring(0, 100);
+  }
+  function buildResultFileName(index, iteration, requestId) {
+    const indexStr = String(index).padStart(6, "0");
+    const iterStr = String(iteration).padStart(4, "0");
+    const sanitizedRequestId = sanitizeName(requestId);
+    return `result-${indexStr}-iter-${iterStr}-${sanitizedRequestId}.json`;
+  }
+  function expandSummary(s) {
+    if (s.i !== void 0) {
+      const requestId = s.r;
+      return {
+        index: s.i,
+        iteration: s.it,
+        name: s.n,
+        method: HTTP_METHOD_REVERSE[s.m] || "GET",
+        status: s.s,
+        duration: s.d,
+        passed: s.p,
+        assertionsPassed: s.ap,
+        assertionsFailed: s.af,
+        requestId,
+        folderPath: s.fp ?? "",
+        collectionName: s.cn ?? "",
+        resultFile: buildResultFileName(s.i, s.it, requestId),
+        error: s.e
+      };
+    }
+    return {
+      index: s.index ?? 0,
+      iteration: s.iteration ?? 1,
+      name: s.name || s.requestName || "Unknown",
+      method: s.method || "GET",
+      status: s.status,
+      duration: s.duration,
+      passed: s.passed,
+      assertionsPassed: s.assertionsPassed || 0,
+      assertionsFailed: s.assertionsFailed || 0,
+      requestId: s.requestId || s.r,
+      folderPath: s.folderPath ?? s.fp ?? "",
+      collectionName: s.collectionName ?? s.cn ?? "",
+      resultFile: s.resultFile || (s.index !== void 0 && s.iteration !== void 0 && (s.requestId || s.r) ? buildResultFileName(s.index, s.iteration, s.requestId || s.r) : null),
+      error: s.error || null
+    };
+  }
+  function escapeHtml(text) {
+    if (!text) return "";
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // resources/features/test-suite/modules/results-view.js
+  function showResultDetail(index) {
+    const compactResult = state.results[index];
+    if (!compactResult) return;
+    const result = expandSummary(compactResult);
+    state.selectedResultIndex = index;
+    showModalWithSummary(result);
+    if (result.resultFile && state.suiteId && state.currentRunId) {
+      const runId = state.viewingHistoryRun || state.currentRunId;
+      vscode.postMessage({
+        type: "getResultDetails",
+        suiteId: state.suiteId,
+        runId,
+        resultFile: result.resultFile
+      });
+    } else {
+      populateModalWithDetails(result);
+    }
+  }
+  function showModalWithSummary(result) {
+    if (elements.modalStatusIcon) {
+      elements.modalStatusIcon.textContent = result.passed ? "\u2713" : "\u2717";
+      elements.modalStatusIcon.className = `modal-status-icon ${result.passed ? "passed" : "failed"}`;
+    }
+    if (elements.modalRequestName) {
+      elements.modalRequestName.textContent = result.name;
+    }
+    if (elements.modalRequestMeta) {
+      elements.modalRequestMeta.textContent = `${result.method} ${result.status} \u2022 ${result.duration}ms`;
+    }
+    elements.modalTabs?.forEach((t) => t.classList.remove("active"));
+    elements.modalPanels?.forEach((p) => p.classList.remove("active"));
+    elements.modalTabs?.[0]?.classList.add("active");
+    elements.modalPanels?.[0]?.classList.add("active");
+    if (editorState.responseBodyMonacoEditor) {
+      editorState.responseBodyMonacoEditor.setValue("Loading...");
+    }
+    elements.responseModal.classList.remove("hidden");
+  }
+  function handleResultDetails(details) {
+    if (details) {
+      populateModalWithDetails(details);
+    }
+  }
+  function handleResultDetailsError(error) {
+    if (editorState.responseBodyMonacoEditor) {
+      editorState.responseBodyMonacoEditor.setValue(`Error loading details: ${error}`);
+    }
+  }
+  function populateModalWithDetails(result) {
+    const responseBody = result.response?.body ?? result.responseBody;
+    const responseHeaders = result.response?.headers ?? result.responseHeaders ?? {};
+    const requestBody = result.request?.body ?? result.requestBody;
+    const requestHeaders = result.request?.headers ?? result.requestHeaders ?? {};
+    formatAndDisplayBody(responseBody);
+    if (elements.responseHeadersTable) {
+      elements.responseHeadersTable.innerHTML = Object.entries(responseHeaders).map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(String(value))}</td></tr>`).join("") || '<tr><td colspan="2">No headers</td></tr>';
+    }
+    if (elements.requestUrl) elements.requestUrl.textContent = result.url || "";
+    if (elements.requestMethod) elements.requestMethod.textContent = result.method || "";
+    if (elements.requestDuration) elements.requestDuration.textContent = `${result.duration}ms`;
+    if (elements.requestHeadersTable) {
+      elements.requestHeadersTable.innerHTML = Object.entries(requestHeaders).map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(String(value))}</td></tr>`).join("") || '<tr><td colspan="2">No headers</td></tr>';
+    }
+    if (elements.requestBodyContent) {
+      if (requestBody) {
+        elements.requestBodyContent.textContent = typeof requestBody === "object" ? JSON.stringify(requestBody, null, 2) : String(requestBody);
+      } else {
+        elements.requestBodyContent.textContent = "No body";
+      }
+    }
+    populateTestResults(result.assertions || []);
+  }
+  function initResponseBodyEditor() {
+    if (!elements.responseBodyEditor) return;
+    if (!editorState.responseBodyMonacoEditor && window.monaco) {
+      editorState.responseBodyMonacoEditor = monaco.editor.create(elements.responseBodyEditor, {
+        value: "// Response body will appear here",
+        language: "json",
+        theme: "vs-dark",
+        readOnly: true,
+        minimap: { enabled: false },
+        lineNumbers: "on",
+        scrollBeyondLastLine: false,
+        automaticLayout: true,
+        wordWrap: "on",
+        folding: true
+      });
+    }
+  }
+  function formatAndDisplayBody(body) {
+    const format = elements.bodyFormatSelect?.value || "auto";
+    let displayText = "";
+    let language = "json";
+    if (body === void 0 || body === null) {
+      displayText = "// No response body";
+    } else if (format === "auto") {
+      if (typeof body === "object") {
+        displayText = JSON.stringify(body, null, 2);
+      } else if (typeof body === "string") {
+        try {
+          const parsed = JSON.parse(body);
+          displayText = JSON.stringify(parsed, null, 2);
+        } catch {
+          displayText = body;
+          language = "text";
+        }
+      } else {
+        displayText = String(body);
+        language = "text";
+      }
+    } else if (format === "json") {
+      try {
+        const parsed = typeof body === "object" ? body : JSON.parse(body);
+        displayText = JSON.stringify(parsed, null, 2);
+      } catch {
+        displayText = String(body);
+      }
+    } else {
+      displayText = typeof body === "object" ? JSON.stringify(body, null, 2) : String(body);
+      language = format === "xml" ? "xml" : "text";
+    }
+    if (!editorState.responseBodyMonacoEditor && window.monaco) {
+      initResponseBodyEditor();
+    }
+    if (editorState.responseBodyMonacoEditor) {
+      monaco.editor.setModelLanguage(editorState.responseBodyMonacoEditor.getModel(), language);
+      editorState.responseBodyMonacoEditor.setValue(displayText);
+    } else {
+      console.warn("[formatAndDisplayBody] Monaco editor not available, body cannot be displayed");
+      if (elements.responseBodyEditor) {
+        elements.responseBodyEditor.textContent = displayText;
+      }
+    }
+  }
+  function populateTestResults(assertions) {
+    if (!elements.testSummary || !elements.testList) return;
+    const passed = assertions.filter((a) => a.passed).length;
+    const failed = assertions.filter((a) => !a.passed).length;
+    elements.testSummary.innerHTML = `
+        <div class="test-summary-item passed">\u2713 ${passed} passed</div>
+        <div class="test-summary-item failed">\u2717 ${failed} failed</div>
+    `;
+    if (assertions.length === 0) {
+      elements.testList.innerHTML = '<div class="test-item"><span class="test-content">No tests defined</span></div>';
+      return;
+    }
+    elements.testList.innerHTML = assertions.map((test) => `
+        <div class="test-item ${test.passed ? "passed" : "failed"}">
+            <span class="test-icon ${test.passed ? "passed" : "failed"}">${test.passed ? "\u2713" : "\u2717"}</span>
             <div class="test-content">
-                <div class="test-name">${c(o.name)}</div>
-                ${o.message?`<div class="test-message">${c(o.message)}</div>`:""}
+                <div class="test-name">${escapeHtml(test.name)}</div>
+                ${test.message ? `<div class="test-message">${escapeHtml(test.message)}</div>` : ""}
             </div>
         </div>
-    `).join("")}function k(){t.responseModal&&t.responseModal.classList.add("hidden"),n.selectedResultIndex=-1}function O(){let e=n.results.map(s=>x(s));u.postMessage({type:"exportReport",format:"json",data:{suite:n.suite,results:e,statistics:n.statistics}})}function j(){if(!n.reportPath){u.postMessage({type:"exportReport",format:"html",reportPath:null});return}u.postMessage({type:"exportReport",format:"html",reportPath:n.reportPath})}function z(){u.postMessage({type:"exportReport",format:"statistics",data:{suite:n.suite,statistics:n.statistics}})}function G(){if(!t.panelResizer)return;let e=!1,s=0,a=0,o=document.querySelector(".runner-left-panel"),r=document.querySelector(".runner-main");t.panelResizer.addEventListener("mousedown",i=>{e=!0,s=i.clientX,a=o.offsetWidth,t.panelResizer.classList.add("resizing"),document.body.style.cursor="col-resize",document.body.style.userSelect="none"}),document.addEventListener("mousemove",i=>{if(!e)return;let d=i.clientX-s,l=Math.max(200,Math.min(500,a+d));r.style.gridTemplateColumns=`${l}px 4px 1fr`}),document.addEventListener("mouseup",()=>{e&&(e=!1,t.panelResizer.classList.remove("resizing"),document.body.style.cursor="",document.body.style.userSelect="")})}function V(){if(!t.resultsList)return;t.resultsList.addEventListener("scroll",$e);let e=t.resultsList.querySelector(".virtual-spacer");e||(e=document.createElement("div"),e.className="virtual-spacer",e.style.position="absolute",e.style.top="0",e.style.left="0",e.style.width="1px",e.style.pointerEvents="none",t.resultsList.appendChild(e));let s=t.resultsList.querySelector(".virtual-items");s||(s=document.createElement("div"),s.className="virtual-items",t.resultsList.appendChild(s))}function $e(){if(!t.resultsList)return;let e=t.resultsList.scrollTop,s=n.displayItems.length*h.itemHeight,a=t.resultsList.clientHeight||400,o=e+a>=s-50;!o&&n.isRunning&&(n.autoScroll=!1),o&&n.isRunning&&(n.autoScroll=!0),m.scrollTop=e,C()}function C(){if(!t.resultsList)return;let e=n.displayItems.length;if(e===0){let S=t.resultsList.querySelector(".virtual-items");S&&(S.innerHTML="");return}let s=t.resultsList.scrollTop,a=t.resultsList.clientHeight||400,o=h.itemHeight,r=h.bufferSize,i=Math.max(0,Math.floor(s/o)-r),d=Math.ceil(a/o)+r*2,l=Math.min(e,i+d),g=t.resultsList.querySelector(".virtual-spacer");g&&(g.style.height=`${e*o}px`);let p=t.resultsList.querySelector(".virtual-items");if(p||(p=document.createElement("div"),p.className="virtual-items",t.resultsList.appendChild(p)),p.style.position="absolute",p.style.top=`${i*o}px`,p.style.left="0",p.style.right="0",i===m.startIndex&&l===m.endIndex&&p.children.length===l-i)return;m.startIndex=i,m.endIndex=l;let v=document.createDocumentFragment();for(let S=i;S<l;S++){let E=n.displayItems[S];E&&v.appendChild(Ae(E))}p.innerHTML="",p.appendChild(v)}function Me(e,s,a){let o=String(a).padStart(2,"0"),r=e||"";if(s){let i=s.split("/").map(d=>d.replace(/^\s*\d+\s*-\s*/,"")).join("/");r=r?`${r}: ${i}`:i}return r||(r="(root)"),`${o} - ${r}`}function He(e){let s=e.collectionName||"",a=e.folderPath||"";if(!s||!a){let o=n.requests.find(r=>r.requestId===e.requestId||r.id===e.requestId);o&&(s||(s=o.collectionName||""),a||(a=o.folderPath||""))}return{cn:s,fp:a}}function T(){let e=[],s=n.results.map(x),a=1;for(let p of s)p.iteration>a&&(a=p.iteration);let o=a>1,r=null,i=null,d=0,l=null,g=!1;for(let p=0;p<s.length;p++){let v=s[p],{cn:S,fp:E}=He(v);o&&v.iteration!==r&&(e.push({type:"iter",iteration:v.iteration}),r=v.iteration,i=null,d=0);let $=`${S}\0${E}`;$!==i&&(d++,l=`${v.iteration}\0${$}`,g=n.collapsedGroups.has(l),e.push({type:"group",label:Me(S,E,d),groupKey:l,collapsed:g}),i=$),g||e.push({type:"result",resultIndex:p,expanded:v})}n.displayItems=e}function De(e){let s=document.createElement("div");return s.className="result-iter-header",s.style.height=`${h.itemHeight}px`,s.style.boxSizing="border-box",s.innerHTML=`<span class="iter-header-label">Iteration ${e}</span>`,s}function we(e,s,a){let o=document.createElement("div");return o.className=`result-group-header${a?" collapsed":""}`,o.style.height=`${h.itemHeight}px`,o.style.boxSizing="border-box",o.title=a?"Click to expand":"Click to collapse",o.innerHTML=`<span class="group-header-toggle">${a?"\u25B8":"\u25BE"}</span><span class="group-header-icon">\u{1F4C1}</span><span class="group-header-label" title="${c(e)}">${c(e)}</span>`,s!=null&&(o.dataset.groupKey=s,o.addEventListener("click",r=>{r.preventDefault(),r.stopPropagation(),Pe(s)})),o}function Pe(e){n.collapsedGroups.has(e)?n.collapsedGroups.delete(e):n.collapsedGroups.add(e),T();let s=t.resultsList?.querySelector(".virtual-spacer");s&&(s.style.height=`${n.displayItems.length*h.itemHeight}px`),m.startIndex=0,m.endIndex=0,C()}function Ae(e){return e.type==="iter"?De(e.iteration):e.type==="group"?we(e.label,e.groupKey,e.collapsed):Fe(n.results[e.resultIndex],e.resultIndex,e.expanded)}function Fe(e,s,a){let o=a||x(e),r=o.name,i=document.createElement("div");i.className=`result-item ${o.passed?"passed":"failed"}`,i.dataset.resultIndex=s,i.dataset.resultFile=o.resultFile||"",i.title="Click to view details",i.style.height=`${h.itemHeight}px`,i.style.boxSizing="border-box";let d=o.status>=200&&o.status<300?"success":o.status>=300&&o.status<400?"redirect":"error";return i.innerHTML=`
-        <span class="result-icon ${o.passed?"passed":"failed"}">
-            ${o.passed?"\u2713":"\u2717"}
+    `).join("");
+  }
+  function closeModal() {
+    if (elements.responseModal) {
+      elements.responseModal.classList.add("hidden");
+    }
+    state.selectedResultIndex = -1;
+  }
+  function exportJsonReport() {
+    const expandedResults = state.results.map((r) => expandSummary(r));
+    vscode.postMessage({
+      type: "exportReport",
+      format: "json",
+      data: {
+        suite: state.suite,
+        results: expandedResults,
+        statistics: state.statistics
+      }
+    });
+  }
+  function exportHtmlReport() {
+    if (!state.reportPath) {
+      vscode.postMessage({ type: "exportReport", format: "html", reportPath: null });
+      return;
+    }
+    vscode.postMessage({
+      type: "exportReport",
+      format: "html",
+      reportPath: state.reportPath
+    });
+  }
+  function exportStatisticsReport() {
+    vscode.postMessage({
+      type: "exportReport",
+      format: "statistics",
+      data: {
+        suite: state.suite,
+        statistics: state.statistics
+      }
+    });
+  }
+  function initPanelResizer() {
+    if (!elements.panelResizer) return;
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+    const leftPanel = document.querySelector(".runner-left-panel");
+    const main = document.querySelector(".runner-main");
+    elements.panelResizer.addEventListener("mousedown", (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = leftPanel.offsetWidth;
+      elements.panelResizer.classList.add("resizing");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!isResizing) return;
+      const delta = e.clientX - startX;
+      const newWidth = Math.max(200, Math.min(500, startWidth + delta));
+      main.style.gridTemplateColumns = `${newWidth}px 4px 1fr`;
+    });
+    document.addEventListener("mouseup", () => {
+      if (isResizing) {
+        isResizing = false;
+        elements.panelResizer.classList.remove("resizing");
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    });
+  }
+  function initVirtualScroll() {
+    if (!elements.resultsList) return;
+    elements.resultsList.addEventListener("scroll", onResultsScroll);
+    let spacer = elements.resultsList.querySelector(".virtual-spacer");
+    if (!spacer) {
+      spacer = document.createElement("div");
+      spacer.className = "virtual-spacer";
+      spacer.style.position = "absolute";
+      spacer.style.top = "0";
+      spacer.style.left = "0";
+      spacer.style.width = "1px";
+      spacer.style.pointerEvents = "none";
+      elements.resultsList.appendChild(spacer);
+    }
+    let itemsContainer = elements.resultsList.querySelector(".virtual-items");
+    if (!itemsContainer) {
+      itemsContainer = document.createElement("div");
+      itemsContainer.className = "virtual-items";
+      elements.resultsList.appendChild(itemsContainer);
+    }
+  }
+  function onResultsScroll() {
+    if (!elements.resultsList) return;
+    const scrollTop = elements.resultsList.scrollTop;
+    const totalHeight = state.displayItems.length * VIRTUAL_SCROLL.itemHeight;
+    const containerHeight = elements.resultsList.clientHeight || 400;
+    const isAtBottom = scrollTop + containerHeight >= totalHeight - 50;
+    if (!isAtBottom && state.isRunning) {
+      state.autoScroll = false;
+    }
+    if (isAtBottom && state.isRunning) {
+      state.autoScroll = true;
+    }
+    virtualScrollState.scrollTop = scrollTop;
+    renderVirtualResults();
+  }
+  function renderVirtualResults() {
+    if (!elements.resultsList) return;
+    const totalItems = state.displayItems.length;
+    if (totalItems === 0) {
+      const itemsContainer2 = elements.resultsList.querySelector(".virtual-items");
+      if (itemsContainer2) itemsContainer2.innerHTML = "";
+      return;
+    }
+    const scrollTop = elements.resultsList.scrollTop;
+    const containerHeight = elements.resultsList.clientHeight || 400;
+    const itemHeight = VIRTUAL_SCROLL.itemHeight;
+    const buffer = VIRTUAL_SCROLL.bufferSize;
+    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
+    const visibleCount = Math.ceil(containerHeight / itemHeight) + buffer * 2;
+    const endIndex = Math.min(totalItems, startIndex + visibleCount);
+    const spacer = elements.resultsList.querySelector(".virtual-spacer");
+    if (spacer) {
+      spacer.style.height = `${totalItems * itemHeight}px`;
+    }
+    let itemsContainer = elements.resultsList.querySelector(".virtual-items");
+    if (!itemsContainer) {
+      itemsContainer = document.createElement("div");
+      itemsContainer.className = "virtual-items";
+      elements.resultsList.appendChild(itemsContainer);
+    }
+    itemsContainer.style.position = "absolute";
+    itemsContainer.style.top = `${startIndex * itemHeight}px`;
+    itemsContainer.style.left = "0";
+    itemsContainer.style.right = "0";
+    if (startIndex === virtualScrollState.startIndex && endIndex === virtualScrollState.endIndex && itemsContainer.children.length === endIndex - startIndex) {
+      return;
+    }
+    virtualScrollState.startIndex = startIndex;
+    virtualScrollState.endIndex = endIndex;
+    const fragment = document.createDocumentFragment();
+    for (let i = startIndex; i < endIndex; i++) {
+      const di = state.displayItems[i];
+      if (di) {
+        fragment.appendChild(createDisplayRowElement(di));
+      }
+    }
+    itemsContainer.innerHTML = "";
+    itemsContainer.appendChild(fragment);
+  }
+  function groupLabel(cn, fp, index) {
+    const num = String(index).padStart(2, "0");
+    let label = cn || "";
+    if (fp) {
+      const folders = fp.split("/").map((p) => p.replace(/^\s*\d+\s*-\s*/, "")).join("/");
+      label = label ? `${label}: ${folders}` : folders;
+    }
+    if (!label) label = "(root)";
+    return `${num} - ${label}`;
+  }
+  function resolveGroupKeyParts(expanded) {
+    let cn = expanded.collectionName || "";
+    let fp = expanded.folderPath || "";
+    if (!cn || !fp) {
+      const match = state.requests.find(
+        (r) => r.requestId === expanded.requestId || r.id === expanded.requestId
+      );
+      if (match) {
+        if (!cn) cn = match.collectionName || "";
+        if (!fp) fp = match.folderPath || "";
+      }
+    }
+    return { cn, fp };
+  }
+  function buildDisplayItems() {
+    const items = [];
+    const expandedList = state.results.map(expandSummary);
+    let maxIter = 1;
+    for (const e of expandedList) {
+      if (e.iteration > maxIter) maxIter = e.iteration;
+    }
+    const multiIter = maxIter > 1;
+    let lastIter = null;
+    let lastKey = null;
+    let groupIndex = 0;
+    let currentGroupKey = null;
+    let currentCollapsed = false;
+    for (let i = 0; i < expandedList.length; i++) {
+      const e = expandedList[i];
+      const { cn, fp } = resolveGroupKeyParts(e);
+      if (multiIter && e.iteration !== lastIter) {
+        items.push({ type: "iter", iteration: e.iteration });
+        lastIter = e.iteration;
+        lastKey = null;
+        groupIndex = 0;
+      }
+      const key = `${cn}\0${fp}`;
+      if (key !== lastKey) {
+        groupIndex++;
+        currentGroupKey = `${e.iteration}\0${key}`;
+        currentCollapsed = state.collapsedGroups.has(currentGroupKey);
+        items.push({
+          type: "group",
+          label: groupLabel(cn, fp, groupIndex),
+          groupKey: currentGroupKey,
+          collapsed: currentCollapsed
+        });
+        lastKey = key;
+      }
+      if (!currentCollapsed) {
+        items.push({ type: "result", resultIndex: i, expanded: e });
+      }
+    }
+    state.displayItems = items;
+  }
+  function createIterHeaderElement(iteration) {
+    const el = document.createElement("div");
+    el.className = "result-iter-header";
+    el.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
+    el.style.boxSizing = "border-box";
+    el.innerHTML = `<span class="iter-header-label">Iteration ${iteration}</span>`;
+    return el;
+  }
+  function createGroupHeaderElement(label, groupKey, collapsed) {
+    const el = document.createElement("div");
+    el.className = `result-group-header${collapsed ? " collapsed" : ""}`;
+    el.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
+    el.style.boxSizing = "border-box";
+    el.title = collapsed ? "Click to expand" : "Click to collapse";
+    el.innerHTML = `<span class="group-header-toggle">${collapsed ? "\u25B8" : "\u25BE"}</span><span class="group-header-icon">\u{1F4C1}</span><span class="group-header-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+    if (groupKey != null) {
+      el.dataset.groupKey = groupKey;
+      el.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleGroupCollapse(groupKey);
+      });
+    }
+    return el;
+  }
+  function toggleGroupCollapse(groupKey) {
+    if (state.collapsedGroups.has(groupKey)) {
+      state.collapsedGroups.delete(groupKey);
+    } else {
+      state.collapsedGroups.add(groupKey);
+    }
+    buildDisplayItems();
+    const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+    if (spacer) {
+      spacer.style.height = `${state.displayItems.length * VIRTUAL_SCROLL.itemHeight}px`;
+    }
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    renderVirtualResults();
+  }
+  function createDisplayRowElement(di) {
+    if (di.type === "iter") return createIterHeaderElement(di.iteration);
+    if (di.type === "group") return createGroupHeaderElement(di.label, di.groupKey, di.collapsed);
+    return createResultItemElement(state.results[di.resultIndex], di.resultIndex, di.expanded);
+  }
+  function createResultItemElement(compactResult, index, preExpanded) {
+    const result = preExpanded || expandSummary(compactResult);
+    const fullPath = result.name;
+    const item = document.createElement("div");
+    item.className = `result-item ${result.passed ? "passed" : "failed"}`;
+    item.dataset.resultIndex = index;
+    item.dataset.resultFile = result.resultFile || "";
+    item.title = "Click to view details";
+    item.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
+    item.style.boxSizing = "border-box";
+    const statusClass = result.status >= 200 && result.status < 300 ? "success" : result.status >= 300 && result.status < 400 ? "redirect" : "error";
+    item.innerHTML = `
+        <span class="result-icon ${result.passed ? "passed" : "failed"}">
+            ${result.passed ? "\u2713" : "\u2717"}
         </span>
-        <span class="result-method ${o.method}">${c(o.method||"GET")}</span>
+        <span class="result-method ${result.method}">${escapeHtml(result.method || "GET")}</span>
         <div class="result-details">
-            <div class="result-name" title="${c(r)}">${c(r)}</div>
+            <div class="result-name" title="${escapeHtml(fullPath)}">${escapeHtml(fullPath)}</div>
         </div>
-        <span class="result-status ${d}">${o.status||"-"}</span>
-        <span class="result-duration">${o.duration}ms</span>
-    `,i.addEventListener("click",l=>{l.preventDefault(),l.stopPropagation(),n.autoScroll=!1,ke(s)}),i}function U(){if(!t.resultsList)return;T(),m.startIndex=0,m.endIndex=0,m.scrollTop=0;let e=t.resultsList.querySelector(".virtual-spacer");e&&(e.style.height=`${n.displayItems.length*h.itemHeight}px`);let s=t.resultsList.querySelector(".empty-state");s&&s.remove(),t.resultsList.scrollTop=0,t.resultsList.dispatchEvent(new Event("scroll"))}function J(){t.summaryPassed&&(t.summaryPassed.textContent="0"),t.summaryFailed&&(t.summaryFailed.textContent="0"),t.summaryPassRate&&(t.summaryPassRate.textContent="0%"),t.summaryDuration&&(t.summaryDuration.textContent="0s"),t.statsTableBody&&(t.statsTableBody.innerHTML='<tr class="empty-row"><td colspan="7">No data yet</td></tr>'),t.errorSummary&&(t.errorSummary.style.display="none"),t.errorList&&(t.errorList.innerHTML="")}function b(){let e=n.statistics;if(e){if(e.byRequest&&e.byRequest.length>0){let s=new Map;for(let a of n.requests){let o=a.name||a.requestName;o&&!s.has(o)&&s.set(o,{cn:a.collectionName||"",fp:a.folderPath||""})}t.statsTableBody.innerHTML=e.byRequest.map(a=>{let o=a.name||"Unknown",r=s.get(o),i=[];r&&r.cn&&i.push(r.cn),r&&r.fp&&i.push(r.fp);let d=i.join(" \u203A "),l=d?`${d} \u203A ${o}`:o,g=d?`<span class="stat-collection-path">${c(d)}</span>`:"",p=a.count!=null?a.count:"-";return`
+        <span class="result-status ${statusClass}">${result.status || "-"}</span>
+        <span class="result-duration">${result.duration}ms</span>
+    `;
+    item.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      state.autoScroll = false;
+      showResultDetail(index);
+    });
+    return item;
+  }
+  function renderVirtualScrollResults() {
+    if (!elements.resultsList) return;
+    buildDisplayItems();
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    virtualScrollState.scrollTop = 0;
+    const spacer = elements.resultsList.querySelector(".virtual-spacer");
+    if (spacer) {
+      spacer.style.height = `${state.displayItems.length * VIRTUAL_SCROLL.itemHeight}px`;
+    }
+    const emptyState = elements.resultsList.querySelector(".empty-state");
+    if (emptyState) emptyState.remove();
+    elements.resultsList.scrollTop = 0;
+    elements.resultsList.dispatchEvent(new Event("scroll"));
+  }
+
+  // resources/features/test-suite/modules/statistics.js
+  function resetStatistics() {
+    if (elements.summaryPassed) elements.summaryPassed.textContent = "0";
+    if (elements.summaryFailed) elements.summaryFailed.textContent = "0";
+    if (elements.summaryPassRate) elements.summaryPassRate.textContent = "0%";
+    if (elements.summaryDuration) elements.summaryDuration.textContent = "0s";
+    if (elements.statsTableBody) elements.statsTableBody.innerHTML = '<tr class="empty-row"><td colspan="7">No data yet</td></tr>';
+    if (elements.errorSummary) elements.errorSummary.style.display = "none";
+    if (elements.errorList) elements.errorList.innerHTML = "";
+  }
+  function renderStatistics() {
+    const stats = state.statistics;
+    if (!stats) return;
+    if (stats.byRequest && stats.byRequest.length > 0) {
+      const metaByName = /* @__PURE__ */ new Map();
+      for (const r of state.requests) {
+        const nm = r.name || r.requestName;
+        if (nm && !metaByName.has(nm)) {
+          metaByName.set(nm, { cn: r.collectionName || "", fp: r.folderPath || "" });
+        }
+      }
+      elements.statsTableBody.innerHTML = stats.byRequest.map((reqStats) => {
+        const name = reqStats.name || "Unknown";
+        const meta = metaByName.get(name);
+        const pathParts = [];
+        if (meta && meta.cn) pathParts.push(meta.cn);
+        if (meta && meta.fp) pathParts.push(meta.fp);
+        const collectionPath = pathParts.join(" \u203A ");
+        const fullLabel = collectionPath ? `${collectionPath} \u203A ${name}` : name;
+        const pathLine = collectionPath ? `<span class="stat-collection-path">${escapeHtml(collectionPath)}</span>` : "";
+        const calls = reqStats.count != null ? reqStats.count : "-";
+        return `
                 <tr>
-                    <td title="${c(l)}">
+                    <td title="${escapeHtml(fullLabel)}">
                         <span class="stat-request-cell">
-                            ${g}
-                            <span class="stat-request-name">${c(o)}</span>
+                            ${pathLine}
+                            <span class="stat-request-name">${escapeHtml(name)}</span>
                         </span>
                     </td>
-                    <td>${p}</td>
-                    <td>${a.min}ms</td>
-                    <td>${Math.round(a.avg)}ms</td>
-                    <td>${a.p95}ms</td>
-                    <td>${a.p99}ms</td>
-                    <td>${a.max}ms</td>
+                    <td>${calls}</td>
+                    <td>${reqStats.min}ms</td>
+                    <td>${Math.round(reqStats.avg)}ms</td>
+                    <td>${reqStats.p95}ms</td>
+                    <td>${reqStats.p99}ms</td>
+                    <td>${reqStats.max}ms</td>
                 </tr>
-            `}).join("")}else t.statsTableBody.innerHTML='<tr class="empty-row"><td colspan="7">No data yet</td></tr>';e.errors&&Object.keys(e.errors).length>0?(t.errorSummary.style.display="block",t.errorList.innerHTML=Object.entries(e.errors).map(([s,a])=>`
+            `;
+      }).join("");
+    } else {
+      elements.statsTableBody.innerHTML = '<tr class="empty-row"><td colspan="7">No data yet</td></tr>';
+    }
+    if (stats.errors && Object.keys(stats.errors).length > 0) {
+      elements.errorSummary.style.display = "block";
+      elements.errorList.innerHTML = Object.entries(stats.errors).map(([errorType, count]) => `
                 <div class="error-item">
-                    <span class="error-type">${c(s)}</span>
-                    <span class="error-count">${a} occurrence${a>1?"s":""}</span>
+                    <span class="error-type">${escapeHtml(errorType)}</span>
+                    <span class="error-count">${count} occurrence${count > 1 ? "s" : ""}</span>
                 </div>
-            `).join("")):t.errorSummary.style.display="none"}}function R(){u.postMessage({type:"getRunHistory"})}function _(e){n.historyRuns=e||[],Y()}function W(e,s){let a=n.loadingAsLatest;if(n.loadingAsLatest=!1,n.viewingHistoryRun=a?null:e.runId,n.historyManifest=a?null:e,n.results=s,n.collapsedGroups.clear(),n.currentRunId=e.runId,n.passed=e.stats.passed,n.failed=e.stats.failed,n.skipped=e.stats.skipped||0,e.requestStats){let o=Object.values(e.requestStats).map(r=>({name:r.name||"Unknown",count:r.count||0,min:r.minDuration||0,max:r.maxDuration||0,avg:r.avgDuration||0,p95:r.p95||0,p99:r.p99||0}));n.statistics={byRequest:o,errors:[]}}if(t.historyBanner)if(a)t.historyBanner.classList.add("hidden");else{t.historyBanner.classList.remove("hidden");let o=new Date(e.startTime).toLocaleString();t.historyBannerText.textContent=`Viewing run from ${o}`}Q(),e.config&&(t.iterationsInput.value=e.config.iterations||1,t.delayInput.value=e.config.delayBetweenRequests||0,t.stopOnErrorCheck.checked=e.config.stopOnError||!1),Oe("results-tab"),t.progressSection.style.display="",t.progressBar.style.width="100%",t.progressText.textContent=`${e.stats.totalRequests} / ${e.stats.totalRequests} (completed)`,t.passedCount&&(t.passedCount.textContent=e.stats.passed),t.failedCount&&(t.failedCount.textContent=e.stats.failed),t.skippedCount&&(t.skippedCount.textContent=n.skipped),U(),b()}function K(e){n.historyRuns=n.historyRuns.filter(s=>s.runId!==e),Y(),n.viewingHistoryRun===e&&D()}function D(){if(n.historyRuns.length>0)n.loadingAsLatest=!0,X(n.historyRuns[0].runId);else{n.viewingHistoryRun=null,n.historyManifest=null,n.results=[],n.displayItems=[],n.collapsedGroups.clear(),n.passed=0,n.failed=0,n.skipped=0,n.currentRunId=null,t.historyBanner&&t.historyBanner.classList.add("hidden"),t.progressSection.style.display="none";let e=t.resultsList?.querySelector(".virtual-items");e&&(e.innerHTML="");let s=t.resultsList?.querySelector(".virtual-spacer");s&&(s.style.height="0px"),Q()}}function X(e){u.postMessage({type:"loadHistoryRun",runId:e})}function Ne(e){u.postMessage({type:"deleteHistoryRun",runId:e})}function Y(){if(!t.historyList)return;if(n.historyRuns.length===0){t.historyList.innerHTML=`
+            `).join("");
+    } else {
+      elements.errorSummary.style.display = "none";
+    }
+  }
+
+  // resources/features/test-suite/modules/history.js
+  function requestRunHistory() {
+    vscode.postMessage({ type: "getRunHistory" });
+  }
+  function handleRunHistory(runs) {
+    state.historyRuns = runs || [];
+    renderHistoryList();
+  }
+  function handleHistoryRunLoaded(manifest, summaries) {
+    const isLatest = state.loadingAsLatest;
+    state.loadingAsLatest = false;
+    state.viewingHistoryRun = isLatest ? null : manifest.runId;
+    state.historyManifest = isLatest ? null : manifest;
+    state.results = summaries;
+    state.collapsedGroups.clear();
+    state.currentRunId = manifest.runId;
+    state.passed = manifest.stats.passed;
+    state.failed = manifest.stats.failed;
+    state.skipped = manifest.stats.skipped || 0;
+    if (manifest.requestStats) {
+      const byRequest = Object.values(manifest.requestStats).map((rs) => ({
+        name: rs.name || "Unknown",
+        count: rs.count || 0,
+        min: rs.minDuration || 0,
+        max: rs.maxDuration || 0,
+        avg: rs.avgDuration || 0,
+        p95: rs.p95 || 0,
+        p99: rs.p99 || 0
+      }));
+      state.statistics = { byRequest, errors: [] };
+    }
+    if (elements.historyBanner) {
+      if (isLatest) {
+        elements.historyBanner.classList.add("hidden");
+      } else {
+        elements.historyBanner.classList.remove("hidden");
+        const date = new Date(manifest.startTime).toLocaleString();
+        elements.historyBannerText.textContent = `Viewing run from ${date}`;
+      }
+    }
+    updateSummaryCards();
+    if (manifest.config) {
+      elements.iterationsInput.value = manifest.config.iterations || 1;
+      elements.delayInput.value = manifest.config.delayBetweenRequests || 0;
+      elements.stopOnErrorCheck.checked = manifest.config.stopOnError || false;
+    }
+    switchToTab("results-tab");
+    elements.progressSection.style.display = "";
+    elements.progressBar.style.width = "100%";
+    elements.progressText.textContent = `${manifest.stats.totalRequests} / ${manifest.stats.totalRequests} (completed)`;
+    if (elements.passedCount) elements.passedCount.textContent = manifest.stats.passed;
+    if (elements.failedCount) elements.failedCount.textContent = manifest.stats.failed;
+    if (elements.skippedCount) elements.skippedCount.textContent = state.skipped;
+    renderVirtualScrollResults();
+    renderStatistics();
+  }
+  function handleHistoryRunDeleted(runId) {
+    state.historyRuns = state.historyRuns.filter((r) => r.runId !== runId);
+    renderHistoryList();
+    if (state.viewingHistoryRun === runId) {
+      clearHistoryView();
+    }
+  }
+  function clearHistoryView() {
+    if (state.historyRuns.length > 0) {
+      state.loadingAsLatest = true;
+      loadHistoryRun(state.historyRuns[0].runId);
+    } else {
+      state.viewingHistoryRun = null;
+      state.historyManifest = null;
+      state.results = [];
+      state.displayItems = [];
+      state.collapsedGroups.clear();
+      state.passed = 0;
+      state.failed = 0;
+      state.skipped = 0;
+      state.currentRunId = null;
+      if (elements.historyBanner) {
+        elements.historyBanner.classList.add("hidden");
+      }
+      elements.progressSection.style.display = "none";
+      const itemsContainer = elements.resultsList?.querySelector(".virtual-items");
+      if (itemsContainer) itemsContainer.innerHTML = "";
+      const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+      if (spacer) spacer.style.height = "0px";
+      updateSummaryCards();
+    }
+  }
+  function loadHistoryRun(runId) {
+    vscode.postMessage({ type: "loadHistoryRun", runId });
+  }
+  function deleteHistoryRun(runId) {
+    vscode.postMessage({ type: "deleteHistoryRun", runId });
+  }
+  function renderHistoryList() {
+    if (!elements.historyList) return;
+    if (state.historyRuns.length === 0) {
+      elements.historyList.innerHTML = `
             <div class="empty-state">
                 <p>No run history</p>
                 <p class="hint">Run the suite to generate history</p>
             </div>
-        `;return}let e=n.historyRuns.map(s=>{let a=new Date(s.startTime).toLocaleString(),o=s.stats.totalRequests,r=o>0?(s.stats.passed/o*100).toFixed(0):"0",i=Z(s.stats.totalDuration),d=s.status==="completed"?"success":s.status==="aborted"?"warning":"error",l=n.viewingHistoryRun===s.runId;return`
-            <div class="history-entry ${d} ${l?"active":""}" data-run-id="${c(s.runId)}">
+        `;
+      return;
+    }
+    const html = state.historyRuns.map((run) => {
+      const date = new Date(run.startTime).toLocaleString();
+      const total = run.stats.totalRequests;
+      const passRate = total > 0 ? (run.stats.passed / total * 100).toFixed(0) : "0";
+      const duration = formatHistoryDuration(run.stats.totalDuration);
+      const statusClass = run.status === "completed" ? "success" : run.status === "aborted" ? "warning" : "error";
+      const isActive = state.viewingHistoryRun === run.runId;
+      return `
+            <div class="history-entry ${statusClass} ${isActive ? "active" : ""}" data-run-id="${escapeHtml(run.runId)}">
                 <div class="history-entry-header">
-                    <span class="history-date">${c(a)}</span>
-                    <span class="history-status badge-${s.status}">${c(s.status)}</span>
+                    <span class="history-date">${escapeHtml(date)}</span>
+                    <span class="history-status badge-${run.status}">${escapeHtml(run.status)}</span>
                 </div>
                 <div class="history-entry-stats">
-                    <span class="history-pass-rate">${r}%</span>
+                    <span class="history-pass-rate">${passRate}%</span>
                     <span class="history-counts">
-                        <span class="stat-passed">${s.stats.passed}\u2713</span>
-                        <span class="stat-failed">${s.stats.failed}\u2717</span>
+                        <span class="stat-passed">${run.stats.passed}\u2713</span>
+                        <span class="stat-failed">${run.stats.failed}\u2717</span>
                     </span>
-                    <span class="history-duration">${i}</span>
-                    <span class="history-iterations">${s.config.iterations} iter</span>
+                    <span class="history-duration">${duration}</span>
+                    <span class="history-iterations">${run.config.iterations} iter</span>
                 </div>
                 <div class="history-entry-actions">
-                    <button class="btn-link history-load-btn" data-run-id="${c(s.runId)}">Load</button>
-                    <button class="btn-link danger history-delete-btn" data-run-id="${c(s.runId)}">Delete</button>
+                    <button class="btn-link history-load-btn" data-run-id="${escapeHtml(run.runId)}">Load</button>
+                    <button class="btn-link danger history-delete-btn" data-run-id="${escapeHtml(run.runId)}">Delete</button>
                 </div>
             </div>
-        `}).join("");t.historyList.innerHTML=e,t.historyList.querySelectorAll(".history-load-btn").forEach(s=>{s.addEventListener("click",()=>{let a=s.dataset.runId;a&&X(a)})}),t.historyList.querySelectorAll(".history-delete-btn").forEach(s=>{s.addEventListener("click",()=>{let a=s.dataset.runId;a&&Ne(a)})})}function Z(e){if(e<1e3)return`${e}ms`;if(e<6e4)return`${(e/1e3).toFixed(1)}s`;let s=Math.floor(e/6e4),a=(e%6e4/1e3).toFixed(0);return`${s}m ${a}s`}function Q(){let e=n.passed+n.failed+n.skipped,s=e>0?(n.passed/e*100).toFixed(0):"0";t.summaryPassed&&(t.summaryPassed.textContent=n.passed),t.summaryFailed&&(t.summaryFailed.textContent=n.failed),t.summarySkipped&&(t.summarySkipped.textContent=n.skipped),t.summaryPassRate&&(t.summaryPassRate.textContent=`${s}%`),n.historyManifest&&t.summaryDuration&&(t.summaryDuration.textContent=Z(n.historyManifest.stats.totalDuration))}function Oe(e){t.tabBtns?.forEach(a=>a.classList.remove("active")),t.tabContents?.forEach(a=>a.classList.remove("active"));let s=document.querySelector(`.tab-btn[data-tab="${e}"]`);s&&s.classList.add("active"),document.getElementById(e)?.classList.add("active")}function y(e){let s=n.isDirty;if(n.isDirty=e,t.saveSuiteBtn&&(e?t.saveSuiteBtn.classList.add("has-changes"):t.saveSuiteBtn.classList.remove("has-changes")),e!==s||e){let a=e?je():null;u.postMessage({type:"dirtyStateChanged",isDirty:e,suiteState:a})}}function je(){return n.suite?{...n.suite,requests:n.requests.map(e=>({slug:e.slug,collectionId:e.collectionId,requestId:e.requestId||e.id,name:e.name,method:e.method,collectionName:e.collectionName,folderPath:e.folderPath||"",enabled:e.selected,description:e.description||void 0})),config:t.iterationsInput?{iterations:parseInt(t.iterationsInput.value)||1,delay:parseInt(t.delayInput.value)||0,stopOnError:t.stopOnErrorCheck.checked,readFromSharedSession:t.readFromSharedSessionCheck?.checked||!1,writeToSharedSession:t.writeToSharedSessionCheck?.checked||!1}:n.suite.config}:null}function te(e,s){n.results=[],n.displayItems=[],n.collapsedGroups.clear(),n.statistics=null,n.currentRunId=null,n.isRunning=!1,n.passed=0,n.failed=0,n.skipped=0,m.startIndex=0,m.endIndex=0,m.scrollTop=0,n.suite=e,n.suiteId=e.id,n.requests=s.map((i,d)=>({...i,selected:e.requests[d]?.enabled!==!1,description:e.requests[d]?.description||"",status:"pending"})),y(!1),t.suiteName.value=e.name,t.runBtn.disabled=n.requests.length===0,Ve(),e.config?(t.iterationsInput.value=e.config.iterations||1,t.delayInput.value=e.config.delay||0,t.stopOnErrorCheck.checked=e.config.stopOnError||!1,t.readFromSharedSessionCheck&&(t.readFromSharedSessionCheck.checked=e.config.readFromSharedSession||!1),t.writeToSharedSessionCheck&&(t.writeToSharedSessionCheck.checked=e.config.writeToSharedSession||!1)):(t.iterationsInput.value=1,t.delayInput.value=0,t.stopOnErrorCheck.checked=!1,t.readFromSharedSessionCheck&&(t.readFromSharedSessionCheck.checked=!1),t.writeToSharedSessionCheck&&(t.writeToSharedSessionCheck.checked=!1)),t.runBtn.disabled=!1,t.stopBtn.disabled=!0,t.progressSection.style.display="none",t.progressBar.style.width="0%",t.progressText.textContent="";let a=t.resultsList?.querySelector(".virtual-items");a&&(a.innerHTML="");let o=t.resultsList?.querySelector(".virtual-spacer");o&&(o.style.height="0px");let r=t.resultsList?.querySelector(".empty-state");r&&(r.style.display=""),t.summaryPassed&&(t.summaryPassed.textContent="0"),t.summaryFailed&&(t.summaryFailed.textContent="0"),t.summarySkipped&&(t.summarySkipped.textContent="0"),t.summaryTotal&&(t.summaryTotal.textContent="0"),b(),L()}function se(e){n.environments=e;let s=e.find(a=>a.active);n.selectedEnvironment=s?.id||null,t.environmentDisplay&&(t.environmentDisplay.textContent=s?.name||"No Environment",t.environmentDisplay.className="environment-badge"+(s?" active":""))}function ne(e){n.availableRequests=e,me()}function ae(e,s){n.dataFile={path:e,content:s},t.dataFilePath.value=e,t.clearDataBtn.disabled=!1}function q(){document.querySelectorAll(".menu-dropdown.open").forEach(e=>e.classList.remove("open"))}document.addEventListener("click",()=>q());function L(){if(n.requests.length===0){t.requestList.innerHTML=`
+        `;
+    }).join("");
+    elements.historyList.innerHTML = html;
+    elements.historyList.querySelectorAll(".history-load-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const runId = btn.dataset.runId;
+        if (runId) loadHistoryRun(runId);
+      });
+    });
+    elements.historyList.querySelectorAll(".history-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const runId = btn.dataset.runId;
+        if (runId) deleteHistoryRun(runId);
+      });
+    });
+  }
+  function formatHistoryDuration(ms) {
+    if (ms < 1e3) return `${ms}ms`;
+    if (ms < 6e4) return `${(ms / 1e3).toFixed(1)}s`;
+    const minutes = Math.floor(ms / 6e4);
+    const seconds = (ms % 6e4 / 1e3).toFixed(0);
+    return `${minutes}m ${seconds}s`;
+  }
+  function updateSummaryCards() {
+    const total = state.passed + state.failed + state.skipped;
+    const passRate = total > 0 ? (state.passed / total * 100).toFixed(0) : "0";
+    if (elements.summaryPassed) elements.summaryPassed.textContent = state.passed;
+    if (elements.summaryFailed) elements.summaryFailed.textContent = state.failed;
+    if (elements.summarySkipped) elements.summarySkipped.textContent = state.skipped;
+    if (elements.summaryPassRate) elements.summaryPassRate.textContent = `${passRate}%`;
+    if (state.historyManifest && elements.summaryDuration) {
+      elements.summaryDuration.textContent = formatHistoryDuration(state.historyManifest.stats.totalDuration);
+    }
+  }
+  function switchToTab(tabId) {
+    elements.tabBtns?.forEach((t) => t.classList.remove("active"));
+    elements.tabContents?.forEach((c) => c.classList.remove("active"));
+    const targetTab = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    if (targetTab) targetTab.classList.add("active");
+    document.getElementById(tabId)?.classList.add("active");
+  }
+
+  // resources/features/test-suite/modules/suite-editor.js
+  function setDirty(dirty) {
+    const wasDirty = state.isDirty;
+    state.isDirty = dirty;
+    if (elements.saveSuiteBtn) {
+      if (dirty) {
+        elements.saveSuiteBtn.classList.add("has-changes");
+      } else {
+        elements.saveSuiteBtn.classList.remove("has-changes");
+      }
+    }
+    if (dirty !== wasDirty || dirty) {
+      const suiteState = dirty ? buildCurrentSuiteState() : null;
+      vscode.postMessage({
+        type: "dirtyStateChanged",
+        isDirty: dirty,
+        suiteState
+      });
+    }
+  }
+  function buildCurrentSuiteState() {
+    if (!state.suite) return null;
+    return {
+      ...state.suite,
+      requests: state.requests.map((r) => ({
+        slug: r.slug,
+        collectionId: r.collectionId,
+        requestId: r.requestId || r.id,
+        name: r.name,
+        method: r.method,
+        collectionName: r.collectionName,
+        folderPath: r.folderPath || "",
+        enabled: r.selected,
+        description: r.description || void 0
+      })),
+      config: elements.iterationsInput ? {
+        iterations: parseInt(elements.iterationsInput.value) || 1,
+        delay: parseInt(elements.delayInput.value) || 0,
+        stopOnError: elements.stopOnErrorCheck.checked,
+        readFromSharedSession: elements.readFromSharedSessionCheck?.checked || false,
+        writeToSharedSession: elements.writeToSharedSessionCheck?.checked || false
+      } : state.suite.config
+    };
+  }
+  function setSuite(suite, requests) {
+    state.results = [];
+    state.displayItems = [];
+    state.collapsedGroups.clear();
+    state.statistics = null;
+    state.currentRunId = null;
+    state.isRunning = false;
+    state.passed = 0;
+    state.failed = 0;
+    state.skipped = 0;
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    virtualScrollState.scrollTop = 0;
+    state.suite = suite;
+    state.suiteId = suite.id;
+    state.requests = requests.map((req, index) => ({
+      ...req,
+      selected: suite.requests[index]?.enabled !== false,
+      description: suite.requests[index]?.description || "",
+      status: "pending"
+    }));
+    setDirty(false);
+    elements.suiteName.value = suite.name;
+    elements.runBtn.disabled = state.requests.length === 0;
+    updateSuiteDescriptionDisplay();
+    if (suite.config) {
+      elements.iterationsInput.value = suite.config.iterations || 1;
+      elements.delayInput.value = suite.config.delay || 0;
+      elements.stopOnErrorCheck.checked = suite.config.stopOnError || false;
+      if (elements.readFromSharedSessionCheck) {
+        elements.readFromSharedSessionCheck.checked = suite.config.readFromSharedSession || false;
+      }
+      if (elements.writeToSharedSessionCheck) {
+        elements.writeToSharedSessionCheck.checked = suite.config.writeToSharedSession || false;
+      }
+    } else {
+      elements.iterationsInput.value = 1;
+      elements.delayInput.value = 0;
+      elements.stopOnErrorCheck.checked = false;
+      if (elements.readFromSharedSessionCheck) {
+        elements.readFromSharedSessionCheck.checked = false;
+      }
+      if (elements.writeToSharedSessionCheck) {
+        elements.writeToSharedSessionCheck.checked = false;
+      }
+    }
+    elements.runBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+    elements.progressSection.style.display = "none";
+    elements.progressBar.style.width = "0%";
+    elements.progressText.textContent = "";
+    const itemsContainer = elements.resultsList?.querySelector(".virtual-items");
+    if (itemsContainer) itemsContainer.innerHTML = "";
+    const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+    if (spacer) spacer.style.height = "0px";
+    const emptyState = elements.resultsList?.querySelector(".empty-state");
+    if (emptyState) emptyState.style.display = "";
+    if (elements.summaryPassed) elements.summaryPassed.textContent = "0";
+    if (elements.summaryFailed) elements.summaryFailed.textContent = "0";
+    if (elements.summarySkipped) elements.summarySkipped.textContent = "0";
+    if (elements.summaryTotal) elements.summaryTotal.textContent = "0";
+    renderStatistics();
+    renderRequestList();
+  }
+  function setEnvironments(environments) {
+    state.environments = environments;
+    const activeEnv = environments.find((env) => env.active);
+    state.selectedEnvironment = activeEnv?.id || null;
+    if (elements.environmentDisplay) {
+      elements.environmentDisplay.textContent = activeEnv?.name || "No Environment";
+      elements.environmentDisplay.className = "environment-badge" + (activeEnv ? " active" : "");
+    }
+  }
+  function setAvailableRequests(requests) {
+    state.availableRequests = requests;
+    renderAvailableRequestsList();
+  }
+  function setDataFile(filePath, content) {
+    state.dataFile = { path: filePath, content };
+    elements.dataFilePath.value = filePath;
+    elements.clearDataBtn.disabled = false;
+  }
+  function closeAllMenus() {
+    document.querySelectorAll(".menu-dropdown.open").forEach((m) => m.classList.remove("open"));
+  }
+  document.addEventListener("click", () => closeAllMenus());
+  function renderRequestList() {
+    if (state.requests.length === 0) {
+      elements.requestList.innerHTML = `
             <div class="empty-state">
                 <p>No requests in suite</p>
                 <p class="hint">Click "+ Add" to add requests</p>
             </div>
-        `;return}t.requestList.innerHTML=n.requests.map((e,s)=>{let a=[];e.collectionName&&a.push(e.collectionName),e.folderPath&&a.push(e.folderPath);let o=a.length>0?`<span class="collection-path">${c(a.join(" \u203A "))}</span>`:"",r=e.hasEmbeddedRequest?'<span class="modified-dot" title="Customized (differs from collection)"></span>':"",i=e.hasEmbeddedRequest&&e.slug?`<button class="menu-item reset-btn" data-slug="${e.slug}">\u21BA Reset to Collection</button>`:"",d=e.description?c(e.description.replace(/\n/g," ")):"Click to add description\u2026",l=e.description?"description-display":"description-display placeholder";return`
-            <div class="request-item" data-index="${s}" draggable="true" title="Drag to reorder">
-                <input type="checkbox" ${e.selected?"checked":""} data-index="${s}" class="request-checkbox">
-                <span class="request-method ${e.method}">${e.method}</span>
+        `;
+      return;
+    }
+    elements.requestList.innerHTML = state.requests.map((item, index) => {
+      const pathParts = [];
+      if (item.collectionName) pathParts.push(item.collectionName);
+      if (item.folderPath) pathParts.push(item.folderPath);
+      const fullPath = pathParts.length > 0 ? `<span class="collection-path">${escapeHtml(pathParts.join(" \u203A "))}</span>` : "";
+      const modifiedDot = item.hasEmbeddedRequest ? '<span class="modified-dot" title="Customized (differs from collection)"></span>' : "";
+      const resetMenuItem = item.hasEmbeddedRequest && item.slug ? `<button class="menu-item reset-btn" data-slug="${item.slug}">\u21BA Reset to Collection</button>` : "";
+      const descText = item.description ? escapeHtml(item.description.replace(/\n/g, " ")) : "Click to add description\u2026";
+      const descClass = item.description ? "description-display" : "description-display placeholder";
+      return `
+            <div class="request-item" data-index="${index}" draggable="true" title="Drag to reorder">
+                <input type="checkbox" ${item.selected ? "checked" : ""} data-index="${index}" class="request-checkbox">
+                <span class="request-method ${item.method}">${item.method}</span>
                 <span class="request-path">
-                    ${o}
+                    ${fullPath}
                     <span class="request-name-row">
-                        <span class="request-name">${c(e.name)}</span>
-                        ${r}
+                        <span class="request-name">${escapeHtml(item.name)}</span>
+                        ${modifiedDot}
                     </span>
                 </span>
                 <div class="request-actions-menu">
                     <button class="menu-trigger" title="Actions">\u22EF</button>
                     <div class="menu-dropdown">
-                        <button class="menu-item edit-btn" data-slug="${e.slug||""}" data-index="${s}">\u270E Edit</button>
-                        <button class="menu-item open-original-btn" data-slug="${e.slug||""}">\u2197 Open Original</button>
-                        ${i}
-                        <button class="menu-item delete-btn danger" data-index="${s}">\xD7 Remove</button>
+                        <button class="menu-item edit-btn" data-slug="${item.slug || ""}" data-index="${index}">\u270E Edit</button>
+                        <button class="menu-item open-original-btn" data-slug="${item.slug || ""}">\u2197 Open Original</button>
+                        ${resetMenuItem}
+                        <button class="menu-item delete-btn danger" data-index="${index}">\xD7 Remove</button>
                     </div>
                 </div>
-                <div class="request-description" data-index="${s}">
-                    <span class="${l}" data-index="${s}">${d}</span>
+                <div class="request-description" data-index="${index}">
+                    <span class="${descClass}" data-index="${index}">${descText}</span>
                     <div class="description-tooltip"></div>
-                    <textarea class="description-edit hidden" data-index="${s}" placeholder="Describe what this request does\u2026"></textarea>
+                    <textarea class="description-edit hidden" data-index="${index}" placeholder="Describe what this request does\u2026"></textarea>
                 </div>
             </div>
-        `}).join(""),t.requestList.querySelectorAll(".request-checkbox").forEach(e=>{e.addEventListener("change",s=>{s.stopPropagation();let a=parseInt(s.target.dataset.index);n.requests[a].selected=s.target.checked,y(!0),B()})}),t.requestList.querySelectorAll(".delete-btn").forEach(e=>{e.addEventListener("click",s=>{s.stopPropagation();let a=parseInt(e.closest(".request-item").dataset.index);q(),Ge(a)})}),t.requestList.querySelectorAll(".edit-btn").forEach(e=>{e.addEventListener("click",s=>{s.stopPropagation();let a=e.dataset.slug;q(),a&&u.postMessage({command:"editSuiteRequest",slug:a})})}),t.requestList.querySelectorAll(".open-original-btn").forEach(e=>{e.addEventListener("click",s=>{s.stopPropagation();let a=e.dataset.slug;q(),a&&u.postMessage({command:"openOriginalRequest",slug:a})})}),t.requestList.querySelectorAll(".reset-btn").forEach(e=>{e.addEventListener("click",s=>{s.stopPropagation();let a=e.dataset.slug;q(),a&&confirm("Reset to collection version? Your suite customizations will be lost.")&&u.postMessage({command:"resetSuiteRequest",slug:a})})}),t.requestList.querySelectorAll(".menu-trigger").forEach(e=>{e.addEventListener("click",s=>{s.stopPropagation();let a=e.nextElementSibling,o=a.classList.contains("open");q(),o||a.classList.add("open")})}),ze(),t.requestList.querySelectorAll(".request-description").forEach(e=>{let s=parseInt(e.dataset.index),a=e.querySelector(".description-display"),o=e.querySelector(".description-tooltip"),r=e.querySelector(".description-edit");w(a,o,r,()=>n.requests[s]?.description||"",i=>{n.requests[s]&&(n.requests[s].description=i,y(!0))})})}function ze(){let e=null;t.requestList.querySelectorAll(".request-item").forEach((s,a)=>{s.addEventListener("dragstart",o=>{e=a,s.classList.add("dragging"),o.dataTransfer.effectAllowed="move",o.dataTransfer.setData("text/plain",a)}),s.addEventListener("dragend",()=>{s.classList.remove("dragging"),t.requestList.querySelectorAll(".request-item").forEach(o=>{o.classList.remove("drag-over")}),e=null}),s.addEventListener("dragover",o=>{o.preventDefault(),o.dataTransfer.dropEffect="move",e!==null&&e!==a&&s.classList.add("drag-over")}),s.addEventListener("dragleave",()=>{s.classList.remove("drag-over")}),s.addEventListener("drop",o=>{if(o.preventDefault(),s.classList.remove("drag-over"),e!==null&&e!==a){let[r]=n.requests.splice(e,1);n.requests.splice(a,0,r),y(!0),L()}})})}function Ge(e){let s=n.requests.splice(e,1)[0];y(!0),L(),B()}function B(){let e=n.requests.filter(s=>s.selected).length;t.runBtn.disabled=e===0||n.isRunning}function oe(){n.requests.forEach(e=>e.selected=!0),y(!0),L(),B()}function re(){n.requests.forEach(e=>e.selected=!1),y(!0),L(),B()}function ie(){u.postMessage({type:"browseDataFile"})}function le(){n.dataFile=null,t.dataFilePath.value="",t.clearDataBtn.disabled=!0}function de(e){let s=t.saveSuiteBtn;e?(n.suite=e,n.suiteId=e.id,y(!1),s&&(s.classList.remove("saving"),s.classList.add("saved"),s.innerHTML="\u2713 Saved!",setTimeout(()=>{s.classList.remove("saved"),s.innerHTML="Save Suite",s.disabled=!1},2e3))):s&&(s.classList.remove("saving"),s.innerHTML="Save Suite",s.disabled=!1)}function ce(){if(!n.suite)return;let e=t.saveSuiteBtn;e&&(e.disabled=!0,e.classList.add("saving"),e.innerHTML='<span class="spinner"></span> Saving...');let s={...n.suite,requests:n.requests.map(a=>({slug:a.slug,collectionId:a.collectionId,requestId:a.requestId||a.id,name:a.name,method:a.method,collectionName:a.collectionName,folderPath:a.folderPath||"",enabled:a.selected,description:a.description||void 0})),config:{iterations:parseInt(t.iterationsInput.value)||1,delay:parseInt(t.delayInput.value)||0,stopOnError:t.stopOnErrorCheck.checked,readFromSharedSession:t.readFromSharedSessionCheck.checked,writeToSharedSession:t.writeToSharedSessionCheck.checked}};u.postMessage({type:"saveSuite",suite:s})}function ue(e,s,a){let o=t.saveSuiteBtn;e?(y(!1),n.suiteId=s,o&&(o.classList.remove("saving"),o.classList.add("saved"),o.innerHTML="\u2713 Saved!",setTimeout(()=>{o.classList.remove("saved"),o.innerHTML="Save Suite",o.disabled=!1},2e3))):o&&(o.classList.remove("saving"),o.innerHTML="Save Suite",o.disabled=!1)}function pe(){u.postMessage({type:"getAvailableRequests"}),t.requestSearch.value="",t.addRequestModal.classList.remove("hidden"),t.requestSearch.focus()}function I(){t.addRequestModal.classList.add("hidden"),t.availableRequestsList.innerHTML=""}function me(){let e=(t.requestSearch.value||"").toLowerCase(),s={};for(let a of n.availableRequests){if(e&&!a.name.toLowerCase().includes(e)&&!a.collectionName?.toLowerCase().includes(e))continue;let o=a.collectionName||"Unknown Collection";s[o]||(s[o]=[]),s[o].push(a)}if(Object.keys(s).length===0){t.availableRequestsList.innerHTML='<div class="empty-state"><p>No requests found</p></div>';return}t.availableRequestsList.innerHTML=Object.entries(s).map(([a,o])=>`
+        `;
+    }).join("");
+    elements.requestList.querySelectorAll(".request-checkbox").forEach((checkbox) => {
+      checkbox.addEventListener("change", (e) => {
+        e.stopPropagation();
+        const index = parseInt(e.target.dataset.index);
+        state.requests[index].selected = e.target.checked;
+        setDirty(true);
+        updateRunButton();
+      });
+    });
+    elements.requestList.querySelectorAll(".delete-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const index = parseInt(btn.closest(".request-item").dataset.index);
+        closeAllMenus();
+        removeRequest(index);
+      });
+    });
+    elements.requestList.querySelectorAll(".edit-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const slug = btn.dataset.slug;
+        closeAllMenus();
+        if (slug) {
+          vscode.postMessage({ command: "editSuiteRequest", slug });
+        }
+      });
+    });
+    elements.requestList.querySelectorAll(".open-original-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const slug = btn.dataset.slug;
+        closeAllMenus();
+        if (slug) {
+          vscode.postMessage({ command: "openOriginalRequest", slug });
+        }
+      });
+    });
+    elements.requestList.querySelectorAll(".reset-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const slug = btn.dataset.slug;
+        closeAllMenus();
+        if (slug && confirm("Reset to collection version? Your suite customizations will be lost.")) {
+          vscode.postMessage({ command: "resetSuiteRequest", slug });
+        }
+      });
+    });
+    elements.requestList.querySelectorAll(".menu-trigger").forEach((trigger) => {
+      trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const menu = trigger.nextElementSibling;
+        const wasOpen = menu.classList.contains("open");
+        closeAllMenus();
+        if (!wasOpen) {
+          menu.classList.add("open");
+        }
+      });
+    });
+    setupDragAndDrop();
+    elements.requestList.querySelectorAll(".request-description").forEach((container) => {
+      const index = parseInt(container.dataset.index);
+      const displayEl = container.querySelector(".description-display");
+      const tooltipEl = container.querySelector(".description-tooltip");
+      const editEl = container.querySelector(".description-edit");
+      setupDescriptionInteraction(
+        displayEl,
+        tooltipEl,
+        editEl,
+        () => state.requests[index]?.description || "",
+        (value) => {
+          if (state.requests[index]) {
+            state.requests[index].description = value;
+            setDirty(true);
+          }
+        }
+      );
+    });
+  }
+  function setupDragAndDrop() {
+    let draggedIndex = null;
+    elements.requestList.querySelectorAll(".request-item").forEach((item, index) => {
+      item.addEventListener("dragstart", (e) => {
+        draggedIndex = index;
+        item.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", index);
+      });
+      item.addEventListener("dragend", () => {
+        item.classList.remove("dragging");
+        elements.requestList.querySelectorAll(".request-item").forEach((el) => {
+          el.classList.remove("drag-over");
+        });
+        draggedIndex = null;
+      });
+      item.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (draggedIndex !== null && draggedIndex !== index) {
+          item.classList.add("drag-over");
+        }
+      });
+      item.addEventListener("dragleave", () => {
+        item.classList.remove("drag-over");
+      });
+      item.addEventListener("drop", (e) => {
+        e.preventDefault();
+        item.classList.remove("drag-over");
+        if (draggedIndex !== null && draggedIndex !== index) {
+          const [removed] = state.requests.splice(draggedIndex, 1);
+          state.requests.splice(index, 0, removed);
+          setDirty(true);
+          renderRequestList();
+        }
+      });
+    });
+  }
+  function removeRequest(index) {
+    const removed = state.requests.splice(index, 1)[0];
+    setDirty(true);
+    renderRequestList();
+    updateRunButton();
+  }
+  function updateRunButton() {
+    const selectedCount = state.requests.filter((r) => r.selected).length;
+    elements.runBtn.disabled = selectedCount === 0 || state.isRunning;
+  }
+  function selectAllRequests() {
+    state.requests.forEach((r) => r.selected = true);
+    setDirty(true);
+    renderRequestList();
+    updateRunButton();
+  }
+  function deselectAllRequests() {
+    state.requests.forEach((r) => r.selected = false);
+    setDirty(true);
+    renderRequestList();
+    updateRunButton();
+  }
+  function browseDataFile() {
+    vscode.postMessage({ type: "browseDataFile" });
+  }
+  function clearDataFile() {
+    state.dataFile = null;
+    elements.dataFilePath.value = "";
+    elements.clearDataBtn.disabled = true;
+  }
+  function handleSuiteSaved(suite) {
+    const saveBtn = elements.saveSuiteBtn;
+    if (suite) {
+      state.suite = suite;
+      state.suiteId = suite.id;
+      setDirty(false);
+      if (saveBtn) {
+        saveBtn.classList.remove("saving");
+        saveBtn.classList.add("saved");
+        saveBtn.innerHTML = "\u2713 Saved!";
+        setTimeout(() => {
+          saveBtn.classList.remove("saved");
+          saveBtn.innerHTML = "Save Suite";
+          saveBtn.disabled = false;
+        }, 2e3);
+      }
+    } else {
+      if (saveBtn) {
+        saveBtn.classList.remove("saving");
+        saveBtn.innerHTML = "Save Suite";
+        saveBtn.disabled = false;
+      }
+    }
+  }
+  function saveSuite() {
+    if (!state.suite) return;
+    const saveBtn = elements.saveSuiteBtn;
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.classList.add("saving");
+      saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
+    }
+    const updatedSuite = {
+      ...state.suite,
+      requests: state.requests.map((r) => ({
+        slug: r.slug,
+        collectionId: r.collectionId,
+        requestId: r.requestId || r.id,
+        name: r.name,
+        method: r.method,
+        collectionName: r.collectionName,
+        folderPath: r.folderPath || "",
+        enabled: r.selected,
+        description: r.description || void 0
+      })),
+      config: {
+        iterations: parseInt(elements.iterationsInput.value) || 1,
+        delay: parseInt(elements.delayInput.value) || 0,
+        stopOnError: elements.stopOnErrorCheck.checked,
+        readFromSharedSession: elements.readFromSharedSessionCheck.checked,
+        writeToSharedSession: elements.writeToSharedSessionCheck.checked
+      }
+    };
+    vscode.postMessage({
+      type: "saveSuite",
+      suite: updatedSuite
+    });
+  }
+  function handleSaveSuiteResult(success, suiteId, error) {
+    const saveBtn = elements.saveSuiteBtn;
+    if (success) {
+      setDirty(false);
+      state.suiteId = suiteId;
+      if (saveBtn) {
+        saveBtn.classList.remove("saving");
+        saveBtn.classList.add("saved");
+        saveBtn.innerHTML = "\u2713 Saved!";
+        setTimeout(() => {
+          saveBtn.classList.remove("saved");
+          saveBtn.innerHTML = "Save Suite";
+          saveBtn.disabled = false;
+        }, 2e3);
+      }
+    } else {
+      if (saveBtn) {
+        saveBtn.classList.remove("saving");
+        saveBtn.innerHTML = "Save Suite";
+        saveBtn.disabled = false;
+      }
+    }
+  }
+  function openAddRequestModal() {
+    vscode.postMessage({ type: "getAvailableRequests" });
+    elements.requestSearch.value = "";
+    elements.addRequestModal.classList.remove("hidden");
+    elements.requestSearch.focus();
+  }
+  function closeAddRequestModal() {
+    elements.addRequestModal.classList.add("hidden");
+    elements.availableRequestsList.innerHTML = "";
+  }
+  function renderAvailableRequestsList() {
+    const searchTerm = (elements.requestSearch.value || "").toLowerCase();
+    const byCollection = {};
+    for (const req of state.availableRequests) {
+      if (searchTerm && !req.name.toLowerCase().includes(searchTerm) && !req.collectionName?.toLowerCase().includes(searchTerm)) {
+        continue;
+      }
+      const collectionName = req.collectionName || "Unknown Collection";
+      if (!byCollection[collectionName]) {
+        byCollection[collectionName] = [];
+      }
+      byCollection[collectionName].push(req);
+    }
+    if (Object.keys(byCollection).length === 0) {
+      elements.availableRequestsList.innerHTML = '<div class="empty-state"><p>No requests found</p></div>';
+      return;
+    }
+    elements.availableRequestsList.innerHTML = Object.entries(byCollection).map(([collectionName, requests]) => `
             <div class="collection-group">
-                <div class="collection-group-header">${c(a)}</div>
-                ${o.map(r=>{let i=r.folderPath?`<span class="available-request-folder">${c(r.folderPath)}</span>`:"";return`
-                    <div class="available-request-item" data-collection-id="${r.collectionId}" data-request-id="${r.requestId}">
+                <div class="collection-group-header">${escapeHtml(collectionName)}</div>
+                ${requests.map((req) => {
+      const folderDisplay = req.folderPath ? `<span class="available-request-folder">${escapeHtml(req.folderPath)}</span>` : "";
+      return `
+                    <div class="available-request-item" data-collection-id="${req.collectionId}" data-request-id="${req.requestId}">
                         <input type="checkbox" class="add-request-checkbox">
-                        <span class="request-method ${r.method}">${r.method}</span>
+                        <span class="request-method ${req.method}">${req.method}</span>
                         <div class="available-request-info">
-                            ${i}
-                            <span class="available-request-name">${c(r.name)}</span>
+                            ${folderDisplay}
+                            <span class="available-request-name">${escapeHtml(req.name)}</span>
                         </div>
                     </div>
-                `}).join("")}
+                `;
+    }).join("")}
             </div>
-        `).join(""),t.availableRequestsList.querySelectorAll(".available-request-item").forEach(a=>{a.addEventListener("click",o=>{if(o.target.type!=="checkbox"){let r=a.querySelector(".add-request-checkbox");r.checked=!r.checked}a.classList.toggle("selected",a.querySelector(".add-request-checkbox").checked),ee()})}),ee()}function fe(){me()}function ee(){let e=t.availableRequestsList.querySelectorAll(".add-request-checkbox:checked").length;t.addSelectedBtn.disabled=e===0,t.addSelectedBtn.textContent=e>0?`Add Selected (${e})`:"Add Selected"}function ye(){let e=t.availableRequestsList.querySelectorAll(".available-request-item"),s=[];e.forEach(a=>{if(a.querySelector(".add-request-checkbox").checked){let r=a.dataset.collectionId,i=a.dataset.requestId,d=n.availableRequests.find(l=>l.requestId===i&&l.collectionId===r);d&&s.push({...d,selected:!0,status:"pending"})}}),s.length>0&&(n.requests.push(...s),y(!0),u.postMessage({type:"addRequests",requests:s.map(a=>({collectionId:a.collectionId,requestId:a.requestId,name:a.name,method:a.method,collectionName:a.collectionName,folderPath:a.folderPath||"",enabled:!0}))}),L(),B()),I()}function Ve(){let e=t.suiteDescriptionDisplay;if(!e)return;let s=n.suite?.description||"";s?(e.textContent=s.replace(/\n/g," "),e.classList.remove("placeholder")):(e.textContent="Click to add description\u2026",e.classList.add("placeholder"))}function w(e,s,a,o,r){if(!e||!a)return;let i=null;function d(){let l=o();l?(e.textContent=l.replace(/\n/g," "),e.classList.remove("placeholder")):(e.textContent="Click to add description\u2026",e.classList.add("placeholder"))}e.addEventListener("mouseenter",()=>{let l=o();!l||!a.classList.contains("hidden")||(i=setTimeout(()=>{s&&(s.textContent=l,s.classList.add("visible"))},400))}),e.addEventListener("mouseleave",()=>{clearTimeout(i),s&&s.classList.remove("visible")}),e.addEventListener("click",l=>{l.stopPropagation(),s&&s.classList.remove("visible"),clearTimeout(i),a.value=o(),a.classList.remove("hidden"),e.style.visibility="hidden",a.focus()}),a.addEventListener("blur",()=>{let l=a.value.trim();r(l),a.classList.add("hidden"),e.style.visibility="",d()}),a.addEventListener("keydown",l=>{l.key==="Enter"&&(l.ctrlKey||l.metaKey)?(l.preventDefault(),a.blur()):l.key==="Escape"&&(l.preventDefault(),a.value=o(),a.classList.add("hidden"),e.style.visibility="")}),a.addEventListener("click",l=>l.stopPropagation()),d()}async function he(){n.isRunning=!0,n.results=[],n.displayItems=[],n.collapsedGroups.clear(),n.statistics=null,n.passed=0,n.failed=0,n.skipped=0,n.currentRunId=null,n.autoScroll=!0,n.reportPath=null,n.runStartTime=Date.now(),m.startIndex=0,m.endIndex=0,m.scrollTop=0;let e=parseInt(t.iterationsInput.value)||1,s=n.requests.filter(l=>l.selected);n.iterations=e,n.totalRequests=e*s.length,t.runBtn.disabled=!0,t.stopBtn.disabled=!1,t.progressSection.style.display="block";let a=t.resultsList?.querySelector(".empty-state");a&&(a.style.display="none");let o=t.resultsList?.querySelector(".virtual-items");o&&(o.innerHTML="");let r=t.resultsList?.querySelector(".virtual-spacer");r&&(r.style.height="0px"),t.resultsList&&(t.resultsList.scrollTop=0),J(),n.requests.forEach(l=>{l.status=l.selected?"pending":"skipped",l.selected||n.skipped++}),L(),be();let i={iterations:e,delay:parseInt(t.delayInput.value)||0,environmentId:n.selectedEnvironment,stopOnError:t.stopOnErrorCheck.checked,readFromSharedSession:t.readFromSharedSessionCheck.checked,writeToSharedSession:t.writeToSharedSessionCheck.checked,dataFile:n.dataFile},d=n.requests.map((l,g)=>l.selected?g:-1).filter(l=>l>=0);u.postMessage({type:"startRun",selectedIndices:d,config:i})}function ge(){n.isRunning=!1,t.runBtn.disabled=!1,t.stopBtn.disabled=!0,u.postMessage({type:"stopRun"})}function ve(e,s){n.currentRunId=e,n.suiteId=s,n.autoScroll=!0,n.viewingHistoryRun&&(n.viewingHistoryRun=null,n.historyManifest=null,t.historyBanner&&t.historyBanner.classList.add("hidden"))}function Se(e,s,a,o){t.progressText.textContent=`${e} / ${s} (Iteration ${a}/${o})`;let r=s>0?e/s*100:0;t.progressBar.style.width=`${r}%`}function Le(e){if(n.results.push(e),x(e).passed?n.passed++:n.failed++,be(),T(),C(),n.autoScroll&&t.resultsList){let a=n.displayItems.length*h.itemHeight,o=t.resultsList.clientHeight||400;t.resultsList.scrollTop=a-o}}function xe(e){n.statistics=e,b()}function be(){let e=n.totalRequests||n.requests.filter(o=>o.selected).length,s=n.passed+n.failed,a=e>0?s/e*100:0;if(t.progressBar.style.width=`${a}%`,t.progressText.textContent=`${s} / ${e}`,t.passedCount.textContent=n.passed,t.failedCount.textContent=n.failed,t.skippedCount.textContent=n.skipped,n.failed>0){let o=n.passed/s*a;t.progressBar.classList.add("has-failures"),t.progressBar.style.setProperty("--pass-percent",`${o}%`)}else t.progressBar.classList.remove("has-failures");Ue()}function Ue(){let e=n.passed+n.failed,s=e>0?n.passed/e*100:0,a=n.runStartTime?(Date.now()-n.runStartTime)/1e3:0;t.summaryPassed&&(t.summaryPassed.textContent=n.passed),t.summaryFailed&&(t.summaryFailed.textContent=n.failed),t.summarySkipped&&(t.summarySkipped.textContent=n.skipped),t.summaryPassRate&&(t.summaryPassRate.textContent=`${s.toFixed(1)}%`),t.summaryDuration&&(t.summaryDuration.textContent=`${a.toFixed(2)}s`)}function qe(e,s){n.isRunning=!1,n.autoScroll=!1,n.reportPath=s||null;let a=n.runStartTime?Date.now()-n.runStartTime:0;e?n.statistics={...n.statistics,passed:e.passed,failed:e.failed,skipped:e.skipped,passRate:e.passRate,duration:a}:n.statistics={...n.statistics,duration:a},t.runBtn.disabled=!1,t.stopBtn.disabled=!0,b(),n.historyRuns.length>0&&R()}function Ie(){n.isRunning=!1,n.autoScroll=!1,t.runBtn.disabled=!1,t.stopBtn.disabled=!0}function Ee(){Object.assign(t,{suiteName:document.getElementById("suite-name"),suiteDescriptionContainer:document.getElementById("suite-description-container"),suiteDescriptionDisplay:document.getElementById("suite-description-display"),suiteDescriptionTooltip:document.getElementById("suite-description-tooltip"),suiteDescriptionEdit:document.getElementById("suite-description-edit"),runBtn:document.getElementById("run-btn"),stopBtn:document.getElementById("stop-btn"),environmentDisplay:document.getElementById("environment-display"),iterationsInput:document.getElementById("iterations-input"),delayInput:document.getElementById("delay-input"),dataFilePath:document.getElementById("data-file-path"),browseDataBtn:document.getElementById("browse-data-btn"),clearDataBtn:document.getElementById("clear-data-btn"),stopOnErrorCheck:document.getElementById("stop-on-error-check"),readFromSharedSessionCheck:document.getElementById("read-from-shared-session-check"),writeToSharedSessionCheck:document.getElementById("write-to-shared-session-check"),selectAllBtn:document.getElementById("select-all-btn"),deselectAllBtn:document.getElementById("deselect-all-btn"),addRequestBtn:document.getElementById("add-request-btn"),requestList:document.getElementById("request-list"),saveSuiteBtn:document.getElementById("save-suite-btn"),progressSection:document.getElementById("progress-section"),progressBar:document.getElementById("progress-bar"),progressText:document.getElementById("progress-text"),passedCount:document.getElementById("passed-count"),failedCount:document.getElementById("failed-count"),skippedCount:document.getElementById("skipped-count"),resultsSummary:document.getElementById("results-summary"),summaryPassed:document.getElementById("summary-passed"),summaryFailed:document.getElementById("summary-failed"),summarySkipped:document.getElementById("summary-skipped"),summaryPassRate:document.getElementById("summary-pass-rate"),summaryDuration:document.getElementById("summary-duration"),tabBtns:document.querySelectorAll(".tab-btn"),tabContents:document.querySelectorAll(".tab-content"),resultsList:document.getElementById("results-list"),exportJsonBtn:document.getElementById("export-json-btn"),exportHtmlBtn:document.getElementById("export-html-btn"),statsTableBody:document.getElementById("stats-table-body"),errorSummary:document.getElementById("error-summary"),errorList:document.getElementById("error-list"),exportReportBtn:document.getElementById("export-report-btn"),addRequestModal:document.getElementById("add-request-modal"),addModalCloseBtn:document.getElementById("add-modal-close-btn"),requestSearch:document.getElementById("request-search"),availableRequestsList:document.getElementById("available-requests-list"),addSelectedBtn:document.getElementById("add-selected-btn"),cancelAddBtn:document.getElementById("cancel-add-btn"),responseModal:document.getElementById("response-modal"),modalCloseBtn:document.getElementById("modal-close-btn"),modalStatusIcon:document.getElementById("modal-status-icon"),modalRequestName:document.getElementById("modal-request-name"),modalRequestMeta:document.getElementById("modal-request-meta"),modalTabs:document.querySelectorAll(".modal-tab"),modalPanels:document.querySelectorAll(".modal-panel"),responseBodyEditor:document.getElementById("response-body-editor"),responseHeadersTable:document.getElementById("response-headers-table"),requestUrl:document.getElementById("request-url"),requestMethod:document.getElementById("request-method"),requestDuration:document.getElementById("request-duration"),requestHeadersTable:document.getElementById("request-headers-table"),requestBodyContent:document.getElementById("request-body-content"),testSummary:document.getElementById("test-summary"),testList:document.getElementById("test-list"),bodyFormatSelect:document.getElementById("body-format-select"),copyBodyBtn:document.getElementById("copy-body-btn"),panelResizer:document.getElementById("panel-resizer"),historyList:document.getElementById("history-list"),refreshHistoryBtn:document.getElementById("refresh-history-btn"),historyBanner:document.getElementById("history-banner"),historyBannerText:document.getElementById("history-banner-text"),backToLatestBtn:document.getElementById("back-to-latest-btn")}),M(),G(),V(),Je(),u.postMessage({type:"ready"})}function Je(){t.runBtn?.addEventListener("click",he),t.stopBtn?.addEventListener("click",ge),t.selectAllBtn?.addEventListener("click",oe),t.deselectAllBtn?.addEventListener("click",re),t.addRequestBtn?.addEventListener("click",pe),t.saveSuiteBtn?.addEventListener("click",ce),t.suiteName?.addEventListener("input",()=>{n.suite&&(n.suite.name=t.suiteName.value,y(!0))}),w(t.suiteDescriptionDisplay,t.suiteDescriptionTooltip,t.suiteDescriptionEdit,()=>n.suite?.description||"",e=>{n.suite&&(n.suite.description=e,y(!0))}),t.browseDataBtn?.addEventListener("click",ie),t.clearDataBtn?.addEventListener("click",le),t.exportJsonBtn?.addEventListener("click",O),t.exportHtmlBtn?.addEventListener("click",j),t.exportReportBtn?.addEventListener("click",z),t.tabBtns?.forEach(e=>{e.addEventListener("click",()=>{let s=e.dataset.tab;t.tabBtns.forEach(a=>a.classList.remove("active")),t.tabContents?.forEach(a=>a.classList.remove("active")),e.classList.add("active"),document.getElementById(s)?.classList.add("active")})}),t.addModalCloseBtn?.addEventListener("click",I),t.cancelAddBtn?.addEventListener("click",I),t.addSelectedBtn?.addEventListener("click",ye),t.requestSearch?.addEventListener("input",fe),t.addRequestModal?.addEventListener("click",e=>{e.target===t.addRequestModal&&I()}),t.modalCloseBtn?.addEventListener("click",k),t.responseModal?.addEventListener("click",e=>{e.target===t.responseModal&&k()}),t.modalTabs?.forEach(e=>{e.addEventListener("click",()=>{let s=e.dataset.panel;t.modalTabs.forEach(a=>a.classList.remove("active")),t.modalPanels?.forEach(a=>a.classList.remove("active")),e.classList.add("active"),document.getElementById(s)?.classList.add("active")})}),t.copyBodyBtn?.addEventListener("click",()=>{let e=f.responseBodyMonacoEditor?f.responseBodyMonacoEditor.getValue():"";navigator.clipboard.writeText(e).then(()=>{t.copyBodyBtn.textContent="Copied!",setTimeout(()=>t.copyBodyBtn.textContent="Copy",2e3)})}),t.bodyFormatSelect?.addEventListener("change",()=>{if(n.selectedResultIndex>=0){let e=n.results[n.selectedResultIndex];e&&H(e.responseBody)}}),document.addEventListener("keydown",e=>{e.key==="Escape"&&(t.responseModal?.classList.contains("hidden")?t.addRequestModal?.classList.contains("hidden")||I():k())}),t.refreshHistoryBtn?.addEventListener("click",R),t.backToLatestBtn?.addEventListener("click",D),t.tabBtns?.forEach(e=>{e.addEventListener("click",()=>{e.dataset.tab==="history-tab"&&R()})}),window.addEventListener("message",_e)}function _e(e){let s=e.data;switch(s.type){case"setSuite":te(s.suite,s.requests);break;case"setEnvironments":se(s.environments);break;case"setAvailableRequests":ne(s.requests);break;case"setDataFile":ae(s.filePath,s.content);break;case"runStarted":ve(s.runId,s.suiteId);break;case"runProgress":Se(s.current,s.total,s.currentIteration,s.totalIterations);break;case"requestResult":Le(s.result);break;case"statisticsUpdate":xe(s.statistics);break;case"runComplete":qe(s.summary,s.reportPath);break;case"runStopped":Ie();break;case"resultDetails":A(s.details);break;case"resultDetailsError":F(s.error);break;case"suiteSaved":de(s.suite);break;case"saveSuiteResult":ue(s.success,s.suiteId,s.error);break;case"runHistory":_(s.runs);break;case"historyRunLoaded":W(s.manifest,s.summaries);break;case"historyRunDeleted":K(s.runId);break;case"error":break}}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",Ee):Ee();})();
+        `).join("");
+    elements.availableRequestsList.querySelectorAll(".available-request-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        if (e.target.type !== "checkbox") {
+          const checkbox = item.querySelector(".add-request-checkbox");
+          checkbox.checked = !checkbox.checked;
+        }
+        item.classList.toggle("selected", item.querySelector(".add-request-checkbox").checked);
+        updateAddSelectedButton();
+      });
+    });
+    updateAddSelectedButton();
+  }
+  function filterAvailableRequests() {
+    renderAvailableRequestsList();
+  }
+  function updateAddSelectedButton() {
+    const checkedCount = elements.availableRequestsList.querySelectorAll(".add-request-checkbox:checked").length;
+    elements.addSelectedBtn.disabled = checkedCount === 0;
+    elements.addSelectedBtn.textContent = checkedCount > 0 ? `Add Selected (${checkedCount})` : "Add Selected";
+  }
+  function addSelectedRequests() {
+    const selectedItems = elements.availableRequestsList.querySelectorAll(".available-request-item");
+    const toAdd = [];
+    selectedItems.forEach((item) => {
+      const checkbox = item.querySelector(".add-request-checkbox");
+      if (checkbox.checked) {
+        const collectionId = item.dataset.collectionId;
+        const requestId = item.dataset.requestId;
+        const req = state.availableRequests.find((r) => r.requestId === requestId && r.collectionId === collectionId);
+        if (req) {
+          toAdd.push({
+            ...req,
+            selected: true,
+            status: "pending"
+          });
+        }
+      }
+    });
+    if (toAdd.length > 0) {
+      state.requests.push(...toAdd);
+      setDirty(true);
+      vscode.postMessage({
+        type: "addRequests",
+        requests: toAdd.map((req) => ({
+          collectionId: req.collectionId,
+          requestId: req.requestId,
+          name: req.name,
+          method: req.method,
+          collectionName: req.collectionName,
+          folderPath: req.folderPath || "",
+          enabled: true
+        }))
+      });
+      renderRequestList();
+      updateRunButton();
+    }
+    closeAddRequestModal();
+  }
+  function updateSuiteDescriptionDisplay() {
+    const display = elements.suiteDescriptionDisplay;
+    if (!display) return;
+    const value = state.suite?.description || "";
+    if (value) {
+      display.textContent = value.replace(/\n/g, " ");
+      display.classList.remove("placeholder");
+    } else {
+      display.textContent = "Click to add description\u2026";
+      display.classList.add("placeholder");
+    }
+  }
+  function setupDescriptionInteraction(displayEl, tooltipEl, editEl, getValue, setValue) {
+    if (!displayEl || !editEl) return;
+    let hoverTimeout = null;
+    function updateDisplay() {
+      const value = getValue();
+      if (value) {
+        displayEl.textContent = value.replace(/\n/g, " ");
+        displayEl.classList.remove("placeholder");
+      } else {
+        displayEl.textContent = "Click to add description\u2026";
+        displayEl.classList.add("placeholder");
+      }
+    }
+    displayEl.addEventListener("mouseenter", () => {
+      const value = getValue();
+      if (!value || !editEl.classList.contains("hidden")) return;
+      hoverTimeout = setTimeout(() => {
+        if (tooltipEl) {
+          tooltipEl.textContent = value;
+          tooltipEl.classList.add("visible");
+        }
+      }, 400);
+    });
+    displayEl.addEventListener("mouseleave", () => {
+      clearTimeout(hoverTimeout);
+      if (tooltipEl) tooltipEl.classList.remove("visible");
+    });
+    displayEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (tooltipEl) tooltipEl.classList.remove("visible");
+      clearTimeout(hoverTimeout);
+      editEl.value = getValue();
+      editEl.classList.remove("hidden");
+      displayEl.style.visibility = "hidden";
+      editEl.focus();
+    });
+    editEl.addEventListener("blur", () => {
+      const newValue = editEl.value.trim();
+      setValue(newValue);
+      editEl.classList.add("hidden");
+      displayEl.style.visibility = "";
+      updateDisplay();
+    });
+    editEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        editEl.blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        editEl.value = getValue();
+        editEl.classList.add("hidden");
+        displayEl.style.visibility = "";
+      }
+    });
+    editEl.addEventListener("click", (e) => e.stopPropagation());
+    updateDisplay();
+  }
+
+  // resources/features/test-suite/modules/run.js
+  async function startRun() {
+    state.isRunning = true;
+    state.results = [];
+    state.displayItems = [];
+    state.collapsedGroups.clear();
+    state.statistics = null;
+    state.passed = 0;
+    state.failed = 0;
+    state.skipped = 0;
+    state.currentRunId = null;
+    state.autoScroll = true;
+    state.reportPath = null;
+    state.runStartTime = Date.now();
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    virtualScrollState.scrollTop = 0;
+    const iterations = parseInt(elements.iterationsInput.value) || 1;
+    const selectedRequests = state.requests.filter((r) => r.selected);
+    state.iterations = iterations;
+    state.totalRequests = iterations * selectedRequests.length;
+    elements.runBtn.disabled = true;
+    elements.stopBtn.disabled = false;
+    elements.progressSection.style.display = "block";
+    const emptyState = elements.resultsList?.querySelector(".empty-state");
+    if (emptyState) emptyState.style.display = "none";
+    const itemsContainer = elements.resultsList?.querySelector(".virtual-items");
+    if (itemsContainer) itemsContainer.innerHTML = "";
+    const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+    if (spacer) spacer.style.height = "0px";
+    if (elements.resultsList) elements.resultsList.scrollTop = 0;
+    resetStatistics();
+    state.requests.forEach((r) => {
+      r.status = r.selected ? "pending" : "skipped";
+      if (!r.selected) state.skipped++;
+    });
+    renderRequestList();
+    updateProgress();
+    const config = {
+      iterations,
+      delay: parseInt(elements.delayInput.value) || 0,
+      environmentId: state.selectedEnvironment,
+      stopOnError: elements.stopOnErrorCheck.checked,
+      readFromSharedSession: elements.readFromSharedSessionCheck.checked,
+      writeToSharedSession: elements.writeToSharedSessionCheck.checked,
+      dataFile: state.dataFile
+    };
+    const selectedIndices = state.requests.map((r, i) => r.selected ? i : -1).filter((i) => i >= 0);
+    vscode.postMessage({
+      type: "startRun",
+      selectedIndices,
+      config
+    });
+  }
+  function stopRun() {
+    state.isRunning = false;
+    elements.runBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+    vscode.postMessage({ type: "stopRun" });
+  }
+  function handleRunStarted(runId, suiteId) {
+    state.currentRunId = runId;
+    state.suiteId = suiteId;
+    state.autoScroll = true;
+    if (state.viewingHistoryRun) {
+      state.viewingHistoryRun = null;
+      state.historyManifest = null;
+      if (elements.historyBanner) {
+        elements.historyBanner.classList.add("hidden");
+      }
+    }
+  }
+  function handleRunProgress(current, total, currentIteration, totalIterations) {
+    elements.progressText.textContent = `${current} / ${total} (Iteration ${currentIteration}/${totalIterations})`;
+    const percent = total > 0 ? current / total * 100 : 0;
+    elements.progressBar.style.width = `${percent}%`;
+  }
+  function handleRequestResult(result) {
+    state.results.push(result);
+    const expanded = expandSummary(result);
+    if (expanded.passed) {
+      state.passed++;
+    } else {
+      state.failed++;
+    }
+    updateProgress();
+    buildDisplayItems();
+    renderVirtualResults();
+    if (state.autoScroll && elements.resultsList) {
+      const totalHeight = state.displayItems.length * VIRTUAL_SCROLL.itemHeight;
+      const containerHeight = elements.resultsList.clientHeight || 400;
+      elements.resultsList.scrollTop = totalHeight - containerHeight;
+    }
+  }
+  function handleStatisticsUpdate(statistics) {
+    state.statistics = statistics;
+    renderStatistics();
+  }
+  function updateProgress() {
+    const total = state.totalRequests || state.requests.filter((r) => r.selected).length;
+    const completed = state.passed + state.failed;
+    const percent = total > 0 ? completed / total * 100 : 0;
+    elements.progressBar.style.width = `${percent}%`;
+    elements.progressText.textContent = `${completed} / ${total}`;
+    elements.passedCount.textContent = state.passed;
+    elements.failedCount.textContent = state.failed;
+    elements.skippedCount.textContent = state.skipped;
+    if (state.failed > 0) {
+      const passPercent = state.passed / completed * percent;
+      elements.progressBar.classList.add("has-failures");
+      elements.progressBar.style.setProperty("--pass-percent", `${passPercent}%`);
+    } else {
+      elements.progressBar.classList.remove("has-failures");
+    }
+    updateRealTimeStats();
+  }
+  function updateRealTimeStats() {
+    const total = state.passed + state.failed;
+    const passRate = total > 0 ? state.passed / total * 100 : 0;
+    const duration = state.runStartTime ? (Date.now() - state.runStartTime) / 1e3 : 0;
+    if (elements.summaryPassed) elements.summaryPassed.textContent = state.passed;
+    if (elements.summaryFailed) elements.summaryFailed.textContent = state.failed;
+    if (elements.summarySkipped) elements.summarySkipped.textContent = state.skipped;
+    if (elements.summaryPassRate) elements.summaryPassRate.textContent = `${passRate.toFixed(1)}%`;
+    if (elements.summaryDuration) elements.summaryDuration.textContent = `${duration.toFixed(2)}s`;
+  }
+  function handleRunComplete(summary, reportPath) {
+    state.isRunning = false;
+    state.autoScroll = false;
+    state.reportPath = reportPath || null;
+    const finalDuration = state.runStartTime ? Date.now() - state.runStartTime : 0;
+    if (summary) {
+      state.statistics = {
+        ...state.statistics,
+        passed: summary.passed,
+        failed: summary.failed,
+        skipped: summary.skipped,
+        passRate: summary.passRate,
+        duration: finalDuration
+        // Use calculated duration
+      };
+    } else {
+      state.statistics = {
+        ...state.statistics,
+        duration: finalDuration
+      };
+    }
+    elements.runBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+    renderStatistics();
+    if (state.historyRuns.length > 0) {
+      requestRunHistory();
+    }
+  }
+  function handleRunStopped() {
+    state.isRunning = false;
+    state.autoScroll = false;
+    elements.runBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+  }
+
+  // resources/features/test-suite/modules/main.js
+  function initialize() {
+    Object.assign(elements, {
+      suiteName: document.getElementById("suite-name"),
+      suiteDescriptionContainer: document.getElementById("suite-description-container"),
+      suiteDescriptionDisplay: document.getElementById("suite-description-display"),
+      suiteDescriptionTooltip: document.getElementById("suite-description-tooltip"),
+      suiteDescriptionEdit: document.getElementById("suite-description-edit"),
+      runBtn: document.getElementById("run-btn"),
+      stopBtn: document.getElementById("stop-btn"),
+      environmentDisplay: document.getElementById("environment-display"),
+      iterationsInput: document.getElementById("iterations-input"),
+      delayInput: document.getElementById("delay-input"),
+      dataFilePath: document.getElementById("data-file-path"),
+      browseDataBtn: document.getElementById("browse-data-btn"),
+      clearDataBtn: document.getElementById("clear-data-btn"),
+      stopOnErrorCheck: document.getElementById("stop-on-error-check"),
+      readFromSharedSessionCheck: document.getElementById("read-from-shared-session-check"),
+      writeToSharedSessionCheck: document.getElementById("write-to-shared-session-check"),
+      selectAllBtn: document.getElementById("select-all-btn"),
+      deselectAllBtn: document.getElementById("deselect-all-btn"),
+      addRequestBtn: document.getElementById("add-request-btn"),
+      requestList: document.getElementById("request-list"),
+      saveSuiteBtn: document.getElementById("save-suite-btn"),
+      progressSection: document.getElementById("progress-section"),
+      progressBar: document.getElementById("progress-bar"),
+      progressText: document.getElementById("progress-text"),
+      passedCount: document.getElementById("passed-count"),
+      failedCount: document.getElementById("failed-count"),
+      skippedCount: document.getElementById("skipped-count"),
+      // Real-time summary cards (above tabs)
+      resultsSummary: document.getElementById("results-summary"),
+      summaryPassed: document.getElementById("summary-passed"),
+      summaryFailed: document.getElementById("summary-failed"),
+      summarySkipped: document.getElementById("summary-skipped"),
+      summaryPassRate: document.getElementById("summary-pass-rate"),
+      summaryDuration: document.getElementById("summary-duration"),
+      // Tabs
+      tabBtns: document.querySelectorAll(".tab-btn"),
+      tabContents: document.querySelectorAll(".tab-content"),
+      // Results
+      resultsList: document.getElementById("results-list"),
+      exportJsonBtn: document.getElementById("export-json-btn"),
+      exportHtmlBtn: document.getElementById("export-html-btn"),
+      // Statistics (Response Time table and Error Summary only)
+      statsTableBody: document.getElementById("stats-table-body"),
+      errorSummary: document.getElementById("error-summary"),
+      errorList: document.getElementById("error-list"),
+      exportReportBtn: document.getElementById("export-report-btn"),
+      // Add Request Modal
+      addRequestModal: document.getElementById("add-request-modal"),
+      addModalCloseBtn: document.getElementById("add-modal-close-btn"),
+      requestSearch: document.getElementById("request-search"),
+      availableRequestsList: document.getElementById("available-requests-list"),
+      addSelectedBtn: document.getElementById("add-selected-btn"),
+      cancelAddBtn: document.getElementById("cancel-add-btn"),
+      // Response Detail Modal
+      responseModal: document.getElementById("response-modal"),
+      modalCloseBtn: document.getElementById("modal-close-btn"),
+      modalStatusIcon: document.getElementById("modal-status-icon"),
+      modalRequestName: document.getElementById("modal-request-name"),
+      modalRequestMeta: document.getElementById("modal-request-meta"),
+      modalTabs: document.querySelectorAll(".modal-tab"),
+      modalPanels: document.querySelectorAll(".modal-panel"),
+      responseBodyEditor: document.getElementById("response-body-editor"),
+      responseHeadersTable: document.getElementById("response-headers-table"),
+      requestUrl: document.getElementById("request-url"),
+      requestMethod: document.getElementById("request-method"),
+      requestDuration: document.getElementById("request-duration"),
+      requestHeadersTable: document.getElementById("request-headers-table"),
+      requestBodyContent: document.getElementById("request-body-content"),
+      testSummary: document.getElementById("test-summary"),
+      testList: document.getElementById("test-list"),
+      bodyFormatSelect: document.getElementById("body-format-select"),
+      copyBodyBtn: document.getElementById("copy-body-btn"),
+      // Panel resizer
+      panelResizer: document.getElementById("panel-resizer"),
+      // History
+      historyList: document.getElementById("history-list"),
+      refreshHistoryBtn: document.getElementById("refresh-history-btn"),
+      historyBanner: document.getElementById("history-banner"),
+      historyBannerText: document.getElementById("history-banner-text"),
+      backToLatestBtn: document.getElementById("back-to-latest-btn")
+    });
+    initResponseBodyEditor();
+    initPanelResizer();
+    initVirtualScroll();
+    setupEventListeners();
+    vscode.postMessage({ type: "ready" });
+  }
+  function setupEventListeners() {
+    elements.runBtn?.addEventListener("click", startRun);
+    elements.stopBtn?.addEventListener("click", stopRun);
+    elements.selectAllBtn?.addEventListener("click", selectAllRequests);
+    elements.deselectAllBtn?.addEventListener("click", deselectAllRequests);
+    elements.addRequestBtn?.addEventListener("click", openAddRequestModal);
+    elements.saveSuiteBtn?.addEventListener("click", saveSuite);
+    elements.suiteName?.addEventListener("input", () => {
+      if (state.suite) {
+        state.suite.name = elements.suiteName.value;
+        setDirty(true);
+      }
+    });
+    setupDescriptionInteraction(
+      elements.suiteDescriptionDisplay,
+      elements.suiteDescriptionTooltip,
+      elements.suiteDescriptionEdit,
+      () => state.suite?.description || "",
+      (value) => {
+        if (state.suite) {
+          state.suite.description = value;
+          setDirty(true);
+        }
+      }
+    );
+    elements.browseDataBtn?.addEventListener("click", browseDataFile);
+    elements.clearDataBtn?.addEventListener("click", clearDataFile);
+    elements.exportJsonBtn?.addEventListener("click", exportJsonReport);
+    elements.exportHtmlBtn?.addEventListener("click", exportHtmlReport);
+    elements.exportReportBtn?.addEventListener("click", exportStatisticsReport);
+    elements.tabBtns?.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const tabId = tab.dataset.tab;
+        elements.tabBtns.forEach((t) => t.classList.remove("active"));
+        elements.tabContents?.forEach((c) => c.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tabId)?.classList.add("active");
+      });
+    });
+    elements.addModalCloseBtn?.addEventListener("click", closeAddRequestModal);
+    elements.cancelAddBtn?.addEventListener("click", closeAddRequestModal);
+    elements.addSelectedBtn?.addEventListener("click", addSelectedRequests);
+    elements.requestSearch?.addEventListener("input", filterAvailableRequests);
+    elements.addRequestModal?.addEventListener("click", (e) => {
+      if (e.target === elements.addRequestModal) closeAddRequestModal();
+    });
+    elements.modalCloseBtn?.addEventListener("click", closeModal);
+    elements.responseModal?.addEventListener("click", (e) => {
+      if (e.target === elements.responseModal) closeModal();
+    });
+    elements.modalTabs?.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const panelId = tab.dataset.panel;
+        elements.modalTabs.forEach((t) => t.classList.remove("active"));
+        elements.modalPanels?.forEach((p) => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(panelId)?.classList.add("active");
+      });
+    });
+    elements.copyBodyBtn?.addEventListener("click", () => {
+      const content = editorState.responseBodyMonacoEditor ? editorState.responseBodyMonacoEditor.getValue() : "";
+      navigator.clipboard.writeText(content).then(() => {
+        elements.copyBodyBtn.textContent = "Copied!";
+        setTimeout(() => elements.copyBodyBtn.textContent = "Copy", 2e3);
+      });
+    });
+    elements.bodyFormatSelect?.addEventListener("change", () => {
+      if (state.selectedResultIndex >= 0) {
+        const result = state.results[state.selectedResultIndex];
+        if (result) formatAndDisplayBody(result.responseBody);
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (!elements.responseModal?.classList.contains("hidden")) {
+          closeModal();
+        } else if (!elements.addRequestModal?.classList.contains("hidden")) {
+          closeAddRequestModal();
+        }
+      }
+    });
+    elements.refreshHistoryBtn?.addEventListener("click", requestRunHistory);
+    elements.backToLatestBtn?.addEventListener("click", clearHistoryView);
+    elements.tabBtns?.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        if (tab.dataset.tab === "history-tab") {
+          requestRunHistory();
+        }
+      });
+    });
+    window.addEventListener("message", handleMessage);
+  }
+  function handleMessage(event) {
+    const message = event.data;
+    switch (message.type) {
+      case "setSuite":
+        setSuite(message.suite, message.requests);
+        break;
+      case "setEnvironments":
+        setEnvironments(message.environments);
+        break;
+      case "setAvailableRequests":
+        setAvailableRequests(message.requests);
+        break;
+      case "setDataFile":
+        setDataFile(message.filePath, message.content);
+        break;
+      case "runStarted":
+        handleRunStarted(message.runId, message.suiteId);
+        break;
+      case "runProgress":
+        handleRunProgress(message.current, message.total, message.currentIteration, message.totalIterations);
+        break;
+      case "requestResult":
+        handleRequestResult(message.result);
+        break;
+      case "statisticsUpdate":
+        handleStatisticsUpdate(message.statistics);
+        break;
+      case "runComplete":
+        handleRunComplete(message.summary, message.reportPath);
+        break;
+      case "runStopped":
+        handleRunStopped();
+        break;
+      case "resultDetails":
+        handleResultDetails(message.details);
+        break;
+      case "resultDetailsError":
+        handleResultDetailsError(message.error);
+        break;
+      case "suiteSaved":
+        handleSuiteSaved(message.suite);
+        break;
+      case "saveSuiteResult":
+        handleSaveSuiteResult(message.success, message.suiteId, message.error);
+        break;
+      case "runHistory":
+        handleRunHistory(message.runs);
+        break;
+      case "historyRunLoaded":
+        handleHistoryRunLoaded(message.manifest, message.summaries);
+        break;
+      case "historyRunDeleted":
+        handleHistoryRunDeleted(message.runId);
+        break;
+      case "error":
+        console.error("[TestSuite] Error:", message.error || message.message);
+        break;
+    }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initialize);
+  } else {
+    initialize();
+  }
+})();
+//# sourceMappingURL=bundle.js.map

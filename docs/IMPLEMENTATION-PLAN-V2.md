@@ -3,7 +3,7 @@
 ## 概述
 
 本文档定义了 HTTP Forge 的新架构方案，包括：
-1. 统一配置文件 (`http-forge.config.json`)
+1. 统一配置文件 (`.http-forge/http-forge.config.json`)
 2. 文件夹结构存储 (Collections, Environments, Flows)
 3. Code Flows 编程式测试
 4. 详细实现计划
@@ -28,7 +28,7 @@ HTTP Forge 是一个 VS Code 扩展插件，用于 API 测试，类似于 Postma
 | **保留 Collection Runner** | ✅ 保留 | 简单场景使用 |
 | **添加 Code Flows** | ✅ 新增 | 编程式测试，可导入 workspace 模块 |
 | **存储格式** | 两种都支持 | `format: "folder"` 或 `format: "json"`，通过配置切换 |
-| **配置方式** | 配置文件 | 删除 VS Code Settings，统一用 `http-forge.config.json` |
+| **配置方式** | 配置文件 | 删除 VS Code Settings，统一用 `.http-forge/http-forge.config.json` |
 | **向后兼容** | 不需要 | 无现有用户 |
 
 ### Test Suite vs Code Flows 定位
@@ -55,14 +55,14 @@ HTTP Forge 是一个 VS Code 扩展插件，用于 API 测试，类似于 Postma
 
 ```
 workspace-root/
-├── http-forge.config.json      # 主配置文件 (提交到 Git)
+├── .http-forge/http-forge.config.json  # 主配置文件 (提交到 Git)
 ├── http-forge.secrets.json     # 旧版/遗留（已废弃，忽略）
 └── http-forge/                 # 项目根目录
 ```
 
 ### 1.2 配置文件格式
 
-**http-forge.config.json:**
+**.http-forge/http-forge.config.json:**
 
 ```json
 {
@@ -71,8 +71,8 @@ workspace-root/
   "storage": {
     "format": "folder",
     "root": "./http-forge",
-    "history": "./.http-forge-cache/histories",
-    "results": "./.http-forge-cache/results"
+    "history": "./.http-forge/.cache/histories",
+    "results": "./.http-forge/.cache/results"
   },
   
   "request": {
@@ -153,14 +153,14 @@ export interface HttpForgeConfig {
 
 ```typescript
 // 配置文件发现顺序
-1. 检查 workspace-root/http-forge.config.json
+1. 检查 workspace-root/.http-forge/http-forge.config.json
 2. 如果不存在，使用默认配置
 3. 自动检测 http-forge/ 或 .http-forge/ 目录
 
 // VS Code 提供 workspace 路径
 const workspaceFolders = vscode.workspace.workspaceFolders;
 const workspaceRoot = workspaceFolders[0].uri.fsPath;
-const configPath = path.join(workspaceRoot, 'http-forge.config.json');
+const configPath = path.join(workspaceRoot, '.http-forge', 'http-forge.config.json');
 ```
 
 ### 1.5 两种存储格式
@@ -180,7 +180,7 @@ const configPath = path.join(workspaceRoot, 'http-forge.config.json');
 
 ```
 workspace-root/
-├── http-forge.config.json
+├── .http-forge/http-forge.config.json
 ├── http-forge.secrets.json          (gitignore)
 │
 ├── http-forge/                       # 项目根目录 (可配置)
@@ -216,7 +216,7 @@ workspace-root/
 │       ├── login-test.flow.js
 │       └── e2e-checkout.flow.js
 │
-└── .http-forge-cache/                (gitignore)
+└── .http-forge/.cache/               (gitignore)
     ├── histories/
     └── results/
 ```
@@ -479,7 +479,7 @@ export default async function(f) {
 
 ### Phase 1: 配置系统重构 ✅ 已完成
 
-**目标:** 用 `http-forge.config.json` 替代 VS Code Settings
+**目标:** 用 `.http-forge/http-forge.config.json` 替代 VS Code Settings
 
 **步骤:**
 
@@ -550,7 +550,7 @@ export default async function(f) {
 # HTTP Forge
 # legacy secrets file (ignored by extension)
 http-forge.secrets.json
-.http-forge-cache/
+.http-forge/.cache/
 ```
 
 ---
@@ -607,7 +607,7 @@ package.json (删除 contributes.configuration)
 ## 7. 验收标准
 
 ### Phase 1 验收 ✅
-- [x] `http-forge.config.json` 能被正确读取
+- [x] `.http-forge/http-forge.config.json` 能被正确读取
 - [x] 所有原有功能正常工作
 - [x] VS Code Settings 中不再有 httpForge 配置项
 - [x] 创建了 `http-forge.config.example.json` 示例配置
@@ -691,7 +691,7 @@ package.json (删除 contributes.configuration)
 
 3. **存储格式选择**: 文件夹格式更 Git 友好（修改一个 request 只改一个文件），脚本独立为 `.js` 文件有语法高亮。但保留 JSON 格式供简单场景。
 
-4. **配置统一**: 删除 VS Code Settings，全部使用 `http-forge.config.json`，因为：
+4. **配置统一**: 删除 VS Code Settings，全部使用 `.http-forge/http-forge.config.json`，因为：
    - 项目级配置应该提交到 Git
    - 团队成员共享配置
    - 不需要向后兼容

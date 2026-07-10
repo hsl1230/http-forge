@@ -5,6 +5,17 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.16 - 2026-07-10
+
+### Changed
+
+- **Project layout conventions finalized under `.http-forge/`** — docs and runtime-facing guidance now consistently use:
+  - config: `.http-forge/http-forge.config.json`
+  - assets: `.http-forge/assets`
+  - cache: `.http-forge/.cache`
+- **MCP report-serving cache fallback aligned** — server-side fallback resolution now matches the `.http-forge/.cache` convention.
+- **Script module-loader guidance updated** — error/help text now points to `.http-forge/assets/modules` for custom script modules.
+
 ## 0.16.15 - 2026-07-08
 
 ### Changed

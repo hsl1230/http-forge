@@ -5,7 +5,7 @@ This guide is written for VS Code extension users. It covers the full workflow: 
 ## 1) Install and open
 1. Install the HTTP Forge extension from VS Code Marketplace.
 2. Open your workspace folder.
-3. Create `http-forge.config.json` in the workspace root.
+3. Create `.http-forge/http-forge.config.json` in the workspace root.
 
 See: configuration.md
 

@@ -187,7 +187,7 @@ http-forge run-suite --workspace . --suite smoke-tests \
 | `junit` | JUnit 5 XML | CI systems (GitHub Actions, Jenkins, GitLab, CircleCI…) |
 | `html` | Self-contained HTML | Local review, email, Confluence |
 
-When no `:<path>` is specified, the file is written to the HTTP Forge cache (`.http-forge-cache/results/<suite>/<run>/`) and the path is returned in the JSON result under `junitReport.path` / `report.uri`.
+When no `:<path>` is specified, the file is written to the HTTP Forge cache (`.http-forge/.cache/results/<suite>/<run>/`) and the path is returned in the JSON result under `junitReport.path` / `report.uri`.
 
 ### CI integration quick-start
 
@@ -199,7 +199,7 @@ For a complete guide covering GitHub Actions (composite action and npm install),
 - name: Run API tests
   run: |
     http-forge run-suite \
-      --workspace ./http-forge-assets \
+      --workspace ./.http-forge/assets \
       --suite smoke-tests \
       --environment staging \
       --reporter junit:test-results/junit.xml \
@@ -242,10 +242,10 @@ Common options:
 
 > **Run Folder.** `run-folder` requires `--collection` **and** `--folder` (a slash-separated folder path; each segment may be an id, slug, or name, e.g. `"Auth/Login"`). It runs every request under that folder — including nested subfolders — using the exact same engine, grouping, and reports as `run-collection`. Pass `--no-recursive` (or `--recursive false`) to run only the requests directly in that folder. All other `run-collection` options apply.
 
-> **Results are always saved.** Collection and suite runs always persist their manifest, per-iteration results, and result index to `storage.results` (`.http-forge-cache/results/<suiteId>/<runId>/`) — you do **not** need `--include report` for this. Because of that, CLI runs automatically show up in the VS Code **History** tab and can be loaded into the Results/Statistics tabs. `--include report` only additionally generates the self-contained `report.html`.
+> **Results are always saved.** Collection and suite runs always persist their manifest, per-iteration results, and result index to `storage.results` (`.http-forge/.cache/results/<suiteId>/<runId>/`) — you do **not** need `--include report` for this. Because of that, CLI runs automatically show up in the VS Code **History** tab and can be loaded into the Results/Statistics tabs. `--include report` only additionally generates the self-contained `report.html`.
 
 ## Configure
-Create `http-forge.config.json` in the working directory and set:
+Create `.http-forge/http-forge.config.json` in the working directory and set:
 - `storage.root`
 - `storage.history`
 - `storage.results`
