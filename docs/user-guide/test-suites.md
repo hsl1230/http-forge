@@ -158,6 +158,27 @@ When no assertions exist:
 - **Pass**: status 200-302
 - **Fail**: all other status codes
 
+## Request count estimation and live progress
+
+Suite runs estimate total request count before execution, then refine it live while flow decisions are resolved.
+
+### Initial estimate (simple)
+- `request`: `1`
+- `script`: `0`
+- `block`: sum of children
+- `if`: max of `then` / `elseif[]` / `else`
+- `switch`: max of `cases[]` / `default`
+- `for` / `while`: `(estimated body count) x (estimated loop iterations)`
+
+The per-iteration estimate is multiplied by suite `iterations`.
+
+### Live adjustment during run
+- When an `if` or `switch` branch is selected, unselected branch budget is removed from remaining total.
+- When `for` / `while` loop execution finishes, unused loop budget is removed from remaining total.
+- Progress `current` (executed requests) is exact; `total` converges toward actual as flow executes.
+
+This keeps estimation simple and predictable up front while improving accuracy in long or branch-heavy flows.
+
 ## Results and statistics
 - pass/fail summary
 - individual request results with status and duration

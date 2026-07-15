@@ -5,7 +5,7 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.16.20 - 2026-07-13
+## 0.16.20 - 2026-07-15
 
 ### Added
 
@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+
+- **Suite run progress totals now use simple estimation with live refinement** for flow-heavy suites:
+  - initial totals are estimated from enabled flow nodes (`if`, `switch`, `for`, `while`, `block`, `request`)
+  - totals are reduced at runtime when actual branch/loop paths are known
+  - progress `current` remains exact while progress `total` converges toward actual execution count
+- **Test Suite progress bar rendering now uses authoritative run counts** and displays pass/fail/remaining segments proportionally.
+- **Test Suite webview script loading switched to module entry (`modules/main.js`)** with matching CSP updates to avoid stale/broken generated-bundle drift during iterative UI work.
+- **Docs updated to explain estimation semantics and convergence behavior** in the suite user guide and README.
 - **Configuration docs now show the full current default surface** — user guides now consistently document the canonical `.http-forge/http-forge.config.json` path plus default `request.tls`, `request.certificates`, `restClientExport`, `mcp.port`, and `secrets.providers` fields.
 - **Test Suite UI moved from flat request-list interaction to flow-node interaction**:
   - left panel now represents executable flow hierarchy

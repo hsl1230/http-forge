@@ -95,3 +95,23 @@ export function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+/**
+ * Render the test-suite progress bar as full-width segments.
+ * Green = passed, red = failed, blue = remaining/skipped.
+ * @param {HTMLElement | null | undefined} progressBar
+ * @param {{ total?: number, passed?: number, failed?: number }} stats
+ */
+export function renderProgressBar(progressBar, stats = {}) {
+    if (!progressBar) return;
+
+    const total = Math.max(0, Number(stats.total) || 0);
+    const passed = Math.max(0, Math.min(total, Number(stats.passed) || 0));
+    const failed = Math.max(0, Math.min(total - passed, Number(stats.failed) || 0));
+    const passEnd = total > 0 ? (passed / total) * 100 : 0;
+    const failEnd = total > 0 ? ((passed + failed) / total) * 100 : 0;
+
+    progressBar.style.width = total > 0 ? '100%' : '0%';
+    progressBar.style.setProperty('--pass-end', `${passEnd}%`);
+    progressBar.style.setProperty('--fail-end', `${failEnd}%`);
+}

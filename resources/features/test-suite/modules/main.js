@@ -349,10 +349,10 @@ function handleMessage(event) {
             setDataFile(message.filePath, message.content);
             break;
         case 'runStarted':
-            handleRunStarted(message.runId, message.suiteId);
+            handleRunStarted(message.runId, message.suiteId, message.totalRequests, message.iterations);
             break;
         case 'runProgress':
-            handleRunProgress(message.current, message.total, message.currentIteration, message.totalIterations);
+            handleRunProgress(message.current, message.total, message.passed, message.failed, message.skipped);
             break;
         case 'requestResult':
             handleRequestResult(message.result);

@@ -143,6 +143,7 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Visual flow editor for suites — request, script, if/else, for, while, switch, block nodes  
 ✅ Fast node authoring — adding non-request nodes opens the editor immediately  
 ✅ Branch lifecycle controls — add/remove `else`, `elseif`, and `default` branches from the flow UI  
+✅ Simple upfront request-count estimate with live total adjustment during flow execution  
 ✅ P50/P90/P95/P99 performance statistics  
 ✅ Self-contained HTML test reports  
 

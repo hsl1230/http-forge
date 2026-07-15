@@ -6,7 +6,7 @@
 import { renderVirtualScrollResults } from './results-view.js';
 import { elements, state, vscode } from './state.js';
 import { renderStatistics } from './statistics.js';
-import { escapeHtml } from './utils.js';
+import { escapeHtml, renderProgressBar } from './utils.js';
 
 /**
  * Request run history from extension
@@ -42,6 +42,8 @@ export function handleHistoryRunLoaded(manifest, summaries) {
     state.passed = manifest.stats.passed;
     state.failed = manifest.stats.failed;
     state.skipped = manifest.stats.skipped || 0;
+    state.totalRequests = manifest.stats.totalRequests || 0;
+    state.completedRequests = manifest.stats.totalRequests || 0;
 
     // Populate statistics from manifest.requestStats
     if (manifest.requestStats) {
@@ -83,7 +85,11 @@ export function handleHistoryRunLoaded(manifest, summaries) {
 
     // Show progress section with loaded stats
     elements.progressSection.style.display = '';
-    elements.progressBar.style.width = '100%';
+    renderProgressBar(elements.progressBar, {
+        total: state.totalRequests,
+        passed: state.passed,
+        failed: state.failed
+    });
     elements.progressText.textContent = `${manifest.stats.totalRequests} / ${manifest.stats.totalRequests} (completed)`;
     if (elements.passedCount) elements.passedCount.textContent = manifest.stats.passed;
     if (elements.failedCount) elements.failedCount.textContent = manifest.stats.failed;
@@ -130,6 +136,8 @@ export function clearHistoryView() {
         state.failed = 0;
         state.skipped = 0;
         state.currentRunId = null;
+        state.totalRequests = 0;
+        state.completedRequests = 0;
 
         if (elements.historyBanner) {
             elements.historyBanner.classList.add('hidden');

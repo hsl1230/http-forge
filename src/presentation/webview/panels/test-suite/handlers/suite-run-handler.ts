@@ -8,7 +8,7 @@ import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry, P
  */
 
 import type { ITestSuiteStore, SuiteRequestEntry } from '@http-forge/core';
-import { CollectionRequestExecutor, type ConsoleOutputSource, deserializeTypedRecord, deserializeTypedValue, evaluateExpression, IConfigService, type IDataFileParser, IEnvironmentConfigService, type IHttpRequestService, InMemoryCookieJar, IRequestPreparer, IResultStorageService, type IScriptExecutor, ResultStorageService, StatisticsService } from '@http-forge/core';
+import { CollectionRequestExecutor, type ConsoleOutputSource, deserializeTypedRecord, deserializeTypedValue, evaluateExpression, IConfigService, type IDataFileParser, IEnvironmentConfigService, type IHttpRequestService, InMemoryCookieJar, IRequestPreparer, IResultStorageService, type IScriptExecutor, resolveResultGrouping, ResultStorageService, StatisticsService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { ExecutionResult } from '../../../../../shared/types';
@@ -27,6 +27,7 @@ export class SuiteRunHandler implements IMessageHandler {
     private statisticsService: StatisticsService;
     private resultStorageService: IResultStorageService | null = null;
     private _lastReportPath: string | undefined = undefined;
+    private currentEstimatedTotalRequests = 0;
 
     constructor(
         private readonly environmentConfigService: IEnvironmentConfigService | undefined,
@@ -101,7 +102,7 @@ export class SuiteRunHandler implements IMessageHandler {
 
         const totalRequestsPerIteration = isFlatRequestSuite
             ? flatRequests.length
-            : this.countEnabledRequestNodes(topLevelNodes);
+            : this.estimateEnabledRequestNodes(topLevelNodes, config);
 
         if (totalRequestsPerIteration === 0) {
             vscode.window.showErrorMessage('No executable requests found in this suite.');
@@ -122,6 +123,7 @@ export class SuiteRunHandler implements IMessageHandler {
         }
 
         const totalRequests = totalRequestsPerIteration * config.iterations;
+        this.currentEstimatedTotalRequests = totalRequests;
         const environmentId = config.environmentId || 'default';
 
         // Create per-run cookie jar (hoisted for flush in finally)
@@ -295,6 +297,7 @@ export class SuiteRunHandler implements IMessageHandler {
         } finally {
             this.isRunning = false;
             this.abortController = null;
+            this.currentEstimatedTotalRequests = 0;
 
             const stats = this.statisticsService.getStatistics();
             const runId = this.resultStorageService?.getCurrentRunId();
@@ -476,31 +479,6 @@ export class SuiteRunHandler implements IMessageHandler {
         return `${collectionId}::${folderPath}::${requestId}`;
     }
 
-    private countEnabledRequestNodes(nodes: any[]): number {
-        let count = 0;
-        for (const node of nodes || []) {
-            if (!node || typeof node !== 'object' || node.enabled === false) {
-                continue;
-            }
-            if (node.type === 'request' && node.request) {
-                count++;
-                continue;
-            }
-            count += this.countEnabledRequestNodes(this.getChildNodes(node));
-            if (Array.isArray(node.elseif)) {
-                for (const branch of node.elseif) {
-                    count += this.countEnabledRequestNodes(this.getChildNodes(branch));
-                }
-            }
-            if (Array.isArray(node.cases)) {
-                for (const caseNode of node.cases) {
-                    count += this.countEnabledRequestNodes(this.getChildNodes(caseNode));
-                }
-            }
-        }
-        return count;
-    }
-
     private getChildNodes(node: any): any[] {
         for (const key of ['nodes', 'then', 'body', 'else', 'elseNodes', 'default', 'defaultNodes']) {
             if (Array.isArray(node?.[key])) {
@@ -570,6 +548,69 @@ export class SuiteRunHandler implements IMessageHandler {
             );
         }
         return Boolean(value);
+    }
+
+    private estimateEnabledRequestNodes(nodes: any[], config: SuiteRunConfiguration): number {
+        let count = 0;
+        for (const node of nodes || []) {
+            if (!node || typeof node !== 'object' || node.enabled === false) {
+                continue;
+            }
+            if (node.type === 'request' && node.request) {
+                count++;
+                continue;
+            }
+
+            if (node.type === 'if') {
+                const thenNodes = Array.isArray(node.then) ? node.then : this.getChildNodes(node);
+                const branchCounts: number[] = [this.estimateEnabledRequestNodes(thenNodes, config)];
+                if (Array.isArray(node.elseif)) {
+                    for (const branch of node.elseif) {
+                        branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(branch), config));
+                    }
+                }
+                const elseNodes = Array.isArray(node.else) ? node.else : [];
+                branchCounts.push(this.estimateEnabledRequestNodes(elseNodes, config));
+                count += Math.max(...branchCounts, 0);
+                continue;
+            }
+
+            if (node.type === 'switch') {
+                const branchCounts: number[] = [];
+                if (Array.isArray(node.cases)) {
+                    for (const caseNode of node.cases) {
+                        branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(caseNode), config));
+                    }
+                }
+                const defaultNodes = Array.isArray(node.default) ? node.default : [];
+                branchCounts.push(this.estimateEnabledRequestNodes(defaultNodes, config));
+                count += Math.max(...branchCounts, 0);
+                continue;
+            }
+
+            if (node.type === 'for' || node.type === 'while') {
+                const perLoop = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
+                count += perLoop * this.estimateLoopIterations(node);
+                continue;
+            }
+
+            count += this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
+        }
+        return count;
+    }
+
+    private estimateLoopIterations(node: any): number {
+        const configured = Number(node?.maxIterations);
+        if (Number.isFinite(configured) && configured > 0) {
+            return Math.max(1, Math.min(10_000, Math.floor(configured)));
+        }
+        return 1;
+    }
+
+    private adjustEstimatedTotal(plannedCount: number, actualCount: number, completedCount: number): void {
+        const reduction = Math.max(0, plannedCount - actualCount);
+        const nextTotal = Math.max(completedCount, this.currentEstimatedTotalRequests - reduction);
+        this.currentEstimatedTotalRequests = nextTotal;
     }
 
     private normalizeFlowScript(script: unknown): string | undefined {
@@ -774,19 +815,12 @@ export class SuiteRunHandler implements IMessageHandler {
                 iterationCount
             );
 
-            const rawFolderPath =
-                entry.suiteRequest.folderPath
-                || (entry as any).resolvedFolderPath
-                || (entry.request as any)?.folderPath
-                || '';
-            const collName =
-                (entry as any).resolvedCollectionName
-                || entry.suiteRequest.collectionName
-                || '';
-            const requestFolderPath = collName
-                ? (rawFolderPath ? `${collName}/${rawFolderPath}` : collName)
-                : (rawFolderPath || undefined);
-            const requestGroupPath = activeBlockLabel || requestFolderPath;
+            const requestGrouping = resolveResultGrouping({
+                collectionName: (entry as any).resolvedCollectionName || entry.suiteRequest.collectionName || '',
+                folderPath: entry.suiteRequest.folderPath || (entry as any).resolvedFolderPath || (entry.request as any)?.folderPath || '',
+                blockLabel: activeBlockLabel || undefined
+            });
+            const requestGroupPath = requestGrouping.groupPath || undefined;
 
             return this.handleRequestExecutionResult(
                 entry,
@@ -833,21 +867,49 @@ export class SuiteRunHandler implements IMessageHandler {
         }
 
         if (node.type === 'if') {
+            const thenNodes = Array.isArray(node.then) ? node.then : this.getChildNodes(node);
+            const elseNodes = Array.isArray(node.else) ? node.else : [];
+            const branchCounts: number[] = [this.estimateEnabledRequestNodes(thenNodes, config)];
+            if (Array.isArray(node.elseif)) {
+                for (const branch of node.elseif) {
+                    branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(branch), config));
+                }
+            }
+            branchCounts.push(this.estimateEnabledRequestNodes(elseNodes, config));
+            const plannedCount = Math.max(...branchCounts, 0);
+
             const ifExpr = typeof node.if === 'string' ? node.if : node.condition;
             if (this.evaluateFlowCondition(ifExpr, node, variables, environmentId, iteration)) {
-                return this.executeFlowNodes(suite, this.getChildNodes(node), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+                const actualCount = this.estimateEnabledRequestNodes(thenNodes, config);
+                this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+                return this.executeFlowNodes(suite, thenNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
             }
             if (Array.isArray(node.elseif)) {
                 for (const branch of node.elseif) {
                     if (this.evaluateFlowCondition(branch?.condition, branch, variables, environmentId, iteration)) {
-                        return this.executeFlowNodes(suite, this.getChildNodes(branch), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+                        const selectedNodes = this.getChildNodes(branch);
+                        const actualCount = this.estimateEnabledRequestNodes(selectedNodes, config);
+                        this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+                        return this.executeFlowNodes(suite, selectedNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
                     }
                 }
             }
-            return this.executeFlowNodes(suite, Array.isArray(node.else) ? node.else : [], variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+            const actualCount = this.estimateEnabledRequestNodes(elseNodes, config);
+            this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+            return this.executeFlowNodes(suite, elseNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
         }
 
         if (node.type === 'switch') {
+            const defaultNodes = Array.isArray(node.default) ? node.default : [];
+            const branchCounts: number[] = [];
+            if (Array.isArray(node.cases)) {
+                for (const caseNode of node.cases) {
+                    branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(caseNode), config));
+                }
+            }
+            branchCounts.push(this.estimateEnabledRequestNodes(defaultNodes, config));
+            const plannedCount = Math.max(...branchCounts, 0);
+
             const switchValue = evaluateExpression(String(node.expression ?? ''), this.createFlowExpressionContext(node, variables, environmentId, iteration));
             if (Array.isArray(node.cases)) {
                 for (const caseNode of node.cases) {
@@ -855,27 +917,39 @@ export class SuiteRunHandler implements IMessageHandler {
                         ? caseNode.equals === switchValue
                         : this.evaluateFlowCondition(caseNode?.condition, caseNode, variables, environmentId, iteration);
                     if (caseMatches) {
-                        return this.executeFlowNodes(suite, this.getChildNodes(caseNode), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+                        const selectedNodes = this.getChildNodes(caseNode);
+                        const actualCount = this.estimateEnabledRequestNodes(selectedNodes, config);
+                        this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+                        return this.executeFlowNodes(suite, selectedNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
                     }
                 }
             }
-            return this.executeFlowNodes(suite, Array.isArray(node.default) ? node.default : [], variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+            const actualCount = this.estimateEnabledRequestNodes(defaultNodes, config);
+            this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+            return this.executeFlowNodes(suite, defaultNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
         }
 
         if (node.type === 'while') {
             let currentVariables = { ...variables };
             let currentCompleted = completedCount;
             const maxIterations = Math.max(1, Math.min(10_000, Number(node.maxIterations ?? 100)));
+            const perLoopEstimate = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
+            const plannedIterations = this.estimateLoopIterations(node);
+            const plannedCount = perLoopEstimate * plannedIterations;
+            let executedLoops = 0;
             let count = 0;
             while (this.evaluateFlowCondition(typeof node.while === 'string' ? node.while : node.condition, node, currentVariables, environmentId, iteration)) {
                 count++;
                 if (count > maxIterations || this.abortController?.signal.aborted) {
                     break;
                 }
-                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, totalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
+                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
                 currentVariables = result.variables;
                 currentCompleted = result.completedCount;
+                executedLoops++;
             }
+            const actualCount = perLoopEstimate * executedLoops;
+            this.adjustEstimatedTotal(plannedCount, actualCount, currentCompleted);
             return { variables: currentVariables, completedCount: currentCompleted };
         }
 
@@ -883,6 +957,9 @@ export class SuiteRunHandler implements IMessageHandler {
             let currentVariables = { ...variables };
             let currentCompleted = completedCount;
             const maxIterations = Math.max(1, Math.min(10_000, Number(node.maxIterations ?? 100)));
+            const perLoopEstimate = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
+            const plannedIterations = this.estimateLoopIterations(node);
+            const plannedCount = perLoopEstimate * plannedIterations;
             currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.init), currentVariables, environmentId, iteration, iterationCount);
             getServiceContainer().console.info(
                 `[SuiteRunHandler] for-init name=${node?.name || 'For'} i=${String(deserializeTypedValue(currentVariables?.i))} maxIterations=${maxIterations}`,
@@ -894,6 +971,7 @@ export class SuiteRunHandler implements IMessageHandler {
                     ? node.condition
                     : 'true';
             let count = 0;
+            let executedLoops = 0;
             while (this.evaluateFlowCondition(conditionExpr, node, currentVariables, environmentId, iteration)) {
                 count++;
                 getServiceContainer().console.info(
@@ -903,9 +981,10 @@ export class SuiteRunHandler implements IMessageHandler {
                 if (count > maxIterations || this.abortController?.signal.aborted) {
                     break;
                 }
-                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, totalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
+                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
                 currentVariables = result.variables;
                 currentCompleted = result.completedCount;
+                executedLoops++;
                 currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.update), currentVariables, environmentId, iteration, iterationCount);
                 getServiceContainer().console.info(
                     `[SuiteRunHandler] for-loop-update name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`,
@@ -916,6 +995,8 @@ export class SuiteRunHandler implements IMessageHandler {
                 `[SuiteRunHandler] for-loop-exit name=${node?.name || 'For'} completedLoops=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`,
                 'Test Suite'
             );
+            const actualCount = perLoopEstimate * executedLoops;
+            this.adjustEstimatedTotal(plannedCount, actualCount, currentCompleted);
             return { variables: currentVariables, completedCount: currentCompleted };
         }
 
@@ -937,25 +1018,15 @@ export class SuiteRunHandler implements IMessageHandler {
     ): Promise<{ variables: Record<string, string>; completedCount: number }> {
         const requestName = entry.suiteRequest.name || entry.request.name || 'Unknown Request';
         const requestKey = this.buildRequestStatsKey(entry);
+        const fallbackGrouping = resolveResultGrouping({
+            collectionName: (entry as any).resolvedCollectionName || entry.suiteRequest.collectionName || '',
+            folderPath: entry.suiteRequest.folderPath || (entry as any).resolvedFolderPath || (entry.request as any)?.folderPath || '',
+            blockLabel: undefined
+        });
         const effectiveGroupPath: string = groupPath !== undefined
             ? groupPath
-            : (() => {
-                if (result.groupPath) return result.groupPath;
-                if (result.folderPath) return result.folderPath;
-                const rawPath =
-                    entry.suiteRequest.folderPath
-                    || (entry as any).resolvedFolderPath
-                    || (entry.request as any)?.folderPath
-                    || '';
-                const collName =
-                    (entry as any).resolvedCollectionName
-                    || entry.suiteRequest.collectionName
-                    || '';
-                return collName
-                    ? (rawPath ? `${collName}/${rawPath}` : collName)
-                    : rawPath;
-            })();
-        const effectiveGroupType = groupType ?? result.groupType ?? (effectiveGroupPath ? 'folder' : undefined);
+            : (result.groupPath || result.folderPath || fallbackGrouping.groupPath);
+        const effectiveGroupType = groupType ?? result.groupType ?? fallbackGrouping.groupType;
         const resultWithName = {
             ...result,
             name: requestName,
@@ -1019,7 +1090,7 @@ export class SuiteRunHandler implements IMessageHandler {
         messenger.postMessage({
             type: 'runProgress',
             current: nextCompletedCount,
-            total: totalRequests,
+            total: this.currentEstimatedTotalRequests || totalRequests,
             passed: stats.summary.passed,
             failed: stats.summary.failed,
             skipped: stats.summary.skipped

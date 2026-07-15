@@ -1092,12 +1092,13 @@ body {
 .progress-bar {
     height: 100%;
     width: 0%;
-    background-color: var(--success-color);
-    transition: width 0.3s ease;
-}
-
-.progress-bar.has-failures {
-    background: linear-gradient(90deg, var(--success-color) var(--pass-percent), var(--error-color) var(--pass-percent));
+    background: linear-gradient(
+        90deg,
+        var(--success-color) 0 var(--pass-end, 0%),
+        var(--error-color) var(--pass-end, 0%) var(--fail-end, 0%),
+        var(--vscode-progressBar-background) var(--fail-end, 0%) 100%
+    );
+    transition: width 0.3s ease, background 0.3s ease;
 }
 
 .progress-stats {

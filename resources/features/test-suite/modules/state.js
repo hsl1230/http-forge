@@ -44,6 +44,7 @@ export const state = {
     suiteId: null,
     autoScroll: true,
     totalRequests: 0,
+    completedRequests: 0,
     iterations: 1,
     isDirty: false,  // Track unsaved changes
     availableRequests: [],  // Available requests for Add modal

@@ -7,7 +7,7 @@ import { requestRunHistory } from './history.js';
 import { buildDisplayItems, renderVirtualResults } from './results-view.js';
 import { elements, state, VIRTUAL_SCROLL, virtualScrollState, vscode } from './state.js';
 import { renderStatistics, resetStatistics } from './statistics.js';
-import { expandSummary } from './utils.js';
+import { expandSummary, renderProgressBar } from './utils.js';
 
 function countEnabledRequestNodes(nodes) {
     let count = 0;
@@ -57,6 +57,7 @@ export async function startRun() {
     state.currentRunId = null;
     state.autoScroll = true;
     state.reportPath = null;
+    state.completedRequests = 0;
     state.runStartTime = Date.now();  // Track start time for duration
 
     // Reset virtual scroll state
@@ -124,10 +125,19 @@ export function stopRun() {
  * @param {string} runId
  * @param {string} suiteId
  */
-export function handleRunStarted(runId, suiteId) {
+export function handleRunStarted(runId, suiteId, totalRequests, iterations) {
     state.currentRunId = runId;
     state.suiteId = suiteId;
     state.autoScroll = true;
+    state.completedRequests = 0;
+    if (typeof totalRequests === 'number') {
+        state.totalRequests = totalRequests;
+    }
+    if (typeof iterations === 'number') {
+        state.iterations = iterations;
+    }
+
+    updateProgress();
 
     // Clear history view if active
     if (state.viewingHistoryRun) {
@@ -146,10 +156,21 @@ export function handleRunStarted(runId, suiteId) {
  * @param {number} currentIteration
  * @param {number} totalIterations
  */
-export function handleRunProgress(current, total, currentIteration, totalIterations) {
-    elements.progressText.textContent = `${current} / ${total} (Iteration ${currentIteration}/${totalIterations})`;
-    const percent = total > 0 ? (current / total) * 100 : 0;
-    elements.progressBar.style.width = `${percent}%`;
+export function handleRunProgress(current, total, passed, failed, skipped) {
+    state.completedRequests = Number(current) || 0;
+    state.totalRequests = Number(total) || 0;
+
+    if (typeof passed === 'number') {
+        state.passed = passed;
+    }
+    if (typeof failed === 'number') {
+        state.failed = failed;
+    }
+    if (typeof skipped === 'number') {
+        state.skipped = skipped;
+    }
+
+    updateProgress();
 }
 
 /**
@@ -162,15 +183,6 @@ export function handleRequestResult(result) {
     
     // Expand for processing
     const expanded = expandSummary(result);
-    
-    // Update passed/failed counts
-    if (expanded.passed) {
-        state.passed++;
-    } else {
-        state.failed++;
-    }
-    
-    updateProgress();
     
     // Rebuild grouped display list, then update virtual scroll
     buildDisplayItems();
@@ -198,24 +210,18 @@ export function handleStatisticsUpdate(statistics) {
  */
 export function updateProgress() {
     const total = state.totalRequests || 0;
-    const completed = state.passed + state.failed;
-    const percent = total > 0 ? (completed / total) * 100 : 0;
-    
-    elements.progressBar.style.width = `${percent}%`;
+    const completed = Math.max(0, Math.min(total, state.completedRequests || 0));
+
+    renderProgressBar(elements.progressBar, {
+        total,
+        passed: state.passed,
+        failed: state.failed
+    });
+
     elements.progressText.textContent = `${completed} / ${total}`;
     elements.passedCount.textContent = state.passed;
     elements.failedCount.textContent = state.failed;
     elements.skippedCount.textContent = state.skipped;
-    
-    // Update progress bar color if there are failures
-    if (state.failed > 0) {
-        const passPercent = (state.passed / completed) * percent;
-        elements.progressBar.classList.add('has-failures');
-        elements.progressBar.style.setProperty('--pass-percent', `${passPercent}%`);
-    } else {
-        // Remove has-failures class when there are no failures
-        elements.progressBar.classList.remove('has-failures');
-    }
 
     // Update stats summary in real-time (both in progress section and Statistics tab)
     updateRealTimeStats();
@@ -252,6 +258,11 @@ export function handleRunComplete(summary, reportPath) {
     
     // Update statistics from summary if provided
     if (summary) {
+        state.passed = summary.passed || 0;
+        state.failed = summary.failed || 0;
+        state.skipped = summary.skipped || 0;
+        state.completedRequests = state.totalRequests || (state.passed + state.failed + state.skipped);
+
         state.statistics = {
             ...state.statistics,
             passed: summary.passed,
@@ -267,6 +278,8 @@ export function handleRunComplete(summary, reportPath) {
             duration: finalDuration
         };
     }
+
+    updateProgress();
     
     elements.runBtn.disabled = false;
     elements.stopBtn.disabled = true;
@@ -285,6 +298,7 @@ export function handleRunComplete(summary, reportPath) {
 export function handleRunStopped() {
     state.isRunning = false;
     state.autoScroll = false;
+    updateProgress();
     
     elements.runBtn.disabled = false;
     elements.stopBtn.disabled = true;

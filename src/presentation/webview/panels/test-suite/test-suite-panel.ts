@@ -281,7 +281,7 @@ export class TestSuitePanel {
             vscode.Uri.file(path.join(resourcePath, 'style.css'))
         );
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.file(path.join(resourcePath, 'bundle.js'))
+            vscode.Uri.file(path.join(resourcePath, 'modules', 'main.js'))
         );
         const sharedStyleUri = webview.asWebviewUri(
             vscode.Uri.file(path.join(sharedPath, 'monaco-viewer.css'))
