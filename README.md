@@ -140,6 +140,9 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Import Postman v2.1, export OpenAPI 3.0  
 ✅ Drag & drop, duplicate, file-watching auto-reload  
 ✅ Cross-collection test suites with iterations  
+✅ Visual flow editor for suites — request, script, if/else, for, while, switch, block nodes  
+✅ Fast node authoring — adding non-request nodes opens the editor immediately  
+✅ Branch lifecycle controls — add/remove `else`, `elseif`, and `default` branches from the flow UI  
 ✅ P50/P90/P95/P99 performance statistics  
 ✅ Self-contained HTML test reports  
 

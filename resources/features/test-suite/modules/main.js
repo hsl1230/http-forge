@@ -6,6 +6,14 @@
  */
 
 import {
+    applyIncomingFlowNodes,
+    closeNodeEditor,
+    closeTypePicker,
+    onTypePicked,
+    openTypePicker,
+    saveNodeEditor
+} from './flow-editor.js';
+import {
     clearHistoryView,
     handleHistoryRunDeleted,
     handleHistoryRunLoaded,
@@ -40,13 +48,10 @@ import {
     browseDataFile,
     clearDataFile,
     closeAddRequestModal,
-    deselectAllRequests,
     filterAvailableRequests,
     handleSaveSuiteResult,
     handleSuiteSaved,
-    openAddRequestModal,
     saveSuite,
-    selectAllRequests,
     setAvailableRequests,
     setDataFile,
     setDirty,
@@ -66,6 +71,11 @@ function initialize() {
         suiteDescriptionDisplay: document.getElementById('suite-description-display'),
         suiteDescriptionTooltip: document.getElementById('suite-description-tooltip'),
         suiteDescriptionEdit: document.getElementById('suite-description-edit'),
+        suiteActionsBtn: document.getElementById('suite-actions-btn'),
+        suiteActionsDropdown: document.getElementById('suite-actions-dropdown'),
+        suiteActionsMenuContainer: document.getElementById('suite-actions-menu-container'),
+        // Flow editor (primary UI)
+        addFlowNodeBtn: document.getElementById('add-flow-node-btn'),
         runBtn: document.getElementById('run-btn'),
         stopBtn: document.getElementById('stop-btn'),
         environmentDisplay: document.getElementById('environment-display'),
@@ -79,7 +89,6 @@ function initialize() {
         writeToSharedSessionCheck: document.getElementById('write-to-shared-session-check'),
         selectAllBtn: document.getElementById('select-all-btn'),
         deselectAllBtn: document.getElementById('deselect-all-btn'),
-        addRequestBtn: document.getElementById('add-request-btn'),
         requestList: document.getElementById('request-list'),
         saveSuiteBtn: document.getElementById('save-suite-btn'),
         progressSection: document.getElementById('progress-section'),
@@ -162,14 +171,49 @@ function initialize() {
  * Set up event listeners
  */
 function setupEventListeners() {
+    // Suite actions menu
+    elements.suiteActionsBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = elements.suiteActionsDropdown?.classList.contains('hidden');
+        elements.suiteActionsDropdown?.classList.toggle('hidden', !isHidden);
+    });
+
+    elements.suiteActionsDropdown?.addEventListener('click', (e) => {
+        const action = e.target?.dataset?.suiteAction;
+        if (!action) {
+            return;
+        }
+        elements.suiteActionsDropdown?.classList.add('hidden');
+        vscode.postMessage({
+            type: 'manageSuiteFiles',
+            action
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!elements.suiteActionsMenuContainer?.contains(e.target)) {
+            elements.suiteActionsDropdown?.classList.add('hidden');
+        }
+    });
+
+    // ── Flow view (primary) ────────────────────────────────────────────────
+    elements.addFlowNodeBtn?.addEventListener('click', () => openTypePicker());
+
+    // Node type picker
+    document.getElementById('node-type-picker-close')?.addEventListener('click', closeTypePicker);
+    document.getElementById('node-type-grid')?.addEventListener('click', e => {
+        const card = e.target.closest('.node-type-card');
+        if (card) onTypePicked(card.dataset.type);
+    });
+
+    // Node editor
+    document.getElementById('node-editor-close')?.addEventListener('click', closeNodeEditor);
+    document.getElementById('node-editor-cancel')?.addEventListener('click', closeNodeEditor);
+    document.getElementById('node-editor-save')?.addEventListener('click', saveNodeEditor);
+
     // Run/Stop buttons
     elements.runBtn?.addEventListener('click', startRun);
     elements.stopBtn?.addEventListener('click', stopRun);
-
-    // Selection buttons
-    elements.selectAllBtn?.addEventListener('click', selectAllRequests);
-    elements.deselectAllBtn?.addEventListener('click', deselectAllRequests);
-    elements.addRequestBtn?.addEventListener('click', openAddRequestModal);
 
     // Save button
     elements.saveSuiteBtn?.addEventListener('click', saveSuite);
@@ -257,6 +301,7 @@ function setupEventListeners() {
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            elements.suiteActionsDropdown?.classList.add('hidden');
             if (!elements.responseModal?.classList.contains('hidden')) {
                 closeModal();
             } else if (!elements.addRequestModal?.classList.contains('hidden')) {
@@ -292,6 +337,7 @@ function handleMessage(event) {
     switch (message.type) {
         case 'setSuite':
             setSuite(message.suite, message.requests);
+            applyIncomingFlowNodes(message.suite?.nodes || []);
             break;
         case 'setEnvironments':
             setEnvironments(message.environments);

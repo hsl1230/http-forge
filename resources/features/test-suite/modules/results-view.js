@@ -321,6 +321,20 @@ export function initPanelResizer() {
     let startWidth = 0;
     const leftPanel = document.querySelector('.runner-left-panel');
     const main = document.querySelector('.runner-main');
+    const PANEL_RESIZER_WIDTH = 4;
+    const LEFT_PANEL_MIN = 200;
+    const RIGHT_PANEL_MIN = 200;
+
+    const getMaxLeftWidth = () => {
+        const containerWidth = main?.clientWidth || 0;
+        return Math.max(LEFT_PANEL_MIN, containerWidth - RIGHT_PANEL_MIN - PANEL_RESIZER_WIDTH);
+    };
+
+    const applyLeftWidth = (requestedWidth) => {
+        const maxLeft = getMaxLeftWidth();
+        const leftWidth = Math.max(LEFT_PANEL_MIN, Math.min(maxLeft, requestedWidth));
+        main.style.gridTemplateColumns = `${leftWidth}px ${PANEL_RESIZER_WIDTH}px 1fr`;
+    };
     
     elements.panelResizer.addEventListener('mousedown', (e) => {
         isResizing = true;
@@ -335,8 +349,12 @@ export function initPanelResizer() {
         if (!isResizing) return;
         
         const delta = e.clientX - startX;
-        const newWidth = Math.max(200, Math.min(500, startWidth + delta));
-        main.style.gridTemplateColumns = `${newWidth}px 4px 1fr`;
+        applyLeftWidth(startWidth + delta);
+    });
+
+    window.addEventListener('resize', () => {
+        const currentLeft = leftPanel?.offsetWidth || LEFT_PANEL_MIN;
+        applyLeftWidth(currentLeft);
     });
     
     document.addEventListener('mouseup', () => {
@@ -501,24 +519,15 @@ export function groupLabel(cn, fp, index) {
 }
 
 /**
- * Resolve collection name + folder path for a result, preferring values on the
- * result itself and falling back to the matching suite request.
+ * Resolve collection name + folder path for a result directly from result payload.
  * @param {Object} expanded - expanded result summary
  * @returns {{cn: string, fp: string}}
  */
 export function resolveGroupKeyParts(expanded) {
-    let cn = expanded.collectionName || '';
-    let fp = expanded.folderPath || '';
-    if (!cn || !fp) {
-        const match = state.requests.find(r =>
-            r.requestId === expanded.requestId || r.id === expanded.requestId
-        );
-        if (match) {
-            if (!cn) cn = match.collectionName || '';
-            if (!fp) fp = match.folderPath || '';
-        }
-    }
-    return { cn, fp };
+    return {
+        cn: expanded.collectionName || '',
+        fp: expanded.folderPath || ''
+    };
 }
 
 /**

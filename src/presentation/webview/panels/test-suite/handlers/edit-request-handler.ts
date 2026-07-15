@@ -52,7 +52,8 @@ export class EditRequestHandler implements IMessageHandler {
         const suite = this.suiteStore.getSuite();
         if (!suite) return;
 
-        const sr = suite.requests.find(r => r.slug === message.slug);
+        const node = suite.nodes?.find((n: any) => n?.type === 'request' && n?.request?.slug === message.slug) as any;
+        const sr = node?.request;
         if (!sr) return;
 
         const entry = this.suiteStore.getRequestBySlug(message.slug);
@@ -113,7 +114,8 @@ export class EditRequestHandler implements IMessageHandler {
         const suite = this.suiteStore.getSuite();
         if (!suite) return;
 
-        const sr = suite.requests.find(r => r.slug === message.slug);
+        const node = suite.nodes?.find((n: any) => n?.type === 'request' && n?.request?.slug === message.slug) as any;
+        const sr = node?.request;
         if (!sr) return;
 
         const collection = getServiceContainer().collection.getCollection(sr.collectionId);

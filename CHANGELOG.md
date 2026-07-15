@@ -5,6 +5,55 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.20 - 2026-07-13
+
+### Added
+
+- **Flow-first Test Suite editor and execution model** — suites can now be authored as node graphs (`suite.nodes`) with support for:
+  - `request`, `script`, `if`, `switch`, `for`, `while`, and `block` nodes
+  - hierarchical branch editing with inline controls and drag/drop ordering
+  - flow-aware execution traversal instead of flat request-index execution
+- **Suite file management from the Test Suite panel** — added suite file operations (open/create/rename/duplicate/delete) via panel actions backed by dedicated handlers.
+- **Flow example suite asset** — added a showcase flow suite demonstrating branching/loop patterns.
+- **TLS configuration surface expanded in extension schemas** — request/config schema support now includes richer TLS and certificate mapping fields (including host-based certificate definitions).
+
+### Changed
+
+- **Configuration docs now show the full current default surface** — user guides now consistently document the canonical `.http-forge/http-forge.config.json` path plus default `request.tls`, `request.certificates`, `restClientExport`, `mcp.port`, and `secrets.providers` fields.
+- **Test Suite UI moved from flat request-list interaction to flow-node interaction**:
+  - left panel now represents executable flow hierarchy
+  - legacy request-list bulk selection behavior was removed from primary editing flow
+- **Suite persistence is now nodes-first**:
+  - save/build paths persist `nodes` as source of truth
+  - load paths normalize legacy `requests` suites into node format for compatibility
+- **Run orchestration and progress counting are flow-aware**:
+  - request counting now walks enabled request nodes recursively
+  - run handlers traverse nodes recursively with branch/loop evaluation semantics
+- **Request statistics grouping/keying improved** — statistics now use stable request keys instead of name-only matching, preventing collisions for similarly named requests.
+- **Flow editor UX polish**:
+  - `if`/`switch` branch lifecycle controls now include add/remove actions for optional branches (`elseif`, `else`, `default`)
+  - adding non-request nodes now opens the edit modal immediately
+  - request summaries decode encoded path segments for readability
+- **Results/Statistics views simplified to rely on payload metadata** rather than reconstructing request identity from legacy suite request arrays.
+- **Documentation refreshed across README and user guides** to describe flow-first suite behavior, configuration updates, and related UX/runtime expectations.
+
+### Fixed
+
+- **Postman cookie-jar documentation drift** — docs now describe the supported callback API surface more accurately, including `unset()` and URL / `pm.request.url` inputs for `pm.cookies.jar()` methods.
+- **Flow summary truncation behavior** — request path summaries are no longer hard-truncated in JavaScript; clipping now follows actual layout constraints.
+- **Editing/lookup reliability in flow suites** — request edit/open-original/reset flows now resolve requests from node graph context rather than relying on stale flat-list assumptions.
+- **Legacy suite compatibility gaps** — legacy suites with only `requests` are now normalized for flow editing/execution and saved without reintroducing old-model drift.
+
+## 0.16.18 - 2026-07-10
+
+### Fixed
+
+- **Legacy workspace data remains visible after upgrade (no-config case)** — projects without `.http-forge/http-forge.config.json` now keep existing collections/history/results discoverable when data exists in historical paths:
+  - collections: `./http-forge-assets`
+  - cache: `./.http-forge-cache/{histories,results}`
+- **Config-first behavior preserved** — if a config file exists, configured paths are still used as the source of truth.
+
+
 ## 0.16.16 - 2026-07-10
 
 ### Changed

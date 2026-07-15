@@ -96,7 +96,7 @@ Status legend:
 | `pm.cookies.get(name)` | `pm.cookies.get(name)` | Supported | Implemented. |
 | `pm.cookies.has(name)` | `pm.cookies.has(name)` | Supported | Implemented. |
 | `pm.cookies.toObject()` | `pm.cookies.toObject()` | Supported | Implemented. |
-| `pm.cookies.jar()` | `pm.cookies.jar()` | Supported | Cookie jar methods implemented (`getAll`, `get`, `set`, `unset`, `clear`). |
+| `pm.cookies.jar()` | `pm.cookies.jar()` | Supported | Cookie jar methods implemented (`getAll`, `get`, `set`, `unset`, `clear`), including Postman-style URL or `pm.request.url` inputs for callback APIs. |
 
 ## pm.visualizer
 

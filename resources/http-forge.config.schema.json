@@ -59,6 +59,83 @@
           "type": "boolean",
           "default": true,
           "description": "Whether to verify SSL certificates"
+        },
+        "tls": {
+          "type": "object",
+          "description": "Default TLS settings for HTTPS requests",
+          "properties": {
+            "caPath": {
+              "type": "string",
+              "description": "Path to CA certificate bundle (PEM), relative to workspace root or absolute"
+            },
+            "certPath": {
+              "type": "string",
+              "description": "Path to client certificate (PEM), relative to workspace root or absolute"
+            },
+            "keyPath": {
+              "type": "string",
+              "description": "Path to client private key (PEM), relative to workspace root or absolute"
+            },
+            "pfxPath": {
+              "type": "string",
+              "description": "Path to client certificate bundle (PFX/P12), relative to workspace root or absolute"
+            },
+            "passphrase": {
+              "type": "string",
+              "description": "Passphrase for key/pfx if required"
+            },
+            "servername": {
+              "type": "string",
+              "description": "Optional SNI servername override"
+            }
+          }
+        },
+        "certificates": {
+          "type": "array",
+          "description": "Host-based client certificate mappings (Postman-style global certificates)",
+          "items": {
+            "type": "object",
+            "required": ["host"],
+            "properties": {
+              "host": {
+                "type": "string",
+                "description": "Host matcher: exact host (api.example.com), wildcard (*.example.com), or *"
+              },
+              "port": {
+                "type": "number",
+                "description": "Optional port matcher (defaults to 443 for HTTPS)"
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true,
+                "description": "Enable/disable this certificate mapping"
+              },
+              "caPath": {
+                "type": "string",
+                "description": "Path to CA certificate bundle (PEM), relative to workspace root or absolute"
+              },
+              "certPath": {
+                "type": "string",
+                "description": "Path to client certificate (PEM), relative to workspace root or absolute"
+              },
+              "keyPath": {
+                "type": "string",
+                "description": "Path to client private key (PEM), relative to workspace root or absolute"
+              },
+              "pfxPath": {
+                "type": "string",
+                "description": "Path to client certificate bundle (PFX/P12), relative to workspace root or absolute"
+              },
+              "passphrase": {
+                "type": "string",
+                "description": "Passphrase for key/pfx if required"
+              },
+              "servername": {
+                "type": "string",
+                "description": "Optional SNI servername override"
+              }
+            }
+          }
         }
       }
     },

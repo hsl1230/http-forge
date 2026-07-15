@@ -1,31 +1,52 @@
 # Test Suites
 
-Test suites let you run multiple requests across collections with summary results.
+Test suites let you run multi-step API scenarios as a flow graph with summary results.
 
 ## Create a suite
 1. Create a suite under `storage.root/suites`.
-2. Add requests from collections.
+2. Build the flow with nodes:
+   - request
+   - script
+   - if / elseif / else
+   - switch / case / default
+   - for / while
+   - block
 3. Save the suite.
 
-## Suite & Request Descriptions
+Legacy suites that only contain a flat `requests` list are automatically migrated to `nodes` when loaded.
 
-Document what a suite tests and what each request does within the flow.
+## Suite and request descriptions
+
+Document what a suite validates and what each request node does in the flow.
 
 ### Suite description
-- Click the **"Click to add description…"** placeholder in the header (between suite name and Run button).
-- A dropdown textarea appears as an overlay — the rest of the page stays unchanged.
-- Type your description (supports multiple lines with Enter).
-- **Save**: Click outside (blur) or press `Ctrl+Enter`.
-- **Cancel**: Press `Escape` to discard changes.
-- In read mode, the description shows as a single truncated line. Hover to see the full multi-line text in a tooltip.
+- Click the **Click to add description...** placeholder in the header.
+- A dropdown textarea opens as an overlay.
+- **Save**: click outside or press `Ctrl+Enter`.
+- **Cancel**: press `Escape`.
 
-### Per-request description
-Each request in the suite list has a description line below its name:
-- Click **"Click to add description…"** to add a note.
-- Same interaction as suite description: overlay textarea on click, multi-line tooltip on hover.
-- Use descriptions to document what each request validates (e.g. "Create user for downstream tests", "Verify 401 without token").
+### Request-node description
+- Request nodes in the flow can include a description line below the name.
+- Use it to explain each step, for example setup, auth bootstrap, or validation intent.
 
 Descriptions are persisted in the suite JSON and copied when duplicating a suite.
+
+## Flow editing
+
+Suites are edited as a tree flow in the left panel.
+
+### Add nodes
+Use the add action on a parent (or root) to insert a node.
+
+For non-request nodes, the edit dialog opens immediately after creation so conditions/scripts can be configured without extra clicks.
+
+### Branch lifecycle controls
+- `if` nodes: add/remove `elseif`, add/remove `else`
+- `switch` nodes: add/remove `default`
+
+### Reorder and structure
+- Drag and drop to reorder nodes and move request nodes across branches.
+- Collapse/expand nodes to keep large suites manageable.
 
 ## Run a suite
 1. Select a suite.
@@ -36,182 +57,151 @@ Descriptions are persisted in the suite JSON and copied when duplicating a suite
 
 ## Run a collection or folder
 
-You don't have to build a suite first to run a group of requests. From the **Collections** tree you can run a whole collection — or just one folder — in the same suite runner.
+You do not need to create a suite first to run grouped requests.
 
-- **Run Collection**: right-click a collection → **Run Collection**.
-- **Run Folder**: right-click any folder → **Run Folder**.
+- **Run Collection**: right-click a collection and select **Run Collection**.
+- **Run Folder**: right-click a folder and select **Run Folder**.
 
-Both open the Test Suite runner backed by a **temporary suite** (it isn't saved to `storage.root/suites` unless you choose to). The runner behaves exactly like a saved suite: the same execution engine, the iteration → collection → folder result grouping, the Statistics tab, and the self-contained HTML report.
-
-**Run Folder is recursive** — it includes every request in the folder *and* its nested subfolders. The temporary suite is named `Collection / Folder` (e.g. `My API / Auth/Login`).
+Both actions open the suite runner backed by a temporary suite. The temporary suite is not saved unless you choose to save it.
+2 
+**Run Folder is recursive** and includes nested subfolders.
 
 ### Save a collection/folder run as a suite
-A temporary suite can be promoted to a permanent one:
+1. Make any edits you want in the temporary suite.
+2. Close the panel and choose **Save** (or use the save action).
+3. The suite is written to `storage.root/suites` and appears in the **Test Suites** tree.
 
-1. After (or before) running, make any edits you want.
-2. Close the panel — when prompted, choose **Save**, **or** use the save action in the runner.
-3. The suite is written to `storage.root/suites` under the displayed name (`Collection` or `Collection / Folder`) and appears in the **Test Suites** tree for reuse.
+## Request customization inside suites
 
-> **Tip:** To run a folder headlessly (CI/scripts) use the CLI `run-folder` command, and from AI assistants use the per-folder MCP tool. See [CLI / Headless](cli-standalone.md) and [MCP Server](mcp-server.md).
-
-## Request Customization
-
-You can edit individual requests within a suite without modifying the source collection. This is useful for changing URLs, parameters, headers, or body for a specific test scenario.
+You can edit request nodes in a suite without modifying the source collection request.
 
 ### Edit a suite request
-1. In the request list, click the `⋯` menu on a request row.
-2. Select **✎ Edit** to open the request in a dedicated suite editor panel.
-3. Make your changes (URL, params, headers, body, auth, scripts).
-4. Click **Save to Suite** to persist changes.
+1. In the flow tree, open the `...` menu on a request node.
+2. Select **Edit** to open the dedicated suite request editor panel.
+3. Update URL, params, headers, body, auth, scripts, or settings.
+4. Click **Save to Suite**.
 
-Customized requests show a small colored dot indicator next to the request name.
+Customized requests show a colored indicator in the flow.
 
 ### Open original collection request
-1. Click the `⋯` menu on a request row.
-2. Select **↗ Open Original** to open the source collection request in a standard Request Tester panel.
-
-This lets you view or edit the original request without any suite context. Changes made here affect the collection, not the suite.
+1. In a request node menu, select **Open Original**.
+2. The source collection request opens in a normal Request Tester panel.
 
 ### Reset to collection version
-1. Click the `⋯` menu on a modified request.
-2. Select **↺ Reset to Collection** to revert to the latest version from the source collection.
+1. In a modified request node menu, select **Reset to Collection**.
+2. The suite-local customization is discarded.
 
 ### Duplicate a suite
-Right-click a suite in the Test Suites tree and select **Duplicate**. Enter a name for the copy.
+Right-click a suite in the **Test Suites** tree and select **Duplicate**.
 
 The duplicate includes:
-- All request references and ordering
-- Run configuration (iterations, delay, stop-on-error, shared session flags)
-- Description
-- **All customized request data** (body, headers, auth, scripts stored in suite folders)
+- flow nodes and ordering
+- run configuration (iterations, delay, stop-on-error, shared session)
+- suite description
+- suite request customizations (body, headers, auth, scripts)
 
-### What's restricted in suite edit mode
+### What is restricted in suite edit mode
 - **Body Schema** and **Response Schema** tabs are hidden
-- **Document tab** is hidden
-- Per-field **OpenAPI schema metadata** toggles (`{}` buttons) are disabled
-- Request history sidebar is hidden
+- **Document** tab is hidden
+- OpenAPI metadata toggle buttons are disabled
+- request history sidebar is hidden
 
-### How storage works
-Each customized request is stored in a folder under the suite directory:
+### Suite storage layout for customized requests
+Each customized request is stored under the suite directory:
+
 ```
 suites/<suite-id>/<request-slug>/
-├── request.json       # Full request snapshot
-└── scripts/
-    ├── pre-request.js
-    └── post-response.js
+|-- request.json
+`-- scripts/
+    |-- pre-request.js
+    `-- post-response.js
 ```
 
-Scripts (pre-request and post-response) are always resolved live from the collection at execution time — only the request data (URL, params, headers, body, auth, settings) is snapshotted.
+## Save on close
 
-## Save-on-close
+Both the suite flow panel and the suite request editor track unsaved changes.
 
-Both the Test Suite panel and the suite request editor track unsaved changes. When closing a panel with unsaved modifications:
+- **Test Suite panel**: prompts to save or discard suite changes
+- **Suite request editor**: uses the same save-on-close behavior as Request Tester
 
-- **Test Suite panel**: A modal dialog prompts "Save" or "Don't Save" for the suite configuration (requests, ordering, descriptions, settings).
-- **Suite request editor**: Same confirm-before-close behavior as any Request Tester panel — see [Request Tester: Save-on-close](request-tester.md#save-on-close-confirmation).
-
-## Run History
+## Run history
 
 The **History** tab shows past suite runs with pass rate, duration, and status.
 
 ### Load a historical run
-Click **Load** on any history entry to populate the Results and Statistics tabs with that run's data. A banner indicates you're viewing a historical run.
+Click **Load** on an entry to populate Results and Statistics.
 
 ### Delete a historical run
-Click **Delete** to remove a run from disk permanently.
+Click **Delete** to permanently remove that run from disk.
 
-## Authentication
-Test suites fully support all authentication types:
-- **Inherit**: Uses environment or collection auth
-- **OAuth 2.0**: All four grant types (Authorization Code + PKCE, Client Credentials, Password, Implicit) with token caching and refresh
-- **Bearer**: Token-based authentication
-- **Basic**: Username/password authentication
-- **API Key**: Header or query parameter auth
+## Authentication in suites
+Suites support all auth types used by requests:
+- Inherit
+- OAuth 2.0
+- Bearer
+- Basic
+- API Key
 
-Auth settings from individual requests are preserved when running in a suite.
+## Pass/fail logic
 
-## Pass/Fail Logic
-
-### With Assertions
-When a request has assertions defined (using `ctx.test()` in post-response scripts), **pass/fail is determined entirely by assertion results**. This allows you to test expected error responses:
+### With assertions
+When assertions exist, pass/fail is determined by assertion results.
 
 ```javascript
-// Test that invalid ID returns 404
 ctx.test('Invalid ID returns 404', () => {
     ctx.expect(ctx.response.status).to.equal(404);
 });
-
-ctx.test('Error message present', () => {
-    ctx.expect(ctx.response.json()).to.have.property('error');
-});
 ```
 
-### Without Assertions
-When no assertions are defined, pass/fail is based on HTTP status code:
-- **Pass**: Status 200-302 (success and redirect responses)
-- **Fail**: All other status codes (4xx, 5xx errors)
+### Without assertions
+When no assertions exist:
+- **Pass**: status 200-302
+- **Fail**: all other status codes
 
-## Results
-- Pass/fail summary
-- Individual request results with status and duration
-- Performance stats: P50/P90/P95/P99
-- Error breakdown
-- Per-request percentile stats (p50, p90, p95, p99) are stored in the run manifest and shown in the Test Suite UI for detailed bottleneck analysis.
+## Results and statistics
+- pass/fail summary
+- individual request results with status and duration
+- latency stats (P50/P90/P95/P99)
+- error breakdown
 
 ### Grouping
-Results are grouped by **iteration**, then by **collection + folder**, so a multi-iteration run reads top-to-bottom in execution order. Each group header carries the `Collection: Folder/Subfolder` path, and the rows beneath it show just the request name, status, and duration. The same grouping is used in the exported HTML report.
+Results are grouped by iteration, then by collection and folder path.
 
-The **Statistics** tab's Response Time table shows the full `Collection › Folder › Request` label per row plus a **Calls** column counting how many times each request executed during the run.
+The **Statistics** response-time table shows full `Collection > Folder > Request` labels and a **Calls** count.
 
-## CLI runs & on-disk results
+## CLI runs and on-disk results
+Runs started from `@http-forge/cli` (or any direct execution host) persist results to:
 
-Runs started from the `@http-forge/cli` (or any direct-execution host) **always** persist their results to `.http-forge/.cache/results/<suiteId>/<runId>/` — the run manifest, per-iteration result files, and a result index. You do **not** need `--include report` for this.
+`.http-forge/.cache/results/<suiteId>/<runId>/`
 
-As a result, suite and collection runs executed from the CLI automatically appear in the **History** tab the next time you open the Test Suite panel, and can be loaded into the Results and Statistics tabs. The `--include report` flag only additionally generates the self-contained `report.html`.
+CLI runs appear in the suite **History** tab when you open the panel.
 
-## Virtual Scrolling
-Results use virtual scrolling for performance with large test runs. The results panel automatically adjusts to container height.
+## Virtual scrolling
+Results use virtual scrolling for large runs.
 
-## Example suite run
-Run the "smoke" suite against `sit` to validate core endpoints before release.
+## Execution flow control APIs
 
-## Tips
-- Keep suite names stable for reporting.
-- Use environments to run the same suite against different targets.
-- Define assertions for requests that test error conditions (404, 401, etc.).
-
-## Execution flow control
-
-Control request order within a suite run using `pm.setNextRequest()`:
+Control request execution using Postman-compatible APIs.
 
 ### Jump to a request
 ```javascript
-// In post-response script: jump to a specific request by name
 pm.setNextRequest('Get User Details');
 ```
 
 ### Stop execution
 ```javascript
-// Stop the suite after the current request
 pm.setNextRequest(null);
 ```
 
 ### Skip HTTP call
 ```javascript
-// In pre-request script: skip this request's HTTP call entirely
 pm.execution.skipRequest();
 ```
 
-### How it works
-- `pm.setNextRequest(name)` / `pm.execution.setNextRequest(name)` — After the current request completes, the suite runner jumps to the named request instead of proceeding sequentially.
-- `pm.setNextRequest(null)` — Stops suite execution after the current request finishes.
-- `pm.execution.skipRequest()` — Skips the HTTP call but still runs post-response scripts. Useful for conditional logic in pre-request scripts.
-
-> **Note**: These APIs only affect the **suite runner**. In the Request Tester (single request mode), they are silently ignored.
+These APIs affect suite runs only.
 
 ## Data-driven testing
-
-Use `pm.iterationData` to access variables from a data file during suite runs:
+Use `pm.iterationData` in suite runs:
 
 ```javascript
 pm.test('User name matches', () => {
@@ -220,26 +210,102 @@ pm.test('User name matches', () => {
 });
 ```
 
----
+## Postman Flow migration mapping
 
-## Request history (Git)
+Use this table to translate common Postman Flow patterns into HTTP Forge suite nodes.
 
-Because HTTP Forge stores every request as a plain JSON file in your Git repository, you get a full version history for free — who changed a request, when, and what changed.
+| Postman Flow pattern | HTTP Forge equivalent |
+|---|---|
+| Request block | `request` node |
+| If/Else branching | `if` node with `then` + optional `elseif` + optional `else` |
+| Switch/router branching | `switch` node with `cases` + optional `default` |
+| Repeat/loop behavior | `for` or `while` node |
+| Grouped sub-flow | `block` node |
+| Inline transform/logic block | `script` node |
+| Stop sequence early | `pm.setNextRequest(null)` in script |
+| Jump to a named step | `pm.setNextRequest('Request Name')` in script |
+| Skip current HTTP call | `pm.execution.skipRequest()` in pre-request script |
+| Data-file driven assertions | `pm.iterationData.get('key')` |
 
-### Opening the history view
+### Example: If/Else branch
 
-1. In the **Collections** tree, right-click any request.
-2. Select **Show Request Git History**.
-3. The **Request History (Git)** panel in the sidebar populates with the commit history for that request's `request.json` file.
+Postman-style intent: run login, branch on response status, run recovery step on failure.
 
-Each entry shows the commit hash, author, date, and commit message.
+HTTP Forge pattern:
+1. `request` node: Login
+2. `if` node condition: `pm.response && pm.response.status === 200`
+3. `then` branch: next happy-path request nodes
+4. `else` branch: fallback request or script node
 
-### Viewing a diff
+### Example: Switch branch by role
 
-Click any commit in the history panel (or right-click → **View Request Diff at Commit**) to open VS Code's built-in diff editor showing what changed in that commit compared to the previous version.
+Use a `script` node first to set context:
 
-### Reverting to a previous version
+```javascript
+pm.variables.set('role', pm.environment.get('userRole') || 'guest');
+```
 
-Right-click a commit → **Revert Request to Commit**. A confirmation dialog appears. Confirming runs `git checkout <hash> -- request.json`, restoring the file to that exact version. The Collections tree refreshes automatically.
+Then use a `switch` node expression:
 
-> **Prerequisites:** The workspace must be inside a Git repository. If no history is found, the panel shows a warning. The `git` command must be available on `$PATH`.
+```javascript
+pm.variables.get('role')
+```
+
+Create cases like:
+- `admin` -> admin-only requests
+- `editor` -> editor path
+- `viewer` -> read-only path
+- `default` -> guest path
+
+### Example: Poll-until-ready loop
+
+Use a `while` node condition such as:
+
+```javascript
+pm.variables.get('status') !== 'READY'
+```
+
+Inside loop body:
+1. `request` node: poll endpoint
+2. `script` node: parse response and set `status`
+
+```javascript
+const body = pm.response.json();
+pm.variables.set('status', body.status);
+```
+
+Set `maxIterations` on the `while` node to prevent runaway loops.
+
+### Example: Preserve Postman script behavior
+
+HTTP Forge suite runs are Postman-compatible for common control APIs:
+- `pm.setNextRequest(name)`
+- `pm.setNextRequest(null)`
+- `pm.execution.skipRequest()`
+- `pm.iterationData.get(key)`
+
+This means most script-driven Flow logic can be migrated with minimal script rewrites.
+
+### Variable alias support in flow contexts
+
+HTTP Forge supports three equivalent aliases in both **script nodes** and **condition expressions** (`if`, `while`, `switch`, `for`):
+
+| Alias | Description |
+|---|---|
+| `pm` | Postman-compatible namespace |
+| `ctx` | HTTP Forge idiomatic alias |
+| `hf` | HTTP Forge shorthand |
+
+All three point to the same API (`variables`, `environment`, `globals`):
+
+```javascript
+// These are all equivalent in conditions and script nodes
+pm.variables.get('token')
+ctx.variables.get('token')
+hf.variables.get('token')
+```
+
+## Tips
+- Keep suite names stable for reporting.
+- Use environments to run the same suite across targets.
+- Add assertions for expected error-path tests (401/403/404).

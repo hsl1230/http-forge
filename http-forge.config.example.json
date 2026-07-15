@@ -10,7 +10,25 @@
     "timeout": 30000,
     "followRedirects": true,
     "maxRedirects": 10,
-    "strictSSL": true
+    "strictSSL": true,
+    "tls": {
+      "caPath": "./certs/ca.pem"
+    },
+    "certificates": [
+      {
+        "host": "api.internal.example.com",
+        "certPath": "./certs/client-cert.pem",
+        "keyPath": "./certs/client-key.pem",
+        "passphrase": "",
+        "enabled": true
+      },
+      {
+        "host": "*.corp.example.com",
+        "pfxPath": "./certs/client.p12",
+        "passphrase": "",
+        "enabled": true
+      }
+    ]
   },
   "scripts": {
     "modulePaths": ["./src", "./lib"],

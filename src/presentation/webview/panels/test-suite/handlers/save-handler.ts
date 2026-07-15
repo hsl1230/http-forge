@@ -9,6 +9,27 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 
+function normalizeIncomingSuite(existing: any, incoming: any): any {
+    const merged = {
+        ...(existing || {}),
+        ...(incoming || {})
+    } as any;
+
+    // Backward compatibility: if the webview sends legacy requests only,
+    // migrate them into request nodes and drop the legacy field.
+    if ((!Array.isArray(merged.nodes) || merged.nodes.length === 0) && Array.isArray(merged.requests)) {
+        merged.nodes = merged.requests.map((req: any) => ({
+            type: 'request',
+            name: req?.description || req?.name || 'Unnamed Request',
+            request: req,
+            enabled: req?.enabled !== false
+        }));
+    }
+
+    delete merged.requests;
+    return merged;
+}
+
 /**
  * Handler for save operations
  */
@@ -62,8 +83,11 @@ export class SaveHandler implements IMessageHandler {
     ): Promise<void> {
         // If suite is provided in message, update the store first
         if (message.suite) {
-            this.suiteStore.setSuite(message.suite);
-            this.updateSuiteDir(message.suite.id);
+            const existing = this.suiteStore.getSuite();
+            const mergedSuite = normalizeIncomingSuite(existing, message.suite);
+
+            this.suiteStore.setSuite(mergedSuite);
+            this.updateSuiteDir(mergedSuite.id);
         }
         
         const suite = this.suiteStore.getSuite();
@@ -104,6 +128,12 @@ export class SaveHandler implements IMessageHandler {
             });
 
             messenger.postMessage({
+                type: 'saveSuiteResult',
+                success: true,
+                suiteId: savedSuite.id
+            });
+
+            messenger.postMessage({
                 type: 'consoleLog',
                 level: 'info',
                 message: `Suite "${savedSuite.name}" saved successfully`
@@ -114,6 +144,12 @@ export class SaveHandler implements IMessageHandler {
             // Refresh the test suites tree view
             vscode.commands.executeCommand('httpForge.refreshTestSuites');
         } catch (error: any) {
+            messenger.postMessage({
+                type: 'saveSuiteResult',
+                success: false,
+                suiteId: suite.id,
+                error: error?.message || String(error)
+            });
             vscode.window.showErrorMessage(`Failed to save suite: ${error.message}`);
         }
     }

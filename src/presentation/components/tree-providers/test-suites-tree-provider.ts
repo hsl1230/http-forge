@@ -29,7 +29,11 @@ export class TestSuiteTreeItem extends vscode.TreeItem {
         };
         
         // Show request count in description
-        this.description = `${suite.requests.length} requests`;
+        this.description = `${this.getRequestCount()} requests`;
+    }
+
+    private getRequestCount(): number {
+        return Array.isArray((this.suite as any).requests) ? (this.suite as any).requests.length : 0;
     }
 
     private getTooltip(): string {
@@ -37,7 +41,7 @@ export class TestSuiteTreeItem extends vscode.TreeItem {
         if (this.suite.description) {
             lines.push(this.suite.description);
         }
-        lines.push(`${this.suite.requests.length} requests`);
+        lines.push(`${this.getRequestCount()} requests`);
         lines.push(`Iterations: ${this.suite.config.iterations}`);
         return lines.join('\n');
     }

@@ -7,8 +7,39 @@ import { requestRunHistory } from './history.js';
 import { buildDisplayItems, renderVirtualResults } from './results-view.js';
 import { elements, state, VIRTUAL_SCROLL, virtualScrollState, vscode } from './state.js';
 import { renderStatistics, resetStatistics } from './statistics.js';
-import { renderRequestList } from './suite-editor.js';
 import { expandSummary } from './utils.js';
+
+function countEnabledRequestNodes(nodes) {
+    let count = 0;
+    for (const node of nodes || []) {
+        if (!node || node.enabled === false) continue;
+        if (node.type === 'request') {
+            count += 1;
+            continue;
+        }
+        if (Array.isArray(node.nodes)) {
+            count += countEnabledRequestNodes(node.nodes);
+        }
+        if (node.type === 'if') {
+            count += countEnabledRequestNodes(node.then);
+            count += countEnabledRequestNodes(node.else);
+            if (Array.isArray(node.elseif)) {
+                for (const branch of node.elseif) {
+                    count += countEnabledRequestNodes(branch?.nodes);
+                }
+            }
+        }
+        if (node.type === 'switch') {
+            if (Array.isArray(node.cases)) {
+                for (const c of node.cases) {
+                    count += countEnabledRequestNodes(c?.nodes);
+                }
+            }
+            count += countEnabledRequestNodes(node.default);
+        }
+    }
+    return count;
+}
 
 /**
  * Start the test suite run
@@ -32,11 +63,11 @@ export async function startRun() {
     virtualScrollState.endIndex = 0;
     virtualScrollState.scrollTop = 0;
 
-    // Calculate total requests
+    // Calculate total requests from enabled nodes in the flow
     const iterations = parseInt(elements.iterationsInput.value) || 1;
-    const selectedRequests = state.requests.filter(r => r.selected);
+    const enabledRequestCount = countEnabledRequestNodes(state.suite?.nodes || []);
     state.iterations = iterations;
-    state.totalRequests = iterations * selectedRequests.length;
+    state.totalRequests = iterations * enabledRequestCount;
 
     // Update UI
     elements.runBtn.disabled = true;
@@ -56,12 +87,6 @@ export async function startRun() {
     
     resetStatistics();
 
-    // Reset request statuses
-    state.requests.forEach(r => {
-        r.status = r.selected ? 'pending' : 'skipped';
-        if (!r.selected) state.skipped++;
-    });
-    renderRequestList();
     updateProgress();
 
     // Get configuration
@@ -75,14 +100,9 @@ export async function startRun() {
         dataFile: state.dataFile
     };
 
-    // Get selected request indices in current order
-    const selectedIndices = state.requests
-        .map((r, i) => r.selected ? i : -1)
-        .filter(i => i >= 0);
-
+    // Flow-first: backend drives execution from suite.nodes directly
     vscode.postMessage({
         type: 'startRun',
-        selectedIndices,
         config
     });
 }
@@ -176,7 +196,7 @@ export function handleStatisticsUpdate(statistics) {
  * Update progress display with real-time stats
  */
 export function updateProgress() {
-    const total = state.totalRequests || state.requests.filter(r => r.selected).length;
+    const total = state.totalRequests || 0;
     const completed = state.passed + state.failed;
     const percent = total > 0 ? (completed / total) * 100 : 0;
     
