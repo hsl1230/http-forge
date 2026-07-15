@@ -49,6 +49,7 @@ export async function startRun() {
     state.results = [];
     state.displayItems = [];
     state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
     state.statistics = null;
     state.passed = 0;
     state.failed = 0;

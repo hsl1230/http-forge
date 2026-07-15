@@ -37,6 +37,7 @@ export function handleHistoryRunLoaded(manifest, summaries) {
     state.historyManifest = isLatest ? null : manifest;
     state.results = summaries;
     state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
     state.currentRunId = manifest.runId;
     state.passed = manifest.stats.passed;
     state.failed = manifest.stats.failed;
@@ -124,6 +125,7 @@ export function clearHistoryView() {
         state.results = [];
         state.displayItems = [];
         state.collapsedGroups.clear();
+        state.collapsedIterations.clear();
         state.passed = 0;
         state.failed = 0;
         state.skipped = 0;

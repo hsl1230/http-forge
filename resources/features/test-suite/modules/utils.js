@@ -54,6 +54,8 @@ export function expandSummary(s) {
             assertionsFailed: s.af,
             requestId: requestId,
             folderPath: s.fp ?? '',
+            groupPath: s.gp ?? (s.fp ?? ''),
+            groupType: s.gt,
             collectionName: s.cn ?? '',
             resultFile: buildResultFileName(s.i, s.it, requestId),
             error: s.e
@@ -72,6 +74,8 @@ export function expandSummary(s) {
         assertionsFailed: s.assertionsFailed || 0,
         requestId: s.requestId || s.r,
         folderPath: s.folderPath ?? s.fp ?? '',
+        groupPath: s.groupPath ?? s.gp ?? s.folderPath ?? s.fp ?? '',
+        groupType: s.groupType ?? s.gt,
         collectionName: s.collectionName ?? s.cn ?? '',
         resultFile: s.resultFile || (s.index !== undefined && s.iteration !== undefined && (s.requestId || s.r)
             ? buildResultFileName(s.index, s.iteration, s.requestId || s.r)

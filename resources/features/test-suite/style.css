@@ -1270,6 +1270,7 @@ body {
 .result-iter-header {
     display: flex;
     align-items: center;
+    gap: 6px;
     padding: 8px 12px;
     box-sizing: border-box;
     font-weight: 700;
@@ -1278,6 +1279,20 @@ body {
     background-color: var(--vscode-sideBar-background);
     border-bottom: 1px solid var(--panel-border);
     border-left: 3px solid var(--vscode-focusBorder, #2196f3);
+    cursor: pointer;
+    user-select: none;
+}
+
+.result-iter-header:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.result-iter-header .iter-header-toggle {
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
 }
 
 .result-group-header {

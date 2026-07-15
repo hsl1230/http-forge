@@ -691,7 +691,9 @@ export class SuiteRunHandler implements IMessageHandler {
         totalRequests: number,
         completedCount: number,
         messenger: IWebviewMessenger,
-        config: SuiteRunConfiguration
+        config: SuiteRunConfiguration,
+        activeBlockLabel?: string,
+        blockDepth: number = 0
     ): Promise<{ variables: Record<string, string>; completedCount: number }> {
         let currentVariables = { ...variables };
         let currentCompleted = completedCount;
@@ -711,7 +713,9 @@ export class SuiteRunHandler implements IMessageHandler {
                 totalRequests,
                 currentCompleted,
                 messenger,
-                config
+                config,
+                activeBlockLabel,
+                blockDepth
             );
             currentVariables = result.variables;
             currentCompleted = result.completedCount;
@@ -731,7 +735,9 @@ export class SuiteRunHandler implements IMessageHandler {
         totalRequests: number,
         completedCount: number,
         messenger: IWebviewMessenger,
-        config: SuiteRunConfiguration
+        config: SuiteRunConfiguration,
+        activeBlockLabel?: string,
+        blockDepth: number = 0
     ): Promise<{ variables: Record<string, string>; completedCount: number }> {
         if (!node || typeof node !== 'object' || node.enabled === false) {
             return { variables, completedCount };
@@ -768,6 +774,20 @@ export class SuiteRunHandler implements IMessageHandler {
                 iterationCount
             );
 
+            const rawFolderPath =
+                entry.suiteRequest.folderPath
+                || (entry as any).resolvedFolderPath
+                || (entry.request as any)?.folderPath
+                || '';
+            const collName =
+                (entry as any).resolvedCollectionName
+                || entry.suiteRequest.collectionName
+                || '';
+            const requestFolderPath = collName
+                ? (rawFolderPath ? `${collName}/${rawFolderPath}` : collName)
+                : (rawFolderPath || undefined);
+            const requestGroupPath = activeBlockLabel || requestFolderPath;
+
             return this.handleRequestExecutionResult(
                 entry,
                 result,
@@ -777,7 +797,31 @@ export class SuiteRunHandler implements IMessageHandler {
                 messenger,
                 config.stopOnError,
                 config.delay,
-                variables
+                variables,
+                requestGroupPath,
+                activeBlockLabel ? 'block' : 'folder'
+            );
+        }
+
+        if (node.type === 'block') {
+            const label = typeof node.name === 'string' ? node.name.trim() : '';
+            // Any explicit block node in the suite is a user-defined grouping scope.
+            // Requests directly under that block should group by its label.
+            const nextBlockLabel = label || activeBlockLabel;
+            return this.executeFlowNodes(
+                suite,
+                this.getChildNodes(node),
+                variables,
+                cookieJar,
+                environmentId,
+                iteration,
+                iterationCount,
+                totalRequests,
+                completedCount,
+                messenger,
+                config,
+                nextBlockLabel,
+                blockDepth + 1
             );
         }
 
@@ -791,16 +835,16 @@ export class SuiteRunHandler implements IMessageHandler {
         if (node.type === 'if') {
             const ifExpr = typeof node.if === 'string' ? node.if : node.condition;
             if (this.evaluateFlowCondition(ifExpr, node, variables, environmentId, iteration)) {
-                return this.executeFlowNodes(suite, this.getChildNodes(node), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config);
+                return this.executeFlowNodes(suite, this.getChildNodes(node), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
             }
             if (Array.isArray(node.elseif)) {
                 for (const branch of node.elseif) {
                     if (this.evaluateFlowCondition(branch?.condition, branch, variables, environmentId, iteration)) {
-                        return this.executeFlowNodes(suite, this.getChildNodes(branch), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config);
+                        return this.executeFlowNodes(suite, this.getChildNodes(branch), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
                     }
                 }
             }
-            return this.executeFlowNodes(suite, Array.isArray(node.else) ? node.else : [], variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config);
+            return this.executeFlowNodes(suite, Array.isArray(node.else) ? node.else : [], variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
         }
 
         if (node.type === 'switch') {
@@ -811,11 +855,11 @@ export class SuiteRunHandler implements IMessageHandler {
                         ? caseNode.equals === switchValue
                         : this.evaluateFlowCondition(caseNode?.condition, caseNode, variables, environmentId, iteration);
                     if (caseMatches) {
-                        return this.executeFlowNodes(suite, this.getChildNodes(caseNode), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config);
+                        return this.executeFlowNodes(suite, this.getChildNodes(caseNode), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
                     }
                 }
             }
-            return this.executeFlowNodes(suite, Array.isArray(node.default) ? node.default : [], variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config);
+            return this.executeFlowNodes(suite, Array.isArray(node.default) ? node.default : [], variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
         }
 
         if (node.type === 'while') {
@@ -828,7 +872,7 @@ export class SuiteRunHandler implements IMessageHandler {
                 if (count > maxIterations || this.abortController?.signal.aborted) {
                     break;
                 }
-                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, totalRequests, currentCompleted, messenger, config);
+                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, totalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
                 currentVariables = result.variables;
                 currentCompleted = result.completedCount;
             }
@@ -859,7 +903,7 @@ export class SuiteRunHandler implements IMessageHandler {
                 if (count > maxIterations || this.abortController?.signal.aborted) {
                     break;
                 }
-                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, totalRequests, currentCompleted, messenger, config);
+                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, totalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
                 currentVariables = result.variables;
                 currentCompleted = result.completedCount;
                 currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.update), currentVariables, environmentId, iteration, iterationCount);
@@ -875,7 +919,7 @@ export class SuiteRunHandler implements IMessageHandler {
             return { variables: currentVariables, completedCount: currentCompleted };
         }
 
-        return this.executeFlowNodes(suite, this.getChildNodes(node), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config);
+        return this.executeFlowNodes(suite, this.getChildNodes(node), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
     }
 
     private async handleRequestExecutionResult(
@@ -887,11 +931,37 @@ export class SuiteRunHandler implements IMessageHandler {
         messenger: IWebviewMessenger,
         stopOnError: boolean,
         delayMs: number = 0,
-        variables: Record<string, string> = {}
+        variables: Record<string, string> = {},
+        groupPath?: string,
+        groupType?: 'folder' | 'block'
     ): Promise<{ variables: Record<string, string>; completedCount: number }> {
         const requestName = entry.suiteRequest.name || entry.request.name || 'Unknown Request';
         const requestKey = this.buildRequestStatsKey(entry);
-        const resultWithName = { ...result, name: requestName };
+        const effectiveGroupPath: string = groupPath !== undefined
+            ? groupPath
+            : (() => {
+                if (result.groupPath) return result.groupPath;
+                if (result.folderPath) return result.folderPath;
+                const rawPath =
+                    entry.suiteRequest.folderPath
+                    || (entry as any).resolvedFolderPath
+                    || (entry.request as any)?.folderPath
+                    || '';
+                const collName =
+                    (entry as any).resolvedCollectionName
+                    || entry.suiteRequest.collectionName
+                    || '';
+                return collName
+                    ? (rawPath ? `${collName}/${rawPath}` : collName)
+                    : rawPath;
+            })();
+        const effectiveGroupType = groupType ?? result.groupType ?? (effectiveGroupPath ? 'folder' : undefined);
+        const resultWithName = {
+            ...result,
+            name: requestName,
+            groupPath: effectiveGroupPath,
+            groupType: effectiveGroupType
+        };
 
         const addResult = this.statisticsService.addResult as unknown as (...args: any[]) => void;
         if (addResult.length >= 6) {
@@ -938,7 +1008,9 @@ export class SuiteRunHandler implements IMessageHandler {
                     error: result.error,
                     assertions: result.assertions || [],
                     index: nextCompletedCount - 1,
-                    iteration
+                    iteration,
+                    gp: effectiveGroupPath,
+                    gt: effectiveGroupType
                 }
             });
         }

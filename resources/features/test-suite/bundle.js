@@ -44,7 +44,9 @@
         displayItems: [],
         // Flat list of header + result rows for grouped virtual scroll
         collapsedGroups: /* @__PURE__ */ new Set(),
-        // Keys of collapsed collection+folder groups in the results list
+        // Keys of collapsed collection/folder groups in the results list
+        collapsedIterations: /* @__PURE__ */ new Set(),
+        // Iteration numbers collapsed in the results list
         statistics: null,
         passed: 0,
         failed: 0,
@@ -105,6 +107,8 @@
         assertionsFailed: s.af,
         requestId,
         folderPath: s.fp ?? "",
+        groupPath: s.gp ?? (s.fp ?? ""),
+        groupType: s.gt,
         collectionName: s.cn ?? "",
         resultFile: buildResultFileName(s.i, s.it, requestId),
         error: s.e
@@ -122,6 +126,8 @@
       assertionsFailed: s.assertionsFailed || 0,
       requestId: s.requestId || s.r,
       folderPath: s.folderPath ?? s.fp ?? "",
+      groupPath: s.groupPath ?? s.gp ?? s.folderPath ?? s.fp ?? "",
+      groupType: s.groupType ?? s.gt,
       collectionName: s.collectionName ?? s.cn ?? "",
       resultFile: s.resultFile || (s.index !== void 0 && s.iteration !== void 0 && (s.requestId || s.r) ? buildResultFileName(s.index, s.iteration, s.requestId || s.r) : null),
       error: s.error || null
@@ -275,6 +281,7 @@
     state.results = [];
     state.displayItems = [];
     state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
     state.statistics = null;
     state.currentRunId = null;
     state.isRunning = false;
@@ -2002,12 +2009,14 @@
     itemsContainer.innerHTML = "";
     itemsContainer.appendChild(fragment);
   }
-  function groupLabel(cn, fp, index) {
+  function groupLabel(fp, gt, index) {
     const num = String(index).padStart(2, "0");
-    let label = cn || "";
-    if (fp) {
+    let label = "";
+    if (gt === "block") {
+      label = fp || "(unnamed block)";
+    } else if (fp) {
       const folders = fp.split("/").map((p) => p.replace(/^\s*\d+\s*-\s*/, "")).join("/");
-      label = label ? `${label}: ${folders}` : folders;
+      label = folders;
     }
     if (!label) label = "(root)";
     return `${num} - ${label}`;
@@ -2015,39 +2024,45 @@
   function resolveGroupKeyParts(expanded) {
     return {
       cn: expanded.collectionName || "",
-      fp: expanded.folderPath || ""
+      fp: expanded.groupPath || expanded.folderPath || "",
+      gt: expanded.groupType || "folder"
     };
   }
   function buildDisplayItems() {
     const items = [];
     const expandedList = state.results.map(expandSummary);
-    let maxIter = 1;
-    for (const e of expandedList) {
-      if (e.iteration > maxIter) maxIter = e.iteration;
-    }
-    const multiIter = maxIter > 1;
+    const multiIter = true;
     let lastIter = null;
     let lastKey = null;
     let groupIndex = 0;
     let currentGroupKey = null;
     let currentCollapsed = false;
+    let currentIterationCollapsed = false;
     for (let i = 0; i < expandedList.length; i++) {
       const e = expandedList[i];
-      const { cn, fp } = resolveGroupKeyParts(e);
+      const { cn, fp, gt } = resolveGroupKeyParts(e);
       if (multiIter && e.iteration !== lastIter) {
+        currentIterationCollapsed = state.collapsedIterations.has(e.iteration);
         items.push({ type: "iter", iteration: e.iteration });
         lastIter = e.iteration;
         lastKey = null;
         groupIndex = 0;
+        if (currentIterationCollapsed) {
+          continue;
+        }
       }
-      const key = `${cn}\0${fp}`;
+      if (currentIterationCollapsed) {
+        continue;
+      }
+      const key = `${gt}\0${fp}`;
       if (key !== lastKey) {
         groupIndex++;
         currentGroupKey = `${e.iteration}\0${key}`;
         currentCollapsed = state.collapsedGroups.has(currentGroupKey);
         items.push({
           type: "group",
-          label: groupLabel(cn, fp, groupIndex),
+          label: groupLabel(fp, gt, groupIndex),
+          groupType: gt,
           groupKey: currentGroupKey,
           collapsed: currentCollapsed
         });
@@ -2060,20 +2075,46 @@
     state.displayItems = items;
   }
   function createIterHeaderElement(iteration) {
+    const collapsed = state.collapsedIterations.has(iteration);
     const el = document.createElement("div");
-    el.className = "result-iter-header";
+    el.className = `result-iter-header${collapsed ? " collapsed" : ""}`;
     el.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
     el.style.boxSizing = "border-box";
-    el.innerHTML = `<span class="iter-header-label">Iteration ${iteration}</span>`;
+    el.title = collapsed ? "Click to expand" : "Click to collapse";
+    el.innerHTML = `
+        <span class="iter-header-toggle">${collapsed ? "\u25B8" : "\u25BE"}</span>
+        <span class="iter-header-label">Iteration ${iteration}</span>
+    `;
+    el.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleIterationCollapse(iteration);
+    });
     return el;
   }
-  function createGroupHeaderElement(label, groupKey, collapsed) {
+  function toggleIterationCollapse(iteration) {
+    if (state.collapsedIterations.has(iteration)) {
+      state.collapsedIterations.delete(iteration);
+    } else {
+      state.collapsedIterations.add(iteration);
+    }
+    buildDisplayItems();
+    const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+    if (spacer) {
+      spacer.style.height = `${state.displayItems.length * VIRTUAL_SCROLL.itemHeight}px`;
+    }
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    renderVirtualResults();
+  }
+  function createGroupHeaderElement(label, groupType, groupKey, collapsed) {
     const el = document.createElement("div");
     el.className = `result-group-header${collapsed ? " collapsed" : ""}`;
     el.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
     el.style.boxSizing = "border-box";
     el.title = collapsed ? "Click to expand" : "Click to collapse";
-    el.innerHTML = `<span class="group-header-toggle">${collapsed ? "\u25B8" : "\u25BE"}</span><span class="group-header-icon">\u{1F4C1}</span><span class="group-header-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+    const icon = groupType === "block" ? "\u{1F9E9}" : "\u{1F4C1}";
+    el.innerHTML = `<span class="group-header-toggle">${collapsed ? "\u25B8" : "\u25BE"}</span><span class="group-header-icon">${icon}</span><span class="group-header-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
     if (groupKey != null) {
       el.dataset.groupKey = groupKey;
       el.addEventListener("click", (event) => {
@@ -2101,7 +2142,7 @@
   }
   function createDisplayRowElement(di) {
     if (di.type === "iter") return createIterHeaderElement(di.iteration);
-    if (di.type === "group") return createGroupHeaderElement(di.label, di.groupKey, di.collapsed);
+    if (di.type === "group") return createGroupHeaderElement(di.label, di.groupType, di.groupKey, di.collapsed);
     return createResultItemElement(state.results[di.resultIndex], di.resultIndex, di.expanded);
   }
   function createResultItemElement(compactResult, index, preExpanded) {
@@ -2168,6 +2209,7 @@
     state.historyManifest = isLatest ? null : manifest;
     state.results = summaries;
     state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
     state.currentRunId = manifest.runId;
     state.passed = manifest.stats.passed;
     state.failed = manifest.stats.failed;
@@ -2226,6 +2268,7 @@
       state.results = [];
       state.displayItems = [];
       state.collapsedGroups.clear();
+      state.collapsedIterations.clear();
       state.passed = 0;
       state.failed = 0;
       state.skipped = 0;
@@ -2367,6 +2410,7 @@
     state.results = [];
     state.displayItems = [];
     state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
     state.statistics = null;
     state.passed = 0;
     state.failed = 0;

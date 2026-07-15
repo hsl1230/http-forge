@@ -136,6 +136,12 @@ export interface ExecutionResult {
     modifiedVariables?: Record<string, string>;
     modifiedEnvironmentVariables?: Record<string, string>;
     modifiedCollectionVariables?: Record<string, string>;
+
+    // Request context metadata for suite result grouping/reporting
+    folderPath?: string;
+    groupPath?: string;
+    groupType?: 'folder' | 'block';
+    collectionName?: string;
     
     // Flow control (pm.execution.setNextRequest / pm.setNextRequest)
     nextRequest?: string | null;

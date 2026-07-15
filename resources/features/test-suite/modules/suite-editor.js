@@ -66,6 +66,7 @@ export function setSuite(suite, requests) {
     state.results = [];
     state.displayItems = [];
     state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
     state.statistics = null;
     state.currentRunId = null;
     state.isRunning = false;
