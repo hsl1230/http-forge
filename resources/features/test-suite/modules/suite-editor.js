@@ -37,22 +37,15 @@ export function setDirty(dirty) {
 
 /**
  * Build the current suite state for caching in extension (used for save-on-close)
+ * Saves to nodes (flow) instead of requests (legacy/deprecated)
  */
 export function buildCurrentSuiteState() {
     if (!state.suite) return null;
+    // eslint-disable-next-line no-unused-vars
+    const { requests: _dropped, ...suiteWithoutRequests } = state.suite;
     return {
-        ...state.suite,
-        requests: state.requests.map(r => ({
-            slug: r.slug,
-            collectionId: r.collectionId,
-            requestId: r.requestId || r.id,
-            name: r.name,
-            method: r.method,
-            collectionName: r.collectionName,
-            folderPath: r.folderPath || '',
-            enabled: r.selected,
-            description: r.description || undefined
-        })),
+        ...suiteWithoutRequests,
+        nodes: state.suite.nodes || [],
         config: elements.iterationsInput ? {
             iterations: parseInt(elements.iterationsInput.value) || 1,
             delay: parseInt(elements.delayInput.value) || 0,
@@ -65,14 +58,15 @@ export function buildCurrentSuiteState() {
 
 /**
  * Set the suite and its resolved requests
- * @param {Object} suite - TestSuite object
- * @param {Array} requests - Resolved requests with full data
+ * @param {Object} suite - TestSuite object with nodes (primary) or requests (legacy)
+ * @param {Array} requests - Resolved requests with full data (for backward compatibility)
  */
 export function setSuite(suite, requests) {
     // Reset run-related state when switching suites
     state.results = [];
     state.displayItems = [];
     state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
     state.statistics = null;
     state.currentRunId = null;
     state.isRunning = false;
@@ -87,17 +81,16 @@ export function setSuite(suite, requests) {
     
     state.suite = suite;
     state.suiteId = suite.id;
-    state.requests = requests.map((req, index) => ({
+    state.requests = (requests || []).map((req) => ({
         ...req,
-        selected: suite.requests[index]?.enabled !== false,
-        description: suite.requests[index]?.description || '',
+        selected: req.enabled !== false,
+        description: req.description || '',
         status: 'pending'
     }));
     setDirty(false);
     
     // Set suite name in editable input
     elements.suiteName.value = suite.name;
-    elements.runBtn.disabled = state.requests.length === 0;
     
     // Update suite description display
     updateSuiteDescriptionDisplay();
@@ -150,7 +143,6 @@ export function setSuite(suite, requests) {
     // Clear statistics display
     renderStatistics();
     
-    renderRequestList();
 }
 
 /**
@@ -200,239 +192,6 @@ export function closeAllMenus() {
 
 // Close menus when clicking outside
 document.addEventListener('click', () => closeAllMenus());
-
-/**
- * Render the request list with delete buttons
- */
-export function renderRequestList() {
-    if (state.requests.length === 0) {
-        elements.requestList.innerHTML = `
-            <div class="empty-state">
-                <p>No requests in suite</p>
-                <p class="hint">Click "+ Add" to add requests</p>
-            </div>
-        `;
-        return;
-    }
-
-    elements.requestList.innerHTML = state.requests.map((item, index) => {
-        // Build full path: Collection › Folder › Request
-        const pathParts = [];
-        if (item.collectionName) pathParts.push(item.collectionName);
-        if (item.folderPath) pathParts.push(item.folderPath);
-        const fullPath = pathParts.length > 0 ? 
-            `<span class="collection-path">${escapeHtml(pathParts.join(' › '))}</span>` : '';
-        
-        const modifiedDot = item.hasEmbeddedRequest ? '<span class="modified-dot" title="Customized (differs from collection)"></span>' : '';
-        const resetMenuItem = item.hasEmbeddedRequest && item.slug
-            ? `<button class="menu-item reset-btn" data-slug="${item.slug}">↺ Reset to Collection</button>`
-            : '';
-
-        const descText = item.description ? escapeHtml(item.description.replace(/\n/g, ' ')) : 'Click to add description\u2026';
-        const descClass = item.description ? 'description-display' : 'description-display placeholder';
-
-        return `
-            <div class="request-item" data-index="${index}" draggable="true" title="Drag to reorder">
-                <input type="checkbox" ${item.selected ? 'checked' : ''} data-index="${index}" class="request-checkbox">
-                <span class="request-method ${item.method}">${item.method}</span>
-                <span class="request-path">
-                    ${fullPath}
-                    <span class="request-name-row">
-                        <span class="request-name">${escapeHtml(item.name)}</span>
-                        ${modifiedDot}
-                    </span>
-                </span>
-                <div class="request-actions-menu">
-                    <button class="menu-trigger" title="Actions">⋯</button>
-                    <div class="menu-dropdown">
-                        <button class="menu-item edit-btn" data-slug="${item.slug || ''}" data-index="${index}">✎ Edit</button>
-                        <button class="menu-item open-original-btn" data-slug="${item.slug || ''}">↗ Open Original</button>
-                        ${resetMenuItem}
-                        <button class="menu-item delete-btn danger" data-index="${index}">× Remove</button>
-                    </div>
-                </div>
-                <div class="request-description" data-index="${index}">
-                    <span class="${descClass}" data-index="${index}">${descText}</span>
-                    <div class="description-tooltip"></div>
-                    <textarea class="description-edit hidden" data-index="${index}" placeholder="Describe what this request does\u2026"></textarea>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    // Add checkbox change handlers
-    elements.requestList.querySelectorAll('.request-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', (e) => {
-            e.stopPropagation();
-            const index = parseInt(e.target.dataset.index);
-            state.requests[index].selected = e.target.checked;
-            setDirty(true);
-            updateRunButton();
-        });
-    });
-
-    // Add delete button handlers
-    elements.requestList.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const index = parseInt(btn.closest('.request-item').dataset.index);
-            closeAllMenus();
-            removeRequest(index);
-        });
-    });
-
-    // Add edit button handlers
-    elements.requestList.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const slug = btn.dataset.slug;
-            closeAllMenus();
-            if (slug) {
-                vscode.postMessage({ command: 'editSuiteRequest', slug });
-            }
-        });
-    });
-
-    // Add open-original button handlers
-    elements.requestList.querySelectorAll('.open-original-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const slug = btn.dataset.slug;
-            closeAllMenus();
-            if (slug) {
-                vscode.postMessage({ command: 'openOriginalRequest', slug });
-            }
-        });
-    });
-
-    // Add reset button handlers
-    elements.requestList.querySelectorAll('.reset-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const slug = btn.dataset.slug;
-            closeAllMenus();
-            if (slug && confirm('Reset to collection version? Your suite customizations will be lost.')) {
-                vscode.postMessage({ command: 'resetSuiteRequest', slug });
-            }
-        });
-    });
-
-    // Add menu trigger handlers
-    elements.requestList.querySelectorAll('.menu-trigger').forEach(trigger => {
-        trigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const menu = trigger.nextElementSibling;
-            const wasOpen = menu.classList.contains('open');
-            closeAllMenus();
-            if (!wasOpen) {
-                menu.classList.add('open');
-            }
-        });
-    });
-
-    // Add drag and drop handlers
-    setupDragAndDrop();
-
-    // Add per-request description interaction handlers
-    elements.requestList.querySelectorAll('.request-description').forEach(container => {
-        const index = parseInt(container.dataset.index);
-        const displayEl = container.querySelector('.description-display');
-        const tooltipEl = container.querySelector('.description-tooltip');
-        const editEl = container.querySelector('.description-edit');
-        setupDescriptionInteraction(
-            displayEl, tooltipEl, editEl,
-            () => state.requests[index]?.description || '',
-            (value) => { if (state.requests[index]) { state.requests[index].description = value; setDirty(true); } }
-        );
-    });
-}
-
-/**
- * Set up drag and drop for request reordering
- */
-export function setupDragAndDrop() {
-    let draggedIndex = null;
-
-    elements.requestList.querySelectorAll('.request-item').forEach((item, index) => {
-        item.addEventListener('dragstart', (e) => {
-            draggedIndex = index;
-            item.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', index);
-        });
-
-        item.addEventListener('dragend', () => {
-            item.classList.remove('dragging');
-            elements.requestList.querySelectorAll('.request-item').forEach(el => {
-                el.classList.remove('drag-over');
-            });
-            draggedIndex = null;
-        });
-
-        item.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            if (draggedIndex !== null && draggedIndex !== index) {
-                item.classList.add('drag-over');
-            }
-        });
-
-        item.addEventListener('dragleave', () => {
-            item.classList.remove('drag-over');
-        });
-
-        item.addEventListener('drop', (e) => {
-            e.preventDefault();
-            item.classList.remove('drag-over');
-            
-            if (draggedIndex !== null && draggedIndex !== index) {
-                const [removed] = state.requests.splice(draggedIndex, 1);
-                state.requests.splice(index, 0, removed);
-                setDirty(true);
-                renderRequestList();
-            }
-        });
-    });
-}
-
-/**
- * Remove a request from the suite
- * @param {number} index
- */
-export function removeRequest(index) {
-    const removed = state.requests.splice(index, 1)[0];
-    setDirty(true);
-    renderRequestList();
-    updateRunButton();
-}
-
-/**
- * Update run button state
- */
-export function updateRunButton() {
-    const selectedCount = state.requests.filter(r => r.selected).length;
-    elements.runBtn.disabled = selectedCount === 0 || state.isRunning;
-}
-
-/**
- * Select all requests
- */
-export function selectAllRequests() {
-    state.requests.forEach(r => r.selected = true);
-    setDirty(true);
-    renderRequestList();
-    updateRunButton();
-}
-
-/**
- * Deselect all requests
- */
-export function deselectAllRequests() {
-    state.requests.forEach(r => r.selected = false);
-    setDirty(true);
-    renderRequestList();
-    updateRunButton();
-}
 
 /**
  * Browse for data file
@@ -487,6 +246,8 @@ export function handleSuiteSaved(suite) {
 
 /**
  * Save the test suite
+ * Saves nodes (flow) as the single source of truth.
+ * Legacy requests are supported only on load/migration paths.
  */
 export function saveSuite() {
     if (!state.suite) return;
@@ -499,27 +260,18 @@ export function saveSuite() {
         saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
     }
     
-    // Build updated suite object
-    // Include all SuiteRequest fields (name, method, etc.) to preserve display info
+    // Build updated suite with nodes as the only persisted execution model.
+    // eslint-disable-next-line no-unused-vars
+    const { requests: _dropped, ...suiteWithoutRequests } = state.suite;
     const updatedSuite = {
-        ...state.suite,
-        requests: state.requests.map(r => ({
-            slug: r.slug,
-            collectionId: r.collectionId,
-            requestId: r.requestId || r.id,
-            name: r.name,
-            method: r.method,
-            collectionName: r.collectionName,
-            folderPath: r.folderPath || '',
-            enabled: r.selected,
-            description: r.description || undefined
-        })),
+        ...suiteWithoutRequests,
+        nodes: state.suite.nodes || [],
         config: {
             iterations: parseInt(elements.iterationsInput.value) || 1,
             delay: parseInt(elements.delayInput.value) || 0,
             stopOnError: elements.stopOnErrorCheck.checked,
-            readFromSharedSession: elements.readFromSharedSessionCheck.checked,
-            writeToSharedSession: elements.writeToSharedSessionCheck.checked
+            readFromSharedSession: elements.readFromSharedSessionCheck?.checked || false,
+            writeToSharedSession: elements.writeToSharedSessionCheck?.checked || false
         }
     };
     
@@ -669,50 +421,32 @@ export function updateAddSelectedButton() {
 /**
  * Add selected requests to suite
  */
-export function addSelectedRequests() {
-    const selectedItems = elements.availableRequestsList.querySelectorAll('.available-request-item');
+export async function addSelectedRequests() {
+    const selectedItems = elements.availableRequestsList.querySelectorAll('.add-request-checkbox:checked');
     const toAdd = [];
     
-    selectedItems.forEach(item => {
-        const checkbox = item.querySelector('.add-request-checkbox');
-        if (checkbox.checked) {
-            const collectionId = item.dataset.collectionId;
-            const requestId = item.dataset.requestId;
-            const req = state.availableRequests.find(r => r.requestId === requestId && r.collectionId === collectionId);
-            if (req) {
-                toAdd.push({
-                    ...req,
-                    selected: true,
-                    status: 'pending'
-                });
-            }
+    selectedItems.forEach(checkbox => {
+        const item = checkbox.closest('.available-request-item');
+        const collectionId = item.dataset.collectionId;
+        const requestId = item.dataset.requestId;
+        const req = state.availableRequests.find(r => r.requestId === requestId && r.collectionId === collectionId);
+        if (req) {
+            toAdd.push({
+                ...req,
+                selected: true,
+                status: 'pending'
+            });
         }
     });
     
-    if (toAdd.length > 0) {
-        // Add to local state
-        state.requests.push(...toAdd);
-        setDirty(true);
-        
-        // Notify backend to update suite.requests (batch all at once)
-        vscode.postMessage({
-            type: 'addRequests',
-            requests: toAdd.map(req => ({
-                collectionId: req.collectionId,
-                requestId: req.requestId,
-                name: req.name,
-                method: req.method,
-                collectionName: req.collectionName,
-                folderPath: req.folderPath || '',
-                enabled: true
-            }))
-        });
-        
-        renderRequestList();
-        updateRunButton();
-    }
-    
+    // Close modal immediately (before async work) so it always closes even if an error occurs.
     closeAddRequestModal();
+
+    if (toAdd.length > 0) {
+        // Dynamic import avoids suite-editor <-> flow-editor init ordering issues.
+        const { insertRequestNodes } = await import('./flow-editor.js');
+        insertRequestNodes(toAdd);
+    }
 }
 
 // ============================================

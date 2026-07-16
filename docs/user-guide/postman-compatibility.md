@@ -111,7 +111,8 @@ pm.environment.set('authToken', token);
 - Request auth is configured in the UI; scripts can add headers as needed.
 - `pm.response.cookies` is a Postman-compatible `CookieList`: use `cookies.get(name)` for the value string, `cookies.one(name)` for the full cookie object (`name`, `value`, `domain`, `path`, `expires`, `maxAge`, `httpOnly`, `secure`, `sameSite`), `cookies.has(name)`, `cookies.toObject()`, or iterate (`forEach`, `for...of`, numeric index).
 - `pm.cookies.toObject()` returns a flat `{name: value}` map.
-- `pm.cookies.jar()` returns a cookie jar with `set()`, `get()`, `clear()`, `getAll()`.
+- `pm.cookies.jar()` returns a cookie jar with `getAll()`, `get()`, `set()`, `unset()`, and `clear()`.
+- Cookie-jar methods accept host strings, full URL strings, and `pm.request.url` objects in Postman-style callback form, for example `jar.clear(pm.request.url, cb)` and `jar.get(pm.request.url, 'sid', cb)`.
 
 ## Response body type
 

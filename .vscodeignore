@@ -1,6 +1,7 @@
 .vscode
 .git
-src
+src/
+features/
 docs
 coverage
 extension
@@ -23,7 +24,7 @@ generate-icon.js
 .migration-log*.txt
 .migration-context.json
 *.md
-resources/screenshots/*.png
+out/resources/screenshots/*.png
 
 # Exclude webview source modules (only bundle.js is needed)
-resources/features/**/modules/
+out/resources/features/**/modules/

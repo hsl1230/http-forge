@@ -85,7 +85,7 @@ into a single operation instead of losing one:
 ### Export to REST Client
 Right‑click a collection in the **Collections** tree and choose **Export Collection as REST Client**.
 The extension will automatically write the output under the path specified by
-`restClientExport.path` in your `http-forge.config.json` file (defaults to
+`restClientExport.path` in your `.http-forge/http-forge.config.json` file (defaults to
 `collections-rest-client` in the workspace root).  No additional dialog is shown.
 The exporter will write:
 
@@ -99,7 +99,7 @@ extension which will pick up the `.env` files for variable substitution.  Any
 scripts are preserved in separate files for reference.
 
 Global variable behaviour is controlled via the `restClientExport.mergeGlobals`
-field in `http-forge.config.json`.  When `true` (the default) globals are merged
+field in `.http-forge/http-forge.config.json`.  When `true` (the default) globals are merged
 into each environment file; when `false` a standalone `globals.env` file is
 produced instead.
 

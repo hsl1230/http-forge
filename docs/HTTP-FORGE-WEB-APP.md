@@ -133,7 +133,7 @@ http-forge/
 |------|-------|-------|
 | `server.ts` | ~150 | Express + WS + static serving |
 | `cli.ts` | ~80 | Arg parsing, open browser |
-| `config.ts` | ~60 | Load `http-forge.config.json` |
+| `config.ts` | ~60 | Load `.http-forge/http-forge.config.json` |
 | `watcher.ts` | ~80 | chokidar file watching → WS push |
 | `storage.ts` | ~100 | JSON file-based state persistence |
 | `ipc-router.ts` | ~80 | WebSocket message → handler dispatch |
@@ -732,9 +732,9 @@ export class AppStateStorage {
 
 ## 10. Configuration
 
-The app uses the same `http-forge.config.json` as the extension, plus app-specific settings.
+The app uses the same `.http-forge/http-forge.config.json` as the extension, plus app-specific settings.
 
-### `http-forge.config.json`
+### `.http-forge/http-forge.config.json`
 
 ```json
 {
@@ -743,8 +743,8 @@ The app uses the same `http-forge.config.json` as the extension, plus app-specif
     "format": "folder",
     "collections": "./collections",
     "environments": "./environments",
-    "history": "./.http-forge/history",
-    "results": "./.http-forge/results"
+    "history": "./.http-forge/.cache/histories",
+    "results": "./.http-forge/.cache/results"
   },
   "http": {
     "timeout": 30000,

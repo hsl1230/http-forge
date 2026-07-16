@@ -297,7 +297,7 @@ Use whichever feels most natural for your workflow:
 
 Postman runs every script (collection, folder, request — and the pre-request vs. post-response phases) in its **own isolated sandbox**. State is shared only through `pm.variables` / `pm.environment` / `pm.globals`.
 
-HTTP Forge supports two modes, selected via `scripts.scope` in `http-forge.config.json`:
+HTTP Forge supports two modes, selected via `scripts.scope` in `.http-forge/http-forge.config.json`:
 
 | Mode | Behavior |
 |---|---|
@@ -305,7 +305,7 @@ HTTP Forge supports two modes, selected via `scripts.scope` in `http-forge.confi
 | `"isolated"` | Each script level runs in **its own scope** (Postman-compatible). Declarations cannot collide between levels or leak across phases; share state through `pm.variables` / `pm.environment` / `pm.globals`. |
 
 ```jsonc
-// http-forge.config.json
+// .http-forge/http-forge.config.json
 {
   "scripts": {
     "scope": "isolated"   // Postman-compatible; omit or "shared" for default behavior
@@ -342,7 +342,7 @@ setTimeout(() => {
 ```
 
 ```jsonc
-// http-forge.config.json — raise the budget for slow async work
+// .http-forge/http-forge.config.json — raise the budget for slow async work
 {
   "scripts": {
     "timeout": 10000

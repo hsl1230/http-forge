@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src 'unsafe-eval' https://cdnjs.cloudflare.com 'nonce-{{nonce}}'; font-src {{cspSource}} https://cdnjs.cloudflare.com; worker-src blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src {{cspSource}} 'unsafe-eval' https://cdnjs.cloudflare.com 'nonce-{{nonce}}'; font-src {{cspSource}} https://cdnjs.cloudflare.com; worker-src blob:;">
     <title>Test Suite</title>
     <!-- Shared Monaco Viewer Resources -->
     <link rel="stylesheet" href="{{sharedStyleUri}}">
@@ -25,6 +25,17 @@
                 <textarea class="description-edit hidden" id="suite-description-edit" placeholder="Describe what this suite tests…"></textarea>
             </div>
             <div class="header-right">
+                <div class="suite-actions-menu" id="suite-actions-menu-container">
+                    <button id="suite-actions-btn" class="btn secondary btn-sm" title="Manage suite files">Suites ▾</button>
+                    <div class="suite-actions-dropdown hidden" id="suite-actions-dropdown">
+                        <button class="suite-action-item" data-suite-action="open">Open…</button>
+                        <button class="suite-action-item" data-suite-action="create">New…</button>
+                        <button class="suite-action-item" data-suite-action="rename">Rename</button>
+                        <button class="suite-action-item" data-suite-action="duplicate">Duplicate</button>
+                        <button class="suite-action-item danger" data-suite-action="delete">Delete</button>
+                        <button class="suite-action-item" data-suite-action="refresh">Refresh</button>
+                    </div>
+                </div>
                 <button id="run-btn" class="btn primary" disabled>
                     <span class="icon">▶</span> Run
                 </button>
@@ -36,22 +47,23 @@
 
         <!-- Main Content: Left and Right Panels -->
         <div class="runner-main">
-            <!-- Left Panel: Requests -->
+            <!-- Left Panel: Requests / Flow -->
             <aside class="runner-left-panel">
-                <div class="panel-header">
-                    <h3>Requests</h3>
-                    <div class="selection-controls">
-                        <button id="select-all-btn" class="btn-link">All</button>
-                        <button id="deselect-all-btn" class="btn-link">None</button>
-                        <button id="add-request-btn" class="btn-link primary">+ Add</button>
+                <!-- ── Flow view (primary) ── -->
+                <div id="flow-view">
+                    <div class="panel-header">
+                        <div class="selection-controls">
+                            <button id="add-flow-node-btn" class="btn-link primary">+ Add Node</button>
+                        </div>
+                    </div>
+                    <div class="flow-nodes-list" id="flow-nodes-list">
+                        <div class="empty-state">
+                            <p>No flow nodes yet</p>
+                            <p class="hint">Click "+ Add Node" to start</p>
+                        </div>
                     </div>
                 </div>
-                <div class="request-list" id="request-list">
-                    <div class="empty-state">
-                        <p>No requests in suite</p>
-                        <p class="hint">Click "+ Add" to add requests</p>
-                    </div>
-                </div>
+
                 <div class="panel-footer">
                     <button id="save-suite-btn" class="btn secondary">Save Suite</button>
                 </div>
@@ -227,6 +239,70 @@
         </div>
     </div>
 
+    <!-- Node Type Picker Modal -->
+    <div class="modal-overlay hidden" id="node-type-picker-modal">
+        <div class="modal-container modal-small">
+            <div class="modal-header">
+                <span class="modal-title">Add Flow Node</span>
+                <button class="modal-close-btn" id="node-type-picker-close">×</button>
+            </div>
+            <div class="modal-content">
+                <div class="node-type-grid" id="node-type-grid">
+                    <button class="node-type-card" data-type="request">
+                        <span class="ntc-icon" style="color:#4caf50">🌐</span>
+                        <span class="ntc-label">Request</span>
+                        <span class="ntc-desc">Run a request from a collection</span>
+                    </button>
+                    <button class="node-type-card" data-type="script">
+                        <span class="ntc-icon" style="color:#9c27b0">⚡</span>
+                        <span class="ntc-label">Script</span>
+                        <span class="ntc-desc">Run JS — pm.variables, pm.environment…</span>
+                    </button>
+                    <button class="node-type-card" data-type="if">
+                        <span class="ntc-icon" style="color:#2196f3">◇</span>
+                        <span class="ntc-label">If / Else</span>
+                        <span class="ntc-desc">Branch on a JS condition</span>
+                    </button>
+                    <button class="node-type-card" data-type="for">
+                        <span class="ntc-icon" style="color:#ff9800">↻</span>
+                        <span class="ntc-label">For Loop</span>
+                        <span class="ntc-desc">init / condition / update loop</span>
+                    </button>
+                    <button class="node-type-card" data-type="while">
+                        <span class="ntc-icon" style="color:#ff5722">↺</span>
+                        <span class="ntc-label">While Loop</span>
+                        <span class="ntc-desc">Loop while a condition is true</span>
+                    </button>
+                    <button class="node-type-card" data-type="switch">
+                        <span class="ntc-icon" style="color:#009688">⇌</span>
+                        <span class="ntc-label">Switch</span>
+                        <span class="ntc-desc">Multi-branch switch on an expression</span>
+                    </button>
+                    <button class="node-type-card" data-type="block">
+                        <span class="ntc-icon" style="color:#607d8b">▣</span>
+                        <span class="ntc-label">Block</span>
+                        <span class="ntc-desc">Group of nodes</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Node Editor Modal -->
+    <div class="modal-overlay hidden" id="node-editor-modal">
+        <div class="modal-container modal-medium">
+            <div class="modal-header">
+                <span class="modal-title" id="node-editor-title">Edit node</span>
+                <button class="modal-close-btn" id="node-editor-close">×</button>
+            </div>
+            <div class="modal-content nef-form" id="node-editor-body"></div>
+            <div class="modal-footer">
+                <button id="node-editor-save" class="btn primary">Save</button>
+                <button id="node-editor-cancel" class="btn secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Add Request Modal -->
     <div class="modal-overlay hidden" id="add-request-modal">
         <div class="modal-container modal-medium">
@@ -327,6 +403,6 @@
         </div>
     </div>
 
-    <script nonce="{{nonce}}" src="{{scriptUri}}"></script>
+    <script type="module" nonce="{{nonce}}" src="{{scriptUri}}"></script>
 </body>
 </html>

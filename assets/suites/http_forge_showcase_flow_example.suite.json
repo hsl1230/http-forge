@@ -1,0 +1,214 @@
+{
+  "id": "http_forge_showcase_flow_example",
+  "name": "HTTP Forge Showcase - Flow Example",
+  "description": "Example suite using loops, switch/case, and request blocks",
+  "requests": [],
+  "nodes": [
+    {
+      "type": "request",
+      "name": "Login - Get JWT",
+      "condition": "!pm.variables.get('token')",
+      "preRequestScript": [
+        "pm.variables.set('loginAttempted', true);"
+      ],
+      "postResponseScript": [
+        "const status = lastResult?.response?.status || 0;",
+        "pm.variables.set('loginStatus', status);",
+        "if (status >= 200 && status < 300) {",
+        "  const body = (() => {",
+        "    try { return JSON.parse(lastResult?.response?.body || '{}'); } catch { return {}; }",
+        "  })();",
+        "  if (body.token) pm.variables.set('token', body.token);",
+        "}"
+      ],
+      "request": {
+        "collectionId": "http_forge_showcase_mqshowcasecol",
+        "requestId": "login_get_jwt_mqshowcase0203",
+        "name": "Login - Get JWT",
+        "collectionName": "HTTP Forge Showcase",
+        "method": "POST",
+        "folderPath": "02 - Authentication",
+        "enabled": true
+      }
+    },
+    {
+      "type": "if",
+      "if": "!!pm.variables.get('token')",
+      "then": [
+        {
+          "type": "request",
+          "name": "Get Current User (uses JWT)",
+          "request": {
+            "collectionId": "http_forge_showcase_mqshowcasecol",
+            "requestId": "get_current_user_mqshowcase0204",
+            "name": "Get Current User (uses JWT)",
+            "collectionName": "HTTP Forge Showcase",
+            "method": "GET",
+            "folderPath": "02 - Authentication",
+            "enabled": true
+          },
+          "postResponseScript": [
+            "const code = lastResult?.response?.status || 0;",
+            "pm.variables.set('userStatus', code);"
+          ]
+        }
+      ],
+      "elseif": [
+        {
+          "condition": "Number(pm.variables.get('loginStatus') || 0) >= 400 && Number(pm.variables.get('loginStatus') || 0) < 500",
+          "nodes": [
+            {
+              "type": "request",
+              "name": "Status Code Test (404)",
+              "request": {
+                "collectionId": "http_forge_showcase_mqshowcasecol",
+                "requestId": "status_code_test_mqshowcase0502",
+                "name": "Status Code Test (404)",
+                "collectionName": "HTTP Forge Showcase",
+                "method": "GET",
+                "folderPath": "05 - Advanced Features",
+                "enabled": true
+              }
+            }
+          ]
+        }
+      ],
+      "else": [
+        {
+          "type": "request",
+          "name": "GET All Posts",
+          "request": {
+            "collectionId": "http_forge_showcase_mqshowcasecol",
+            "requestId": "get_all_posts_mqshowcase0101",
+            "name": "GET All Posts",
+            "collectionName": "HTTP Forge Showcase",
+            "method": "GET",
+            "folderPath": "01 - HTTP Methods",
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "type": "for",
+      "name": "Retry GET Post by ID up to 3 times",
+      "init": "pm.variables.set('i', 0); pm.variables.set('foundPost', false);",
+      "condition": "Number(pm.variables.get('i') || 0) < 3 && !pm.variables.get('foundPost')",
+      "update": "pm.variables.set('i', Number(pm.variables.get('i') || 0) + 1);",
+      "maxIterations": 10,
+      "nodes": [
+        {
+          "type": "request",
+          "name": "GET Post by ID",
+          "request": {
+            "collectionId": "http_forge_showcase_mqshowcasecol",
+            "requestId": "get_post_by_id_mqshowcase0102",
+            "name": "GET Post by ID",
+            "collectionName": "HTTP Forge Showcase",
+            "method": "GET",
+            "folderPath": "01 - HTTP Methods",
+            "enabled": true
+          },
+          "postResponseScript": [
+            "const code = lastResult?.response?.status || 0;",
+            "if (code === 200) pm.variables.set('foundPost', true);",
+            "pm.variables.set('lastStatus', code);"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "switch",
+      "name": "Branch by last status",
+      "expression": "Number(pm.variables.get('lastStatus') || 0)",
+      "cases": [
+        {
+          "equals": 200,
+          "nodes": [
+            {
+              "type": "request",
+              "name": "PATCH Post",
+              "request": {
+                "collectionId": "http_forge_showcase_mqshowcasecol",
+                "requestId": "patch_post_mqshowcase0105",
+                "name": "PATCH Post",
+                "collectionName": "HTTP Forge Showcase",
+                "method": "PATCH",
+                "folderPath": "01 - HTTP Methods",
+                "enabled": true
+              }
+            }
+          ]
+        },
+        {
+          "equals": 404,
+          "nodes": [
+            {
+              "type": "request",
+              "name": "POST Create Post",
+              "request": {
+                "collectionId": "http_forge_showcase_mqshowcasecol",
+                "requestId": "create_post_mqshowcase0103",
+                "name": "POST Create Post",
+                "collectionName": "HTTP Forge Showcase",
+                "method": "POST",
+                "folderPath": "01 - HTTP Methods",
+                "enabled": true
+              }
+            }
+          ]
+        }
+      ],
+      "default": [
+        {
+          "type": "request",
+          "name": "GET All Posts",
+          "request": {
+            "collectionId": "http_forge_showcase_mqshowcasecol",
+            "requestId": "get_all_posts_mqshowcase0101",
+            "name": "GET All Posts",
+            "collectionName": "HTTP Forge Showcase",
+            "method": "GET",
+            "folderPath": "01 - HTTP Methods",
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "type": "while",
+      "name": "Poll delay endpoint until success or timeout",
+      "while": "Number(pm.variables.get('pollCount') || 0) < 2 && Number(pm.variables.get('lastStatus') || 0) !== 200",
+      "maxIterations": 5,
+      "nodes": [
+        {
+          "type": "request",
+          "name": "Delay Response (timeout demo)",
+          "request": {
+            "collectionId": "http_forge_showcase_mqshowcasecol",
+            "requestId": "delay_response_mqshowcase0501",
+            "name": "Delay Response (timeout demo)",
+            "collectionName": "HTTP Forge Showcase",
+            "method": "GET",
+            "folderPath": "05 - Advanced Features",
+            "enabled": true
+          },
+          "postResponseScript": [
+            "pm.variables.set('pollCount', Number(pm.variables.get('pollCount') || 0) + 1);",
+            "pm.variables.set('lastStatus', lastResult?.response?.status || 0);"
+          ]
+        }
+      ]
+    }
+  ],
+  "config": {
+    "iterations": 1,
+    "delayBetweenRequests": 0,
+    "stopOnError": false,
+    "readFromSharedSession": false,
+    "writeToSharedSession": false
+  },
+  "isTemporary": false,
+  "createdAt": 1781740800000,
+  "updatedAt": 1781740800000
+}

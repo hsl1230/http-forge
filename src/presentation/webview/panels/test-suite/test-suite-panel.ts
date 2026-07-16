@@ -15,9 +15,11 @@ import {
     BrowseDataHandler,
     EditRequestHandler,
     ExportHandler,
+    FlowNodesHandler,
     HistoryHandler,
     ReadyHandler,
     SaveHandler,
+    SuiteFileHandler,
     SuiteRunHandler,
 } from './handlers';
 
@@ -162,6 +164,12 @@ export class TestSuitePanel {
             this._suiteStore,
             testSuiteService
         );
+        const suiteFileHandler = new SuiteFileHandler(
+            testSuiteService,
+            this._suiteStore,
+            (suite: TestSuite) => this.setSuite(suite),
+            () => this._panel.dispose()
+        );
         
         // Register handlers with router
         this._router.registerHandlers([
@@ -171,7 +179,9 @@ export class TestSuitePanel {
             browseDataHandler,
             exportHandler,
             historyHandler,
-            editRequestHandler
+            editRequestHandler,
+            suiteFileHandler,
+            new FlowNodesHandler(this._suiteStore)
         ]);
 
         // Set the webview's initial HTML content
@@ -271,7 +281,7 @@ export class TestSuitePanel {
             vscode.Uri.file(path.join(resourcePath, 'style.css'))
         );
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.file(path.join(resourcePath, 'bundle.js'))
+            vscode.Uri.file(path.join(resourcePath, 'modules', 'main.js'))
         );
         const sharedStyleUri = webview.asWebviewUri(
             vscode.Uri.file(path.join(sharedPath, 'monaco-viewer.css'))

@@ -155,7 +155,15 @@ Third-party extensions (e.g. Spring API Tester) can push `bodySchema` and `respo
 - Follow auth header on redirect
 - Max redirects
 - Strict SSL
+- TLS options (CA path, client cert/key, PFX, passphrase, SNI servername)
+- Host-based certificate mappings
 - Decompression
+
+### TLS and certificate usage
+- Use **Strict SSL** for server-certificate verification.
+- Use TLS options when you need custom CA bundles or mTLS certificates for a request.
+- Use host-based certificate mappings when different hosts in the same workspace require different client certificates.
+- Paths can be relative to the workspace root or absolute.
 
 ## Document tab
 The Document tab displays request-level Markdown documentation stored in a `doc.md` file alongside the request's `request.json`.

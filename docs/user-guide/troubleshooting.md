@@ -3,7 +3,7 @@
 ## Common issues
 
 ### Configuration not applied
-- Ensure `http-forge.config.json` is at the workspace root.
+- Ensure `.http-forge/http-forge.config.json` is at the workspace root.
 - Validate JSON syntax (errors prevent load).
 - See: configuration.md
 
@@ -56,7 +56,7 @@
 - Ensure `request.json` files exist.
 
 ### Playwright integration not finding collections
-- Ensure `http-forge.config.json` path is correct.
+- Ensure `.http-forge/http-forge.config.json` path is correct.
 - Verify collection structure and naming.
 
 ## FAQ

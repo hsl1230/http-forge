@@ -45,6 +45,10 @@ export interface SuiteRequestResult {
     folderPath: string;
     /** Collection name */
     collectionName: string;
+    /** Display group path (block label or folder path) */
+    groupPath?: string;
+    /** Group source */
+    groupType?: 'folder' | 'block';
     /** Whether request passed */
     passed: boolean;
     /** Whether request was skipped */

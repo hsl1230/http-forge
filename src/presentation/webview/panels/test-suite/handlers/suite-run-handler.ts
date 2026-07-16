@@ -1,4 +1,4 @@
-import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry, RequestAuth } from '@http-forge/core';
+import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry, PreRequestScriptContext, RequestAuth } from '@http-forge/core';
 /**
  * Suite Run Handler
  * 
@@ -8,7 +8,7 @@ import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry, R
  */
 
 import type { ITestSuiteStore, SuiteRequestEntry } from '@http-forge/core';
-import { CollectionRequestExecutor, type ConsoleOutputSource, IConfigService, type IDataFileParser, IEnvironmentConfigService, type IHttpRequestService, InMemoryCookieJar, IRequestPreparer, IResultStorageService, type IScriptExecutor, ResultStorageService, StatisticsService } from '@http-forge/core';
+import { CollectionRequestExecutor, type ConsoleOutputSource, deserializeTypedRecord, deserializeTypedValue, evaluateExpression, IConfigService, type IDataFileParser, IEnvironmentConfigService, type IHttpRequestService, InMemoryCookieJar, IRequestPreparer, IResultStorageService, type IScriptExecutor, resolveResultGrouping, ResultStorageService, StatisticsService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { ExecutionResult } from '../../../../../shared/types';
@@ -27,6 +27,7 @@ export class SuiteRunHandler implements IMessageHandler {
     private statisticsService: StatisticsService;
     private resultStorageService: IResultStorageService | null = null;
     private _lastReportPath: string | undefined = undefined;
+    private currentEstimatedTotalRequests = 0;
 
     constructor(
         private readonly environmentConfigService: IEnvironmentConfigService | undefined,
@@ -47,7 +48,7 @@ export class SuiteRunHandler implements IMessageHandler {
     async handle(command: string, message: any, messenger: IWebviewMessenger): Promise<boolean> {
         switch (command) {
             case 'startRun':
-                await this.startRun(message.selectedIndices, message.config, messenger);
+                await this.startRun(message.config, messenger);
                 return true;
             case 'stopRun':
                 this.stopRun(messenger);
@@ -61,14 +62,12 @@ export class SuiteRunHandler implements IMessageHandler {
     }
 
     /**
-     * Start suite run
-     * 
-     * @param selectedIndices - Array of indices into suite.requests
+     * Start suite run — executes all enabled request nodes in the flow.
+     *
      * @param config - Run configuration
      * @param messenger - Webview messenger
      */
     private async startRun(
-        selectedIndices: number[],
         config: SuiteRunConfiguration,
         messenger: IWebviewMessenger
     ): Promise<void> {
@@ -82,23 +81,32 @@ export class SuiteRunHandler implements IMessageHandler {
             return;
         }
 
-        // Convert indices to request entries
-        const requests: SuiteRequestEntry[] = [];
+        const topLevelNodes = Array.isArray(suite.nodes) ? suite.nodes : [];
+        const isFlatRequestSuite = topLevelNodes.every((node: any) => node?.type === 'request');
+        const flatRequests: SuiteRequestEntry[] = [];
 
-        for (const index of selectedIndices) {
-            if (index >= 0 && index < suite.requests.length) {
-                const suiteReq = suite.requests[index];
-                const entry = suiteReq.slug
-                    ? this.suiteStore.getRequestBySlug(suiteReq.slug)
-                    : this.suiteStore.getRequestWithContext(suiteReq.collectionId, suiteReq.requestId);
+        if (isFlatRequestSuite) {
+            getServiceContainer().console.info(`[SuiteRunHandler] suite.nodes count: ${suite.nodes.length}`, 'Test Suite');
+            for (const node of topLevelNodes) {
+                if ((node as any).enabled === false) continue;
+                const req = (node as any).request;
+                getServiceContainer().console.info(`[SuiteRunHandler] resolving node: collectionId=${req?.collectionId} requestId=${req?.requestId} name=${req?.name}`, 'Test Suite');
+                const entry = this.suiteStore.resolveRequestEntry(req);
                 if (entry) {
-                    requests.push(entry);
+                    flatRequests.push(entry);
+                } else {
+                    vscode.window.showWarningMessage(`Could not resolve request "${req?.name}" — check that its collection is loaded.`);
                 }
             }
         }
 
-        if (requests.length === 0) {
-            vscode.window.showErrorMessage('No requests selected');
+        const totalRequestsPerIteration = isFlatRequestSuite
+            ? flatRequests.length
+            : this.estimateEnabledRequestNodes(topLevelNodes, config);
+
+        if (totalRequestsPerIteration === 0) {
+            vscode.window.showErrorMessage('No executable requests found in this suite.');
+            messenger.postMessage({ type: 'runComplete', runId: null, suiteId: suite.id, summary: null });
             return;
         }
 
@@ -114,7 +122,8 @@ export class SuiteRunHandler implements IMessageHandler {
             this.resultStorageService = new ResultStorageService(this.configService);
         }
 
-        const totalRequests = requests.length * config.iterations;
+        const totalRequests = totalRequestsPerIteration * config.iterations;
+        this.currentEstimatedTotalRequests = totalRequests;
         const environmentId = config.environmentId || 'default';
 
         // Create per-run cookie jar (hoisted for flush in finally)
@@ -148,7 +157,7 @@ export class SuiteRunHandler implements IMessageHandler {
 
             // Log to VS Code output channel
             getServiceContainer().console.info(
-                `Starting run: ${requests.length} requests × ${config.iterations} iterations = ${totalRequests} total`,
+                `Starting run: ${totalRequestsPerIteration} requests × ${config.iterations} iterations = ${totalRequests} total`,
                 'Test Suite'
             );
 
@@ -192,131 +201,72 @@ export class SuiteRunHandler implements IMessageHandler {
                 const dataRow = dataRows[iteration % dataRows.length];
                 let iterationVariables = { ...accumulatedVariables, ...dataRow };
 
-                // Run each request
-                for (let i = 0; i < requests.length; i++) {
-                    if (this.abortController.signal.aborted) {
-                        break;
+                if (isFlatRequestSuite) {
+                    for (let i = 0; i < flatRequests.length; i++) {
+                        if (this.abortController.signal.aborted) {
+                            break;
+                        }
+
+                        const entry = flatRequests[i];
+                        const result = await this.executeRequest(
+                            entry,
+                            iterationVariables,
+                            cookieJar,
+                            environmentId,
+                            (entry as any).folderAuthChain,
+                            (entry as any).collectionAuth,
+                            iteration + 1,
+                            config.iterations
+                        );
+
+                        const handled = await this.handleRequestExecutionResult(
+                            entry,
+                            result,
+                            iteration + 1,
+                            totalRequests,
+                            completedCount,
+                            messenger,
+                            config.stopOnError
+                        );
+                        completedCount = handled.completedCount;
+                        iterationVariables = handled.variables;
+
+                        if (this.abortController.signal.aborted) {
+                            break;
+                        }
+
+                        if (result.nextRequest !== undefined) {
+                            if (result.nextRequest === null) {
+                                break;
+                            }
+                            const targetIndex = flatRequests.findIndex(
+                                (r: any) => (r.suiteRequest.name || r.request.name) === result.nextRequest
+                            );
+                            if (targetIndex !== -1) {
+                                i = targetIndex - 1;
+                            }
+                        }
+
+                        if (config.delay > 0) {
+                            await this.delay(config.delay);
+                        }
                     }
-
-                    const entry = requests[i];
-
-                    // Execute request
-                    const result = await this.executeRequest(
-                        entry,
+                } else {
+                    const flowResult = await this.executeFlowNodes(
+                        suite,
+                        topLevelNodes,
                         iterationVariables,
                         cookieJar,
                         environmentId,
-                        (entry as any).folderAuthChain,
-                        (entry as any).collectionAuth,
                         iteration + 1,
-                        config.iterations
+                        config.iterations,
+                        totalRequests,
+                        completedCount,
+                        messenger,
+                        config
                     );
-
-                    // Fallback to entry.request.name if suiteRequest.name is empty
-                    const requestName = entry.suiteRequest.name || entry.request.name || 'Unknown Request';
-
-                    // Override result.name with the display name (may differ from request's original name)
-                    const resultWithName = { ...result, name: requestName };
-
-                    // Update statistics
-                    this.statisticsService.addResult(
-                        requestName,
-                        result.duration,
-                        result.passed,
-                        false, // not skipped
-                        result.error
-                    );
-
-                    completedCount++;
-
-                    // Save result to storage and send compact summary to webview
-                    if (this.resultStorageService) {
-                        const summary = await this.resultStorageService.saveResult(iteration + 1, resultWithName);
-                        messenger.postMessage({
-                            type: 'requestResult',
-                            result: summary  // Send compact summary instead of full result
-                        });
-                    } else {
-                        // Fallback: send result with flattened structure for backward compatibility
-                        messenger.postMessage({
-                            type: 'requestResult',
-                            result: {
-                                requestId: result.requestId,
-                                name: requestName,
-                                method: result.executedRequest.method,
-                                url: result.executedRequest.url,
-                                status: result.response.status,
-                                statusText: result.response.statusText,
-                                duration: result.duration,
-                                passed: result.passed,
-                                error: result.error,
-                                assertions: result.assertions || [],
-                                index: completedCount - 1,
-                                iteration: iteration + 1
-                            }
-                        });
-                    }
-
-                    // Send progress update
-                    const stats = this.statisticsService.getStatistics();
-                    messenger.postMessage({
-                        type: 'runProgress',
-                        current: completedCount,
-                        total: totalRequests,
-                        passed: stats.summary.passed,
-                        failed: stats.summary.failed,
-                        skipped: stats.summary.skipped
-                    });
-
-                    // Send statistics update
-                    messenger.postMessage({
-                        type: 'statisticsUpdate',
-                        statistics: this.statisticsService.getSerializableStatistics()
-                    });
-
-                    // Propagate variables
-                    if (result.modifiedVariables) {
-                        iterationVariables = { ...iterationVariables, ...result.modifiedVariables };
-                    }
-                    if (result.modifiedEnvironmentVariables) {
-                        iterationVariables = { ...iterationVariables, ...result.modifiedEnvironmentVariables };
-                    }
-
-                    // Environment variable changes are now always persisted to workspace state
-                    // via the onEnvironmentChange callback in CollectionRequestExecutor.
-                    // The writeToSharedSession flag is kept for backward compatibility but
-                    // environment persistence happens automatically (Postman-compatible behavior).
-
-                    // Stop on error if configured
-                    if (!result.passed && config.stopOnError) {
-                        getServiceContainer().console.warn(
-                            `Stopping due to error: ${result.error || 'Request failed'}`,
-                            'Test Suite'
-                        );
-                        this.abortController.abort();
-                        break;
-                    }
-
-                    // Postman-compatible pm.execution.setNextRequest() / pm.setNextRequest()
-                    if (result.nextRequest !== undefined) {
-                        if (result.nextRequest === null) {
-                            // pm.setNextRequest(null) → stop the runner
-                            break;
-                        }
-                        // Find the target request by name in the remaining list
-                        const targetIndex = requests.findIndex(
-                            (r: any) => (r.suiteRequest.name || r.request.name) === result.nextRequest
-                        );
-                        if (targetIndex !== -1) {
-                            // Jump to the target request (loop will increment i, so set to targetIndex - 1)
-                            i = targetIndex - 1;
-                        }
-                    }
-
-                    // Delay between requests
-                    if (config.delay > 0) {
-                        await this.delay(config.delay);
-                    }
+                    completedCount = flowResult.completedCount;
+                    iterationVariables = flowResult.variables;
                 }
 
                 accumulatedVariables = { ...iterationVariables };
@@ -347,6 +297,7 @@ export class SuiteRunHandler implements IMessageHandler {
         } finally {
             this.isRunning = false;
             this.abortController = null;
+            this.currentEstimatedTotalRequests = 0;
 
             const stats = this.statisticsService.getStatistics();
             const runId = this.resultStorageService?.getCurrentRunId();
@@ -509,6 +460,674 @@ export class SuiteRunHandler implements IMessageHandler {
      */
     private delay(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * Build a stable statistics key so same-named requests in different folders don't merge.
+     */
+    private buildRequestStatsKey(entry: SuiteRequestEntry): string {
+        const sr = entry.suiteRequest;
+        const collectionId = sr.collectionId
+            || sr.collectionName
+            || 'unknown-collection';
+        const folderPath = sr.folderPath || '';
+        const requestId = sr.requestId
+            || entry.request.id
+            || sr.name
+            || entry.request.name
+            || 'unknown-request';
+        return `${collectionId}::${folderPath}::${requestId}`;
+    }
+
+    private getChildNodes(node: any): any[] {
+        for (const key of ['nodes', 'then', 'body', 'else', 'elseNodes', 'default', 'defaultNodes']) {
+            if (Array.isArray(node?.[key])) {
+                return node[key];
+            }
+        }
+        return [];
+    }
+
+    private createFlowExpressionContext(node: any, variables: Record<string, string>, environmentId: string, iteration: number) {
+        const decodedVars = deserializeTypedRecord(variables);
+        const variablesApi = {
+            get: (key: string) => deserializeTypedValue(variables[key]),
+            set: (key: string, value: unknown) => {
+                if (typeof key === 'string' && key.trim()) {
+                    variables[key] = value == null ? '' : String(value);
+                }
+            },
+            unset: (key: string) => {
+                if (typeof key === 'string' && key.trim()) {
+                    delete variables[key];
+                }
+            },
+            has: (key: string) => Object.prototype.hasOwnProperty.call(variables, key),
+            toObject: () => ({ ...decodedVars })
+        };
+
+        const environmentApi = {
+            get: (key: string) => deserializeTypedValue(this.environmentConfigService?.getResolvedEnvironment(environmentId)?.variables?.[key]),
+            set: (key: string, value: unknown) => {
+                if (this.environmentConfigService && typeof key === 'string' && key.trim()) {
+                    this.environmentConfigService.setEnvironmentVariable(key, value == null ? '' : String(value), environmentId);
+                }
+            }
+        };
+
+        const globalsApi = {
+            get: (key: string) => deserializeTypedValue(this.environmentConfigService?.getGlobalVariables()?.[key]),
+            set: (key: string, value: unknown) => {
+                if (this.environmentConfigService && typeof key === 'string' && key.trim()) {
+                    this.environmentConfigService.setGlobalVariable(key, value == null ? '' : String(value));
+                }
+            }
+        };
+
+        return {
+            vars: decodedVars,
+            iteration,
+            node,
+            pm: {
+                variables: variablesApi,
+                environment: environmentApi,
+                globals: globalsApi
+            }
+        };
+    }
+
+    private evaluateFlowCondition(expression: unknown, node: any, variables: Record<string, string>, environmentId: string, iteration: number): boolean {
+        if (typeof expression !== 'string' || !expression.trim()) {
+            return true;
+        }
+        const value = evaluateExpression(expression, this.createFlowExpressionContext(node, variables, environmentId, iteration));
+        if (node?.type === 'for' || node?.type === 'while' || node?.type === 'if') {
+            getServiceContainer().console.info(
+                `[SuiteRunHandler] evaluateFlowCondition type=${node?.type} name=${node?.name || 'unnamed'} expr="${expression}" value=${String(value)} i=${String(deserializeTypedValue(variables?.i))}`,
+                'Test Suite'
+            );
+        }
+        return Boolean(value);
+    }
+
+    private estimateEnabledRequestNodes(nodes: any[], config: SuiteRunConfiguration): number {
+        let count = 0;
+        for (const node of nodes || []) {
+            if (!node || typeof node !== 'object' || node.enabled === false) {
+                continue;
+            }
+            if (node.type === 'request' && node.request) {
+                count++;
+                continue;
+            }
+
+            if (node.type === 'if') {
+                const thenNodes = Array.isArray(node.then) ? node.then : this.getChildNodes(node);
+                const branchCounts: number[] = [this.estimateEnabledRequestNodes(thenNodes, config)];
+                if (Array.isArray(node.elseif)) {
+                    for (const branch of node.elseif) {
+                        branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(branch), config));
+                    }
+                }
+                const elseNodes = Array.isArray(node.else) ? node.else : [];
+                branchCounts.push(this.estimateEnabledRequestNodes(elseNodes, config));
+                count += Math.max(...branchCounts, 0);
+                continue;
+            }
+
+            if (node.type === 'switch') {
+                const branchCounts: number[] = [];
+                if (Array.isArray(node.cases)) {
+                    for (const caseNode of node.cases) {
+                        branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(caseNode), config));
+                    }
+                }
+                const defaultNodes = Array.isArray(node.default) ? node.default : [];
+                branchCounts.push(this.estimateEnabledRequestNodes(defaultNodes, config));
+                count += Math.max(...branchCounts, 0);
+                continue;
+            }
+
+            if (node.type === 'for' || node.type === 'while') {
+                const perLoop = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
+                count += perLoop * this.estimateLoopIterations(node);
+                continue;
+            }
+
+            count += this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
+        }
+        return count;
+    }
+
+    private estimateLoopIterations(node: any): number {
+        const configured = Number(node?.maxIterations);
+        if (Number.isFinite(configured) && configured > 0) {
+            return Math.max(1, Math.min(10_000, Math.floor(configured)));
+        }
+        return 1;
+    }
+
+    private adjustEstimatedTotal(plannedCount: number, actualCount: number, completedCount: number): void {
+        const reduction = Math.max(0, plannedCount - actualCount);
+        const nextTotal = Math.max(completedCount, this.currentEstimatedTotalRequests - reduction);
+        this.currentEstimatedTotalRequests = nextTotal;
+    }
+
+    private normalizeFlowScript(script: unknown): string | undefined {
+        if (typeof script === 'string') {
+            return script;
+        }
+        if (Array.isArray(script)) {
+            return script.filter((part): part is string => typeof part === 'string').join('\n');
+        }
+        return undefined;
+    }
+
+    private resolveFlowScriptSource(suite: any, node: any): string | undefined {
+        const inlineScript = this.normalizeFlowScript(node?.script);
+        if (inlineScript) {
+            return inlineScript;
+        }
+        if (typeof node?.scriptRef === 'string' && node.scriptRef.trim()) {
+            return this.normalizeFlowScript(suite?.scripts?.[node.scriptRef]);
+        }
+        return undefined;
+    }
+
+    private async runFlowScript(
+        suite: any,
+        node: any,
+        source: unknown,
+        variables: Record<string, string>,
+        environmentId: string,
+        iteration: number,
+        iterationCount: number
+    ): Promise<Record<string, string>> {
+        if (!this.scriptExecutor) {
+            return variables;
+        }
+
+        const script = typeof source === 'string' ? source : this.resolveFlowScriptSource(suite, node);
+        if (!script?.trim()) {
+            return variables;
+        }
+
+        const context: PreRequestScriptContext = {
+            request: {
+                url: 'http://flow.local/node',
+                method: 'GET',
+                headers: {},
+                query: {},
+                params: {}
+            },
+            variables: { ...variables },
+            environmentVariables: this.environmentConfigService?.getResolvedEnvironment(environmentId)?.variables || {},
+            globals: this.environmentConfigService?.getGlobalVariables() || {},
+            environmentName: environmentId,
+            info: {
+                eventName: 'prerequest',
+                requestName: node?.name || node?.type || 'flow-node',
+                requestId: String(node?.id || node?.name || node?.type || 'flow-node'),
+                collectionName: suite?.name,
+                iteration,
+                iterationCount
+            },
+            onEnvironmentChange: (action, key, value) => {
+                if (!this.environmentConfigService) return;
+                if (action === 'set' && key && value !== undefined) {
+                    this.environmentConfigService.setEnvironmentVariable(key, value, environmentId);
+                } else if (action === 'unset' && key) {
+                    this.environmentConfigService.deleteEnvironmentVariable(key, environmentId);
+                } else if (action === 'clear') {
+                    this.environmentConfigService.clearEnvironmentVariables(environmentId);
+                }
+            },
+            onGlobalsChange: (action, key, value) => {
+                if (!this.environmentConfigService) return;
+                if (action === 'set' && key && value !== undefined) {
+                    this.environmentConfigService.setGlobalVariable(key, value);
+                } else if (action === 'unset' && key) {
+                    this.environmentConfigService.deleteGlobalVariable(key);
+                } else if (action === 'clear') {
+                    this.environmentConfigService.clearGlobalVariables();
+                }
+            }
+        };
+
+        const session = this.scriptExecutor.createRequestSession(context);
+        try {
+            const result = await session.executePreRequest(script);
+            if (!result.success) {
+                throw new Error(result.error || 'Flow script execution failed');
+            }
+
+            if ((result as any).localVariables && typeof (result as any).localVariables === 'object') {
+                // Replace with the latest local snapshot so unset/clear operations
+                // are not reintroduced by older carried variables.
+                return { ...(result as any).localVariables };
+            }
+
+            const mergedVariables = {
+                ...(result.modifiedVariables || {}),
+                ...(result.modifiedEnvironmentVariables || {})
+            };
+
+            return {
+                ...variables,
+                ...mergedVariables
+            };
+        } finally {
+            session.dispose?.();
+        }
+    }
+
+    private async executeFlowNodes(
+        suite: any,
+        nodes: any[],
+        variables: Record<string, string>,
+        cookieJar: ICookieJar,
+        environmentId: string,
+        iteration: number,
+        iterationCount: number,
+        totalRequests: number,
+        completedCount: number,
+        messenger: IWebviewMessenger,
+        config: SuiteRunConfiguration,
+        activeBlockLabel?: string,
+        blockDepth: number = 0
+    ): Promise<{ variables: Record<string, string>; completedCount: number }> {
+        let currentVariables = { ...variables };
+        let currentCompleted = completedCount;
+
+        for (const node of nodes || []) {
+            if (this.abortController?.signal.aborted) {
+                break;
+            }
+            const result = await this.executeFlowNode(
+                suite,
+                node,
+                currentVariables,
+                cookieJar,
+                environmentId,
+                iteration,
+                iterationCount,
+                totalRequests,
+                currentCompleted,
+                messenger,
+                config,
+                activeBlockLabel,
+                blockDepth
+            );
+            currentVariables = result.variables;
+            currentCompleted = result.completedCount;
+        }
+
+        return { variables: currentVariables, completedCount: currentCompleted };
+    }
+
+    private async executeFlowNode(
+        suite: any,
+        node: any,
+        variables: Record<string, string>,
+        cookieJar: ICookieJar,
+        environmentId: string,
+        iteration: number,
+        iterationCount: number,
+        totalRequests: number,
+        completedCount: number,
+        messenger: IWebviewMessenger,
+        config: SuiteRunConfiguration,
+        activeBlockLabel?: string,
+        blockDepth: number = 0
+    ): Promise<{ variables: Record<string, string>; completedCount: number }> {
+        if (!node || typeof node !== 'object' || node.enabled === false) {
+            return { variables, completedCount };
+        }
+
+        if (!this.evaluateFlowCondition(node.condition, node, variables, environmentId, iteration)) {
+            return { variables, completedCount };
+        }
+
+        if (node.type === 'request' && node.request) {
+            const entry = this.suiteStore.resolveRequestEntry(node.request);
+            if (!entry) {
+                getServiceContainer().console.warn(
+                    `[SuiteRunHandler] flow request unresolved name=${node.request?.name} collectionId=${node.request?.collectionId} requestId=${node.request?.requestId}`,
+                    'Test Suite'
+                );
+                vscode.window.showWarningMessage(`Could not resolve request "${node.request?.name}" — check that its collection is loaded.`);
+                return { variables, completedCount };
+            }
+
+            getServiceContainer().console.info(
+                `[SuiteRunHandler] executing flow request name=${entry.suiteRequest?.name || entry.request?.name} iteration=${iteration}`,
+                'Test Suite'
+            );
+
+            const result = await this.executeRequest(
+                entry,
+                variables,
+                cookieJar,
+                environmentId,
+                (entry as any).folderAuthChain,
+                (entry as any).collectionAuth,
+                iteration,
+                iterationCount
+            );
+
+            const requestGrouping = resolveResultGrouping({
+                collectionName: (entry as any).resolvedCollectionName || entry.suiteRequest.collectionName || '',
+                folderPath: entry.suiteRequest.folderPath || (entry as any).resolvedFolderPath || (entry.request as any)?.folderPath || '',
+                blockLabel: activeBlockLabel || undefined
+            });
+            const requestGroupPath = requestGrouping.groupPath || undefined;
+
+            return this.handleRequestExecutionResult(
+                entry,
+                result,
+                iteration,
+                totalRequests,
+                completedCount,
+                messenger,
+                config.stopOnError,
+                config.delay,
+                variables,
+                requestGroupPath,
+                activeBlockLabel ? 'block' : 'folder'
+            );
+        }
+
+        if (node.type === 'block') {
+            const label = typeof node.name === 'string' ? node.name.trim() : '';
+            // Any explicit block node in the suite is a user-defined grouping scope.
+            // Requests directly under that block should group by its label.
+            const nextBlockLabel = label || activeBlockLabel;
+            return this.executeFlowNodes(
+                suite,
+                this.getChildNodes(node),
+                variables,
+                cookieJar,
+                environmentId,
+                iteration,
+                iterationCount,
+                totalRequests,
+                completedCount,
+                messenger,
+                config,
+                nextBlockLabel,
+                blockDepth + 1
+            );
+        }
+
+        if (node.type === 'script') {
+            return {
+                variables: await this.runFlowScript(suite, node, undefined, variables, environmentId, iteration, iterationCount),
+                completedCount
+            };
+        }
+
+        if (node.type === 'if') {
+            const thenNodes = Array.isArray(node.then) ? node.then : this.getChildNodes(node);
+            const elseNodes = Array.isArray(node.else) ? node.else : [];
+            const branchCounts: number[] = [this.estimateEnabledRequestNodes(thenNodes, config)];
+            if (Array.isArray(node.elseif)) {
+                for (const branch of node.elseif) {
+                    branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(branch), config));
+                }
+            }
+            branchCounts.push(this.estimateEnabledRequestNodes(elseNodes, config));
+            const plannedCount = Math.max(...branchCounts, 0);
+
+            const ifExpr = typeof node.if === 'string' ? node.if : node.condition;
+            if (this.evaluateFlowCondition(ifExpr, node, variables, environmentId, iteration)) {
+                const actualCount = this.estimateEnabledRequestNodes(thenNodes, config);
+                this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+                return this.executeFlowNodes(suite, thenNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+            }
+            if (Array.isArray(node.elseif)) {
+                for (const branch of node.elseif) {
+                    if (this.evaluateFlowCondition(branch?.condition, branch, variables, environmentId, iteration)) {
+                        const selectedNodes = this.getChildNodes(branch);
+                        const actualCount = this.estimateEnabledRequestNodes(selectedNodes, config);
+                        this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+                        return this.executeFlowNodes(suite, selectedNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+                    }
+                }
+            }
+            const actualCount = this.estimateEnabledRequestNodes(elseNodes, config);
+            this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+            return this.executeFlowNodes(suite, elseNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+        }
+
+        if (node.type === 'switch') {
+            const defaultNodes = Array.isArray(node.default) ? node.default : [];
+            const branchCounts: number[] = [];
+            if (Array.isArray(node.cases)) {
+                for (const caseNode of node.cases) {
+                    branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(caseNode), config));
+                }
+            }
+            branchCounts.push(this.estimateEnabledRequestNodes(defaultNodes, config));
+            const plannedCount = Math.max(...branchCounts, 0);
+
+            const switchValue = evaluateExpression(String(node.expression ?? ''), this.createFlowExpressionContext(node, variables, environmentId, iteration));
+            if (Array.isArray(node.cases)) {
+                for (const caseNode of node.cases) {
+                    const caseMatches = Object.prototype.hasOwnProperty.call(caseNode ?? {}, 'equals')
+                        ? caseNode.equals === switchValue
+                        : this.evaluateFlowCondition(caseNode?.condition, caseNode, variables, environmentId, iteration);
+                    if (caseMatches) {
+                        const selectedNodes = this.getChildNodes(caseNode);
+                        const actualCount = this.estimateEnabledRequestNodes(selectedNodes, config);
+                        this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+                        return this.executeFlowNodes(suite, selectedNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+                    }
+                }
+            }
+            const actualCount = this.estimateEnabledRequestNodes(defaultNodes, config);
+            this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
+            return this.executeFlowNodes(suite, defaultNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+        }
+
+        if (node.type === 'while') {
+            let currentVariables = { ...variables };
+            let currentCompleted = completedCount;
+            const maxIterations = Math.max(1, Math.min(10_000, Number(node.maxIterations ?? 100)));
+            const perLoopEstimate = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
+            const plannedIterations = this.estimateLoopIterations(node);
+            const plannedCount = perLoopEstimate * plannedIterations;
+            let executedLoops = 0;
+            let count = 0;
+            while (this.evaluateFlowCondition(typeof node.while === 'string' ? node.while : node.condition, node, currentVariables, environmentId, iteration)) {
+                count++;
+                if (count > maxIterations || this.abortController?.signal.aborted) {
+                    break;
+                }
+                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
+                currentVariables = result.variables;
+                currentCompleted = result.completedCount;
+                executedLoops++;
+            }
+            const actualCount = perLoopEstimate * executedLoops;
+            this.adjustEstimatedTotal(plannedCount, actualCount, currentCompleted);
+            return { variables: currentVariables, completedCount: currentCompleted };
+        }
+
+        if (node.type === 'for') {
+            let currentVariables = { ...variables };
+            let currentCompleted = completedCount;
+            const maxIterations = Math.max(1, Math.min(10_000, Number(node.maxIterations ?? 100)));
+            const perLoopEstimate = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
+            const plannedIterations = this.estimateLoopIterations(node);
+            const plannedCount = perLoopEstimate * plannedIterations;
+            currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.init), currentVariables, environmentId, iteration, iterationCount);
+            getServiceContainer().console.info(
+                `[SuiteRunHandler] for-init name=${node?.name || 'For'} i=${String(deserializeTypedValue(currentVariables?.i))} maxIterations=${maxIterations}`,
+                'Test Suite'
+            );
+            const conditionExpr = typeof node.loopCondition === 'string' && node.loopCondition.trim()
+                ? node.loopCondition
+                : typeof node.condition === 'string' && node.condition.trim()
+                    ? node.condition
+                    : 'true';
+            let count = 0;
+            let executedLoops = 0;
+            while (this.evaluateFlowCondition(conditionExpr, node, currentVariables, environmentId, iteration)) {
+                count++;
+                getServiceContainer().console.info(
+                    `[SuiteRunHandler] for-loop-enter name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`,
+                    'Test Suite'
+                );
+                if (count > maxIterations || this.abortController?.signal.aborted) {
+                    break;
+                }
+                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
+                currentVariables = result.variables;
+                currentCompleted = result.completedCount;
+                executedLoops++;
+                currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.update), currentVariables, environmentId, iteration, iterationCount);
+                getServiceContainer().console.info(
+                    `[SuiteRunHandler] for-loop-update name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`,
+                    'Test Suite'
+                );
+            }
+            getServiceContainer().console.info(
+                `[SuiteRunHandler] for-loop-exit name=${node?.name || 'For'} completedLoops=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`,
+                'Test Suite'
+            );
+            const actualCount = perLoopEstimate * executedLoops;
+            this.adjustEstimatedTotal(plannedCount, actualCount, currentCompleted);
+            return { variables: currentVariables, completedCount: currentCompleted };
+        }
+
+        return this.executeFlowNodes(suite, this.getChildNodes(node), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
+    }
+
+    private async handleRequestExecutionResult(
+        entry: SuiteRequestEntry,
+        result: ExecutionResult,
+        iteration: number,
+        totalRequests: number,
+        completedCount: number,
+        messenger: IWebviewMessenger,
+        stopOnError: boolean,
+        delayMs: number = 0,
+        variables: Record<string, string> = {},
+        groupPath?: string,
+        groupType?: 'folder' | 'block'
+    ): Promise<{ variables: Record<string, string>; completedCount: number }> {
+        const requestName = entry.suiteRequest.name || entry.request.name || 'Unknown Request';
+        const requestKey = this.buildRequestStatsKey(entry);
+        const fallbackGrouping = resolveResultGrouping({
+            collectionName: (entry as any).resolvedCollectionName || entry.suiteRequest.collectionName || '',
+            folderPath: entry.suiteRequest.folderPath || (entry as any).resolvedFolderPath || (entry.request as any)?.folderPath || '',
+            blockLabel: undefined
+        });
+        const effectiveGroupPath: string = groupPath !== undefined
+            ? groupPath
+            : (result.groupPath || result.folderPath || fallbackGrouping.groupPath);
+        const effectiveGroupType = groupType ?? result.groupType ?? fallbackGrouping.groupType;
+        const resultWithName = {
+            ...result,
+            name: requestName,
+            groupPath: effectiveGroupPath,
+            groupType: effectiveGroupType
+        };
+
+        const addResult = this.statisticsService.addResult as unknown as (...args: any[]) => void;
+        if (addResult.length >= 6) {
+            addResult.call(
+                this.statisticsService,
+                requestKey,
+                requestName,
+                result.duration,
+                result.passed,
+                false,
+                result.error
+            );
+        } else {
+            addResult.call(
+                this.statisticsService,
+                requestName,
+                result.duration,
+                result.passed,
+                false,
+                result.error
+            );
+        }
+
+        const nextCompletedCount = completedCount + 1;
+
+        if (this.resultStorageService) {
+            const summary = await this.resultStorageService.saveResult(iteration, resultWithName);
+            messenger.postMessage({
+                type: 'requestResult',
+                result: summary
+            });
+        } else {
+            messenger.postMessage({
+                type: 'requestResult',
+                result: {
+                    requestId: result.requestId,
+                    name: requestName,
+                    method: result.executedRequest.method,
+                    url: result.executedRequest.url,
+                    status: result.response.status,
+                    statusText: result.response.statusText,
+                    duration: result.duration,
+                    passed: result.passed,
+                    error: result.error,
+                    assertions: result.assertions || [],
+                    index: nextCompletedCount - 1,
+                    iteration,
+                    gp: effectiveGroupPath,
+                    gt: effectiveGroupType
+                }
+            });
+        }
+
+        const stats = this.statisticsService.getStatistics();
+        messenger.postMessage({
+            type: 'runProgress',
+            current: nextCompletedCount,
+            total: this.currentEstimatedTotalRequests || totalRequests,
+            passed: stats.summary.passed,
+            failed: stats.summary.failed,
+            skipped: stats.summary.skipped
+        });
+
+        messenger.postMessage({
+            type: 'statisticsUpdate',
+            statistics: this.statisticsService.getSerializableStatistics()
+        });
+
+        let nextVariables = { ...variables };
+        if ((result as any).localVariables && typeof (result as any).localVariables === 'object') {
+            // Replace with the latest local snapshot so unset/clear operations
+            // are not reintroduced by older carried variables.
+            nextVariables = { ...(result as any).localVariables };
+        } else {
+            if (result.modifiedVariables) {
+                nextVariables = { ...nextVariables, ...result.modifiedVariables };
+            }
+            if (result.modifiedEnvironmentVariables) {
+                nextVariables = { ...nextVariables, ...result.modifiedEnvironmentVariables };
+            }
+        }
+
+        if (!result.passed && stopOnError) {
+            getServiceContainer().console.warn(
+                `Stopping due to error: ${result.error || 'Request failed'}`,
+                'Test Suite'
+            );
+            this.abortController?.abort();
+        }
+
+        if (delayMs > 0 && !this.abortController?.signal.aborted) {
+            await this.delay(delayMs);
+        }
+
+        return { variables: nextVariables, completedCount: nextCompletedCount };
     }
 
     /**

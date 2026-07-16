@@ -33,7 +33,8 @@ export const state = {
     isRunning: false,
     results: [],           // Now stores compact ResultSummary objects (not full results)
     displayItems: [],      // Flat list of header + result rows for grouped virtual scroll
-    collapsedGroups: new Set(), // Keys of collapsed collection+folder groups in the results list
+    collapsedGroups: new Set(), // Keys of collapsed collection/folder groups in the results list
+    collapsedIterations: new Set(), // Iteration numbers collapsed in the results list
     statistics: null,
     passed: 0,
     failed: 0,
@@ -43,6 +44,7 @@ export const state = {
     suiteId: null,
     autoScroll: true,
     totalRequests: 0,
+    completedRequests: 0,
     iterations: 1,
     isDirty: false,  // Track unsaved changes
     availableRequests: [],  // Available requests for Add modal

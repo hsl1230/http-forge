@@ -54,6 +54,8 @@ export function expandSummary(s) {
             assertionsFailed: s.af,
             requestId: requestId,
             folderPath: s.fp ?? '',
+            groupPath: s.gp ?? (s.fp ?? ''),
+            groupType: s.gt,
             collectionName: s.cn ?? '',
             resultFile: buildResultFileName(s.i, s.it, requestId),
             error: s.e
@@ -72,6 +74,8 @@ export function expandSummary(s) {
         assertionsFailed: s.assertionsFailed || 0,
         requestId: s.requestId || s.r,
         folderPath: s.folderPath ?? s.fp ?? '',
+        groupPath: s.groupPath ?? s.gp ?? s.folderPath ?? s.fp ?? '',
+        groupType: s.groupType ?? s.gt,
         collectionName: s.collectionName ?? s.cn ?? '',
         resultFile: s.resultFile || (s.index !== undefined && s.iteration !== undefined && (s.requestId || s.r)
             ? buildResultFileName(s.index, s.iteration, s.requestId || s.r)
@@ -90,4 +94,24 @@ export function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Render the test-suite progress bar as full-width segments.
+ * Green = passed, red = failed, blue = remaining/skipped.
+ * @param {HTMLElement | null | undefined} progressBar
+ * @param {{ total?: number, passed?: number, failed?: number }} stats
+ */
+export function renderProgressBar(progressBar, stats = {}) {
+    if (!progressBar) return;
+
+    const total = Math.max(0, Number(stats.total) || 0);
+    const passed = Math.max(0, Math.min(total, Number(stats.passed) || 0));
+    const failed = Math.max(0, Math.min(total - passed, Number(stats.failed) || 0));
+    const passEnd = total > 0 ? (passed / total) * 100 : 0;
+    const failEnd = total > 0 ? ((passed + failed) / total) * 100 : 0;
+
+    progressBar.style.width = total > 0 ? '100%' : '0%';
+    progressBar.style.setProperty('--pass-end', `${passEnd}%`);
+    progressBar.style.setProperty('--fail-end', `${failEnd}%`);
 }

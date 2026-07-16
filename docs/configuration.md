@@ -1,6 +1,6 @@
 # HTTP Forge Configuration
 
-HTTP Forge uses `http-forge.config.json` in the workspace root.  A
+HTTP Forge uses `.http-forge/http-forge.config.json` in the workspace root.  A
 workspace-level secrets file (`http-forge.secrets.json`) used to be
 supported, but it is no longer read by the extension; sensitive values
 should instead live in environment-specific files (e.g. a gitignored
@@ -9,17 +9,26 @@ should instead live in environment-specific files (e.g. a gitignored
 ## File location
 ```
 your-workspace/
-├── http-forge.config.json    ← Configuration
+├── .http-forge/
+│   └── http-forge.config.json    ← Configuration
 ├── http-forge.secrets.json   ← Legacy/deprecated (ignored if present)
 └── ...
 ```
+
+## Migration mapping
+
+| Old location | New location |
+|---|---|
+| `http-forge.config.json` | `.http-forge/http-forge.config.json` |
+| `http-forge-assets/` | `.http-forge/assets/` |
+| `.http-forge-cache/` | `.http-forge/.cache/` |
 
 ## Default behavior
 If the file is missing, HTTP Forge uses defaults:
 - Collections in `./http-forge/collections`
 - Environments in `./http-forge/environments`
-- History in `./.http-forge-cache/histories`
-- Results in `./.http-forge-cache/results`
+- History in `./.http-forge/.cache/histories`
+- Results in `./.http-forge/.cache/results`
 
 ## Complete default configuration
 ```json
@@ -28,8 +37,8 @@ If the file is missing, HTTP Forge uses defaults:
   "storage": {
     "format": "folder",
     "root": "./http-forge",
-    "history": "./.http-forge-cache/histories",
-    "results": "./.http-forge-cache/results"
+    "history": "./.http-forge/.cache/histories",
+    "results": "./.http-forge/.cache/results"
   },
   "request": {
     "timeout": 30000,
@@ -72,8 +81,8 @@ If the file is missing, HTTP Forge uses defaults:
 | **version** | - | `"1.0"` | Configuration schema version |
 | **storage** | `format` | `"folder"` | Storage format for collections (folder-based) |
 | | `root` | `"./http-forge"` | Root directory for collections, environments, flows, and suites |
-| | `history` | `"./.http-forge-cache/histories"` | Directory for request history storage |
-| | `results` | `"./.http-forge-cache/results"` | Directory for test/suite results storage |
+| | `history` | `"./.http-forge/.cache/histories"` | Directory for request history storage |
+| | `results` | `"./.http-forge/.cache/results"` | Directory for test/suite results storage |
 | **request** | `timeout` | `30000` | Default request timeout in milliseconds (30 seconds) |
 | | `followRedirects` | `true` | Whether to follow HTTP redirects automatically |
 | | `maxRedirects` | `10` | Maximum number of redirects to follow |
@@ -98,15 +107,16 @@ If the file is missing, HTTP Forge uses defaults:
 ## Directory structure
 ```
 your-workspace/
-├── http-forge.config.json
+├── .http-forge/
+│   ├── http-forge.config.json
+│   └── .cache/
+│       ├── histories/
+│       └── results/
 ├── http-forge/                    ← storage.root
 │   ├── collections/
 │   ├── environments/             ← folder-based environment files
 │   ├── flows/
 │   └── suites/
-└── .http-forge-cache/             ← cache (gitignored)
-    ├── histories/
-    └── results/
 ```
 
 ## Environment files (folder layout)
@@ -208,7 +218,7 @@ The `mcp` section controls what the MCP server exposes to AI agents. All fields 
 }
 ```
 
-> **Note:** Port and auto-start are VS Code settings (`httpForge.mcpServer.port`, `httpForge.mcpServer.autoStart`), not project config.
+> **Note:** MCP port is project config (`mcp.port` in `.http-forge/http-forge.config.json`, default `3100`). Auto-start remains a VS Code setting (`httpForge.mcpServer.autoStart`).
 
 ## MCP server project settings
 
@@ -261,4 +271,4 @@ The `mcp` section controls what the MCP server exposes to AI agents. All fields 
 }
 ```
 
-> **Note:** Port and auto-start are VS Code settings (`httpForge.mcpServer.port`, `httpForge.mcpServer.autoStart`). See the MCP Server user guide for details.
+> **Note:** MCP port is project config (`mcp.port` in `.http-forge/http-forge.config.json`, default `3100`). Auto-start remains a VS Code setting (`httpForge.mcpServer.autoStart`). See the MCP Server user guide for details.

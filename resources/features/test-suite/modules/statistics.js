@@ -30,26 +30,15 @@ export function renderStatistics() {
     
     // Response time table - byRequest is an array of RequestStatistics
     if (stats.byRequest && stats.byRequest.length > 0) {
-        // Build a name -> {collectionName, folderPath} map from the suite requests
-        // so the Request column can show the same full label as the Requests list.
-        const metaByName = new Map();
-        for (const r of state.requests) {
-            const nm = r.name || r.requestName;
-            if (nm && !metaByName.has(nm)) {
-                metaByName.set(nm, { cn: r.collectionName || '', fp: r.folderPath || '' });
-            }
-        }
         elements.statsTableBody.innerHTML = stats.byRequest
             .map(reqStats => {
                 const name = reqStats.name || 'Unknown';
-                const meta = metaByName.get(name);
-                const pathParts = [];
-                if (meta && meta.cn) pathParts.push(meta.cn);
-                if (meta && meta.fp) pathParts.push(meta.fp);
-                const collectionPath = pathParts.join(' \u203a ');
-                const fullLabel = collectionPath ? `${collectionPath} \u203a ${name}` : name;
-                const pathLine = collectionPath
-                    ? `<span class="stat-collection-path">${escapeHtml(collectionPath)}</span>`
+                const keyParts = String(reqStats.key || '').split('::');
+                const folderPath = keyParts.length >= 3 ? (keyParts[1] || '') : '';
+                const displayPath = folderPath ? folderPath.split('/').filter(Boolean).join(' \u203a ') : '';
+                const fullLabel = displayPath ? `${displayPath} \u203a ${name}` : name;
+                const pathLine = displayPath
+                    ? `<span class="stat-collection-path">${escapeHtml(displayPath)}</span>`
                     : '';
                 const calls = reqStats.count != null ? reqStats.count : '-';
                 return `

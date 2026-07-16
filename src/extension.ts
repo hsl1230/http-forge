@@ -170,7 +170,6 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
 }
 
 function setupMcpServer(context: vscode.ExtensionContext, workspaceFolder: string): void {
-  const mcpPort = vscode.workspace.getConfiguration('httpForge').get<number>('mcpServer.port', 3100);
   let mcpServer: McpServerService | undefined;
 
   // Build the server lazily on first start so all services are fully initialised.
@@ -178,6 +177,10 @@ function setupMcpServer(context: vscode.ExtensionContext, workspaceFolder: strin
     if (!mcpServer) {
       const s = services!;
       const container = s.container;
+
+      // Port comes from http-forge.config.json mcp.port, defaulting to 3100
+      const mcpPort: number = (s.configService as any).getConfig()?.mcp?.port ?? 3100;
+
       const registry = new McpToolRegistry(
         s.collectionService as any,
         testSuiteService!,

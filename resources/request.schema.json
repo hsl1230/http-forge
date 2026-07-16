@@ -334,6 +334,76 @@
           "type": "boolean",
           "default": true,
           "description": "Include cookies in request"
+        },
+        "tls": {
+          "type": "object",
+          "description": "TLS options for this request",
+          "properties": {
+            "caPath": {
+              "type": "string",
+              "description": "Path to CA certificate bundle (PEM)"
+            },
+            "certPath": {
+              "type": "string",
+              "description": "Path to client certificate (PEM)"
+            },
+            "keyPath": {
+              "type": "string",
+              "description": "Path to client private key (PEM)"
+            },
+            "pfxPath": {
+              "type": "string",
+              "description": "Path to client certificate bundle (PFX/P12)"
+            },
+            "passphrase": {
+              "type": "string",
+              "description": "Passphrase for key/pfx if required"
+            },
+            "servername": {
+              "type": "string",
+              "description": "Optional SNI servername override"
+            }
+          }
+        },
+        "certificates": {
+          "type": "array",
+          "description": "Host-based TLS certificate mappings",
+          "items": {
+            "type": "object",
+            "required": ["host"],
+            "properties": {
+              "host": {
+                "type": "string",
+                "description": "Host matcher: exact host, wildcard (*.example.com), or *"
+              },
+              "port": {
+                "type": "number",
+                "description": "Optional port matcher"
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true
+              },
+              "caPath": {
+                "type": "string"
+              },
+              "certPath": {
+                "type": "string"
+              },
+              "keyPath": {
+                "type": "string"
+              },
+              "pfxPath": {
+                "type": "string"
+              },
+              "passphrase": {
+                "type": "string"
+              },
+              "servername": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     }

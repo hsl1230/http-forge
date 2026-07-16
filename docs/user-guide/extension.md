@@ -5,7 +5,7 @@ This guide is written for VS Code extension users. It covers the full workflow: 
 ## 1) Install and open
 1. Install the HTTP Forge extension from VS Code Marketplace.
 2. Open your workspace folder.
-3. Create `http-forge.config.json` in the workspace root.
+3. Create `.http-forge/http-forge.config.json` in the workspace root.
 
 See: configuration.md
 
@@ -91,6 +91,7 @@ The Response viewer (Body tab) also supports an HTML Preview for rendered respon
 - Timeout
 - Redirect handling
 - SSL verification
+- TLS configuration (CA/client cert/PFX)
 - Decompression
 
 ### Document tab
@@ -155,10 +156,10 @@ After sending a request you can inspect:
 See: history-shared.md
 
 ## 9) Test suites
-Suites let you run multiple requests across collections.
+Suites let you run flow-based scenarios across collections using node graphs (`request`, `script`, `if`, `switch`, `for`, `while`, `block`).
 
 Key features:
-- Cross‑collection selection
+- Flow-tree editing with branch controls
 - Iterations
 - Pass/fail summary
 - Performance stats (P50/P90/P95/P99)
