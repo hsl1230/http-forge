@@ -103,15 +103,44 @@ Once connected, the AI automatically discovers all tools. In the default **flat*
 
 ---
 
-## Tool modes — flat vs drill-down
+## Tool modes — flat vs drill-down vs execution-only
 
 How collections and requests appear as MCP tools is controlled by `mcp.toolMode` in `.http-forge/http-forge.config.json` (default `"auto"`).
 
 | Mode | What the AI sees | Best for |
 |---|---|---|
-| `auto` (default) | `flat` below `drilldownThreshold` (100), then switches to `drilldown` | **All workspaces** — adapts automatically |
-| `drilldown` | A small fixed set of generic tools whose **arguments** select the target | Very large workspaces or context-constrained AI clients |
+| `auto` (default) | `flat` below `drilldownThreshold` (100), then `drilldown`; upgrades to `execution-only` when `.http-forge/AGENTS.md` exists | **All workspaces** — adapts automatically |
+| `execution-only` | ~20 execution and AI-analysis tools only — no discovery or collection-management tools | AI agents with workspace file access (VS Code Copilot, Claude, Cursor). Saves 60–70 % of tool-list tokens |
+| `drilldown` | A small fixed set of generic tools whose **arguments** select the target | Very large workspaces or context-constrained AI clients without file access |
 | `flat` | One tool per request, folder, collection, and suite | Tiny, stable collections (<100 requests). **Avoid for large workspaces** — bloats AI context |
+
+### Auto-detection of `execution-only`
+
+When `toolMode` is `"auto"` and drilldown would normally activate, HTTP Forge checks for `.http-forge/AGENTS.md`. This file is written automatically the first time a workspace is opened. Its presence signals that the AI agent has file-system access and can read the collection JSON files directly — so the expensive discovery tools are not needed in the tool list.
+
+To opt out of this auto-detection and always use drilldown, set `"toolMode": "drilldown"` explicitly.
+
+### Why `execution-only` saves tokens
+
+In drilldown or flat mode, the `tools/list` response includes schemas for discovery tools (`list_collections`, `list_requests`, `get_request`, …) and collection-management tools (`create_request`, `update_request`, …). These are not needed when the AI can read and write the plain-JSON collection files directly.
+
+`execution-only` keeps only the tools that genuinely require the HTTP Forge runtime:
+- `run_request`, `run_collection`, `run_folder`, `run_suite`
+- `get_run_status`, `get_run_summary`, `get_failed_requests`, `get_request_result`, `cancel_run`
+- `set_variable`, `set_environment_variable`, and related variable tools
+- AI analysis tools: `explain_failure`, `suggest_assertions`, `ai_enhance_collection`, etc.
+
+### AGENTS.md — AI workspace guide
+
+`.http-forge/AGENTS.md` is auto-generated on first launch. It teaches AI assistants:
+- The folder layout and file formats
+- JSON schema URLs for IntelliSense and validation
+- When to edit files directly vs use CLI vs use MCP tools
+
+You can also reference it from `.github/copilot-instructions.md` so GitHub Copilot loads it automatically into every conversation:
+```
+See .http-forge/AGENTS.md for the HTTP Forge workspace schema and AI authoring guide.
+```
 
 ### Why drill-down exists
 
@@ -520,7 +549,7 @@ Global session variables reset when the server restarts; permanent ones are writ
 | `headers` | object | Override or add request headers |
 | `query` | object | Override query parameters |
 | `body` | string | Replace the request body (JSON string) |
-| `include` | array | Extra fields in response: `headers`, `cookies`, `tests`, `consoleOutput` |
+| `include` | array | Extra fields in response: `headers`, `cookies`, `tests`, `consoleOutput`, `report` (generate HTML report). Use `fullBody` to disable the default 4 KB body truncation. |
 
 ### Collection arguments
 
@@ -533,9 +562,11 @@ Global session variables reset when the server restarts; permanent ones are writ
 | `variables` | object | Inject variables into every request |
 | `headers` | object | Override headers on every request |
 | `requestFilter` | string[] | Run only requests whose names contain one of these strings |
-| `include` | array | `perRequest` (per-request details), `failedOnly` (failed request details), `consoleOutput` (script console output per request), `report` (force report metadata in response) |
+| `include` | array | `perRequest` (per-request details), `failedOnly` (failed request details), `consoleOutput`, `report` (generate HTML report with full details). Use `fullBody` to disable the default 4 KB body truncation on failed request entries. |
 
-### Test suite arguments
+> **Body truncation:** Response bodies in run results are truncated to 4 KB by default to reduce token usage. The truncated field returns `{ _truncated: true, excerpt, totalLength, hint }`. Pass `include: ["fullBody"]` to disable truncation, or `include: ["report"]` on collection/suite/folder runs to generate an HTML report where full details are always available.
+>
+> Single `run_request` calls do not generate a report unless `include: ["report"]` is explicitly passed.
 
 | Argument | Type | Description |
 |---|---|---|

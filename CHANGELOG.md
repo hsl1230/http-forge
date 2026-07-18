@@ -5,6 +5,32 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.26 - 2026-07-17
+
+### Added
+
+- **`execution-only` MCP tool mode** — new `toolMode` value that exposes only the ~20 tools that require the HTTP Forge runtime (run, poll results, AI analysis). Discovery and collection-management tools are omitted because AI agents with file-system access can read and write the plain-JSON collection files directly, saving 60–70 % of tool-list token overhead.
+- **Auto-detection of `execution-only` mode** — when `toolMode` is `"auto"` and the workspace contains `.http-forge/AGENTS.md` (written automatically on first launch), the server switches to `execution-only` instead of `drilldown`, with no manual configuration needed.
+- **AGENTS.md auto-generated on workspace init** — `.http-forge/AGENTS.md` is written the first time a workspace is opened. It teaches AI assistants the folder layout, JSON schema URLs, and a decision tree for when to use direct file editing vs CLI vs MCP tools.
+- **JSON Schema files for environment and suite files** — new schema resources:
+  - `resources/environment.schema.json` — per-environment `{env}.json` files
+  - `resources/global-environment.schema.json` — `_global.json`
+  - `resources/suite.schema.json` — `*.suite.json` with all control-flow node types
+- **`jsonValidation` entries for new schemas** — VS Code now provides IntelliSense and validation when editing environment and suite files.
+- **`$schema` field in all generated collection files** — `request.json`, `collection.json`, `folder.json`, `{env}.json`, `_global.json`, and `*.suite.json` now include a `$schema` URL pointing to the GitHub raw schema. AI tools outside VS Code can locate the schema without needing the extension.
+- **MCP response body truncation** — run tool results (`run_request`, `run_collection`, `run_folder`, `run_suite`) now truncate response bodies at 4 KB by default, returning a `{ _truncated, excerpt, totalLength, hint }` envelope. Pass `include: ["fullBody"]` to disable truncation. Pass `include: ["report"]` on collection/suite/folder runs to generate an HTML report with full details.
+- **Skipped assertion tracking** — `pm.test.skip()` assertions are now tracked through the full pipeline: storage (`as` field in `ResultSummary`), HTML report (Skipped Tests tab, `⊘` icon), and JUnit XML (`<skipped/>` element and `skipped="N"` attributes).
+- **HTML report redesign** — the self-contained HTML report now includes: Summary tab (stats cards, timing, pass rate), Total Requests tab (expandable, filterable), Failed Tests tab (grouped, collapsed assertions), Skipped Tests tab, Per-Request Stats tab (assertion-based P50/P90/P99), and Timeline tab.
+
+### Changed
+
+- **MCP body truncation applied at the MCP layer only** — CLI and SDK consumers (`runRequest`, `runCollection`, `runSuite`) continue to receive full response bodies. Truncation applies only when results are returned through the MCP tool interface.
+- **`toolMode` values** — the `McpToolMode` type now accepts `"flat"`, `"drilldown"`, `"auto"`, and `"execution-only"`.
+
+### Fixed
+
+- **URL builder trailing slash stripping removed** — requests with trailing slashes in the URL path (e.g. `DELETE /favorites/`) are now sent exactly as configured. The previous behavior stripped trailing slashes unconditionally.
+
 ## 0.16.20 - 2026-07-15
 
 ### Added

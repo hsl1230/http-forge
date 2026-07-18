@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Environment",
+  "description": "A named environment file ({env}.json) in the HTTP Forge environments folder. Contains variables available when this environment is selected.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this environment"
+    },
+    "requiresConfirmation": {
+      "type": "boolean",
+      "description": "When true, HTTP Forge will prompt before running requests in this environment (useful for production)"
+    },
+    "variables": {
+      "type": "object",
+      "description": "Key-value pairs available as {{variableName}} in requests",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "secretVariables": {
+      "type": "array",
+      "description": "Names of variables whose values are stored in SecretStorage (OS keychain), not in this file. Only the variable name is persisted here; the value is never written to disk.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

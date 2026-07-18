@@ -1,0 +1,256 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Test Suite",
+  "description": "A *.suite.json file defining an HTTP Forge Test Suite with control-flow nodes.",
+  "type": "object",
+  "required": ["id", "name", "nodes"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for this suite"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name of the suite"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description"
+    },
+    "scripts": {
+      "type": "object",
+      "description": "Reusable named scripts addressable via scriptRef in script nodes",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "description": "Control-flow graph — the ordered list of suite flow nodes",
+      "items": { "$ref": "#/definitions/SuiteFlowNode" }
+    },
+    "config": { "$ref": "#/definitions/SuiteConfig" },
+    "isTemporary": {
+      "type": "boolean",
+      "description": "Whether this suite is temporary (not persisted)"
+    },
+    "createdAt": { "type": "number", "description": "Unix timestamp (ms)" },
+    "updatedAt": { "type": "number", "description": "Unix timestamp (ms)" }
+  },
+
+  "definitions": {
+
+    "SuiteFlowNode": {
+      "description": "A single node in the suite control-flow graph",
+      "oneOf": [
+        { "$ref": "#/definitions/SuiteRequestNode" },
+        { "$ref": "#/definitions/SuiteBlockNode" },
+        { "$ref": "#/definitions/SuiteIfNode" },
+        { "$ref": "#/definitions/SuiteSwitchNode" },
+        { "$ref": "#/definitions/SuiteForNode" },
+        { "$ref": "#/definitions/SuiteWhileNode" },
+        { "$ref": "#/definitions/SuiteScriptNode" }
+      ]
+    },
+
+    "SuiteNodeBase": {
+      "type": "object",
+      "properties": {
+        "id":        { "type": "string",  "description": "Optional stable node ID" },
+        "name":      { "type": "string",  "description": "Optional display label" },
+        "enabled":   { "type": "boolean", "description": "Whether this node is enabled (default true)" },
+        "condition": { "type": "string",  "description": "JS boolean expression evaluated before entering this node" }
+      }
+    },
+
+    "SuiteRequest": {
+      "type": "object",
+      "required": ["collectionId", "requestId", "name", "method"],
+      "properties": {
+        "slug":           { "type": "string",  "description": "Folder slug within the suite directory" },
+        "collectionId":   { "type": "string",  "description": "ID of the collection containing this request" },
+        "collectionName": { "type": "string",  "description": "Display name of the source collection" },
+        "requestId":      { "type": "string",  "description": "ID of the request within its collection" },
+        "name":           { "type": "string",  "description": "Display name of the request" },
+        "method":         { "type": "string",  "enum": ["GET","POST","PUT","PATCH","DELETE","HEAD","OPTIONS","TRACE"] },
+        "folderPath":     { "type": "string",  "description": "Slash-separated folder path within the collection" },
+        "enabled":        { "type": "boolean", "description": "Whether this request is enabled for execution" },
+        "description":    { "type": "string",  "description": "What this request does in the suite" }
+      }
+    },
+
+    "SuiteRequestNode": {
+      "allOf": [
+        { "$ref": "#/definitions/SuiteNodeBase" },
+        {
+          "type": "object",
+          "required": ["type", "request"],
+          "properties": {
+            "type":    { "type": "string", "const": "request" },
+            "request": { "$ref": "#/definitions/SuiteRequest" }
+          }
+        }
+      ]
+    },
+
+    "SuiteBlockNode": {
+      "description": "Groups nodes together under a named label",
+      "allOf": [
+        { "$ref": "#/definitions/SuiteNodeBase" },
+        {
+          "type": "object",
+          "required": ["type", "nodes"],
+          "properties": {
+            "type":  { "type": "string", "const": "block" },
+            "nodes": { "type": "array", "items": { "$ref": "#/definitions/SuiteFlowNode" } }
+          }
+        }
+      ]
+    },
+
+    "SuiteElseIfBranch": {
+      "type": "object",
+      "required": ["condition", "nodes"],
+      "properties": {
+        "condition": { "type": "string",  "description": "JS boolean expression for this else-if branch" },
+        "nodes":     { "type": "array", "items": { "$ref": "#/definitions/SuiteFlowNode" } }
+      }
+    },
+
+    "SuiteIfNode": {
+      "description": "Conditional branching — if / elseif / else",
+      "allOf": [
+        { "$ref": "#/definitions/SuiteNodeBase" },
+        {
+          "type": "object",
+          "required": ["type", "if", "then"],
+          "properties": {
+            "type":   { "type": "string", "const": "if" },
+            "if":     { "type": "string", "description": "JS boolean expression for the if branch" },
+            "then":   { "type": "array", "items": { "$ref": "#/definitions/SuiteFlowNode" }, "description": "Nodes to execute when the condition is true" },
+            "elseif": { "type": "array", "items": { "$ref": "#/definitions/SuiteElseIfBranch" }, "description": "Optional else-if branches" },
+            "else":   { "type": "array", "items": { "$ref": "#/definitions/SuiteFlowNode" }, "description": "Nodes to execute when no branch matches" }
+          }
+        }
+      ]
+    },
+
+    "SuiteSwitchCase": {
+      "type": "object",
+      "required": ["nodes"],
+      "properties": {
+        "equals":    { "description": "Matches when the switch expression equals this value" },
+        "condition": { "type": "string", "description": "JS boolean expression (used when equals is omitted)" },
+        "nodes":     { "type": "array", "items": { "$ref": "#/definitions/SuiteFlowNode" } }
+      }
+    },
+
+    "SuiteSwitchNode": {
+      "description": "Routes execution based on the value of a JS expression",
+      "allOf": [
+        { "$ref": "#/definitions/SuiteNodeBase" },
+        {
+          "type": "object",
+          "required": ["type", "expression", "cases"],
+          "properties": {
+            "type":       { "type": "string", "const": "switch" },
+            "expression": { "type": "string", "description": "JS expression whose result is matched against cases" },
+            "cases":      { "type": "array", "items": { "$ref": "#/definitions/SuiteSwitchCase" } },
+            "default":    { "type": "array", "items": { "$ref": "#/definitions/SuiteFlowNode" }, "description": "Nodes to run when no case matches" }
+          }
+        }
+      ]
+    },
+
+    "SuiteForNode": {
+      "description": "C-style for loop over a dataset or numeric range",
+      "allOf": [
+        { "$ref": "#/definitions/SuiteNodeBase" },
+        {
+          "type": "object",
+          "required": ["type", "nodes"],
+          "properties": {
+            "type": { "type": "string", "const": "for" },
+            "init": {
+              "description": "Initialiser expression(s) — e.g. \"let i = 0\" or an array of statements",
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" } }
+              ]
+            },
+            "loopCondition": { "type": "string", "description": "Continuation condition — e.g. \"i < items.length\"" },
+            "update": {
+              "description": "Update expression(s) — e.g. \"i++\"",
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" } }
+              ]
+            },
+            "nodes":         { "type": "array", "items": { "$ref": "#/definitions/SuiteFlowNode" } },
+            "maxIterations": { "type": "number", "description": "Safety ceiling on loop iterations (default 1000)" }
+          }
+        }
+      ]
+    },
+
+    "SuiteWhileNode": {
+      "description": "Repeats nodes while a condition is true — useful for polling",
+      "allOf": [
+        { "$ref": "#/definitions/SuiteNodeBase" },
+        {
+          "type": "object",
+          "required": ["type", "while", "nodes"],
+          "properties": {
+            "type":          { "type": "string", "const": "while" },
+            "while":         { "type": "string", "description": "JS boolean expression evaluated before each iteration" },
+            "nodes":         { "type": "array", "items": { "$ref": "#/definitions/SuiteFlowNode" } },
+            "maxIterations": { "type": "number", "description": "Safety ceiling on loop iterations (default 1000)" }
+          }
+        }
+      ]
+    },
+
+    "SuiteScriptNode": {
+      "description": "Executes inline JavaScript or a named script from the suite's scripts library",
+      "allOf": [
+        { "$ref": "#/definitions/SuiteNodeBase" },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string", "const": "script" },
+            "script": {
+              "description": "Inline script source",
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" } }
+              ]
+            },
+            "scriptRef": { "type": "string", "description": "Key into the suite's scripts library" },
+            "phase":     { "type": "string", "enum": ["pre", "post"], "description": "Execution phase hint (default: pre)" }
+          }
+        }
+      ]
+    },
+
+    "SuiteConfig": {
+      "type": "object",
+      "description": "Run configuration for the suite",
+      "properties": {
+        "iterations":              { "type": "number",  "description": "Number of times to run the whole suite" },
+        "delayBetweenRequests":    { "type": "number",  "description": "Milliseconds to wait between requests" },
+        "stopOnError":             { "type": "boolean", "description": "Stop execution on the first request error" },
+        "readFromSharedSession":   { "type": "boolean", "description": "Read variables from the shared cross-suite session" },
+        "writeToSharedSession":    { "type": "boolean", "description": "Write variables to the shared cross-suite session" },
+        "dataFilePath":            { "type": "string",  "description": "Path to a CSV/JSON data file for variable injection" }
+      }
+    }
+  }
+}

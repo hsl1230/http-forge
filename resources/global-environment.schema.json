@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Global Environment",
+  "description": "The _global.json file in the HTTP Forge environments folder. Defines variables and headers shared across ALL environments.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "variables": {
+      "type": "object",
+      "description": "Global variables available as {{variableName}} in all environments",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "defaultHeaders": {
+      "type": "object",
+      "description": "Headers automatically added to every request (e.g. Accept, Content-Type)",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -35,6 +35,16 @@
 - If using custom modules, confirm module paths and installation.
 - See: scripts-assertions.md and custom-modules.md
 
+### CLI command prints output but does not exit
+
+Seen with commands like `http-forge list collections` or `http-forge env list` on CLI versions prior to `0.2.21`.
+
+The process was kept alive by open file watchers that were never released. Fixed in `@http-forge/cli` `0.2.21` / `@http-forge/core` `0.6.23`.
+
+If you see this on a current version:
+1. Confirm both `@http-forge/cli` and `@http-forge/core` are up to date.
+2. If embedding core manually, call `container.dispose()` before your script ends.
+
 ### Requests fail with SSL errors
 - Set `request.strictSSL` to `false` for non-production endpoints.
 

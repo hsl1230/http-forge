@@ -174,7 +174,7 @@ Supported TLS fields:
 | mcp | `excludedSuites` | `[]` | Hide suites from MCP |
 | mcp | `toolPrefix` | `""` | Prefix for MCP tools |
 | mcp | `maxRequestsPerCall` | `500` | Max requests per run call |
-| mcp | `toolMode` | `"auto"` | `auto`, `drilldown`, or `flat` |
+| mcp | `toolMode` | `"auto"` | `auto`, `drilldown`, `flat`, or `execution-only`. `execution-only` exposes only runtime tools (~20) — best for AI agents with workspace file access. In `auto` mode, upgrades to `execution-only` automatically when `.http-forge/AGENTS.md` exists. |
 | mcp | `drilldownThreshold` | `100` | Auto-switch threshold |
 | mcp | `toolPageSize` | `200` | Max tools per page |
 | mcp | `cors.allowedOrigins` | localhost origins | MCP CORS allowlist |
