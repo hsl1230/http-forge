@@ -43,6 +43,77 @@ import {
 } from '@http-forge/core';
 import type { McpToolRegistry } from './mcp-tool-registry';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Recursively count request nodes in a suite's flow graph. */
+function countSuiteRequestNodes(suite: { nodes?: unknown[] }): number {
+    const walk = (nodes: unknown[] | undefined): number => {
+        if (!Array.isArray(nodes)) return 0;
+        let total = 0;
+        for (const node of nodes) {
+            if (!node || typeof node !== 'object') continue;
+            const n = node as Record<string, unknown>;
+            if (n.type === 'request') { total += 1; continue; }
+            for (const key of ['nodes', 'then', 'else', 'default']) {
+                total += walk(n[key] as unknown[] | undefined);
+            }
+            if (Array.isArray(n.elseif)) {
+                for (const b of n.elseif as Record<string, unknown>[]) {
+                    total += walk(b.nodes as unknown[] | undefined ?? b.then as unknown[] | undefined);
+                }
+            }
+            if (Array.isArray(n.cases)) {
+                for (const c of n.cases as Record<string, unknown>[]) {
+                    total += walk(c.nodes as unknown[] | undefined ?? c.then as unknown[] | undefined);
+                }
+            }
+        }
+        return total;
+    };
+    return walk(suite.nodes) || 0;
+}
+
+// ─── MCP-layer body truncation (mirrors mcp-dispatcher.ts in core) ────────────
+// Applied only here so CLI / SDK consumers always receive full bodies.
+
+const MCP_MAX_BODY_CHARS = 4096;
+
+function truncateMcpBodyField(raw: unknown, include: string[]): unknown {
+    if (include.includes('fullBody') || raw == null) return raw;
+    const str = typeof raw === 'string' ? raw : JSON.stringify(raw);
+    if (str.length <= MCP_MAX_BODY_CHARS) return raw;
+    let excerpt: unknown;
+    try { excerpt = JSON.parse(str.slice(0, MCP_MAX_BODY_CHARS)); } catch { excerpt = str.slice(0, MCP_MAX_BODY_CHARS); }
+    return {
+        _truncated: true,
+        excerpt,
+        totalLength: str.length,
+        hint: 'Body truncated. Pass include:["fullBody"] to get the complete body, or include:["report"] (collection/suite runs only) to generate an HTML report with full details.',
+    };
+}
+
+function applyMcpBodyTruncation(result: unknown, include: string[]): unknown {
+    if (include.includes('fullBody') || result == null || typeof result !== 'object') return result;
+    const r = result as Record<string, unknown>;
+    let changed = false;
+    const out: Record<string, unknown> = { ...r };
+    if ('body' in out) {
+        const t = truncateMcpBodyField(out.body, include);
+        if (t !== out.body) { out.body = t; changed = true; }
+    }
+    if (Array.isArray(out.failedRequests)) {
+        out.failedRequests = (out.failedRequests as unknown[]).map((req) => {
+            if (req == null || typeof req !== 'object') return req;
+            const r2 = req as Record<string, unknown>;
+            if (!('body' in r2)) return r2;
+            const tb = truncateMcpBodyField(r2.body, include);
+            return tb !== r2.body ? { ...r2, body: tb } : r2;
+        });
+        changed = true;
+    }
+    return changed ? out : result;
+}
+
 // ─── Executor ─────────────────────────────────────────────────────────────
 
 export class McpExecutor {
@@ -136,7 +207,7 @@ export class McpExecutor {
         const requestId = resolveToken(reqToken, flattenRequests(collection).map(f => f.request.id));
         if (!requestId) throw new Error(`Request not found in collection "${collection.name}"`);
 
-        return coreRunRequest({
+        return applyMcpBodyTruncation(await coreRunRequest({
             workspaceFolder,
             collectionId: collection.id,
             requestId,
@@ -147,7 +218,7 @@ export class McpExecutor {
             body: args.body,
             include: args.include,
             reporters: args.reporters,
-        }) as Promise<object>;
+        }), Array.isArray(args.include) ? args.include : []) as Promise<object>;
     }
 
     // ── Entire collection ───────────────────────────────────────────────
@@ -166,7 +237,7 @@ export class McpExecutor {
                 workspaceFolder, variables);
         }
 
-        return coreRunCollection({
+        return applyMcpBodyTruncation(await coreRunCollection({
             workspaceFolder,
             collectionId: collection.id,
             collectionRef: collection.name,
@@ -177,7 +248,7 @@ export class McpExecutor {
             stopOnError: args.stopOnError,
             include: args.include,
             variables,
-        }) as Promise<object>;
+        }), Array.isArray(args.include) ? args.include : []) as object;
     }
 
     // ── Single folder within a collection ───────────────────────────────
@@ -215,7 +286,7 @@ export class McpExecutor {
                 workspaceFolder, variables);
         }
 
-        return coreRunCollection({
+        return applyMcpBodyTruncation(await coreRunCollection({
             workspaceFolder,
             collectionId: collection.id,
             folderPath: target,
@@ -227,7 +298,7 @@ export class McpExecutor {
             stopOnError: args.stopOnError,
             include: args.include,
             variables,
-        }) as Promise<object>;
+        }), Array.isArray(args.include) ? args.include : []) as object;
     }
 
     // ── Test suite ──────────────────────────────────────────────────────
@@ -243,13 +314,14 @@ export class McpExecutor {
         const variables = { ...sessionVars, ...(args.variables ?? {}) };
 
         if (args.async === true) {
+            const requestNodeCount = countSuiteRequestNodes(suite);
             return this.startAsyncCoreRun(suite.name, args,
-                suite.requests.length,
+                requestNodeCount,
                 (opts) => coreRunSuite({ ...opts, suiteId: suite.id }),
                 workspaceFolder, variables);
         }
 
-        return coreRunSuite({
+        return applyMcpBodyTruncation(await coreRunSuite({
             workspaceFolder,
             suiteId: suite.id,
             environment: args.environment,
@@ -260,7 +332,7 @@ export class McpExecutor {
             requestFilter: args.requestFilter,
             include: args.include,
             variables,
-        }) as Promise<object>;
+        }), Array.isArray(args.include) ? args.include : []) as object;
     }
 
     /**

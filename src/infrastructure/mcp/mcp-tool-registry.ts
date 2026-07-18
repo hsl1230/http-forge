@@ -47,7 +47,7 @@ export class McpToolRegistry {
         const suites = (await this.testSuiteService.getAllSuites())
             .filter(s => isAllowed(mcpCfg.excludedSuites, s));
 
-        return buildMcpToolList(collections, suites, mcpCfg);
+        return buildMcpToolList(collections, suites, mcpCfg, this.configService.getWorkspacePath());
     }
 
     /**
