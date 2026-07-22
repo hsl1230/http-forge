@@ -125,9 +125,11 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Heal broken assertions after API changes  
 ✅ Generate negative/edge-case test scenarios  
 ✅ Full agent mode — AI drives the entire test lifecycle autonomously  
+✅ Auto-generated `.http-forge/AGENTS.md` enables execution-only MCP mode for AI agents with workspace file access, reducing tool-list token overhead  
 
 ### 🔧 Request Builder
 ✅ All HTTP methods — GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS  
+✅ Request bodies supported for all methods, including DELETE, GET, HEAD, and OPTIONS  
 ✅ Query params, headers, path variables with enable/disable toggles  
 ✅ JSON, form-data, raw text, binary, GraphQL body types  
 ✅ OAuth 2.0 (all 4 grant types + PKCE), Bearer, Basic, API Key  

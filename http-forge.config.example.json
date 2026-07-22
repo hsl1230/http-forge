@@ -38,7 +38,11 @@
   "runner": {
     "resultsRetentionDays": 7,
     "indexPageSize": 1000,
-    "recentErrorsLimit": 20
+    "recentErrorsLimit": 20,
+    "report": {
+      "maxBodyChars": 100000,
+      "embedBodies": "failed"
+    }
   },
   "environments": {
     "default": "dev"

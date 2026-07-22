@@ -71,7 +71,11 @@ If the file is missing, HTTP Forge uses defaults:
       "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
     }
   },
-  "proxy": null
+  "proxy": {
+    "http": "http://proxy.corp.com:8080",
+    "https": "http://proxy.corp.com:8080",
+    "bypass": ["localhost", "*.internal.corp.com"]
+  }
 }
 ```
 
@@ -102,7 +106,9 @@ If the file is missing, HTTP Forge uses defaults:
 |  | `drilldownThreshold` | `100` | In `"auto"` mode, switch to drill-down once the per-request tool count would exceed this. (min 10, max 500) |
 |  | `toolPageSize` | `200` | Max tools per `tools/list` page. `0` = no pagination. (min 10, max 1000) |
 |  | `cors.allowedOrigins` | `["http://localhost","http://127.0.0.1"]` | Origins the MCP server accepts cross-origin requests from. |
-| **proxy** | - | `null` | Proxy URL (set to a URL string to enable proxy) |
+| **proxy** | `http` | `null` | HTTP proxy URL, e.g. `"http://proxy.corp.com:8080"` |
+|  | `https` | `null` | HTTPS proxy URL. Falls back to `proxy.http` if omitted |
+|  | `bypass` | `[]` | Host patterns to skip the proxy (exact or `*.wildcard.com`) |
 
 ## Directory structure
 ```

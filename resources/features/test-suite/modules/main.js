@@ -134,10 +134,16 @@ function initialize() {
         responseBodyEditor: document.getElementById('response-body-editor'),
         responseHeadersTable: document.getElementById('response-headers-table'),
         requestUrl: document.getElementById('request-url'),
-        requestMethod: document.getElementById('request-method'),
-        requestDuration: document.getElementById('request-duration'),
+        requestMethodDuration: document.getElementById('request-method-duration'),
+        requestHeadersTab: document.getElementById('request-headers-tab'),
+        requestBodyTab: document.getElementById('request-body-tab'),
+        requestHeadersPanel: document.getElementById('request-headers-panel'),
+        requestBodyPanel: document.getElementById('request-body-panel'),
+        requestBodyHeading: document.getElementById('request-body-heading'),
         requestHeadersTable: document.getElementById('request-headers-table'),
         requestBodyContent: document.getElementById('request-body-content'),
+        requestSubtabs: document.querySelectorAll('.request-subtab'),
+        requestSubpanels: document.querySelectorAll('.request-subpanel'),
         testSummary: document.getElementById('test-summary'),
         testList: document.getElementById('test-list'),
         bodyFormatSelect: document.getElementById('body-format-select'),
@@ -276,6 +282,17 @@ function setupEventListeners() {
             const panelId = tab.dataset.panel;
             elements.modalTabs.forEach(t => t.classList.remove('active'));
             elements.modalPanels?.forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(panelId)?.classList.add('active');
+        });
+    });
+
+    // Request subtab switching
+    elements.requestSubtabs?.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const panelId = tab.dataset.panel;
+            elements.requestSubtabs?.forEach(t => t.classList.remove('active'));
+            elements.requestSubpanels?.forEach(p => p.classList.remove('active'));
             tab.classList.add('active');
             document.getElementById(panelId)?.classList.add('active');
         });

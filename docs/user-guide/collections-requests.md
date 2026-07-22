@@ -8,7 +8,7 @@ Collections group related requests and folders. Each collection lives under:
 Requests are stored in request folders with a `request.json` file.
 
 ### Request parts
-- **Method**: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD
+- **Method**: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, TRACE
 - **URL/path**: absolute or relative
 - **Path params**: `:id` or `{{id}}`
 - **Query params**: key/value pairs, toggleable

@@ -376,23 +376,26 @@
                             <span class="value" id="request-url"></span>
                         </div>
                         <div class="request-info-row">
-                            <span class="label">Method:</span>
-                            <span class="value" id="request-method"></span>
-                        </div>
-                        <div class="request-info-row">
-                            <span class="label">Duration:</span>
-                            <span class="value" id="request-duration"></span>
+                            <span class="label">Method / Duration:</span>
+                            <span class="value" id="request-method-duration"></span>
                         </div>
                     </div>
-                    <h4>Request Headers</h4>
-                    <table class="headers-table">
-                        <thead>
-                            <tr><th>Header</th><th>Value</th></tr>
-                        </thead>
-                        <tbody id="request-headers-table"></tbody>
-                    </table>
-                    <h4>Request Body</h4>
-                    <pre class="body-content" id="request-body-content">No body</pre>
+                    <div class="request-subtabs" id="request-subtabs">
+                        <button class="request-subtab active" data-panel="request-headers-panel" id="request-headers-tab">Headers</button>
+                        <button class="request-subtab" data-panel="request-body-panel" id="request-body-tab">Body</button>
+                    </div>
+                    <div class="request-subpanel active" id="request-headers-panel">
+                        <table class="headers-table">
+                            <thead>
+                                <tr><th>Header</th><th>Value</th></tr>
+                            </thead>
+                            <tbody id="request-headers-table"></tbody>
+                        </table>
+                    </div>
+                    <div class="request-subpanel" id="request-body-panel">
+                        <h4 id="request-body-heading">Request Body</h4>
+                        <pre class="body-content" id="request-body-content">No body</pre>
+                    </div>
                 </div>
                 <!-- Tests Panel -->
                 <div class="modal-panel" id="tests-panel">

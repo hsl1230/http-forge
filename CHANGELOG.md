@@ -5,6 +5,30 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.30 - 2026-07-22
+
+### Added
+
+- **HTTP/HTTPS proxy support** — requests are now routed through a configured proxy with no extra npm packages. Set `proxy.http` and/or `proxy.https` in `.http-forge/http-forge.config.json` to enable. HTTPS proxying uses a native CONNECT tunnel (TCP → proxy → TLS upgrade). HTTP proxying rewrites the request path to an absolute URI as required by HTTP/1.1 proxies.
+- **Proxy authentication** — embed credentials directly in the proxy URL (`http://user:pass@proxy.corp.com:8080`); a `Proxy-Authorization: Basic ...` header is added automatically on CONNECT.
+- **Proxy bypass list** — `proxy.bypass` accepts an array of host patterns (exact: `api.local`, wildcard: `*.corp.example.com`, catch-all: `*`) that skip the proxy and connect directly.
+- **Live proxy reload** — changing `proxy` in `http-forge.config.json` and saving takes effect immediately for the next request with no VS Code restart required.
+- **`@http-forge/core` upgraded to 0.6.29** — picks up the full proxy implementation (`ProxySource`, `buildHttpProxyAgent`, `buildHttpsProxyAgent`, `hostMatchesBypass`) and DI wiring in `core-bootstrap`.
+
+## 0.16.28 - 2026-07-21
+
+### Added
+
+- **Configurable HTML report body embedding** — new `runner.report` config section with `maxBodyChars` (default 100 000) and `embedBodies` (`"all"`, `"failed"`, `"none"`; default `"failed"`). Large response bodies are truncated in the report to prevent multi-GB HTML files that hang the extension host. Full bodies remain in the on-disk result files.
+
+### Changed
+
+- **`@http-forge/core` upgraded to 0.6.28** — picks up live-reload TLS certificates, HTML report body truncation, Postman import hardening, file-watcher rewrite, and the request-body method restriction removal.
+
+### Fixed
+
+- **Request body now allowed for all HTTP methods** — the body editor is no longer disabled for GET, HEAD, DELETE, OPTIONS, or TRACE requests. Previously only POST, PUT, and PATCH could include a body, which blocked legitimate use cases like Elasticsearch `GET _search` with a JSON body. The editor remains fully editable regardless of the selected method, matching Postman behavior and RFC 9110 which does not forbid request bodies on any method.
+
 ## 0.16.26 - 2026-07-17
 
 ### Added
