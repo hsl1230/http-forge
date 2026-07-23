@@ -467,6 +467,19 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.runPerformanceTest, async (item: CollectionTreeItem) => {
+      if (item?.collectionId && item.requestId && testSuiteService) {
+        const tempSuite = await testSuiteService.createTempSuiteFromRequest(item.collectionId, item.requestId);
+        if (tempSuite) {
+          TestSuitePanel.createOrShow(context.extensionUri, tempSuite, testSuiteService);
+        } else {
+          vscode.window.showWarningMessage('Could not create performance test suite for this request.');
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.runCollection, async (item: CollectionTreeItem) => {
       if (item?.collectionId && testSuiteService) {
         // Create temp suite from collection (unified approach)

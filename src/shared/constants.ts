@@ -125,6 +125,7 @@ export const COMMAND_IDS = {
     mcpStartServer: 'httpForge.mcpStartServer',
     mcpStopServer: 'httpForge.mcpStopServer',
     mcpToggleServer: 'httpForge.mcpToggleServer',
+    runPerformanceTest: 'httpForge.runPerformanceTest',
     // Git history commands
     showRequestGitHistory: 'httpForge.showRequestGitHistory',
     viewRequestGitDiff: 'httpForge.viewRequestGitDiff',

@@ -304,11 +304,21 @@ class RequestTesterApp {
             escapeHtml,
             formatDuration,
             testResultsManager: this.testResultsManager,
+            vscode,
             onApplyAssertions: (script) => {
                 vscode.postMessage({ command: 'applyAssertions', script });
             },
             onAiEnhance: ({ status, body, contentType }) => {
-                vscode.postMessage({ command: 'aiSuggestAssertions', status, body, contentType });
+                const currentMethod = this.getMethod?.() ?? '';
+                const currentUrl    = this.getPath?.() ?? '';
+                vscode.postMessage({
+                    command: 'aiSuggestAssertions',
+                    status,
+                    body,
+                    contentType,
+                    method: currentMethod,
+                    url: currentUrl
+                });
             },
             onAiExplainResponse: (data) => {
                 vscode.postMessage({ command: 'aiExplainResponse', ...data, chatHistory: (this.state.aiChatMessages || []).slice(-10), historyContext: this.getHistorySummary() });
@@ -1280,24 +1290,44 @@ class RequestTesterApp {
     }
 
     handleAiAssertionSuggestions(msg) {
+        const aiBtn = document.getElementById('ai-enhance-suggestions-btn');
+        if (msg.openedInCopilot) {
+            // Copilot Chat opened — reset button and show toast
+            if (aiBtn) { aiBtn.disabled = false; aiBtn.textContent = '✨ Enhance with AI'; }
+            const note = document.createElement('div');
+            note.className = 'ai-copilot-toast';
+            note.textContent = '✓ Opened in GitHub Copilot Chat — drag backend files for richer context';
+            document.body.appendChild(note);
+            setTimeout(() => note.remove(), 4000);
+            return;
+        }
         this.responseHandler?.updateAiSuggestions(msg.suggestions || null, msg.error || null);
     }
 
     handleAiExplainResult(msg) {
-        this.responseHandler?.showAiExplainPanel(msg.text || null, msg.error || null);
+        this.responseHandler?.showAiExplainPanel(msg.text || null, msg.error || null, msg.copilotQuery || null);
     }
 
     handleAiFixTestResult(msg) {
-        this.testResultsManager?.handleAiFixResult(msg.testName, msg.explanation, msg.snippet, msg.error);
+        this.testResultsManager?.handleAiFixResult(msg.testName, msg.explanation, msg.snippet, msg.error, msg.copilotQuery || null);
     }
 
     handleAiGeneratedScript(msg) {
-        const confirmId = msg.phase === 'pre-request' ? 'pre-request-ai-confirm' : 'post-response-ai-confirm';
-        const barId    = msg.phase === 'pre-request' ? 'pre-request-ai-bar'    : 'post-response-ai-bar';
+        const phase = msg.phase ?? 'post-response';
+        const confirmId = phase === 'pre-request' ? 'pre-request-ai-confirm' : 'post-response-ai-confirm';
+        const barId    = phase === 'pre-request' ? 'pre-request-ai-bar'    : 'post-response-ai-bar';
         const confirm = document.getElementById(confirmId);
         if (confirm) { confirm.disabled = false; confirm.textContent = 'Generate'; }
+        if (msg.openedInCopilot) {
+            const note = document.createElement('div');
+            note.className = 'ai-copilot-toast';
+            note.textContent = '✓ Opened in GitHub Copilot Chat — drag backend files for richer context';
+            document.body.appendChild(note);
+            setTimeout(() => note.remove(), 4000);
+            return;
+        }
         if (msg.error) { this.showError(msg.error); return; }
-        const editor = msg.phase === 'pre-request'
+        const editor = phase === 'pre-request'
             ? this.editorsManager.getPreRequestScriptEditor()
             : this.editorsManager.getPostResponseScriptEditor();
         if (editor) {
@@ -1316,6 +1346,24 @@ class RequestTesterApp {
         this.markDirty();
         // Switch to doc tab so the user sees the result
         document.querySelector('[data-tab="doc"]')?.click();
+        // Refine in Copilot link — shown after the doc is applied
+        if (msg.copilotQuery) {
+            const docTabEl = document.querySelector('[data-tab="doc"]')?.closest('.tab-content');
+            if (docTabEl) {
+                let refine = docTabEl.querySelector('.ai-copilot-refine');
+                if (!refine) {
+                    refine = document.createElement('div');
+                    refine.className = 'ai-copilot-refine';
+                    docTabEl.appendChild(refine);
+                }
+                const safeQ = encodeURIComponent(msg.copilotQuery);
+                refine.innerHTML = `<a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQ}">✦ Improve docs in Copilot Chat ↗</a>`;
+                refine.querySelector('[data-copilot-query]')?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    vscode.postMessage({ command: 'openInCopilot', query: decodeURIComponent(safeQ) });
+                });
+            }
+        }
     }
 
     handleAiGeneratedBody(msg) {
@@ -1332,10 +1380,19 @@ class RequestTesterApp {
     }
 
     handleAiContractTestsResult(msg) {
+        if (msg.openedInCopilot) {
+            const note = document.createElement('div');
+            note.className = 'ai-copilot-toast';
+            note.textContent = '✓ Opened in GitHub Copilot Chat — paste the generated pm.test() snippets into your post-response script';
+            document.body.appendChild(note);
+            setTimeout(() => note.remove(), 5000);
+            return;
+        }
         this.responseHandler?.showAiContractTestsPanel(
             msg.snippets || [],
             msg.error || null,
-            (script) => vscode.postMessage({ command: 'applyAssertions', script })
+            (script) => vscode.postMessage({ command: 'applyAssertions', script }),
+            msg.copilotQuery || null
         );
     }
 
@@ -1411,7 +1468,7 @@ class RequestTesterApp {
     }
 
     handleAiCompareResult(msg) {
-        this.responseHandler?.showAiComparePanel(msg.text || null, msg.error || null);
+        this.responseHandler?.showAiComparePanel(msg.text || null, msg.error || null, msg.copilotQuery || null);
     }
 
     /**
@@ -1456,6 +1513,22 @@ class RequestTesterApp {
         if (this.state.aiChatTimeoutId) {
             clearTimeout(this.state.aiChatTimeoutId);
             this.state.aiChatTimeoutId = null;
+        }
+        // Hybrid: aiChat now opens Copilot Chat panel instead of inline reply
+        if (msg.openedInCopilot) {
+            const chatToggle = document.getElementById('ai-chat-toggle-btn');
+            const chatPanel  = document.getElementById('ai-chat-panel');
+            chatPanel?.classList.add('hidden');
+            const note = document.createElement('div');
+            note.className = 'ai-copilot-toast';
+            note.textContent = '✓ Opened in GitHub Copilot Chat';
+            document.body.appendChild(note);
+            setTimeout(() => note.remove(), 3000);
+            const sendBtn = document.getElementById('ai-chat-send');
+            const input   = document.getElementById('ai-chat-input');
+            if (sendBtn)  { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+            if (input)    { input.disabled = false; }
+            return;
         }
         const messages = document.getElementById('ai-chat-messages');
         const sendBtn = document.getElementById('ai-chat-send');

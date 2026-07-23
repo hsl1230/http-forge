@@ -5,6 +5,19 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.31 - 2026-07-22
+
+### Added
+
+- **Dynamic HTML report filename** — suite run reports are now named `report-<env>-<yyyy-MM-dd>-HH-mm.html` (spaces in env name replaced with `_`) instead of the generic `report.html`, making it easy to identify which environment and time a report belongs to.
+- **Export HTML report — auto-regenerate if missing** — clicking **Export HTML** in the Results tab now checks whether the report file still exists on disk. If it has been deleted or never generated, it regenerates automatically from the persisted run data before opening.
+- **Export JUnit XML** — the **Export JSON** button in the Results tab is now **Export JUnit XML**. It uses the existing `JUnitReportGenerator` from `@http-forge/core` (reads persisted run artifacts) and saves a standards-compliant `junit.xml` with `<testsuites>`, `<testsuite>` (including a `<properties>` block with environment, run ID, config), `<testcase>`, `<failure>`, `<error>`, `<skipped>`, and `<system-out>` elements.
+- **Statistics tab → Export Report generates HTML** — clicking **Export Report** in the Statistics tab now generates a self-contained HTML file with summary cards, per-request response-time table (min/avg/P95/P99/max), and error summary, instead of exporting raw JSON.
+- **Performance test command** — new **Run Performance Test** context menu item on each request in the Collections tree. Opens a pre-built temporary Test Suite with the request wrapped in a `for` loop node (100 iterations using `hf.variables`) so users can prepend login/auth steps before the loop if needed. The iteration count and loop condition are editable in the flow editor.
+- **Cross-collection drag-and-drop** — requests and folders can now be dragged between collections. Dropping on a different collection shows a **Move / Copy** quick-pick: Move removes the item from the source collection; Copy duplicates it (preserving all request fields and nested folder structure) while keeping the original.
+- **Consistent Move/Copy for same-collection drag-and-drop** — the same **Move / Copy** quick-pick now appears for drops within the same collection, making the behavior identical whether dragging inside or across collections.
+- **`@http-forge/core` upgraded to 0.6.30** — picks up dynamic report filenames, JUnit `<properties>` block, `createTempSuiteFromRequest`, and all proxy improvements.
+
 ## 0.16.30 - 2026-07-22
 
 ### Added
@@ -13,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Proxy authentication** — embed credentials directly in the proxy URL (`http://user:pass@proxy.corp.com:8080`); a `Proxy-Authorization: Basic ...` header is added automatically on CONNECT.
 - **Proxy bypass list** — `proxy.bypass` accepts an array of host patterns (exact: `api.local`, wildcard: `*.corp.example.com`, catch-all: `*`) that skip the proxy and connect directly.
 - **Live proxy reload** — changing `proxy` in `http-forge.config.json` and saving takes effect immediately for the next request with no VS Code restart required.
-- **`@http-forge/core` upgraded to 0.6.29** — picks up the full proxy implementation (`ProxySource`, `buildHttpProxyAgent`, `buildHttpsProxyAgent`, `hostMatchesBypass`) and DI wiring in `core-bootstrap`.
 
 ## 0.16.28 - 2026-07-21
 

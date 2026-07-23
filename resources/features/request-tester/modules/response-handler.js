@@ -33,10 +33,26 @@ function createResponseHandler({
     onAiContractTests,
     onAiExtractVars,
     onAiGenerateTypes,
-    onAiCompareResponses
+    onAiCompareResponses,
+    vscode
 }) {
 
-    // Normalize response body to string before sending to extension.
+    /**
+     * Render a small "Refine in Copilot ↗" link that opens the Copilot Chat
+     * panel with the given query pre-filled.
+     */
+    function renderCopilotLink(query) {
+        if (!query) return '';
+        const safeQuery = encodeURIComponent(query);
+        return `<div class="ai-copilot-refine">
+            <a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQuery}"
+               title="Open this result in GitHub Copilot Chat to ask follow-up questions">
+               ✦ Refine in Copilot Chat ↗
+            </a>
+        </div>`;
+    }
+
+    // Normalise response body to string before sending to extension.
     // The body may be a pre-parsed object when the content-type is JSON.
     function serializeBody(body) {
         if (body == null) return '';
@@ -173,7 +189,17 @@ function createResponseHandler({
         const content = panelEl.querySelector('.ai-vtab-content');
         const actionsEl = panelEl.querySelector('.ai-vtab-actions');
         if (loading) loading.classList.add('hidden');
-        if (content) content.innerHTML = contentHtml;
+        if (content) {
+            content.innerHTML = contentHtml;
+            // Wire "Refine in Copilot" links rendered inside this panel
+            content.querySelectorAll('[data-copilot-query]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const query = decodeURIComponent(link.dataset.copilotQuery || '');
+                    if (query && vscode) vscode.postMessage({ command: 'openInCopilot', query });
+                });
+            });
+        }
         if (actionsEl) {
             if (actions.length > 0) {
                 actionsEl.innerHTML = '';
@@ -252,7 +278,7 @@ function createResponseHandler({
         tab.oncontextmenu = (e) => { e.preventDefault(); showAiTabContextMenu(e, () => { tab.dataset.loaded = ''; trigger(); }); };
     }
 
-    function showAiExplainPanel(text, error) {
+    function showAiExplainPanel(text, error, copilotQuery) {
         const tab = document.querySelector('.ai-vtab[data-ai-tab="explain"]');
         if (tab) tab.dataset.loaded = 'true';
         const panel = getAiTabPanel('explain');
@@ -260,12 +286,13 @@ function createResponseHandler({
         if (error) {
             showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
         } else {
-            showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>'));
+            const copilotLink = copilotQuery ? renderCopilotLink(copilotQuery) : '';
+            showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>') + copilotLink);
         }
     }
 
     /** Show contract-test snippets in the AI tab panel with a selective apply button. */
-    function showAiContractTestsPanel(snippets, error, onApply) {
+    function showAiContractTestsPanel(snippets, error, onApply, copilotQuery) {
         const tab = document.querySelector('.ai-vtab[data-ai-tab="contract"]');
         if (tab) tab.dataset.loaded = 'true';
         const panel = getAiTabPanel('contract');
@@ -296,6 +323,10 @@ function createResponseHandler({
             },
             className: 'btn primary'
         }]);
+        if (copilotQuery) {
+            const content = panel.querySelector('.ai-vtab-content');
+            if (content) content.insertAdjacentHTML('beforeend', renderCopilotLink(copilotQuery));
+        }
     }
 
     /** Show extracted variable suggestions in the AI tab panel. */
@@ -382,7 +413,7 @@ function createResponseHandler({
     }
 
     /** Show response comparison text in the AI tab panel. */
-    function showAiComparePanel(text, error) {
+    function showAiComparePanel(text, error, copilotQuery) {
         const tab = document.querySelector('.ai-vtab[data-ai-tab="compare"]');
         if (tab) tab.dataset.loaded = 'true';
         const panel = getAiTabPanel('compare');
@@ -390,7 +421,7 @@ function createResponseHandler({
         if (error) {
             showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
         } else {
-            showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>'));
+            showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>') + (copilotQuery ? renderCopilotLink(copilotQuery) : ''));
         }
     }
 

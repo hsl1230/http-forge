@@ -332,15 +332,15 @@ export function closeModal() {
 // ============================================
 
 /**
- * Export JSON report
+ * Export JUnit XML report
  */
-export function exportJsonReport() {
+export function exportJunitReport() {
     // Expand compact results to readable format for export
     const expandedResults = state.results.map(r => expandSummary(r));
-    
+
     vscode.postMessage({
         type: 'exportReport',
-        format: 'json',
+        format: 'junit',
         data: {
             suite: state.suite,
             results: expandedResults,
@@ -350,32 +350,56 @@ export function exportJsonReport() {
 }
 
 /**
- * Export HTML report
+ * Export HTML report — regenerates from stored run data if the file is missing.
  */
 export function exportHtmlReport() {
-    if (!state.reportPath) {
-        // No report generated yet (run hasn't completed or failed before finalization)
-        vscode.postMessage({ type: 'exportReport', format: 'html', reportPath: null });
-        return;
-    }
     vscode.postMessage({
         type: 'exportReport',
         format: 'html',
-        reportPath: state.reportPath
+        reportPath: state.reportPath || null,
+        suiteId: state.suiteId || null,
+        runId: state.currentRunId || null
     });
 }
 
 /**
- * Export statistics report
+ * Export statistics as an HTML report
  */
 export function exportStatisticsReport() {
     vscode.postMessage({
         type: 'exportReport',
-        format: 'statistics',
+        format: 'statistics-html',
         data: {
             suite: state.suite,
             statistics: state.statistics
         }
+    });
+}
+
+/**
+ * Fix Errors — opens Copilot Chat with failed requests + suite file context
+ * so Copilot can analyse root causes from a business perspective.
+ */
+export function fixErrors() {
+    const failedResults = (state.results || []).filter(r => !(r.p ?? r.passed));
+    if (!failedResults.length) {
+        // No failures — nothing to fix
+        return;
+    }
+    vscode.postMessage({
+        type: 'fixErrors',
+        suiteId: state.suiteId || null,
+        runId: state.currentRunId || null,
+        suiteName: state.suite?.name || 'Test Suite',
+        environment: state.selectedEnvironment || null,
+        failedResults: failedResults.map(r => ({
+            name: r.n || r.name,
+            method: r.m !== undefined ? (['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS','TRACE','CONNECT'][r.m] || r.m) : (r.method || ''),
+            url: r.url || '',
+            status: r.s ?? r.status,
+            error: r.e || r.error || null,
+            assertionsFailed: r.af ?? 0
+        }))
     });
 }
 

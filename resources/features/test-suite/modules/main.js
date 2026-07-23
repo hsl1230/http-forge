@@ -23,8 +23,9 @@ import {
 import {
     closeModal,
     exportHtmlReport,
-    exportJsonReport,
+    exportJunitReport,
     exportStatisticsReport,
+    fixErrors,
     formatAndDisplayBody,
     handleResultDetails,
     handleResultDetailsError,
@@ -109,8 +110,9 @@ function initialize() {
         tabContents: document.querySelectorAll('.tab-content'),
         // Results
         resultsList: document.getElementById('results-list'),
-        exportJsonBtn: document.getElementById('export-json-btn'),
+        exportJunitBtn: document.getElementById('export-junit-btn'),
         exportHtmlBtn: document.getElementById('export-html-btn'),
+        fixErrorsBtn: document.getElementById('fix-errors-btn'),
         // Statistics (Response Time table and Error Summary only)
         statsTableBody: document.getElementById('stats-table-body'),
         errorSummary: document.getElementById('error-summary'),
@@ -246,8 +248,9 @@ function setupEventListeners() {
     elements.clearDataBtn?.addEventListener('click', clearDataFile);
 
     // Export buttons
-    elements.exportJsonBtn?.addEventListener('click', exportJsonReport);
+    elements.exportJunitBtn?.addEventListener('click', exportJunitReport);
     elements.exportHtmlBtn?.addEventListener('click', exportHtmlReport);
+    elements.fixErrorsBtn?.addEventListener('click', fixErrors);
     elements.exportReportBtn?.addEventListener('click', exportStatisticsReport);
 
     // Tab switching

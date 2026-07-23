@@ -44,6 +44,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       'aiDetectHardcoded',
       'aiCompareResponses',
       'aiChat',
+      'openInCopilot',
       'addExtractedVarsToEnv',
     ];
   }
@@ -80,6 +81,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
         case 'aiDetectHardcoded':       await this.handleAiDetectHardcoded(message, messenger);       return true;
         case 'aiCompareResponses':      await this.handleAiCompareResponses(message, messenger);      return true;
         case 'aiChat':                  await this.handleAiChat(message, messenger);                  return true;
+        case 'openInCopilot':            await this.handleOpenInCopilot(message);                      return true;
         case 'addExtractedVarsToEnv':   await this.handleAddExtractedVarsToEnv(message, messenger);   return true;
         default:                        return false;
       }
@@ -94,6 +96,37 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   }
 
   // ─── Shared LM helper ────────────────────────────────────────────────────────
+
+  /**
+   * Build a Copilot Chat query string from a prompt string.
+   * Appends a friendly opening so the session starts naturally.
+   */
+  private buildCopilotQuery(prompt: string): string {
+    // Trim to a reasonable length so the chat panel doesn't overflow
+    const mcpFallback =
+      `\n\n---\n` +
+      `> **No MCP/Confluence/Jira tools available?** Ask the user to either:\n` +
+      `> - Configure an MCP server (Confluence/Jira) in VS Code Copilot settings\n` +
+      `> - Or paste the relevant Confluence page, Jira ticket, or API spec content here\n` +
+      `>\n` +
+      `> **No backend code?** Ask the user to attach the relevant service/controller/domain model files.`;
+    return (prompt + mcpFallback).slice(0, 3500);
+  }
+
+  /**
+   * Open GitHub Copilot Chat with the given query pre-filled.
+   * Falls back gracefully if Copilot Chat isn't installed.
+   */
+  private async handleOpenInCopilot(message: { query?: string }): Promise<void> {
+    const hasCopilot = !!vscode.extensions.getExtension('GitHub.copilot-chat');
+    if (!hasCopilot) {
+      vscode.window.showInformationMessage('GitHub Copilot Chat is required. Install it from the Extensions marketplace.');
+      return;
+    }
+    await vscode.commands.executeCommand('workbench.action.chat.open', {
+      query: message.query ?? ''
+    });
+  }
 
   private async callLm(prompt: string): Promise<{ raw: string } | { error: string }> {
     try {
@@ -154,7 +187,11 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     if ('error' in result) {
       messenger.postMessage({ command: 'aiExplainResult', error: result.error });
     } else {
-      messenger.postMessage({ command: 'aiExplainResult', text: result.raw.trim() });
+      messenger.postMessage({
+        command: 'aiExplainResult',
+        text: result.raw.trim(),
+        copilotQuery: this.buildCopilotQuery(prompt)
+      });
     }
   }
 
@@ -165,19 +202,40 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     messenger: IWebviewMessenger
   ): Promise<void> {
     const truncatedBody = (message.responseBody ?? '').slice(0, 1500);
+
+    // Attach the request file dir so Copilot can read the full post-response script
+    const historyStorage = this.contextProvider.getHistoryStoragePath();
+    const requestDirPath = historyStorage?.requestPath ?? '';
+    const fileRef = requestDirPath
+      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
+      : '';
+    const fileBlock = fileRef
+      ? `\nRequest file (contains full post-response script with this test): ${fileRef}\n`
+      : '';
+
     const prompt =
       `A Postman pm.test() assertion failed. Explain why and provide a corrected pm.test() snippet.\n\n` +
       `Test name: "${message.testName ?? ''}"\n` +
       `Assertion error: ${message.error ?? ''}\n` +
       `Request: ${message.method ?? 'GET'} ${message.url ?? ''}\n` +
       `Response status: ${message.responseStatus ?? '?'}\n` +
-      `Response body (truncated):\n${truncatedBody}\n\n` +
-      `Return ONLY valid JSON, no markdown fences:\n` +
+      `Response body (truncated):\n${truncatedBody}\n` +
+      fileBlock +
+      `\nReturn ONLY valid JSON, no markdown fences:\n` +
       `{"explanation":"<why it failed in one sentence>","snippet":"pm.test(\\"...\\",...) { ... };"}`;
+
+    const copilotQuery = this.buildCopilotQuery(
+      `A pm.test() assertion is failing and I need help fixing it.\n\n` +
+      `Test: "${message.testName ?? ''}"\nError: ${message.error ?? ''}\n` +
+      `Request: ${message.method ?? 'GET'} ${message.url ?? ''} | HTTP ${message.responseStatus ?? '?'}\n` +
+      (fileRef ? `\nFull post-response script: ${fileRef}\n` : '') +
+      `\nResponse body:\n${truncatedBody}\n\n` +
+      `Please explain why this assertion fails and provide a corrected pm.test() snippet.`
+    );
 
     const result = await this.callLm(prompt);
     if ('error' in result) {
-      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, error: result.error });
+      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, error: result.error, copilotQuery });
       return;
     }
     try {
@@ -185,9 +243,9 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON in response');
       const parsed = JSON.parse(jsonMatch[0]);
-      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, ...parsed });
+      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, ...parsed, copilotQuery });
     } catch {
-      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, error: 'Could not parse AI response. Try again.' });
+      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, error: 'Could not parse AI response. Try again.', copilotQuery });
     }
   }
 
@@ -202,44 +260,47 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     },
     messenger: IWebviewMessenger
   ): Promise<void> {
+    const hasCopilot = !!vscode.extensions.getExtension('GitHub.copilot-chat');
+    if (!hasCopilot) {
+      messenger.postMessage({ command: 'aiGeneratedScript', phase: message.phase ?? 'post-response', error: 'GitHub Copilot Chat is required.' });
+      return;
+    }
+
     const phase = message.phase ?? 'post-response';
-    const existingBlock = message.existingScript?.trim()
-      ? `Existing script (extend or improve it):\n${message.existingScript.slice(0, 1000)}`
-      : 'No existing script — write from scratch.';
+    const historyStorage = this.contextProvider.getHistoryStoragePath();
+    const requestDirPath = historyStorage?.requestPath ?? '';
+    const fileRef = requestDirPath
+      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
+      : '';
+    const fileBlock = fileRef
+      ? `\nRequest files (description, existing scripts, request body, response schema): ${fileRef}\n`
+      : '';
 
     const responseBlock = message.responseStatus
       ? `\nLast response: HTTP ${message.responseStatus}` +
-        (message.responseContentType ? ` | Content-Type: ${message.responseContentType}` : '') +
-        (message.responseBody ? `\nResponse body (truncated):\n${message.responseBody}` : '')
+        (message.responseContentType ? ` | ${message.responseContentType}` : '') +
+        (message.responseBody ? `\nResponse body:\n${message.responseBody.slice(0, 800)}` : '')
       : '';
 
-    const chatBlock = (message.chatHistory?.length ?? 0) > 0
-      ? `\nRecent chat context (use if relevant):\n` +
-        (message.chatHistory ?? []).map(m =>
-          `${m.role === 'user' ? 'User' : 'AI'}: ${m.content.slice(0, 200)}`
-        ).join('\n')
-      : '';
-
-    const historyBlock = this.buildHistoryBlock(message.historyContext);
-
-    const prompt =
-      `You are a Postman/Newman pm.js script expert.\n` +
-      `Generate a ${phase} JavaScript script for this HTTP request.\n\n` +
+    const query = this.buildCopilotQuery(
+      `Generate a ${phase} JavaScript pm.js script for this HTTP request in HTTP Forge.\n\n` +
       `Request: ${message.method ?? 'GET'} ${message.url ?? ''}\n` +
-      `Instruction: "${message.description ?? ''}"\n` +
-      `${existingBlock}` +
+      (message.description ? `Instruction: "${message.description}"\n` : '') +
+      fileBlock +
       responseBlock +
-      chatBlock +
-      historyBlock +
-      `\n\nReturn ONLY the raw JavaScript. No markdown fences, no explanation.\n` +
-      `Use pm.* Postman sandbox APIs. Keep it concise and correct.`;
+      `\nPlease:\n` +
+      `1. Read the request files above — they contain the endpoint description, existing scripts (extend or improve, don't replace), and response schema.\n` +
+      `2. Understand the business context from the description and any Confluence/Jira MCP tools if available.\n` +
+      `3. Generate a ${phase} pm.js script that is idiomatic, concise, and handles the business rules.\n` +
+      `4. Use pm.* Postman sandbox APIs only. Return raw JavaScript (no markdown fences, no explanation).\n\n` +
+      `💡 Drag your backend service/controller files here for even richer context.`
+    );
 
-    const result = await this.callLm(prompt);
-    if ('error' in result) {
-      messenger.postMessage({ command: 'aiGeneratedScript', phase, error: result.error });
-    } else {
-      const script = result.raw.replace(/^```(?:javascript|js)?\n?/gm, '').replace(/^```\s*$/gm, '').trim();
-      messenger.postMessage({ command: 'aiGeneratedScript', phase, script });
+    try {
+      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+      messenger.postMessage({ command: 'aiGeneratedScript', phase, openedInCopilot: true });
+    } catch (err: any) {
+      messenger.postMessage({ command: 'aiGeneratedScript', phase, error: err?.message ?? 'Failed to open Copilot Chat.' });
     }
   }
 
@@ -255,6 +316,13 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       ? `\nExample response: ${message.responseStatus}\n${(message.responseBody ?? '').slice(0, 600)}`
       : '';
 
+    // Build #file: ref so the copilotQuery can point Copilot to the existing doc.md and description
+    const historyStorage = this.contextProvider.getHistoryStoragePath();
+    const requestDirPath = historyStorage?.requestPath ?? '';
+    const fileRef = requestDirPath
+      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
+      : '';
+
     const prompt =
       `Generate concise markdown documentation for this HTTP API endpoint.\n` +
       `Include: one-line description, request parameters/body fields, auth (if evident), expected responses.\n\n` +
@@ -265,11 +333,24 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       this.buildHistoryBlock(message.historyContext) +
       `\n\nReturn ONLY markdown. Use ## headings. Under 200 words.`;
 
+    const copilotQuery = this.buildCopilotQuery(
+      `Generate or improve markdown documentation for this HTTP API endpoint in HTTP Forge.\n\n` +
+      `${message.method ?? 'GET'} ${message.url ?? ''}\n` +
+      (fileRef ? `\nRequest files (read for existing doc.md and endpoint description): ${fileRef}\n` : '') +
+      (headerList !== 'none' ? `\nHeaders: ${headerList}` : '') +
+      bodyBlock + responseBlock +
+      `\n\nPlease:\n` +
+      `1. Read the request files above — existing doc.md gives you the starting point, the description field gives the business intent.\n` +
+      `2. Also check Confluence/Jira via MCP tools for official API documentation.\n` +
+      `3. Generate complete markdown docs: description, parameters, request body, response schema, example, auth.\n` +
+      `4. Return ONLY markdown. Use ## headings.`
+    );
+
     const result = await this.callLm(prompt);
     if ('error' in result) {
-      messenger.postMessage({ command: 'aiGeneratedDocs', error: result.error });
+      messenger.postMessage({ command: 'aiGeneratedDocs', error: result.error, copilotQuery });
     } else {
-      messenger.postMessage({ command: 'aiGeneratedDocs', markdown: result.raw.trim() });
+      messenger.postMessage({ command: 'aiGeneratedDocs', markdown: result.raw.trim(), copilotQuery });
     }
   }
 
@@ -304,34 +385,43 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     message: { status?: number; body?: string; contentType?: string; method?: string; url?: string; chatHistory?: Array<{ role: string; content: string }>; historyContext?: string },
     messenger: IWebviewMessenger
   ): Promise<void> {
-    const truncatedBody = (message.body ?? '').slice(0, 2000);
-    const prompt =
-      `You are an API contract testing expert.\n` +
-      `Generate comprehensive pm.test() assertions that validate the STRUCTURE of this response.\n` +
-      `Focus on: field presence (to.have.property), type checks (to.be.a), format validation, value constraints, array items.\n` +
-      `Be exhaustive — cover every field visible in the response body.\n\n` +
-      `${message.method ?? 'GET'} ${message.url ?? ''}\n` +
-      `Status: ${message.status ?? '?'}\n` +
-      `Content-Type: ${message.contentType ?? 'unknown'}\n` +
-      `Body:\n${truncatedBody}\n` +
-      this.buildChatBlock(message.chatHistory) +
-      this.buildHistoryBlock(message.historyContext) +
-      `\nReturn ONLY a valid JSON array, no markdown fences:\n` +
-      `[{"snippet":"pm.test(\\"...\\",...);","field":"fieldName","rationale":"why this check matters"}]`;
-
-    const result = await this.callLm(prompt);
-    if ('error' in result) {
-      messenger.postMessage({ command: 'aiContractTestsResult', error: result.error });
+    const hasCopilot = !!vscode.extensions.getExtension('GitHub.copilot-chat');
+    if (!hasCopilot) {
+      messenger.postMessage({ command: 'aiContractTestsResult', error: 'GitHub Copilot Chat is required.' });
       return;
     }
+
+    const historyStorage = this.contextProvider.getHistoryStoragePath();
+    const requestDirPath = historyStorage?.requestPath ?? '';
+    const fileRef = requestDirPath
+      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
+      : '';
+    const fileBlock = fileRef
+      ? `\nRequest files (read for responseSchema — this IS the contract): ${fileRef}\n`
+      : '';
+
+    const truncatedBody = (message.body ?? '').slice(0, 1500);
+    const query = this.buildCopilotQuery(
+      `Generate comprehensive contract pm.test() assertions for this HTTP request in HTTP Forge.\n\n` +
+      `${message.method ?? 'GET'} ${message.url ?? ''}\n` +
+      `HTTP ${message.status ?? '?'}` +
+      (message.contentType ? ` | ${message.contentType}` : '') +
+      (truncatedBody ? `\nResponse body:\n${truncatedBody}` : '') +
+      fileBlock +
+      `\nPlease:\n` +
+      `1. Read the request files above — the \`responseSchema\` field is the authoritative contract. If present, generate assertions that verify EVERY constraint (required fields, types, formats, enums, ranges).\n` +
+      `2. If no schema is present, infer the contract from the response body structure.\n` +
+      `3. Also check business rules from Confluence/Jira MCP tools if available.\n` +
+      `4. Generate exhaustive pm.test() assertions: field presence, types, formats, value constraints, array items.\n` +
+      `5. Check existing post-response script in the request files — avoid duplicating existing assertions.\n\n` +
+      `Return pm.test() snippets ready to paste into the post-response script.`
+    );
+
     try {
-      const cleaned = result.raw.replace(/^```(?:json)?\n?/gm, '').replace(/^```\s*$/gm, '').trim();
-      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('No JSON array in response');
-      const snippets: Array<{ snippet: string; field: string; rationale: string }> = JSON.parse(jsonMatch[0]);
-      messenger.postMessage({ command: 'aiContractTestsResult', snippets });
-    } catch {
-      messenger.postMessage({ command: 'aiContractTestsResult', error: 'Could not parse AI response. Try again.' });
+      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+      messenger.postMessage({ command: 'aiContractTestsResult', openedInCopilot: true });
+    } catch (err: any) {
+      messenger.postMessage({ command: 'aiContractTestsResult', error: err?.message ?? 'Failed to open Copilot Chat.' });
     }
   }
 
@@ -441,6 +531,13 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   ): Promise<void> {
     const currentTrunc  = (message.currentBody ?? '').slice(0, 1500);
     const previousTrunc = (message.previousBody ?? '').slice(0, 1500);
+
+    const historyStorage = this.contextProvider.getHistoryStoragePath();
+    const requestDirPath = historyStorage?.requestPath ?? '';
+    const fileRef = requestDirPath
+      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
+      : '';
+
     const prompt =
       `You are an API testing expert. Compare these two HTTP responses for the same endpoint.\n\n` +
       `Endpoint: ${message.method ?? 'GET'} ${message.url ?? ''}\n\n` +
@@ -451,15 +548,28 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `\nExplain the key differences in plain English. Cover: new/removed/changed fields, status differences, structural changes.\n` +
       `Reply with plain text only. 3-8 sentences. No markdown headers or fences.`;
 
+    const copilotQuery = this.buildCopilotQuery(
+      `I need to understand what changed between two responses for the same endpoint in HTTP Forge.\n\n` +
+      `Endpoint: ${message.method ?? 'GET'} ${message.url ?? ''}\n` +
+      (fileRef ? `\nRequest files (endpoint description and business context): ${fileRef}\n` : '') +
+      `\nPREVIOUS response (HTTP ${message.previousStatus ?? '?'}):\n${previousTrunc}\n\n` +
+      `CURRENT response (HTTP ${message.currentStatus ?? '?'}):\n${currentTrunc}\n\n` +
+      `Please:\n` +
+      `1. Read the request files above to understand what this endpoint is supposed to do.\n` +
+      `2. Explain the key differences: new/removed/changed fields, status changes, structural changes.\n` +
+      `3. Flag whether any differences indicate a regression or a business rule violation.\n` +
+      `4. Suggest pm.test() assertions that would catch this difference in future runs.`
+    );
+
     const result = await this.callLm(prompt);
     if ('error' in result) {
-      messenger.postMessage({ command: 'aiCompareResult', error: result.error });
+      messenger.postMessage({ command: 'aiCompareResult', error: result.error, copilotQuery });
     } else {
-      messenger.postMessage({ command: 'aiCompareResult', text: result.raw.trim() });
+      messenger.postMessage({ command: 'aiCompareResult', text: result.raw.trim(), copilotQuery });
     }
   }
 
-  // ─── Feature 11: Context-Aware Chat ──────────────────────────────────────
+  // ─── Feature 11: Context-Aware Chat — opens Copilot Chat ─────────────────
 
   private async handleAiChat(
     message: {
@@ -476,133 +586,152 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     },
     messenger: IWebviewMessenger
   ): Promise<void> {
-    const ctx = message.context ?? {};
+    const hasCopilot = !!vscode.extensions.getExtension('GitHub.copilot-chat');
+    if (!hasCopilot) {
+      messenger.postMessage({ command: 'aiChatResponse', error: 'GitHub Copilot Chat is required. Install it from the Extensions marketplace.' });
+      return;
+    }
 
+    const ctx = message.context ?? {};
+    const history = message.messages ?? [];
+
+    // Build a rich context preamble so Copilot understands the HTTP Forge session
     const requestSection =
-      `Request: ${ctx.method ?? 'GET'} ${ctx.url || '(URL not set)'}` +
+      `API request: ${ctx.method ?? 'GET'} ${ctx.url || '(URL not set)'}` +
       (ctx.headers ? `\nHeaders:\n${ctx.headers}` : '') +
       (ctx.requestBody && ctx.requestBodyType !== 'none'
-        ? `\nRequest body (${ctx.requestBodyType ?? 'raw'}):\n${ctx.requestBody}`
-        : '');
-
-    const history = message.messages ?? [];
+        ? `\nRequest body (${ctx.requestBodyType ?? 'raw'}):\n${ctx.requestBody}` : '');
 
     const responseSection = ctx.status
       ? `Last HTTP response: HTTP ${ctx.status}${ctx.statusText ? ` ${ctx.statusText}` : ''}` +
         (ctx.contentType ? `\nContent-Type: ${ctx.contentType}` : '') +
-        (ctx.responseBody ? `\nResponse body (truncated):\n${ctx.responseBody}` : '')
-      : 'No HTTP response received yet in this session.';
+        (ctx.responseBody ? `\nResponse body:\n${ctx.responseBody}` : '')
+      : 'No HTTP response received yet.';
 
-    const historySection = ctx.responseHistorySummary
-      ? `\nResponse run history (all sends in this session):\n${ctx.responseHistorySummary}`
+    const historySection = ctx.endpointHistory
+      ? `\nCall history for this endpoint:\n${ctx.endpointHistory}` : '';
+
+    // Attach request dir via #file: so Copilot can read description, scripts, schema
+    const historyStorage = this.contextProvider.getHistoryStoragePath();
+    const requestDirPath = historyStorage?.requestPath ?? '';
+    const fileRef = requestDirPath
+      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
+      : '';
+    const fileBlock = fileRef
+      ? `\nRequest files (description, existing scripts, response schema): ${fileRef}\n`
       : '';
 
-    const endpointHistorySection = ctx.endpointHistory
-      ? `\nPersistent call history for this endpoint (most recent first):\n${ctx.endpointHistory}`
+    const priorContext = history.length > 0
+      ? `\n\nPrior conversation context (${Math.ceil(history.length / 2)} turn${history.length > 2 ? 's' : ''}):\n` +
+        history.slice(-6).map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content.slice(0, 200)}`).join('\n')
       : '';
 
-    const conversationNote = history.length > 0
-      ? `\nThis is a continuation of an ongoing conversation (${Math.ceil(history.length / 2)} previous exchange${history.length > 2 ? 's' : ''}). ` +
-        `Refer to the conversation history below to maintain context.`
-      : '';
-
-    const contextPreamble =
-      `You are an AI assistant embedded in HTTP Forge, a VS Code API testing extension.${conversationNote}\n` +
-      `The user is working on the following API request:\n\n` +
-      `${requestSection}\n\n` +
-      `${responseSection}${historySection}${endpointHistorySection}\n\n` +
-      `Help the user with API testing: write pm.test() scripts, explain responses, suggest improvements.`;
-
-    const allMessages: vscode.LanguageModelChatMessage[] = [
-      vscode.LanguageModelChatMessage.User(contextPreamble),
-      vscode.LanguageModelChatMessage.Assistant("Ready to help with your API testing. What would you like to know?"),
-      ...history.map(m =>
-        m.role === 'user'
-          ? vscode.LanguageModelChatMessage.User(m.content)
-          : vscode.LanguageModelChatMessage.Assistant(m.content)
-      ),
-      vscode.LanguageModelChatMessage.User(message.newMessage ?? ''),
-    ];
+    const query = this.buildCopilotQuery(
+      `I'm using HTTP Forge (a VS Code API testing extension) and need help with the following request.\n\n` +
+      `${requestSection}\n\n${responseSection}${historySection}${fileBlock}${priorContext}\n\n` +
+      `My question: ${message.newMessage ?? 'Please help me with this API request.'}`
+    );
 
     try {
-      const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
-      if (!models.length) {
-        messenger.postMessage({ command: 'aiChatResponse', error: 'GitHub Copilot is not available.' });
-        return;
-      }
-      const cts = new vscode.CancellationTokenSource();
-      const response = await models[0].sendRequest(allMessages, {}, cts.token);
-      let raw = '';
-      for await (const part of response.stream) {
-        if (part instanceof vscode.LanguageModelTextPart) raw += part.value;
-      }
-      messenger.postMessage({ command: 'aiChatResponse', message: raw.trim() });
+      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+      // Signal the webview that we've opened Copilot Chat (no response body needed)
+      messenger.postMessage({ command: 'aiChatResponse', openedInCopilot: true });
     } catch (err: any) {
-      messenger.postMessage({ command: 'aiChatResponse', error: err?.message ?? 'Chat failed.' });
+      messenger.postMessage({ command: 'aiChatResponse', error: err?.message ?? 'Failed to open Copilot Chat.' });
     }
   }
 
   private async handleAiSuggestAssertions(
-    message: { status?: number; body?: string; contentType?: string },
+    message: {
+      status?: number;
+      body?: string;
+      contentType?: string;
+      method?: string;
+      url?: string;
+    },
     messenger: IWebviewMessenger
   ): Promise<void> {
-    const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
-    if (!models.length) {
+    const hasCopilot = !!vscode.extensions.getExtension('GitHub.copilot-chat');
+    if (!hasCopilot) {
       messenger.postMessage({
         command: 'aiAssertionSuggestions',
-        error: 'GitHub Copilot is not available. Please sign in to use AI suggestions.'
+        error: 'GitHub Copilot Chat is required. Install it from the Extensions marketplace.'
       });
       return;
     }
 
-    const model = models[0];
-    const truncatedBody = (message.body ?? '').slice(0, 1500);
-    const prompt =
-      `You are a test generation assistant for HTTP APIs.\n` +
-      `Given this HTTP response:\n` +
-      `Status: ${message.status ?? 'unknown'}\n` +
-      `Content-Type: ${message.contentType ?? 'unknown'}\n` +
-      `Body:\n${truncatedBody}\n\n` +
-      `Generate up to 6 Postman/Newman pm.test() assertion snippets that are specific and meaningful for this response.\n` +
-      `For numeric bounds, prefer pm.expect(value).to.be.gte(n) and pm.expect(value).to.be.lte(n) instead of at.least/at.most.\n` +
-      `Return ONLY a valid JSON array in this exact shape (no markdown fences, no extra text):\n` +
-      `[{"snippet":"pm.test(...) {...};","rationale":"Why this assertion is useful."}]`;
+    // Resolve .http-forge file paths so Copilot can read them directly via #file: —
+    // no need to embed content in the prompt.
+    const historyStorage = this.contextProvider.getHistoryStoragePath();
+    const requestDirPath = historyStorage?.requestPath ?? '';
+
+    // Build #file: references for files that exist on disk
+    const fileRefs: string[] = [];
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+
+    const addFileRef = (absPath: string) => {
+      if (!absPath) return;
+      const rel = vscode.workspace.asRelativePath(absPath, false);
+      if (rel && rel !== absPath) {
+        fileRefs.push(`#file:${rel}`);
+      }
+    };
+
+    // 1. Request dir: contains request.json (description, scripts, body schema, response schema)
+    //    and scripts/post-response.js (existing assertions)
+    if (requestDirPath) {
+      addFileRef(requestDirPath);
+    }
+
+    // 2. History folder for this request (response patterns across runs)
+    if (historyStorage?.requestId && historyStorage?.environment) {
+      const historyBase = (this.collectionService as any)?.configService?.getHistoryPath?.();
+      if (historyBase) {
+        const historyRequestDir = require('path').join(
+          historyBase,
+          historyStorage.environment,
+          historyStorage.requestId
+        );
+        addFileRef(historyRequestDir);
+      }
+    }
+
+    const fileRefBlock = fileRefs.length > 0
+      ? `\nContext files (read these for full details — description, existing assertions, response schema, history):\n${fileRefs.join('\n')}\n`
+      : '';
+
+    const truncatedResponseBody = (message.body ?? '').slice(0, 1500);
+    const requestLine = `${message.method ?? 'GET'} ${message.url ?? '(URL unknown)'}`;
+    const responseBlock =
+      `HTTP ${message.status ?? '?'}` +
+      (message.contentType ? ` | ${message.contentType}` : '') +
+      (truncatedResponseBody ? `\nResponse body:\n${truncatedResponseBody}` : '');
+
+    const query = this.buildCopilotQuery(
+      `I need high-quality business-level pm.test() assertions for this HTTP request.\n\n` +
+      `${requestLine}\n${responseBlock}\n` +
+      fileRefBlock +
+      `\nPlease:\n` +
+      `1. Read the context files above — they contain the request description (business intent), ` +
+      `existing assertions (don't duplicate), response schema (contract), and call history (patterns).\n` +
+      `2. **Gather additional business context** (priority order):\n` +
+      `   a. Source files above — **highest priority, treat as ground truth**\n` +
+      `   b. Confluence pages / Jira tickets via MCP tools — search by endpoint URL or feature name\n` +
+      `   c. The response body above — fallback only\n` +
+      `   If code and docs conflict, follow the code and note the discrepancy.\n` +
+      `3. Identify **business invariants** that must hold (e.g. "total = sum of line items", "token expires in 24h").\n` +
+      `4. Generate **pm.test() assertions** that verify those invariants. Avoid generic status/field-exists checks.\n` +
+      `5. Also suggest assertions that verify nothing sensitive is leaked (passwords, secrets, internal IDs).\n\n` +
+      `💡 Drag backend service/controller/domain model files here for even richer context.`
+    );
 
     try {
-      const token = new vscode.CancellationTokenSource().token;
-      const response = await model.sendRequest(
-        [vscode.LanguageModelChatMessage.User(prompt)],
-        {},
-        token
-      );
-
-      let raw = '';
-      for await (const part of response.stream) {
-        if (part instanceof vscode.LanguageModelTextPart) {
-          raw += part.value;
-        }
-      }
-
-      // Extract JSON array from the response (strip any accidental markdown fences)
-      const jsonMatch = raw.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        messenger.postMessage({ command: 'aiAssertionSuggestions', error: 'Could not parse AI response. Try again.' });
-        return;
-      }
-
-      const suggestions: Array<{ snippet: string; rationale: string }> = JSON.parse(jsonMatch[0]).map(
-        (suggestion: { snippet: string; rationale: string }) => ({
-          ...suggestion,
-          snippet: suggestion.snippet
-            .replace(/\.to\.be\.at\.least\(/g, '.to.be.gte(')
-            .replace(/\.to\.be\.at\.most\(/g, '.to.be.lte(')
-        })
-      );
-      messenger.postMessage({ command: 'aiAssertionSuggestions', suggestions });
+      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+      messenger.postMessage({ command: 'aiAssertionSuggestions', openedInCopilot: true });
     } catch (err: any) {
       messenger.postMessage({
         command: 'aiAssertionSuggestions',
-        error: err?.message ?? 'AI suggestion failed.'
+        error: err?.message ?? 'Failed to open Copilot Chat.'
       });
     }
   }

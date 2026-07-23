@@ -3053,6 +3053,37 @@ button.primary.cancel:hover {
 }
 .ai-vtab-actions.hidden { display: none; }
 
+/* "Refine in Copilot Chat ↗" link shown after AI results */
+.ai-copilot-refine {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--vscode-widget-border, #3c3c3c);
+}
+.ai-copilot-refine-link {
+    color: var(--vscode-textLink-foreground, #4daafc);
+    font-size: 0.82em;
+    text-decoration: none;
+    opacity: 0.8;
+}
+.ai-copilot-refine-link:hover { opacity: 1; text-decoration: underline; }
+
+/* Toast notification when Copilot Chat is opened */
+.ai-copilot-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--vscode-notificationCenterHeader-background, #2d2d2d);
+    color: var(--vscode-foreground, #ccc);
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4);
+    z-index: 9999;
+    pointer-events: none;
+    animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
 /* Analyzing… spinner inside AI tab panels */
 .ai-loading {
     font-style: italic;

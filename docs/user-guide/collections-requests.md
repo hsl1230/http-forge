@@ -71,6 +71,21 @@ Right-click any item in the Collections tree view and select **Duplicate**. The 
 
 The duplicate gets a new ID so edits to the copy do not affect the original.
 
+## Moving and copying between collections
+
+You can drag any **request** or **folder** (including its entire nested contents) to another collection — or reposition it within the same collection.
+
+### How it works
+1. Drag the item from the Collections tree.
+2. Drop it on a **folder** or **request** in any collection (including the source collection).
+3. A quick-pick appears:
+   - **Move** — item is removed from the source and placed in the target.
+   - **Copy** — item is duplicated to the target; the original is kept.
+
+For **folders**, all nested subfolders and requests are recursively recreated in the target location.
+
+> **Tip:** To reorder within the same collection without a Move/Copy prompt was the old behavior. Dragging now always shows the prompt so you can intentionally choose between the two actions.
+
 ## Naming and stability
 - Keep request names stable to preserve history and codegen output.
 - Avoid duplicate request names within the same folder.

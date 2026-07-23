@@ -214,28 +214,29 @@
     },
     "proxy": {
       "type": ["object", "null"],
-      "description": "Proxy configuration (null to disable)",
+      "description": "Proxy configuration (null to disable). Requests are tunnelled through the proxy using native Node.js http/https — no extra packages required.",
       "properties": {
-        "host": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Toggle the proxy on or off without removing the configuration. Defaults to true when the proxy object is present.",
+          "default": true
+        },
+        "http": {
           "type": "string",
-          "description": "Proxy host"
+          "description": "Full URL of the HTTP proxy, e.g. \"http://proxy.corp.com:8080\". Credentials can be embedded: \"http://user:pass@proxy.corp.com:8080\"."
         },
-        "port": {
-          "type": "number",
-          "description": "Proxy port"
+        "https": {
+          "type": "string",
+          "description": "Full URL of the HTTPS proxy (used for HTTPS targets). Falls back to \"http\" if omitted."
         },
-        "auth": {
-          "type": "object",
-          "properties": {
-            "username": {
-              "type": "string"
-            },
-            "password": {
-              "type": "string"
-            }
-          }
+        "bypass": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Host patterns to skip the proxy. Supports exact match (\"api.local\"), wildcard subdomain (\"*.corp.com\"), or catch-all (\"*\").",
+          "default": []
         }
-      }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["version"]

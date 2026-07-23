@@ -158,7 +158,7 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
          * @param {string|null} snippet
          * @param {string|null} error
          */
-        handleAiFixResult(testName, explanation, snippet, error) {
+        handleAiFixResult(testName, explanation, snippet, error, copilotQuery) {
             if (!listElement) return;
             const item = listElement.querySelector(`.test-result.failed[data-test-name="${CSS.escape(testName)}"]`);
             if (!item) return;
@@ -166,13 +166,25 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
             if (btn) { btn.disabled = false; btn.textContent = '✨ Fix'; }
             const fixDiv = item.querySelector('.test-ai-fix');
             if (!fixDiv) return;
+            const copilotLink = copilotQuery
+                ? `<div class="ai-copilot-refine"><a class="ai-copilot-refine-link" href="#" data-copilot-query="${encodeURIComponent(copilotQuery)}" title="Open in Copilot Chat for follow-up">✦ Refine in Copilot Chat ↗</a></div>`
+                : '';
             if (error) {
-                fixDiv.innerHTML = `<span class="ai-fix-error">${escapeHtmlFn(error)}</span>`;
+                fixDiv.innerHTML = `<span class="ai-fix-error">${escapeHtmlFn(error)}</span>${copilotLink}`;
             } else {
                 fixDiv.innerHTML =
                     `<div class="ai-fix-explanation">${escapeHtmlFn(explanation || '')}</div>` +
-                    (snippet ? `<pre class="ai-fix-snippet">${escapeHtmlFn(snippet)}</pre>` : '');
+                    (snippet ? `<pre class="ai-fix-snippet">${escapeHtmlFn(snippet)}</pre>` : '') +
+                    copilotLink;
             }
+            // Wire Copilot link click — post openInCopilot to the extension host
+            fixDiv.querySelectorAll('[data-copilot-query]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const query = decodeURIComponent(link.dataset.copilotQuery || '');
+                    if (query && typeof vscode !== 'undefined') vscode.postMessage({ command: 'openInCopilot', query });
+                });
+            });
             fixDiv.classList.remove('hidden');
         }
     };

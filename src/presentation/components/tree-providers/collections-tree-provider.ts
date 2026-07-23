@@ -107,17 +107,21 @@ interface DragData {
     collectionId: string;
     itemId: string;
     itemType: 'collection' | 'folder' | 'request';
+    /** Name of the item, used for copy-to-collection naming */
+    itemName: string;
 }
 
 /**
  * Drag and Drop Controller for Collections Tree
- * 
- * Drop behavior:
- * - Drop on request (no modifier): Insert BEFORE
- * - Drop on request + Shift: Insert AFTER
- * - Drop on folder (no modifier): Move INTO folder
- * - Drop on folder + Ctrl: Insert BEFORE folder
- * - Drop on folder + Shift: Insert AFTER folder
+ *
+ * Same-collection drop behavior:
+ * - Drop on request: Insert BEFORE
+ * - Drop on folder: Move INTO folder
+ *
+ * Cross-collection drop behavior:
+ * - A quick-pick asks "Move" or "Copy".
+ * - Move: item is recreated in the target collection then removed from source.
+ * - Copy: item is duplicated into the target collection; source is untouched.
  */
 class CollectionsDragAndDropController implements vscode.TreeDragAndDropController<CollectionTreeItem> {
     readonly dragMimeTypes = [COLLECTION_ITEM_MIME_TYPE];
@@ -148,7 +152,8 @@ class CollectionsDragAndDropController implements vscode.TreeDragAndDropControll
         const dragData: DragData = {
             collectionId: item.collectionId,
             itemId: item.requestId || item.folderId || '',
-            itemType: item.itemType
+            itemType: item.itemType,
+            itemName: String(item.label ?? '')
         };
 
         dataTransfer.set(COLLECTION_ITEM_MIME_TYPE, new vscode.DataTransferItem(JSON.stringify(dragData)));
@@ -170,9 +175,9 @@ class CollectionsDragAndDropController implements vscode.TreeDragAndDropControll
             return;
         }
 
-        // Check same collection
+        // Cross-collection: ask Move or Copy
         if (dragData.collectionId !== target.collectionId) {
-            vscode.window.showWarningMessage('Cannot move items between collections');
+            await this.handleCrossCollectionDrop(dragData, target);
             return;
         }
 
@@ -182,15 +187,49 @@ class CollectionsDragAndDropController implements vscode.TreeDragAndDropControll
             return;
         }
 
-        // Simplified drop behavior:
-        // - Drop on folder: Move INTO the folder
-        // - Drop on request: Insert BEFORE the request
-        if (target.itemType === 'folder') {
-            // Move into folder
-            await this.moveIntoFolder(dragData, targetId || '');
+        // Ask Move or Copy — consistent with cross-collection behavior
+        const action = await this.promptMoveOrCopy(dragData.itemName, target.collectionId);
+        if (!action) return;
+
+        if (action === 'copy') {
+            // Copy within same collection
+            await this.sameCollectionCopy(dragData, target);
         } else {
-            // Insert before request
-            await this.insertAtPosition(dragData, target, false);
+            // Move within same collection (original behavior)
+            if (target.itemType === 'folder') {
+                await this.moveIntoFolder(dragData, targetId || '');
+            } else {
+                await this.insertAtPosition(dragData, target, false);
+            }
+        }
+    }
+
+    /** Show Move/Copy quick-pick and return the chosen action, or undefined if cancelled. */
+    private async promptMoveOrCopy(itemName: string, targetCollectionId: string): Promise<'move' | 'copy' | undefined> {
+        const targetCollection = this.collectionService.getCollection(targetCollectionId);
+        const targetName = targetCollection?.name ?? 'target collection';
+        const pick = await vscode.window.showQuickPick(
+            [
+                { label: '$(arrow-right) Move', description: `Move "${itemName}" to ${targetName}`, value: 'move' as const },
+                { label: '$(copy) Copy', description: `Copy "${itemName}" to ${targetName} (keep original)`, value: 'copy' as const }
+            ],
+            { placeHolder: `Move or copy "${itemName}"?` }
+        );
+        return pick?.value;
+    }
+
+    /** Copy a request or folder within the same collection to the target position. */
+    private async sameCollectionCopy(dragData: DragData, target: CollectionTreeItem): Promise<void> {
+        const targetParentId = target.itemType === 'folder' ? (target.folderId ?? undefined) : (target.folderId ?? undefined);
+        try {
+            if (dragData.itemType === 'request') {
+                await this.crossCollectionRequest(dragData, dragData.collectionId, targetParentId, 'copy');
+            } else if (dragData.itemType === 'folder') {
+                await this.crossCollectionFolder(dragData, dragData.collectionId, targetParentId, 'copy');
+            }
+            this.refreshCallback();
+        } catch (e: any) {
+            vscode.window.showErrorMessage(`Failed to copy item: ${e?.message ?? e}`);
         }
     }
 
@@ -287,6 +326,141 @@ class CollectionsDragAndDropController implements vscode.TreeDragAndDropControll
         }
         
         this.refreshCallback();
+    }
+
+    /**
+     * Handle a drop across different collections.
+     * Prompts the user to choose Move or Copy, then performs the operation.
+     */
+    private async handleCrossCollectionDrop(dragData: DragData, target: CollectionTreeItem): Promise<void> {
+        const action = await this.promptMoveOrCopy(dragData.itemName, target.collectionId);
+        if (!action) return;
+
+        const targetParentId = target.itemType === 'folder' ? (target.folderId ?? undefined) : (target.folderId ?? undefined);
+
+        try {
+            if (dragData.itemType === 'request') {
+                await this.crossCollectionRequest(dragData, target.collectionId, targetParentId, action);
+            } else if (dragData.itemType === 'folder') {
+                await this.crossCollectionFolder(dragData, target.collectionId, targetParentId, action);
+            }
+            this.refreshCallback();
+        } catch (e: any) {
+            vscode.window.showErrorMessage(`Failed to ${action} item: ${e?.message ?? e}`);
+        }
+    }
+
+    /** Copy or move a single request to another collection. */
+    private async crossCollectionRequest(
+        dragData: DragData,
+        targetCollectionId: string,
+        targetParentId: string | undefined,
+        action: 'move' | 'copy'
+    ): Promise<void> {
+        const sourceCollection = this.collectionService.getCollection(dragData.collectionId);
+        if (!sourceCollection) throw new Error('Source collection not found');
+
+        const request = this.findItemById(sourceCollection.items, dragData.itemId) as any;
+        if (!request) throw new Error('Source request not found');
+
+        // Create a copy in the target collection
+        await this.collectionService.createRequest({
+            name: request.name,
+            method: request.method || 'GET',
+            url: request.url || '',
+            headers: request.headers,
+            query: request.query,
+            params: request.params,
+            body: request.body,
+            auth: request.auth,
+            settings: request.settings,
+            scripts: request.scripts,
+            deprecated: request.deprecated,
+            description: request.description,
+            operationId: request.operationId,
+            summary: request.summary,
+            tags: request.tags,
+            examples: request.examples,
+            responses: request.responses,
+            security: request.security,
+            responseSchema: request.responseSchema,
+            bodySchema: request.bodySchema,
+            collectionId: targetCollectionId,
+            parentId: targetParentId
+        } as any);
+
+        if (action === 'move') {
+            await this.collectionService.deleteRequest(dragData.collectionId, dragData.itemId);
+        }
+    }
+
+    /** Copy or move a folder (with all its contents) to another collection. */
+    private async crossCollectionFolder(
+        dragData: DragData,
+        targetCollectionId: string,
+        targetParentId: string | undefined,
+        action: 'move' | 'copy'
+    ): Promise<void> {
+        const sourceCollection = this.collectionService.getCollection(dragData.collectionId);
+        if (!sourceCollection) throw new Error('Source collection not found');
+
+        const folder = this.findItemById(sourceCollection.items, dragData.itemId) as any;
+        if (!folder) throw new Error('Source folder not found');
+
+        // Recursively recreate the folder tree in the target collection
+        await this.recreateFolderInCollection(folder, targetCollectionId, targetParentId);
+
+        if (action === 'move') {
+            await this.collectionService.deleteFolder(dragData.collectionId, dragData.itemId);
+        }
+    }
+
+    /** Recursively create a folder and all its children in a target collection. */
+    private async recreateFolderInCollection(
+        folder: any,
+        targetCollectionId: string,
+        targetParentId: string | undefined
+    ): Promise<string> {
+        const newFolder = await this.collectionService.createFolder({
+            name: folder.name,
+            collectionId: targetCollectionId,
+            parentId: targetParentId
+        });
+
+        const children: any[] = folder.items || [];
+        for (const child of children) {
+            if (child.type === 'folder') {
+                await this.recreateFolderInCollection(child, targetCollectionId, newFolder.id);
+            } else {
+                // request
+                await this.collectionService.createRequest({
+                    name: child.name,
+                    method: child.method || 'GET',
+                    url: child.url || '',
+                    headers: child.headers,
+                    query: child.query,
+                    params: child.params,
+                    body: child.body,
+                    auth: child.auth,
+                    settings: child.settings,
+                    scripts: child.scripts,
+                    deprecated: child.deprecated,
+                    description: child.description,
+                    operationId: child.operationId,
+                    summary: child.summary,
+                    tags: child.tags,
+                    examples: child.examples,
+                    responses: child.responses,
+                    security: child.security,
+                    responseSchema: child.responseSchema,
+                    bodySchema: child.bodySchema,
+                    collectionId: targetCollectionId,
+                    parentId: newFolder.id
+                } as any);
+            }
+        }
+
+        return newFolder.id;
     }
 
     private findParentContaining(collection: any, itemId: string): { parent: any | undefined; items: any[] | undefined } {
