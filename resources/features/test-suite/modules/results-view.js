@@ -381,9 +381,14 @@ export function exportStatisticsReport() {
  * so Copilot can analyse root causes from a business perspective.
  */
 export function fixErrors() {
-    const failedResults = (state.results || []).filter(r => !(r.p ?? r.passed));
+    const allResults = state.results || [];
+    if (!allResults.length) {
+        vscode.postMessage({ type: 'fixErrors', noResults: true });
+        return;
+    }
+    const failedResults = allResults.filter(r => !(r.p ?? r.passed));
     if (!failedResults.length) {
-        // No failures — nothing to fix
+        vscode.postMessage({ type: 'fixErrors', allPassed: true });
         return;
     }
     vscode.postMessage({
@@ -393,10 +398,15 @@ export function fixErrors() {
         suiteName: state.suite?.name || 'Test Suite',
         environment: state.selectedEnvironment || null,
         failedResults: failedResults.map(r => ({
-            name: r.n || r.name,
-            method: r.m !== undefined ? (['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS','TRACE','CONNECT'][r.m] || r.m) : (r.method || ''),
-            url: r.url || '',
-            status: r.s ?? r.status,
+            name: r.n || r.name || '',
+            method: r.m !== undefined
+                ? (['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS','TRACE','CONNECT'][r.m] || String(r.m))
+                : (r.method || ''),
+            // URL is not stored in compact summaries; reconstruct from available fields
+            url: r.url || r.u || '',
+            status: r.s ?? r.status ?? 0,
+            collectionName: r.cn || r.collectionName || '',
+            folderPath: r.fp || r.folderPath || '',
             error: r.e || r.error || null,
             assertionsFailed: r.af ?? 0
         }))

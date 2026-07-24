@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge — The API Platform Built for AI Agents",
   "description": "Turn GitHub Copilot, Claude Code, and Cursor into expert API engineers. 60+ MCP tools. No extra API keys. No cloud account. Full Postman compatibility, OpenAPI 3.0, headless CLI, and TypeScript codegen — all local.",
-  "version": "0.16.31",
+  "version": "0.16.32",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -64,7 +64,13 @@
     "vault",
     "key vault"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:httpForge.collections",
+    "onView:httpForge.testSuites",
+    "onView:httpForge.environments",
+    "onView:httpForge.requestHistory"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
@@ -196,6 +202,11 @@
       {
         "command": "httpForge.runCollection",
         "title": "Run Collection",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "httpForge.runPerformanceTest",
+        "title": "Run Performance Test",
         "icon": "$(run-all)"
       },
       {
@@ -707,7 +718,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.6.31",
+    "@http-forge/core": "^0.6.32",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

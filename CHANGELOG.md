@@ -13,10 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Export HTML report — auto-regenerate if missing** — clicking **Export HTML** in the Results tab now checks whether the report file still exists on disk. If it has been deleted or never generated, it regenerates automatically from the persisted run data before opening.
 - **Export JUnit XML** — the **Export JSON** button in the Results tab is now **Export JUnit XML**. It uses the existing `JUnitReportGenerator` from `@http-forge/core` (reads persisted run artifacts) and saves a standards-compliant `junit.xml` with `<testsuites>`, `<testsuite>` (including a `<properties>` block with environment, run ID, config), `<testcase>`, `<failure>`, `<error>`, `<skipped>`, and `<system-out>` elements.
 - **Statistics tab → Export Report generates HTML** — clicking **Export Report** in the Statistics tab now generates a self-contained HTML file with summary cards, per-request response-time table (min/avg/P95/P99/max), and error summary, instead of exporting raw JSON.
+- **Fix Errors with GitHub Copilot Chat** — the Test Suite panel can now open Copilot Chat with a structured failure-analysis prompt built from the current run. When `run-summary.md` is available it is attached directly; otherwise HTTP Forge falls back to an inline summary of failed requests.
 - **Performance test command** — new **Run Performance Test** context menu item on each request in the Collections tree. Opens a pre-built temporary Test Suite with the request wrapped in a `for` loop node (100 iterations using `hf.variables`) so users can prepend login/auth steps before the loop if needed. The iteration count and loop condition are editable in the flow editor.
 - **Cross-collection drag-and-drop** — requests and folders can now be dragged between collections. Dropping on a different collection shows a **Move / Copy** quick-pick: Move removes the item from the source collection; Copy duplicates it (preserving all request fields and nested folder structure) while keeping the original.
 - **Consistent Move/Copy for same-collection drag-and-drop** — the same **Move / Copy** quick-pick now appears for drops within the same collection, making the behavior identical whether dragging inside or across collections.
 - **`@http-forge/core` upgraded to 0.6.30** — picks up dynamic report filenames, JUnit `<properties>` block, `createTempSuiteFromRequest`, and all proxy improvements.
+
+### Changed
+
+- **Folder-run documentation clarified** — docs now explain how folder names containing `/` are displayed and referenced in user-facing paths, using ` / ` between folder levels (for example `agl-page-composition / TRAY/EPG / AVS5-5304 - TRAY/EPG`).
 
 ## 0.16.30 - 2026-07-22
 

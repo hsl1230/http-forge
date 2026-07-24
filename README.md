@@ -123,6 +123,7 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Scan collections for hardcoded values → replace with `{{ENV_VAR}}`  
 ✅ Analyse test coverage against OpenAPI specs  
 ✅ Heal broken assertions after API changes  
+✅ Open GitHub Copilot Chat with suite failure context to analyse failed requests faster  
 ✅ Generate negative/edge-case test scenarios  
 ✅ Full agent mode — AI drives the entire test lifecycle autonomously  
 ✅ Auto-generated `.http-forge/AGENTS.md` enables execution-only MCP mode for AI agents with workspace file access, reducing tool-list token overhead  
@@ -141,6 +142,7 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Git-friendly folder structure — one file per request  
 ✅ Import Postman v2.1, export OpenAPI 3.0  
 ✅ Drag & drop, duplicate, file-watching auto-reload  
+✅ Run collections or folders directly from the tree, including folders whose names contain `/`  
 ✅ Cross-collection test suites with iterations  
 ✅ Visual flow editor for suites — request, script, if/else, for, while, switch, block nodes  
 ✅ Fast node authoring — adding non-request nodes opens the editor immediately  

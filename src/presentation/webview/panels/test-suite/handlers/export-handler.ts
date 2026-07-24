@@ -47,10 +47,14 @@ export class ExportHandler implements IMessageHandler {
         runId?: string | null;
         suiteName?: string;
         environment?: string | null;
+        noResults?: boolean;
+        allPassed?: boolean;
         failedResults?: Array<{
             name: string;
             method: string;
             url: string;
+            collectionName?: string;
+            folderPath?: string;
             status: number;
             error: string | null;
             assertionsFailed: number;
@@ -63,6 +67,17 @@ export class ExportHandler implements IMessageHandler {
         }
 
         const failures = message.failedResults ?? [];
+
+        // Handle no-results / all-passed sentinel messages from webview
+        if ((message as any).noResults) {
+            vscode.window.showInformationMessage('Run the test suite first to see results.');
+            return;
+        }
+        if ((message as any).allPassed) {
+            vscode.window.showInformationMessage('All requests passed — nothing to fix! ✅');
+            return;
+        }
+
         if (!failures.length) {
             vscode.window.showInformationMessage('No failed requests to analyse.');
             return;
@@ -70,60 +85,94 @@ export class ExportHandler implements IMessageHandler {
 
         const configService = getServiceContainer().config;
         let query: string;
+        const attachFiles: vscode.Uri[] = [];
+        const pathHints: string[] = [];
 
-        // Prefer run-summary.md — it has full context including response bodies,
-        // assertion messages, and AI analysis instructions already baked in.
+        const addFileCandidate = (candidate: string | null | undefined): void => {
+            if (!candidate) {
+                return;
+            }
+            const normalized = path.normalize(candidate);
+            if (!normalized || !fs.existsSync(normalized)) {
+                return;
+            }
+            const stat = fs.statSync(normalized);
+            if (stat.isFile()) {
+                attachFiles.push(vscode.Uri.file(normalized));
+                pathHints.push(normalized);
+            } else if (stat.isDirectory()) {
+                pathHints.push(normalized);
+            }
+        };
+
+        // Prefer run-summary.md — attach it as a file (works with absolute paths,
+        // more reliable than #file: text in the query).
         const suiteId = message.suiteId;
         const runId = message.runId;
-        let mdFileRef: string | null = null;
+        let mdPath: string | null = null;
 
         if (suiteId && runId) {
             const storage = new ResultStorageService(configService);
-            const mdPath = path.join(storage.getBasePath(), suiteId, runId, 'run-summary.md');
-            if (fs.existsSync(mdPath)) {
-                const rel = vscode.workspace.asRelativePath(mdPath, false);
-                if (rel !== mdPath) mdFileRef = rel;
+            const runDir = path.join(storage.getBasePath(), suiteId, runId);
+            const candidate = path.join(runDir, 'run-summary.md');
+            if (fs.existsSync(candidate)) {
+                mdPath = candidate;
+                addFileCandidate(candidate);
+            }
+            addFileCandidate(runDir);
+
+            // Also attach the suite file if available so Copilot can read suite metadata.
+            const suitesPath = configService.getSuitesPath();
+            if (suitesPath) {
+                const suiteFile = path.join(suitesPath, `${suiteId}.suite.json`);
+                addFileCandidate(suiteFile);
             }
         }
 
-        if (mdFileRef) {
-            // run-summary.md exists — let Copilot read it directly
+        if (mdPath) {
+            // run-summary.md attached — Copilot reads it directly as a context file
+            const pathBlock = pathHints.length
+                ? `\n\nRelevant files/paths:\n- ${pathHints.join('\n- ')}`
+                : '';
             query = [
-                `I have test suite failures in HTTP Forge. The run summary is attached below.`,
+                `I have test suite failures in HTTP Forge. The attached run-summary.md contains full details.`,
                 ``,
-                `#file:${mdFileRef}`,
-                ``,
-                `Please read the run summary above and analyse each failure from a business perspective.`,
-                `Follow the "How to Analyse" instructions in the file, including using MCP tools`,
-                `(Confluence/Jira) if available. If no MCP tools are configured, ask me to either`,
-                `configure one or paste the relevant documentation here.`,
+                `Please analyse each failure from a business perspective following the "How to Analyse"`,
+                `instructions in the file. Use MCP tools (Confluence/Jira) if available.`,
+                `If no MCP tools are configured, ask me to configure one or paste the relevant docs here.`,
                 `Also ask me to attach the backend service/controller code for the failing endpoints.`,
-            ].join('\n').slice(0, 3000);
+                pathBlock,
+            ].join('\n').slice(0, 2000);
         } else {
-            // Fallback — build inline context
+            // Fallback — build inline context and attach suite file + dir if available
             const suitesPath = configService.getSuitesPath();
-            const fileRefs: string[] = [];
             if (suiteId && suitesPath) {
                 const suiteFile = path.join(suitesPath, `${suiteId}.suite.json`);
                 if (fs.existsSync(suiteFile)) {
-                    const rel = vscode.workspace.asRelativePath(suiteFile, false);
-                    if (rel !== suiteFile) fileRefs.push(`#file:${rel}`);
+                    attachFiles.push(vscode.Uri.file(suiteFile));
+                }
+                // Attach suite directory (contains per-request subdirs with scripts/schemas)
+                const suiteDir = path.join(suitesPath, suiteId);
+                if (fs.existsSync(suiteDir)) {
+                    attachFiles.push(vscode.Uri.file(suiteDir));
                 }
             }
-            const fileBlock = fileRefs.length ? `\nSuite files:\n${fileRefs.join('\n')}\n` : '';
             const failureList = failures
-                .map((f, i) =>
-                    `${i + 1}. ${f.method} ${f.url}\n` +
-                    `   Status: ${f.status}${f.error ? ` | ${f.error}` : ''}` +
-                    (f.assertionsFailed > 0 ? ` | ${f.assertionsFailed} assertion(s) failed` : '')
-                ).join('\n');
+                .map((f, i) => {
+                    const location = f.url
+                        ? `${f.method} ${f.url}`
+                        : `${f.method} — ${f.collectionName || ''}${f.folderPath ? `/${f.folderPath}` : ''} / ${f.name}`;
+                    return `${i + 1}. ${f.name} (${location})\n` +
+                        `   Status: ${f.status}${f.error ? ` | ${f.error}` : ''}` +
+                        (f.assertionsFailed > 0 ? ` | ${f.assertionsFailed} assertion(s) failed` : '');
+                }).join('\n');
             const envBlock = message.environment ? `\nEnvironment: ${message.environment}` : '';
             query = [
                 `Test suite "${message.suiteName ?? 'Test Suite'}" has ${failures.length} failure${failures.length !== 1 ? 's' : ''}.${envBlock}`,
                 ``,
                 `Failed requests:`,
                 failureList.slice(0, 1500),
-                fileBlock,
+                ``,
                 `Please analyse each failure from a business perspective.`,
                 `Use Confluence/Jira MCP tools to find requirements. If no MCP tools are configured,`,
                 `ask me to configure one or paste the relevant documentation here.`,
@@ -133,7 +182,10 @@ export class ExportHandler implements IMessageHandler {
         }
 
         try {
-            await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+            await vscode.commands.executeCommand('workbench.action.chat.open', {
+                query,
+                ...(attachFiles.length ? { attachFiles } : {})
+            });
         } catch (err: any) {
             vscode.window.showErrorMessage(`Failed to open Copilot Chat: ${err?.message ?? err}`);
         }

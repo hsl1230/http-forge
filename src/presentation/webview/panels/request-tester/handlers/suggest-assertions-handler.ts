@@ -1,4 +1,6 @@
 import { ICollectionService, IEnvironmentConfigService } from '@http-forge/core';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { IPanelContextProvider } from '../interfaces';
@@ -98,6 +100,59 @@ export class SuggestAssertionsHandler implements IMessageHandler {
   // ─── Shared LM helper ────────────────────────────────────────────────────────
 
   /**
+   * Collect the directly relevant HTTP Forge context files for the current request.
+   *
+   * Attaches (when they exist on disk):
+   * - Request directory   — request.json, scripts/, schemas, doc.md
+   * - History directory   — past responses for this exact request
+   *
+   * The full collection folder is intentionally NOT attached — it can contain
+   * hundreds of unrelated requests that consume context window without adding value.
+   */
+  private getContextAttachFiles(): vscode.Uri[] {
+    const attachFiles: vscode.Uri[] = [];
+    const add = (p: string | undefined | null) => {
+      if (p && fs.existsSync(p)) attachFiles.push(vscode.Uri.file(p));
+    };
+
+    const historyStorage = this.contextProvider.getHistoryStoragePath();
+
+    // Request directory — has request.json, scripts, schemas, doc.md
+    add(historyStorage?.requestPath);
+
+    // History directory — past responses for this request
+    if (historyStorage?.requestId && historyStorage?.environment) {
+      try {
+        const historyBase: string | undefined =
+          (this.collectionService as any)?.configService?.getHistoryPath?.();
+        if (historyBase) {
+          add(path.join(historyBase, historyStorage.environment, historyStorage.requestId));
+        }
+      } catch { /* skip if configService unavailable */ }
+    }
+
+    return attachFiles;
+  }
+
+  /**
+   * Open GitHub Copilot Chat with context files attached and the query pre-filled.
+   * VS Code pre-fills the input but does NOT auto-submit — the user reviews the
+   * attached file chips and the prompt, then presses Enter when ready.
+   */
+  private async openCopilotChat(query: string, extraFiles?: vscode.Uri[]): Promise<void> {
+    const hasCopilot = !!vscode.extensions.getExtension('GitHub.copilot-chat');
+    if (!hasCopilot) {
+      vscode.window.showInformationMessage('GitHub Copilot Chat is required. Install it from the Extensions marketplace.');
+      return;
+    }
+    const attachFiles = [...this.getContextAttachFiles(), ...(extraFiles ?? [])];
+    await vscode.commands.executeCommand('workbench.action.chat.open', {
+      query,
+      ...(attachFiles.length ? { attachFiles } : {})
+    });
+  }
+
+  /**
    * Build a Copilot Chat query string from a prompt string.
    * Appends a friendly opening so the session starts naturally.
    */
@@ -118,14 +173,8 @@ export class SuggestAssertionsHandler implements IMessageHandler {
    * Falls back gracefully if Copilot Chat isn't installed.
    */
   private async handleOpenInCopilot(message: { query?: string }): Promise<void> {
-    const hasCopilot = !!vscode.extensions.getExtension('GitHub.copilot-chat');
-    if (!hasCopilot) {
-      vscode.window.showInformationMessage('GitHub Copilot Chat is required. Install it from the Extensions marketplace.');
-      return;
-    }
-    await vscode.commands.executeCommand('workbench.action.chat.open', {
-      query: message.query ?? ''
-    });
+    // Attach all available context files alongside the query
+    await this.openCopilotChat(message.query ?? '');
   }
 
   private async callLm(prompt: string): Promise<{ raw: string } | { error: string }> {
@@ -297,7 +346,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     );
 
     try {
-      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+      await this.openCopilotChat(query);
       messenger.postMessage({ command: 'aiGeneratedScript', phase, openedInCopilot: true });
     } catch (err: any) {
       messenger.postMessage({ command: 'aiGeneratedScript', phase, error: err?.message ?? 'Failed to open Copilot Chat.' });
@@ -418,7 +467,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     );
 
     try {
-      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+      await this.openCopilotChat(query);
       messenger.postMessage({ command: 'aiContractTestsResult', openedInCopilot: true });
     } catch (err: any) {
       messenger.postMessage({ command: 'aiContractTestsResult', error: err?.message ?? 'Failed to open Copilot Chat.' });
@@ -633,7 +682,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     );
 
     try {
-      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+      await this.openCopilotChat(query);
       // Signal the webview that we've opened Copilot Chat (no response body needed)
       messenger.postMessage({ command: 'aiChatResponse', openedInCopilot: true });
     } catch (err: any) {
@@ -726,7 +775,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     );
 
     try {
-      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+      await this.openCopilotChat(query);
       messenger.postMessage({ command: 'aiAssertionSuggestions', openedInCopilot: true });
     } catch (err: any) {
       messenger.postMessage({

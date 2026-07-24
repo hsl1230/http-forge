@@ -1,172 +1,1580 @@
-"use strict";(()=>{var lt=Object.defineProperty;var F=(e,t,s)=>()=>{if(s)throw s[0];try{return e&&(t=e(e=0)),t}catch(o){throw s=[o],o}};var Be=(e,t)=>{for(var s in t)lt(e,s,{get:t[s],enumerable:!0})};var h,I,g,a,E,n,$=F(()=>{"use strict";h=acquireVsCodeApi(),I={itemHeight:45,bufferSize:10},g={startIndex:0,endIndex:0,scrollTop:0},a={suite:null,requests:[],environments:[],selectedEnvironment:null,dataFile:null,isRunning:!1,results:[],displayItems:[],collapsedGroups:new Set,collapsedIterations:new Set,statistics:null,passed:0,failed:0,skipped:0,selectedResultIndex:-1,currentRunId:null,suiteId:null,autoScroll:!0,totalRequests:0,completedRequests:0,iterations:1,isDirty:!1,availableRequests:[],runStartTime:null,historyRuns:[],viewingHistoryRun:null,historyManifest:null,loadingAsLatest:!1,reportPath:null},E={responseBodyMonacoEditor:null},n={}});function ct(e){return e.replace(/[^a-zA-Z0-9-_]/g,"_").replace(/\s+/g,"-").toLowerCase().substring(0,100)}function ke(e,t,s){let o=String(e).padStart(6,"0"),r=String(t).padStart(4,"0"),i=ct(s);return`result-${o}-iter-${r}-${i}.json`}function C(e){if(e.i!==void 0){let t=e.r;return{index:e.i,iteration:e.it,name:e.n,method:dt[e.m]||"GET",status:e.s,duration:e.d,passed:e.p,assertionsPassed:e.ap,assertionsFailed:e.af,requestId:t,folderPath:e.fp??"",groupPath:e.gp??e.fp??"",groupType:e.gt,collectionName:e.cn??"",resultFile:ke(e.i,e.it,t),error:e.e}}return{index:e.index??0,iteration:e.iteration??1,name:e.name||e.requestName||"Unknown",method:e.method||"GET",status:e.status,duration:e.duration,passed:e.passed,assertionsPassed:e.assertionsPassed||0,assertionsFailed:e.assertionsFailed||0,requestId:e.requestId||e.r,folderPath:e.folderPath??e.fp??"",groupPath:e.groupPath??e.gp??e.folderPath??e.fp??"",groupType:e.groupType??e.gt,collectionName:e.collectionName??e.cn??"",resultFile:e.resultFile||(e.index!==void 0&&e.iteration!==void 0&&(e.requestId||e.r)?ke(e.index,e.iteration,e.requestId||e.r):null),error:e.error||null}}function m(e){if(!e)return"";let t=document.createElement("div");return t.textContent=e,t.innerHTML}function W(e,t={}){if(!e)return;let s=Math.max(0,Number(t.total)||0),o=Math.max(0,Math.min(s,Number(t.passed)||0)),r=Math.max(0,Math.min(s-o,Number(t.failed)||0)),i=s>0?o/s*100:0,l=s>0?(o+r)/s*100:0;e.style.width=s>0?"100%":"0%",e.style.setProperty("--pass-end",`${i}%`),e.style.setProperty("--fail-end",`${l}%`)}var dt,A=F(()=>{"use strict";dt={0:"GET",1:"POST",2:"PUT",3:"DELETE",4:"PATCH",5:"HEAD",6:"OPTIONS",7:"TRACE",8:"CONNECT"}});function Re(){n.summaryPassed&&(n.summaryPassed.textContent="0"),n.summaryFailed&&(n.summaryFailed.textContent="0"),n.summaryPassRate&&(n.summaryPassRate.textContent="0%"),n.summaryDuration&&(n.summaryDuration.textContent="0s"),n.statsTableBody&&(n.statsTableBody.innerHTML='<tr class="empty-row"><td colspan="7">No data yet</td></tr>'),n.errorSummary&&(n.errorSummary.style.display="none"),n.errorList&&(n.errorList.innerHTML="")}function T(){let e=a.statistics;e&&(e.byRequest&&e.byRequest.length>0?n.statsTableBody.innerHTML=e.byRequest.map(t=>{let s=t.name||"Unknown",o=String(t.key||"").split("::"),r=o.length>=3&&o[1]||"",i=r?r.split("/").filter(Boolean).join(" \u203A "):"",l=i?`${i} \u203A ${s}`:s,c=i?`<span class="stat-collection-path">${m(i)}</span>`:"",d=t.count!=null?t.count:"-";return`
+"use strict";
+(() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __esm = (fn, res, err) => function __init() {
+    if (err) throw err[0];
+    try {
+      return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+    } catch (e) {
+      throw err = [e], e;
+    }
+  };
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+
+  // resources/features/test-suite/modules/state.js
+  var vscode, VIRTUAL_SCROLL, virtualScrollState, state, editorState, elements;
+  var init_state = __esm({
+    "resources/features/test-suite/modules/state.js"() {
+      "use strict";
+      vscode = acquireVsCodeApi();
+      VIRTUAL_SCROLL = {
+        itemHeight: 45,
+        // Height of each result item in pixels
+        bufferSize: 10
+        // Extra items to render above/below visible area
+      };
+      virtualScrollState = {
+        startIndex: 0,
+        endIndex: 0,
+        scrollTop: 0
+      };
+      state = {
+        suite: null,
+        requests: [],
+        environments: [],
+        selectedEnvironment: null,
+        dataFile: null,
+        isRunning: false,
+        results: [],
+        // Now stores compact ResultSummary objects (not full results)
+        displayItems: [],
+        // Flat list of header + result rows for grouped virtual scroll
+        collapsedGroups: /* @__PURE__ */ new Set(),
+        // Keys of collapsed collection/folder groups in the results list
+        collapsedIterations: /* @__PURE__ */ new Set(),
+        // Iteration numbers collapsed in the results list
+        statistics: null,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        selectedResultIndex: -1,
+        currentRunId: null,
+        suiteId: null,
+        autoScroll: true,
+        totalRequests: 0,
+        completedRequests: 0,
+        iterations: 1,
+        isDirty: false,
+        // Track unsaved changes
+        availableRequests: [],
+        // Available requests for Add modal
+        runStartTime: null,
+        // Track start time for duration calculation
+        // History state
+        historyRuns: [],
+        // List of RunHistoryEntry objects
+        viewingHistoryRun: null,
+        // runId of loaded history run (null = live/latest)
+        historyManifest: null,
+        // Manifest of loaded history run
+        loadingAsLatest: false,
+        // Flag: loading the latest run (suppresses history banner)
+        reportPath: null
+        // Path to the HTML report generated by the last run
+      };
+      editorState = {
+        responseBodyMonacoEditor: null
+      };
+      elements = {};
+    }
+  });
+
+  // resources/features/test-suite/modules/utils.js
+  function sanitizeName(name) {
+    return name.replace(/[^a-zA-Z0-9-_]/g, "_").replace(/\s+/g, "-").toLowerCase().substring(0, 100);
+  }
+  function buildResultFileName(index, iteration, requestId) {
+    const indexStr = String(index).padStart(6, "0");
+    const iterStr = String(iteration).padStart(4, "0");
+    const sanitizedRequestId = sanitizeName(requestId);
+    return `result-${indexStr}-iter-${iterStr}-${sanitizedRequestId}.json`;
+  }
+  function expandSummary(s) {
+    if (s.i !== void 0) {
+      const requestId = s.r;
+      return {
+        index: s.i,
+        iteration: s.it,
+        name: s.n,
+        method: HTTP_METHOD_REVERSE[s.m] || "GET",
+        status: s.s,
+        duration: s.d,
+        passed: s.p,
+        assertionsPassed: s.ap,
+        assertionsFailed: s.af,
+        requestId,
+        folderPath: s.fp ?? "",
+        groupPath: s.gp ?? (s.fp ?? ""),
+        groupType: s.gt,
+        collectionName: s.cn ?? "",
+        resultFile: buildResultFileName(s.i, s.it, requestId),
+        error: s.e
+      };
+    }
+    return {
+      index: s.index ?? 0,
+      iteration: s.iteration ?? 1,
+      name: s.name || s.requestName || "Unknown",
+      method: s.method || "GET",
+      status: s.status,
+      duration: s.duration,
+      passed: s.passed,
+      assertionsPassed: s.assertionsPassed || 0,
+      assertionsFailed: s.assertionsFailed || 0,
+      requestId: s.requestId || s.r,
+      folderPath: s.folderPath ?? s.fp ?? "",
+      groupPath: s.groupPath ?? s.gp ?? s.folderPath ?? s.fp ?? "",
+      groupType: s.groupType ?? s.gt,
+      collectionName: s.collectionName ?? s.cn ?? "",
+      resultFile: s.resultFile || (s.index !== void 0 && s.iteration !== void 0 && (s.requestId || s.r) ? buildResultFileName(s.index, s.iteration, s.requestId || s.r) : null),
+      error: s.error || null
+    };
+  }
+  function escapeHtml(text) {
+    if (!text) return "";
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  function renderProgressBar(progressBar, stats = {}) {
+    if (!progressBar) return;
+    const total = Math.max(0, Number(stats.total) || 0);
+    const passed = Math.max(0, Math.min(total, Number(stats.passed) || 0));
+    const failed = Math.max(0, Math.min(total - passed, Number(stats.failed) || 0));
+    const passEnd = total > 0 ? passed / total * 100 : 0;
+    const failEnd = total > 0 ? (passed + failed) / total * 100 : 0;
+    progressBar.style.width = total > 0 ? "100%" : "0%";
+    progressBar.style.setProperty("--pass-end", `${passEnd}%`);
+    progressBar.style.setProperty("--fail-end", `${failEnd}%`);
+  }
+  var HTTP_METHOD_REVERSE;
+  var init_utils = __esm({
+    "resources/features/test-suite/modules/utils.js"() {
+      "use strict";
+      HTTP_METHOD_REVERSE = {
+        0: "GET",
+        1: "POST",
+        2: "PUT",
+        3: "DELETE",
+        4: "PATCH",
+        5: "HEAD",
+        6: "OPTIONS",
+        7: "TRACE",
+        8: "CONNECT"
+      };
+    }
+  });
+
+  // resources/features/test-suite/modules/statistics.js
+  function resetStatistics() {
+    if (elements.summaryPassed) elements.summaryPassed.textContent = "0";
+    if (elements.summaryFailed) elements.summaryFailed.textContent = "0";
+    if (elements.summaryPassRate) elements.summaryPassRate.textContent = "0%";
+    if (elements.summaryDuration) elements.summaryDuration.textContent = "0s";
+    if (elements.statsTableBody) elements.statsTableBody.innerHTML = '<tr class="empty-row"><td colspan="7">No data yet</td></tr>';
+    if (elements.errorSummary) elements.errorSummary.style.display = "none";
+    if (elements.errorList) elements.errorList.innerHTML = "";
+  }
+  function renderStatistics() {
+    const stats = state.statistics;
+    if (!stats) return;
+    if (stats.byRequest && stats.byRequest.length > 0) {
+      elements.statsTableBody.innerHTML = stats.byRequest.map((reqStats) => {
+        const name = reqStats.name || "Unknown";
+        const keyParts = String(reqStats.key || "").split("::");
+        const folderPath = keyParts.length >= 3 ? keyParts[1] || "" : "";
+        const displayPath = folderPath ? folderPath.split("/").filter(Boolean).join(" \u203A ") : "";
+        const fullLabel = displayPath ? `${displayPath} \u203A ${name}` : name;
+        const pathLine = displayPath ? `<span class="stat-collection-path">${escapeHtml(displayPath)}</span>` : "";
+        const calls = reqStats.count != null ? reqStats.count : "-";
+        return `
                 <tr>
-                    <td title="${m(l)}">
+                    <td title="${escapeHtml(fullLabel)}">
                         <span class="stat-request-cell">
-                            ${c}
-                            <span class="stat-request-name">${m(s)}</span>
+                            ${pathLine}
+                            <span class="stat-request-name">${escapeHtml(name)}</span>
                         </span>
                     </td>
-                    <td>${d}</td>
-                    <td>${t.min}ms</td>
-                    <td>${Math.round(t.avg)}ms</td>
-                    <td>${t.p95}ms</td>
-                    <td>${t.p99}ms</td>
-                    <td>${t.max}ms</td>
+                    <td>${calls}</td>
+                    <td>${reqStats.min}ms</td>
+                    <td>${Math.round(reqStats.avg)}ms</td>
+                    <td>${reqStats.p95}ms</td>
+                    <td>${reqStats.p99}ms</td>
+                    <td>${reqStats.max}ms</td>
                 </tr>
-            `}).join(""):n.statsTableBody.innerHTML='<tr class="empty-row"><td colspan="7">No data yet</td></tr>',e.errors&&Object.keys(e.errors).length>0?(n.errorSummary.style.display="block",n.errorList.innerHTML=Object.entries(e.errors).map(([t,s])=>`
+            `;
+      }).join("");
+    } else {
+      elements.statsTableBody.innerHTML = '<tr class="empty-row"><td colspan="7">No data yet</td></tr>';
+    }
+    if (stats.errors && Object.keys(stats.errors).length > 0) {
+      elements.errorSummary.style.display = "block";
+      elements.errorList.innerHTML = Object.entries(stats.errors).map(([errorType, count]) => `
                 <div class="error-item">
-                    <span class="error-type">${m(t)}</span>
-                    <span class="error-count">${s} occurrence${s>1?"s":""}</span>
+                    <span class="error-type">${escapeHtml(errorType)}</span>
+                    <span class="error-count">${count} occurrence${count > 1 ? "s" : ""}</span>
                 </div>
-            `).join("")):n.errorSummary.style.display="none")}var X=F(()=>{"use strict";$();A()});var Ce={};Be(Ce,{addSelectedRequests:()=>me,browseDataFile:()=>ie,buildCurrentSuiteState:()=>$e,clearDataFile:()=>le,closeAddRequestModal:()=>M,closeAllMenus:()=>O,filterAvailableRequests:()=>fe,handleSaveSuiteResult:()=>ue,handleSuiteSaved:()=>de,openAddRequestModal:()=>ut,renderAvailableRequestsList:()=>pe,saveSuite:()=>ce,setAvailableRequests:()=>oe,setDataFile:()=>re,setDirty:()=>R,setEnvironments:()=>ae,setSuite:()=>ne,setupDescriptionInteraction:()=>ye,updateAddSelectedButton:()=>se,updateSuiteDescriptionDisplay:()=>we});function R(e){let t=a.isDirty;if(a.isDirty=e,n.saveSuiteBtn&&(e?n.saveSuiteBtn.classList.add("has-changes"):n.saveSuiteBtn.classList.remove("has-changes")),e!==t||e){let s=e?$e():null;h.postMessage({type:"dirtyStateChanged",isDirty:e,suiteState:s})}}function $e(){if(!a.suite)return null;let{requests:e,...t}=a.suite;return{...t,nodes:a.suite.nodes||[],config:n.iterationsInput?{iterations:parseInt(n.iterationsInput.value)||1,delay:parseInt(n.delayInput.value)||0,stopOnError:n.stopOnErrorCheck.checked,readFromSharedSession:n.readFromSharedSessionCheck?.checked||!1,writeToSharedSession:n.writeToSharedSessionCheck?.checked||!1}:a.suite.config}}function ne(e,t){a.results=[],a.displayItems=[],a.collapsedGroups.clear(),a.collapsedIterations.clear(),a.statistics=null,a.currentRunId=null,a.isRunning=!1,a.passed=0,a.failed=0,a.skipped=0,g.startIndex=0,g.endIndex=0,g.scrollTop=0,a.suite=e,a.suiteId=e.id,a.requests=(t||[]).map(i=>({...i,selected:i.enabled!==!1,description:i.description||"",status:"pending"})),R(!1),n.suiteName.value=e.name,we(),e.config?(n.iterationsInput.value=e.config.iterations||1,n.delayInput.value=e.config.delay||0,n.stopOnErrorCheck.checked=e.config.stopOnError||!1,n.readFromSharedSessionCheck&&(n.readFromSharedSessionCheck.checked=e.config.readFromSharedSession||!1),n.writeToSharedSessionCheck&&(n.writeToSharedSessionCheck.checked=e.config.writeToSharedSession||!1)):(n.iterationsInput.value=1,n.delayInput.value=0,n.stopOnErrorCheck.checked=!1,n.readFromSharedSessionCheck&&(n.readFromSharedSessionCheck.checked=!1),n.writeToSharedSessionCheck&&(n.writeToSharedSessionCheck.checked=!1)),n.runBtn.disabled=!1,n.stopBtn.disabled=!0,n.progressSection.style.display="none",n.progressBar.style.width="0%",n.progressText.textContent="";let s=n.resultsList?.querySelector(".virtual-items");s&&(s.innerHTML="");let o=n.resultsList?.querySelector(".virtual-spacer");o&&(o.style.height="0px");let r=n.resultsList?.querySelector(".empty-state");r&&(r.style.display=""),n.summaryPassed&&(n.summaryPassed.textContent="0"),n.summaryFailed&&(n.summaryFailed.textContent="0"),n.summarySkipped&&(n.summarySkipped.textContent="0"),n.summaryTotal&&(n.summaryTotal.textContent="0"),T()}function ae(e){a.environments=e;let t=e.find(s=>s.active);a.selectedEnvironment=t?.id||null,n.environmentDisplay&&(n.environmentDisplay.textContent=t?.name||"No Environment",n.environmentDisplay.className="environment-badge"+(t?" active":""))}function oe(e){a.availableRequests=e,pe()}function re(e,t){a.dataFile={path:e,content:t},n.dataFilePath.value=e,n.clearDataBtn.disabled=!1}function O(){document.querySelectorAll(".menu-dropdown.open").forEach(e=>e.classList.remove("open"))}function ie(){h.postMessage({type:"browseDataFile"})}function le(){a.dataFile=null,n.dataFilePath.value="",n.clearDataBtn.disabled=!0}function de(e){let t=n.saveSuiteBtn;e?(a.suite=e,a.suiteId=e.id,R(!1),t&&(t.classList.remove("saving"),t.classList.add("saved"),t.innerHTML="\u2713 Saved!",setTimeout(()=>{t.classList.remove("saved"),t.innerHTML="Save Suite",t.disabled=!1},2e3))):t&&(t.classList.remove("saving"),t.innerHTML="Save Suite",t.disabled=!1)}function ce(){if(!a.suite)return;let e=n.saveSuiteBtn;e&&(e.disabled=!0,e.classList.add("saving"),e.innerHTML='<span class="spinner"></span> Saving...');let{requests:t,...s}=a.suite,o={...s,nodes:a.suite.nodes||[],config:{iterations:parseInt(n.iterationsInput.value)||1,delay:parseInt(n.delayInput.value)||0,stopOnError:n.stopOnErrorCheck.checked,readFromSharedSession:n.readFromSharedSessionCheck?.checked||!1,writeToSharedSession:n.writeToSharedSessionCheck?.checked||!1}};h.postMessage({type:"saveSuite",suite:o})}function ue(e,t,s){let o=n.saveSuiteBtn;e?(R(!1),a.suiteId=t,o&&(o.classList.remove("saving"),o.classList.add("saved"),o.innerHTML="\u2713 Saved!",setTimeout(()=>{o.classList.remove("saved"),o.innerHTML="Save Suite",o.disabled=!1},2e3))):o&&(o.classList.remove("saving"),o.innerHTML="Save Suite",o.disabled=!1)}function ut(){h.postMessage({type:"getAvailableRequests"}),n.requestSearch.value="",n.addRequestModal.classList.remove("hidden"),n.requestSearch.focus()}function M(){n.addRequestModal.classList.add("hidden"),n.availableRequestsList.innerHTML=""}function pe(){let e=(n.requestSearch.value||"").toLowerCase(),t={};for(let s of a.availableRequests){if(e&&!s.name.toLowerCase().includes(e)&&!s.collectionName?.toLowerCase().includes(e))continue;let o=s.collectionName||"Unknown Collection";t[o]||(t[o]=[]),t[o].push(s)}if(Object.keys(t).length===0){n.availableRequestsList.innerHTML='<div class="empty-state"><p>No requests found</p></div>';return}n.availableRequestsList.innerHTML=Object.entries(t).map(([s,o])=>`
+            `).join("");
+    } else {
+      elements.errorSummary.style.display = "none";
+    }
+  }
+  var init_statistics = __esm({
+    "resources/features/test-suite/modules/statistics.js"() {
+      "use strict";
+      init_state();
+      init_utils();
+    }
+  });
+
+  // resources/features/test-suite/modules/suite-editor.js
+  var suite_editor_exports = {};
+  __export(suite_editor_exports, {
+    addSelectedRequests: () => addSelectedRequests,
+    browseDataFile: () => browseDataFile,
+    buildCurrentSuiteState: () => buildCurrentSuiteState,
+    clearDataFile: () => clearDataFile,
+    closeAddRequestModal: () => closeAddRequestModal,
+    closeAllMenus: () => closeAllMenus,
+    filterAvailableRequests: () => filterAvailableRequests,
+    handleSaveSuiteResult: () => handleSaveSuiteResult,
+    handleSuiteSaved: () => handleSuiteSaved,
+    openAddRequestModal: () => openAddRequestModal,
+    renderAvailableRequestsList: () => renderAvailableRequestsList,
+    saveSuite: () => saveSuite,
+    setAvailableRequests: () => setAvailableRequests,
+    setDataFile: () => setDataFile,
+    setDirty: () => setDirty,
+    setEnvironments: () => setEnvironments,
+    setSuite: () => setSuite,
+    setupDescriptionInteraction: () => setupDescriptionInteraction,
+    updateAddSelectedButton: () => updateAddSelectedButton,
+    updateSuiteDescriptionDisplay: () => updateSuiteDescriptionDisplay
+  });
+  function setDirty(dirty) {
+    const wasDirty = state.isDirty;
+    state.isDirty = dirty;
+    if (elements.saveSuiteBtn) {
+      if (dirty) {
+        elements.saveSuiteBtn.classList.add("has-changes");
+      } else {
+        elements.saveSuiteBtn.classList.remove("has-changes");
+      }
+    }
+    if (dirty !== wasDirty || dirty) {
+      const suiteState = dirty ? buildCurrentSuiteState() : null;
+      vscode.postMessage({
+        type: "dirtyStateChanged",
+        isDirty: dirty,
+        suiteState
+      });
+    }
+  }
+  function buildCurrentSuiteState() {
+    if (!state.suite) return null;
+    const { requests: _dropped, ...suiteWithoutRequests } = state.suite;
+    return {
+      ...suiteWithoutRequests,
+      nodes: state.suite.nodes || [],
+      config: elements.iterationsInput ? {
+        iterations: parseInt(elements.iterationsInput.value) || 1,
+        delay: parseInt(elements.delayInput.value) || 0,
+        stopOnError: elements.stopOnErrorCheck.checked,
+        readFromSharedSession: elements.readFromSharedSessionCheck?.checked || false,
+        writeToSharedSession: elements.writeToSharedSessionCheck?.checked || false
+      } : state.suite.config
+    };
+  }
+  function setSuite(suite, requests) {
+    state.results = [];
+    state.displayItems = [];
+    state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
+    state.statistics = null;
+    state.currentRunId = null;
+    state.isRunning = false;
+    state.passed = 0;
+    state.failed = 0;
+    state.skipped = 0;
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    virtualScrollState.scrollTop = 0;
+    state.suite = suite;
+    state.suiteId = suite.id;
+    state.requests = (requests || []).map((req) => ({
+      ...req,
+      selected: req.enabled !== false,
+      description: req.description || "",
+      status: "pending"
+    }));
+    setDirty(false);
+    elements.suiteName.value = suite.name;
+    updateSuiteDescriptionDisplay();
+    if (suite.config) {
+      elements.iterationsInput.value = suite.config.iterations || 1;
+      elements.delayInput.value = suite.config.delay || 0;
+      elements.stopOnErrorCheck.checked = suite.config.stopOnError || false;
+      if (elements.readFromSharedSessionCheck) {
+        elements.readFromSharedSessionCheck.checked = suite.config.readFromSharedSession || false;
+      }
+      if (elements.writeToSharedSessionCheck) {
+        elements.writeToSharedSessionCheck.checked = suite.config.writeToSharedSession || false;
+      }
+    } else {
+      elements.iterationsInput.value = 1;
+      elements.delayInput.value = 0;
+      elements.stopOnErrorCheck.checked = false;
+      if (elements.readFromSharedSessionCheck) {
+        elements.readFromSharedSessionCheck.checked = false;
+      }
+      if (elements.writeToSharedSessionCheck) {
+        elements.writeToSharedSessionCheck.checked = false;
+      }
+    }
+    elements.runBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+    elements.progressSection.style.display = "none";
+    elements.progressBar.style.width = "0%";
+    elements.progressText.textContent = "";
+    const itemsContainer = elements.resultsList?.querySelector(".virtual-items");
+    if (itemsContainer) itemsContainer.innerHTML = "";
+    const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+    if (spacer) spacer.style.height = "0px";
+    const emptyState = elements.resultsList?.querySelector(".empty-state");
+    if (emptyState) emptyState.style.display = "";
+    if (elements.summaryPassed) elements.summaryPassed.textContent = "0";
+    if (elements.summaryFailed) elements.summaryFailed.textContent = "0";
+    if (elements.summarySkipped) elements.summarySkipped.textContent = "0";
+    if (elements.summaryTotal) elements.summaryTotal.textContent = "0";
+    renderStatistics();
+  }
+  function setEnvironments(environments) {
+    state.environments = environments;
+    const activeEnv = environments.find((env) => env.active);
+    state.selectedEnvironment = activeEnv?.id || null;
+    if (elements.environmentDisplay) {
+      elements.environmentDisplay.textContent = activeEnv?.name || "No Environment";
+      elements.environmentDisplay.className = "environment-badge" + (activeEnv ? " active" : "");
+    }
+  }
+  function setAvailableRequests(requests) {
+    state.availableRequests = requests;
+    renderAvailableRequestsList();
+  }
+  function setDataFile(filePath, content) {
+    state.dataFile = { path: filePath, content };
+    elements.dataFilePath.value = filePath;
+    elements.clearDataBtn.disabled = false;
+  }
+  function closeAllMenus() {
+    document.querySelectorAll(".menu-dropdown.open").forEach((m) => m.classList.remove("open"));
+  }
+  function browseDataFile() {
+    vscode.postMessage({ type: "browseDataFile" });
+  }
+  function clearDataFile() {
+    state.dataFile = null;
+    elements.dataFilePath.value = "";
+    elements.clearDataBtn.disabled = true;
+  }
+  function handleSuiteSaved(suite) {
+    const saveBtn = elements.saveSuiteBtn;
+    if (suite) {
+      state.suite = suite;
+      state.suiteId = suite.id;
+      setDirty(false);
+      if (saveBtn) {
+        saveBtn.classList.remove("saving");
+        saveBtn.classList.add("saved");
+        saveBtn.innerHTML = "\u2713 Saved!";
+        setTimeout(() => {
+          saveBtn.classList.remove("saved");
+          saveBtn.innerHTML = "Save Suite";
+          saveBtn.disabled = false;
+        }, 2e3);
+      }
+    } else {
+      if (saveBtn) {
+        saveBtn.classList.remove("saving");
+        saveBtn.innerHTML = "Save Suite";
+        saveBtn.disabled = false;
+      }
+    }
+  }
+  function saveSuite() {
+    if (!state.suite) return;
+    const saveBtn = elements.saveSuiteBtn;
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.classList.add("saving");
+      saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
+    }
+    const { requests: _dropped, ...suiteWithoutRequests } = state.suite;
+    const updatedSuite = {
+      ...suiteWithoutRequests,
+      nodes: state.suite.nodes || [],
+      config: {
+        iterations: parseInt(elements.iterationsInput.value) || 1,
+        delay: parseInt(elements.delayInput.value) || 0,
+        stopOnError: elements.stopOnErrorCheck.checked,
+        readFromSharedSession: elements.readFromSharedSessionCheck?.checked || false,
+        writeToSharedSession: elements.writeToSharedSessionCheck?.checked || false
+      }
+    };
+    vscode.postMessage({
+      type: "saveSuite",
+      suite: updatedSuite
+    });
+  }
+  function handleSaveSuiteResult(success, suiteId, error) {
+    const saveBtn = elements.saveSuiteBtn;
+    if (success) {
+      setDirty(false);
+      state.suiteId = suiteId;
+      if (saveBtn) {
+        saveBtn.classList.remove("saving");
+        saveBtn.classList.add("saved");
+        saveBtn.innerHTML = "\u2713 Saved!";
+        setTimeout(() => {
+          saveBtn.classList.remove("saved");
+          saveBtn.innerHTML = "Save Suite";
+          saveBtn.disabled = false;
+        }, 2e3);
+      }
+    } else {
+      if (saveBtn) {
+        saveBtn.classList.remove("saving");
+        saveBtn.innerHTML = "Save Suite";
+        saveBtn.disabled = false;
+      }
+    }
+  }
+  function openAddRequestModal() {
+    vscode.postMessage({ type: "getAvailableRequests" });
+    elements.requestSearch.value = "";
+    elements.addRequestModal.classList.remove("hidden");
+    elements.requestSearch.focus();
+  }
+  function closeAddRequestModal() {
+    elements.addRequestModal.classList.add("hidden");
+    elements.availableRequestsList.innerHTML = "";
+  }
+  function renderAvailableRequestsList() {
+    const searchTerm = (elements.requestSearch.value || "").toLowerCase();
+    const byCollection = {};
+    for (const req of state.availableRequests) {
+      if (searchTerm && !req.name.toLowerCase().includes(searchTerm) && !req.collectionName?.toLowerCase().includes(searchTerm)) {
+        continue;
+      }
+      const collectionName = req.collectionName || "Unknown Collection";
+      if (!byCollection[collectionName]) {
+        byCollection[collectionName] = [];
+      }
+      byCollection[collectionName].push(req);
+    }
+    if (Object.keys(byCollection).length === 0) {
+      elements.availableRequestsList.innerHTML = '<div class="empty-state"><p>No requests found</p></div>';
+      return;
+    }
+    elements.availableRequestsList.innerHTML = Object.entries(byCollection).map(([collectionName, requests]) => `
             <div class="collection-group">
-                <div class="collection-group-header">${m(s)}</div>
-                ${o.map(r=>{let i=r.folderPath?`<span class="available-request-folder">${m(r.folderPath)}</span>`:"";return`
-                    <div class="available-request-item" data-collection-id="${r.collectionId}" data-request-id="${r.requestId}">
+                <div class="collection-group-header">${escapeHtml(collectionName)}</div>
+                ${requests.map((req) => {
+      const folderDisplay = req.folderPath ? `<span class="available-request-folder">${escapeHtml(req.folderPath)}</span>` : "";
+      return `
+                    <div class="available-request-item" data-collection-id="${req.collectionId}" data-request-id="${req.requestId}">
                         <input type="checkbox" class="add-request-checkbox">
-                        <span class="request-method ${r.method}">${r.method}</span>
+                        <span class="request-method ${req.method}">${req.method}</span>
                         <div class="available-request-info">
-                            ${i}
-                            <span class="available-request-name">${m(r.name)}</span>
+                            ${folderDisplay}
+                            <span class="available-request-name">${escapeHtml(req.name)}</span>
                         </div>
                     </div>
-                `}).join("")}
+                `;
+    }).join("")}
             </div>
-        `).join(""),n.availableRequestsList.querySelectorAll(".available-request-item").forEach(s=>{s.addEventListener("click",o=>{if(o.target.type!=="checkbox"){let r=s.querySelector(".add-request-checkbox");r.checked=!r.checked}s.classList.toggle("selected",s.querySelector(".add-request-checkbox").checked),se()})}),se()}function fe(){pe()}function se(){let e=n.availableRequestsList.querySelectorAll(".add-request-checkbox:checked").length;n.addSelectedBtn.disabled=e===0,n.addSelectedBtn.textContent=e>0?`Add Selected (${e})`:"Add Selected"}async function me(){let e=n.availableRequestsList.querySelectorAll(".add-request-checkbox:checked"),t=[];if(e.forEach(s=>{let o=s.closest(".available-request-item"),r=o.dataset.collectionId,i=o.dataset.requestId,l=a.availableRequests.find(c=>c.requestId===i&&c.collectionId===r);l&&t.push({...l,selected:!0,status:"pending"})}),M(),t.length>0){let{insertRequestNodes:s}=await Promise.resolve().then(()=>(he(),Ae));s(t)}}function we(){let e=n.suiteDescriptionDisplay;if(!e)return;let t=a.suite?.description||"";t?(e.textContent=t.replace(/\n/g," "),e.classList.remove("placeholder")):(e.textContent="Click to add description\u2026",e.classList.add("placeholder"))}function ye(e,t,s,o,r){if(!e||!s)return;let i=null;function l(){let c=o();c?(e.textContent=c.replace(/\n/g," "),e.classList.remove("placeholder")):(e.textContent="Click to add description\u2026",e.classList.add("placeholder"))}e.addEventListener("mouseenter",()=>{let c=o();!c||!s.classList.contains("hidden")||(i=setTimeout(()=>{t&&(t.textContent=c,t.classList.add("visible"))},400))}),e.addEventListener("mouseleave",()=>{clearTimeout(i),t&&t.classList.remove("visible")}),e.addEventListener("click",c=>{c.stopPropagation(),t&&t.classList.remove("visible"),clearTimeout(i),s.value=o(),s.classList.remove("hidden"),e.style.visibility="hidden",s.focus()}),s.addEventListener("blur",()=>{let c=s.value.trim();r(c),s.classList.add("hidden"),e.style.visibility="",l()}),s.addEventListener("keydown",c=>{c.key==="Enter"&&(c.ctrlKey||c.metaKey)?(c.preventDefault(),s.blur()):c.key==="Escape"&&(c.preventDefault(),s.value=o(),s.classList.add("hidden"),e.style.visibility="")}),s.addEventListener("click",c=>c.stopPropagation()),l()}var Y=F(()=>{"use strict";$();X();A();document.addEventListener("click",()=>O())});var Ae={};Be(Ae,{NODE_TYPES:()=>Me,applyIncomingFlowNodes:()=>Le,closeNodeEditor:()=>P,closeTypePicker:()=>j,insertRequestNodes:()=>Mt,onTypePicked:()=>be,openNodeEditor:()=>Se,openTypePicker:()=>K,renderFlowNodes:()=>_,saveNodeEditor:()=>xe});function v(e){return e==="forLoop"||e==="for-loop"||e==="for_loop"?"for":e==="whileLoop"||e==="while-loop"||e==="while_loop"?"while":e}function _(){let e=document.getElementById("flow-nodes-list");if(!e)return;let t=a.suite?.nodes||[];if(!t.length){e.innerHTML=`
+        `).join("");
+    elements.availableRequestsList.querySelectorAll(".available-request-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        if (e.target.type !== "checkbox") {
+          const checkbox = item.querySelector(".add-request-checkbox");
+          checkbox.checked = !checkbox.checked;
+        }
+        item.classList.toggle("selected", item.querySelector(".add-request-checkbox").checked);
+        updateAddSelectedButton();
+      });
+    });
+    updateAddSelectedButton();
+  }
+  function filterAvailableRequests() {
+    renderAvailableRequestsList();
+  }
+  function updateAddSelectedButton() {
+    const checkedCount = elements.availableRequestsList.querySelectorAll(".add-request-checkbox:checked").length;
+    elements.addSelectedBtn.disabled = checkedCount === 0;
+    elements.addSelectedBtn.textContent = checkedCount > 0 ? `Add Selected (${checkedCount})` : "Add Selected";
+  }
+  async function addSelectedRequests() {
+    const selectedItems = elements.availableRequestsList.querySelectorAll(".add-request-checkbox:checked");
+    const toAdd = [];
+    selectedItems.forEach((checkbox) => {
+      const item = checkbox.closest(".available-request-item");
+      const collectionId = item.dataset.collectionId;
+      const requestId = item.dataset.requestId;
+      const req = state.availableRequests.find((r) => r.requestId === requestId && r.collectionId === collectionId);
+      if (req) {
+        toAdd.push({
+          ...req,
+          selected: true,
+          status: "pending"
+        });
+      }
+    });
+    closeAddRequestModal();
+    if (toAdd.length > 0) {
+      const { insertRequestNodes: insertRequestNodes2 } = await Promise.resolve().then(() => (init_flow_editor(), flow_editor_exports));
+      insertRequestNodes2(toAdd);
+    }
+  }
+  function updateSuiteDescriptionDisplay() {
+    const display = elements.suiteDescriptionDisplay;
+    if (!display) return;
+    const value = state.suite?.description || "";
+    if (value) {
+      display.textContent = value.replace(/\n/g, " ");
+      display.classList.remove("placeholder");
+    } else {
+      display.textContent = "Click to add description\u2026";
+      display.classList.add("placeholder");
+    }
+  }
+  function setupDescriptionInteraction(displayEl, tooltipEl, editEl, getValue, setValue) {
+    if (!displayEl || !editEl) return;
+    let hoverTimeout = null;
+    function updateDisplay() {
+      const value = getValue();
+      if (value) {
+        displayEl.textContent = value.replace(/\n/g, " ");
+        displayEl.classList.remove("placeholder");
+      } else {
+        displayEl.textContent = "Click to add description\u2026";
+        displayEl.classList.add("placeholder");
+      }
+    }
+    displayEl.addEventListener("mouseenter", () => {
+      const value = getValue();
+      if (!value || !editEl.classList.contains("hidden")) return;
+      hoverTimeout = setTimeout(() => {
+        if (tooltipEl) {
+          tooltipEl.textContent = value;
+          tooltipEl.classList.add("visible");
+        }
+      }, 400);
+    });
+    displayEl.addEventListener("mouseleave", () => {
+      clearTimeout(hoverTimeout);
+      if (tooltipEl) tooltipEl.classList.remove("visible");
+    });
+    displayEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (tooltipEl) tooltipEl.classList.remove("visible");
+      clearTimeout(hoverTimeout);
+      editEl.value = getValue();
+      editEl.classList.remove("hidden");
+      displayEl.style.visibility = "hidden";
+      editEl.focus();
+    });
+    editEl.addEventListener("blur", () => {
+      const newValue = editEl.value.trim();
+      setValue(newValue);
+      editEl.classList.add("hidden");
+      displayEl.style.visibility = "";
+      updateDisplay();
+    });
+    editEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        editEl.blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        editEl.value = getValue();
+        editEl.classList.add("hidden");
+        displayEl.style.visibility = "";
+      }
+    });
+    editEl.addEventListener("click", (e) => e.stopPropagation());
+    updateDisplay();
+  }
+  var init_suite_editor = __esm({
+    "resources/features/test-suite/modules/suite-editor.js"() {
+      "use strict";
+      init_state();
+      init_statistics();
+      init_utils();
+      document.addEventListener("click", () => closeAllMenus());
+    }
+  });
+
+  // resources/features/test-suite/modules/flow-editor.js
+  var flow_editor_exports = {};
+  __export(flow_editor_exports, {
+    NODE_TYPES: () => NODE_TYPES,
+    applyIncomingFlowNodes: () => applyIncomingFlowNodes,
+    closeNodeEditor: () => closeNodeEditor,
+    closeTypePicker: () => closeTypePicker,
+    insertRequestNodes: () => insertRequestNodes,
+    onTypePicked: () => onTypePicked,
+    openNodeEditor: () => openNodeEditor,
+    openTypePicker: () => openTypePicker,
+    renderFlowNodes: () => renderFlowNodes,
+    saveNodeEditor: () => saveNodeEditor
+  });
+  function _normalizeType(type) {
+    if (type === "forLoop" || type === "for-loop" || type === "for_loop") return "for";
+    if (type === "whileLoop" || type === "while-loop" || type === "while_loop") return "while";
+    return type;
+  }
+  function renderFlowNodes() {
+    const container = document.getElementById("flow-nodes-list");
+    if (!container) return;
+    const nodes = state.suite?.nodes || [];
+    if (!nodes.length) {
+      container.innerHTML = `
             <div class="empty-state">
                 <p>No flow nodes yet</p>
                 <p class="hint">Click "+ Add Node" to start</p>
-            </div>`;return}e.innerHTML=De(t,""),vt(e)}function De(e,t){return e.map((s,o)=>{let r=t?`${t}-${o}`:`${o}`;return ft(s,r,t.split("-").length-(t?0:1))}).join("")}function ft(e,t,s){let o=v(e?.type)||"unknown",r=pt[o]||"#888",i=(Me.find(x=>x.type===o)||{}).icon||"?",l=e.name&&e.name!==o?m(e.name):"",c=yt(e),d=e.enabled!==!1,u=gt(o),p=u&&Z.has(t),f=p?"":ht(e,t),y=mt(e,t);return`
-    <div class="flow-node${d?"":" disabled"}" data-path="${t}" data-type="${o}">
+            </div>`;
+      return;
+    }
+    container.innerHTML = _renderList(nodes, "");
+    _bindEvents(container);
+  }
+  function _renderList(nodes, prefix) {
+    return nodes.map((node, i) => {
+      const key = prefix ? `${prefix}-${i}` : `${i}`;
+      return _renderNode(node, key, prefix.split("-").length - (prefix ? 0 : 1));
+    }).join("");
+  }
+  function _renderNode(node, pathKey, depth) {
+    const type = _normalizeType(node?.type) || "unknown";
+    const color = NODE_COLOR[type] || "#888";
+    const icon = (NODE_TYPES.find((t) => t.type === type) || {}).icon || "?";
+    const label = node.name && node.name !== type ? escapeHtml(node.name) : "";
+    const summary = _nodeSummary(node);
+    const enabled = node.enabled !== false;
+    const canCollapse = _isBlockNode(type);
+    const isCollapsed = canCollapse && _collapsedNodeKeys.has(pathKey);
+    const children = isCollapsed ? "" : _renderChildren(node, pathKey);
+    const actionsMenu = _renderNodeActionsMenu(node, pathKey);
+    return `
+    <div class="flow-node${enabled ? "" : " disabled"}" data-path="${pathKey}" data-type="${type}">
         <div class="flow-node-header" style="--node-depth:0">
             <span class="drag-handle" title="Drag to reorder">\u2630</span>
-            ${u?`<button class="btn-icon collapse-node-btn" data-path="${t}" title="${p?"Expand block":"Collapse block"}">${p?"\u25B8":"\u25BE"}</button>`:'<span class="collapse-node-spacer"></span>'}
-            <span class="node-badge" style="background:${r}" title="${o}">${i}</span>
-            ${l?`<span class="node-label">${l}</span>`:""}
-            <span class="node-summary" title="${m(c)}">${m(c)}</span>
-            ${y}
+            ${canCollapse ? `<button class="btn-icon collapse-node-btn" data-path="${pathKey}" title="${isCollapsed ? "Expand block" : "Collapse block"}">${isCollapsed ? "\u25B8" : "\u25BE"}</button>` : '<span class="collapse-node-spacer"></span>'}
+            <span class="node-badge" style="background:${color}" title="${type}">${icon}</span>
+            ${label ? `<span class="node-label">${label}</span>` : ""}
+            <span class="node-summary" title="${escapeHtml(summary)}">${escapeHtml(summary)}</span>
+            ${actionsMenu}
         </div>
-        ${f}
-    </div>`}function Te(e){if(typeof e!="string"||!e)return e||"";try{return decodeURIComponent(e)}catch{return e}}function mt(e,t){let s=e?.enabled!==!1,o=v(e?.type)==="request"?`
-        <button class="menu-item node-action-btn" data-path="${t}" data-action="open-original">\u2197 Open Original</button>
-        <button class="menu-item node-action-btn" data-path="${t}" data-action="reset">\u21BA Reset to Collection</button>
-    `:"";return`
+        ${children}
+    </div>`;
+  }
+  function _decodePathSegment(value) {
+    if (typeof value !== "string" || !value) return value || "";
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+  function _renderNodeActionsMenu(node, pathKey) {
+    const enabled = node?.enabled !== false;
+    const requestItems = _normalizeType(node?.type) === "request" ? `
+        <button class="menu-item node-action-btn" data-path="${pathKey}" data-action="open-original">\u2197 Open Original</button>
+        <button class="menu-item node-action-btn" data-path="${pathKey}" data-action="reset">\u21BA Reset to Collection</button>
+    ` : "";
+    return `
         <div class="request-actions-menu node-actions-menu">
             <button class="menu-trigger node-menu-trigger" title="Actions">\u22EF</button>
             <div class="menu-dropdown node-menu-dropdown">
-                <button class="menu-item node-action-btn" data-path="${t}" data-action="edit">\u270E Edit</button>
-                ${o}
-                <button class="menu-item node-action-btn" data-path="${t}" data-action="toggle">${s?"\u25CB Disable":"\u25CF Enable"}</button>
-                <button class="menu-item node-action-btn danger" data-path="${t}" data-action="remove">\xD7 Remove</button>
+                <button class="menu-item node-action-btn" data-path="${pathKey}" data-action="edit">\u270E Edit</button>
+                ${requestItems}
+                <button class="menu-item node-action-btn" data-path="${pathKey}" data-action="toggle">${enabled ? "\u25CB Disable" : "\u25CF Enable"}</button>
+                <button class="menu-item node-action-btn danger" data-path="${pathKey}" data-action="remove">\xD7 Remove</button>
             </div>
-        </div>`}function yt(e){switch(v(e?.type)){case"script":return e.scriptRef?`ref \u2192 ${e.scriptRef}`:(typeof e.script=="string"?e.script:(e.script||[]).join(`
-`)).trim().split(`
-`)[0].trim()||"(empty)";case"if":return e.if||e.condition||"(no condition)";case"for":return`cond: ${e.loopCondition??e.condition??"true"}${e.maxIterations?`, max ${e.maxIterations}`:""}`;case"while":return`${e.while||e.condition||"false"}${e.maxIterations?`, max ${e.maxIterations}`:""}`;case"switch":return`switch(${e.expression||"?"})`;case"block":return`${(e.nodes||[]).length} node(s)`;case"request":{let s=e.request||{},o=[Te(s.collectionName),Te(s.folderPath)].filter(Boolean);return o.length?o.join(" \u203A "):s.method||""}default:return""}}function ht(e,t){let s=v(e?.type);if(!["if","for","while","switch","block"].includes(s))return"";let o='<div class="flow-node-children">';return s==="if"?(o+=N("then",e.then||[],t,"then"),(Array.isArray(e.elseif)?e.elseif:[]).forEach((i,l)=>{let c=`else if: ${i?.condition||"true"}`;o+=N(c,i?.nodes||[],t,`elseif-${l}-nodes`,`<button class="btn-icon edit-elseif-btn" data-path="${t}" data-elseif-index="${l}" title="Edit">\u270E</button>
-                <button class="btn-icon remove-elseif-btn danger" data-path="${t}" data-elseif-index="${l}" title="Remove else-if">\xD7</button>`)}),o+=`
+        </div>`;
+  }
+  function _nodeSummary(node) {
+    switch (_normalizeType(node?.type)) {
+      case "script":
+        if (node.scriptRef) return `ref \u2192 ${node.scriptRef}`;
+        const src = typeof node.script === "string" ? node.script : (node.script || []).join("\n");
+        return src.trim().split("\n")[0].trim() || "(empty)";
+      case "if":
+        return node.if || node.condition || "(no condition)";
+      case "for":
+        return `cond: ${node.loopCondition ?? node.condition ?? "true"}${node.maxIterations ? `, max ${node.maxIterations}` : ""}`;
+      case "while":
+        return `${node.while || node.condition || "false"}${node.maxIterations ? `, max ${node.maxIterations}` : ""}`;
+      case "switch":
+        return `switch(${node.expression || "?"})`;
+      case "block":
+        return `${(node.nodes || []).length} node(s)`;
+      case "request": {
+        const req = node.request || {};
+        const parts = [_decodePathSegment(req.collectionName), _decodePathSegment(req.folderPath)].filter(Boolean);
+        return parts.length ? parts.join(" \u203A ") : req.method || "";
+      }
+      default:
+        return "";
+    }
+  }
+  function _renderChildren(node, pathKey) {
+    const type = _normalizeType(node?.type);
+    if (!["if", "for", "while", "switch", "block"].includes(type)) return "";
+    let html = '<div class="flow-node-children">';
+    if (type === "if") {
+      html += _branch("then", node.then || [], pathKey, "then");
+      const elseIfBranches = Array.isArray(node.elseif) ? node.elseif : [];
+      elseIfBranches.forEach((branch, idx) => {
+        const label = `else if: ${branch?.condition || "true"}`;
+        html += _branch(
+          label,
+          branch?.nodes || [],
+          pathKey,
+          `elseif-${idx}-nodes`,
+          `<button class="btn-icon edit-elseif-btn" data-path="${pathKey}" data-elseif-index="${idx}" title="Edit">\u270E</button>
+                <button class="btn-icon remove-elseif-btn danger" data-path="${pathKey}" data-elseif-index="${idx}" title="Remove else-if">\xD7</button>`
+        );
+      });
+      html += `
             <div class="add-case-row">
-                <button class="btn-link add-elseif-btn" data-path="${t}" title="Add an else-if branch">+ Add Else If</button>
-            </div>`,Array.isArray(e.else)?o+=N("else",e.else,t,"else",`<button class="btn-icon remove-else-btn danger" data-path="${t}" title="Remove else">\xD7</button>`):o+=`
+                <button class="btn-link add-elseif-btn" data-path="${pathKey}" title="Add an else-if branch">+ Add Else If</button>
+            </div>`;
+      if (Array.isArray(node.else)) {
+        html += _branch(
+          "else",
+          node.else,
+          pathKey,
+          "else",
+          `<button class="btn-icon remove-else-btn danger" data-path="${pathKey}" title="Remove else">\xD7</button>`
+        );
+      } else {
+        html += `
                 <div class="add-case-row">
-                    <button class="btn-link add-else-btn" data-path="${t}" title="Add an else branch">+ Add Else</button>
-                </div>`):s==="switch"?((e.cases||[]).forEach((i,l)=>{let c=i.equals!==void 0?`case ${JSON.stringify(i.equals)}`:i.condition?`when: ${i.condition}`:"default";o+=N(c,i.nodes||[],t,`cases-${l}-nodes`,`<button class="btn-icon edit-case-btn" data-path="${t}" data-case-index="${l}" title="Edit">\u270E</button>
-                <button class="btn-icon remove-case-btn danger" data-path="${t}" data-case-index="${l}" title="Remove case">\xD7</button>`)}),o+=`
+                    <button class="btn-link add-else-btn" data-path="${pathKey}" title="Add an else branch">+ Add Else</button>
+                </div>`;
+      }
+    } else if (type === "switch") {
+      const cases = node.cases || [];
+      cases.forEach((c, ci) => {
+        const caseLabel = c.equals !== void 0 ? `case ${JSON.stringify(c.equals)}` : c.condition ? `when: ${c.condition}` : "default";
+        html += _branch(
+          caseLabel,
+          c.nodes || [],
+          pathKey,
+          `cases-${ci}-nodes`,
+          `<button class="btn-icon edit-case-btn" data-path="${pathKey}" data-case-index="${ci}" title="Edit">\u270E</button>
+                <button class="btn-icon remove-case-btn danger" data-path="${pathKey}" data-case-index="${ci}" title="Remove case">\xD7</button>`
+        );
+      });
+      html += `
             <div class="add-case-row">
-                <button class="btn-link add-case-btn" data-path="${t}" title="Add a new case">+ Add Case</button>
-            </div>`,e.default!==void 0?o+=N("default",e.default||[],t,"default",`<button class="btn-icon remove-default-btn danger" data-path="${t}" title="Remove default">\xD7</button>`):o+=`<button class="btn-link add-default-btn" data-path="${t}">+ Add Default</button>`):o+=N("body",e.nodes||[],t,"nodes"),o+="</div>",o}function N(e,t,s,o,r=""){let i=o.replace(/-/g,"-"),l=`${s}::${i}`,c=Q.has(l);return`
+                <button class="btn-link add-case-btn" data-path="${pathKey}" title="Add a new case">+ Add Case</button>
+            </div>`;
+      if (node.default !== void 0) {
+        html += _branch(
+          "default",
+          node.default || [],
+          pathKey,
+          "default",
+          `<button class="btn-icon remove-default-btn danger" data-path="${pathKey}" title="Remove default">\xD7</button>`
+        );
+      } else {
+        html += `<button class="btn-link add-default-btn" data-path="${pathKey}">+ Add Default</button>`;
+      }
+    } else {
+      html += _branch("body", node.nodes || [], pathKey, "nodes");
+    }
+    html += "</div>";
+    return html;
+  }
+  function _branch(label, nodes, parentPathKey, branch, actionsHtml = "") {
+    const branchKey = branch.replace(/-/g, "-");
+    const collapseKey = `${parentPathKey}::${branchKey}`;
+    const isCollapsed = _collapsedBranchKeys.has(collapseKey);
+    return `
     <div class="node-branch">
         <div class="branch-header">
         <span class="drag-handle" title="Drag to reorder"></span>
-        <button class="btn-icon collapse-branch-btn" data-collapse-key="${l}" title="${c?"Expand section":"Collapse section"}">${c?"\u25B8":"\u25BE"}</button>
-            <span class="branch-label">${e}</span>
-            ${r}
-            <button class="btn-link add-child-btn" data-path="${s}" data-branch="${i}">+ Add</button>
+        <button class="btn-icon collapse-branch-btn" data-collapse-key="${collapseKey}" title="${isCollapsed ? "Expand section" : "Collapse section"}">${isCollapsed ? "\u25B8" : "\u25BE"}</button>
+            <span class="branch-label">${label}</span>
+            ${actionsHtml}
+            <button class="btn-link add-child-btn" data-path="${parentPathKey}" data-branch="${branchKey}">+ Add</button>
         </div>
-        <div class="branch-body${c?" collapsed":""}" data-parent-path="${s}" data-branch="${i}">
+        <div class="branch-body${isCollapsed ? " collapsed" : ""}" data-parent-path="${parentPathKey}" data-branch="${branchKey}">
             <div class="branch-drop-hint">Drop to move inside</div>
-            ${c?"":t.length?De(t,`${s}-${i}`):'<span class="empty-branch">empty</span>'}
+            ${isCollapsed ? "" : nodes.length ? _renderList(nodes, `${parentPathKey}-${branchKey}`) : '<span class="empty-branch">empty</span>'}
         </div>
-    </div>`}function gt(e){return["if","for","while","switch","block"].includes(v(e))}function vt(e){e.querySelectorAll(".collapse-node-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation();let o=t.dataset.path;o&&(Z.has(o)?Z.delete(o):Z.add(o),_())})),e.querySelectorAll(".collapse-branch-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation();let o=t.dataset.collapseKey;o&&(Q.has(o)?Q.delete(o):Q.add(o),_())})),e.querySelectorAll(".node-menu-trigger").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation();let o=t.nextElementSibling,r=o?.classList.contains("open");O(),r||o?.classList.add("open")})),e.querySelectorAll(".node-action-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation();let o=t.dataset.path,r=t.dataset.action;if(O(),!(!o||!r)){if(r==="edit"){Se(o);return}if(r==="toggle"){xt(o);return}if(r==="remove"){St(o);return}if(r==="open-original"){let i=ge(b(o));i&&h.postMessage({command:"openOriginalRequest",slug:i});return}if(r==="reset"){let i=ge(b(o));i&&confirm("Reset to collection version? Your suite customizations will be lost.")&&h.postMessage({command:"resetSuiteRequest",slug:i})}}})),e.querySelectorAll(".add-child-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),w={pathKey:t.dataset.path,branch:t.dataset.branch},K()})),e.querySelectorAll(".add-case-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),Et(t.dataset.path)})),e.querySelectorAll(".add-elseif-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),It(t.dataset.path)})),e.querySelectorAll(".add-else-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),qt(t.dataset.path)})),e.querySelectorAll(".edit-elseif-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),Rt(t.dataset.path,parseInt(t.dataset.elseifIndex||"-1",10))})),e.querySelectorAll(".remove-elseif-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),Bt(t.dataset.path,parseInt(t.dataset.elseifIndex||"-1",10))})),e.querySelectorAll(".remove-else-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),kt(t.dataset.path)})),e.querySelectorAll(".edit-case-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),At(t.dataset.path,parseInt(t.dataset.caseIndex||"-1",10))})),e.querySelectorAll(".remove-case-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),Ct(t.dataset.path,parseInt(t.dataset.caseIndex||"-1",10))})),e.querySelectorAll(".add-default-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),$t(t.dataset.path)})),e.querySelectorAll(".remove-default-btn").forEach(t=>t.addEventListener("click",s=>{s.stopPropagation(),wt(t.dataset.path)})),Lt(e)}function ge(e){if(!e||e.type!=="request")return;if(e.request?.slug)return e.request.slug;let t=e.request||{};return(a.suite?.requests||[]).find(o=>o.collectionId===t.collectionId&&o.requestId===t.requestId)?.slug}function ve(e,t){if(!t&&t!==0)return{parent:null,key:null};let s=String(t).split("-"),o=e;for(let i=0;i<s.length-1;i++){let l=s[i];if(o=o[isNaN(l)?l:parseInt(l)],!o)return{parent:null,key:null}}let r=s[s.length-1];return{parent:o,key:isNaN(r)?r:parseInt(r)}}function b(e){let t=a.suite?.nodes||[],{parent:s,key:o}=ve(t,e);return s?s[o]:null}function bt(e,t){let s=a.suite?.nodes||[],{parent:o,key:r}=ve(s,e);o!==null&&r!==null&&(o[r]=t)}function St(e){if(!a.suite?.nodes)return;let{parent:t,key:s}=ve(a.suite.nodes,e);if(!(t===null||s===null)){if(Array.isArray(t)){let o=typeof s=="number"?s:parseInt(String(s),10);if(Number.isNaN(o)||o<0||o>=t.length)return;t.splice(o,1)}else if(typeof t=="object")delete t[s];else return;S()}}function xt(e){let t=b(e);t&&(t.enabled=t.enabled===!1?void 0:!1,S())}function Lt(e){let t=null,s=()=>{e.querySelectorAll(".flow-node").forEach(d=>d.classList.remove("drag-over")),e.querySelectorAll(".flow-node").forEach(d=>d.classList.remove("drag-copy")),e.querySelectorAll(".branch-body").forEach(d=>{d.classList.remove("drag-over"),d.classList.remove("drag-copy");let u=d.querySelector(".branch-drop-hint");u&&(u.textContent="Drop to move inside")})},o=d=>!!(d?.ctrlKey||d?.metaKey),r=d=>o(d)||d?.dataTransfer?.dropEffect==="copy",i=d=>{let u=a.suite?.nodes;if(!Array.isArray(u))return null;if(!d)return u;let p=String(d).split("-").filter(Boolean);for(let f of p){let y=isNaN(f)?f:parseInt(f,10);if(u=u?.[y],u==null)return null}return Array.isArray(u)?u:null},l=(d,u,p=!1)=>p||!u?!1:u===d||u.startsWith(`${d}-`),c=(d,u=null,p=!1)=>{if(!t)return;let f=t.split("-"),y=parseInt(f[f.length-1],10),x=f.slice(0,-1).join("-");if(Number.isNaN(y)||l(t,d,p))return;let L=i(x),k=i(d);if(!Array.isArray(L)||!Array.isArray(k)||y<0||y>=L.length)return;let V;if(p?V=JSON.parse(JSON.stringify(L[y])):[V]=L.splice(y,1),!V)return;let te=u==null?k.length:Math.max(0,Math.min(u,k.length));!p&&L===k&&u!=null&&y<u&&(te=Math.max(0,te-1)),k.splice(te,0,V),S()};e.querySelectorAll(".flow-node").forEach(d=>{let u=d.dataset.path;d.draggable=!1,d.querySelector(":scope > .flow-node-header > .drag-handle")?.addEventListener("mousedown",()=>{d.draggable=!0}),d.addEventListener("dragstart",f=>{t=u,d.classList.add("dragging"),f.dataTransfer.effectAllowed="copyMove",f.dataTransfer.setData("text/plain",u),f.stopPropagation()}),d.addEventListener("dragend",()=>{d.draggable=!1,d.classList.remove("dragging"),s(),t=null}),d.addEventListener("dragover",f=>{if(!t||t===u)return;let y=t.split("-"),L=u.split("-").slice(0,-1).join("-"),k=o(f);l(t,L,k)||(f.preventDefault(),f.dataTransfer.dropEffect=k?"copy":"move",s(),d.classList.add("drag-over"),k&&d.classList.add("drag-copy"),f.stopPropagation())}),d.addEventListener("dragleave",()=>{d.classList.remove("drag-over")}),d.addEventListener("drop",f=>{if(f.preventDefault(),f.stopPropagation(),d.classList.remove("drag-over"),!t||t===u)return;let y=u.split("-"),x=parseInt(y[y.length-1]);if(Number.isNaN(x))return;let L=y.slice(0,-1).join("-");c(L,x,r(f))})}),e.querySelectorAll(".branch-body").forEach(d=>{d.addEventListener("dragover",u=>{if(!t)return;let p=d.dataset.parentPath||"",f=d.dataset.branch||"",y=[p,f].filter(Boolean).join("-"),x=o(u);if(l(t,y,x))return;u.preventDefault(),u.stopPropagation(),u.dataTransfer.dropEffect=x?"copy":"move",s(),d.classList.add("drag-over"),x&&d.classList.add("drag-copy");let L=d.querySelector(".branch-drop-hint");L&&(L.textContent=x?"Drop to copy inside":"Drop to move inside")}),d.addEventListener("dragleave",()=>{d.classList.remove("drag-over")}),d.addEventListener("drop",u=>{if(u.preventDefault(),u.stopPropagation(),d.classList.remove("drag-over"),!t)return;let p=d.dataset.parentPath||"",f=d.dataset.branch||"",y=[p,f].filter(Boolean).join("-");c(y,null,r(u))})})}function Et(e){let t=b(e);if(!t||v(t.type)!=="switch")return;t.cases||(t.cases=[]);let s={condition:"true",nodes:[]};t.cases.push(s),S()}function It(e){let t=b(e);!t||v(t.type)!=="if"||(Array.isArray(t.elseif)||(t.elseif=[]),t.elseif.push({condition:"true",nodes:[]}),S())}function qt(e){let t=b(e);!t||v(t.type)!=="if"||Array.isArray(t.else)||(t.else=[],S())}function Bt(e,t){let s=b(e);!s||v(s.type)!=="if"||!Array.isArray(s.elseif)||t<0||t>=s.elseif.length||(s.elseif.splice(t,1),S())}function kt(e){let t=b(e);!t||v(t.type)!=="if"||Array.isArray(t.else)&&(delete t.else,S())}function Rt(e,t){let s=b(e);if(!s||v(s.type)!=="if"||!Array.isArray(s.elseif)||t<0||t>=s.elseif.length)return;let o=s.elseif[t]||{condition:"true",nodes:[]},r=document.getElementById("node-editor-modal");r&&(D=null,q=null,B={pathKey:e,branchIndex:t},document.getElementById("node-editor-title").textContent="Edit else-if branch",document.getElementById("node-editor-body").innerHTML=`
+    </div>`;
+  }
+  function _isBlockNode(type) {
+    return ["if", "for", "while", "switch", "block"].includes(_normalizeType(type));
+  }
+  function _bindEvents(container) {
+    container.querySelectorAll(".collapse-node-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.path;
+        if (!key) return;
+        if (_collapsedNodeKeys.has(key)) _collapsedNodeKeys.delete(key);
+        else _collapsedNodeKeys.add(key);
+        renderFlowNodes();
+      })
+    );
+    container.querySelectorAll(".collapse-branch-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.collapseKey;
+        if (!key) return;
+        if (_collapsedBranchKeys.has(key)) _collapsedBranchKeys.delete(key);
+        else _collapsedBranchKeys.add(key);
+        renderFlowNodes();
+      })
+    );
+    container.querySelectorAll(".node-menu-trigger").forEach(
+      (trigger) => trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const menu = trigger.nextElementSibling;
+        const wasOpen = menu?.classList.contains("open");
+        closeAllMenus();
+        if (!wasOpen) {
+          menu?.classList.add("open");
+        }
+      })
+    );
+    container.querySelectorAll(".node-action-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const path = btn.dataset.path;
+        const action = btn.dataset.action;
+        closeAllMenus();
+        if (!path || !action) return;
+        if (action === "edit") {
+          openNodeEditor(path);
+          return;
+        }
+        if (action === "toggle") {
+          toggleNode(path);
+          return;
+        }
+        if (action === "remove") {
+          removeNode(path);
+          return;
+        }
+        if (action === "open-original") {
+          const slug = _getRequestSlug(_get(path));
+          if (slug) {
+            vscode.postMessage({ command: "openOriginalRequest", slug });
+          }
+          return;
+        }
+        if (action === "reset") {
+          const slug = _getRequestSlug(_get(path));
+          if (slug && confirm("Reset to collection version? Your suite customizations will be lost.")) {
+            vscode.postMessage({ command: "resetSuiteRequest", slug });
+          }
+        }
+      })
+    );
+    container.querySelectorAll(".add-child-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        _pendingAddCtx = { pathKey: btn.dataset.path, branch: btn.dataset.branch };
+        openTypePicker();
+      })
+    );
+    container.querySelectorAll(".add-case-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addSwitchCase(btn.dataset.path);
+      })
+    );
+    container.querySelectorAll(".add-elseif-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addElseIfBranch(btn.dataset.path);
+      })
+    );
+    container.querySelectorAll(".add-else-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addElseBranch(btn.dataset.path);
+      })
+    );
+    container.querySelectorAll(".edit-elseif-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        editElseIfBranch(btn.dataset.path, parseInt(btn.dataset.elseifIndex || "-1", 10));
+      })
+    );
+    container.querySelectorAll(".remove-elseif-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeElseIfBranch(btn.dataset.path, parseInt(btn.dataset.elseifIndex || "-1", 10));
+      })
+    );
+    container.querySelectorAll(".remove-else-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeElseBranch(btn.dataset.path);
+      })
+    );
+    container.querySelectorAll(".edit-case-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        editSwitchCase(btn.dataset.path, parseInt(btn.dataset.caseIndex || "-1", 10));
+      })
+    );
+    container.querySelectorAll(".remove-case-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeSwitchCase(btn.dataset.path, parseInt(btn.dataset.caseIndex || "-1", 10));
+      })
+    );
+    container.querySelectorAll(".add-default-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addSwitchDefault(btn.dataset.path);
+      })
+    );
+    container.querySelectorAll(".remove-default-btn").forEach(
+      (btn) => btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeSwitchDefault(btn.dataset.path);
+      })
+    );
+    _bindDragAndDrop(container);
+  }
+  function _getRequestSlug(node) {
+    if (!node || node.type !== "request") return void 0;
+    if (node.request?.slug) return node.request.slug;
+    const req = node.request || {};
+    const found = (state.suite?.requests || []).find(
+      (r) => r.collectionId === req.collectionId && r.requestId === req.requestId
+    );
+    return found?.slug;
+  }
+  function _resolve(nodes, pathKey) {
+    if (!pathKey && pathKey !== 0) return { parent: null, key: null };
+    const segs = String(pathKey).split("-");
+    let current = nodes;
+    for (let i = 0; i < segs.length - 1; i++) {
+      const s = segs[i];
+      current = current[isNaN(s) ? s : parseInt(s)];
+      if (!current) return { parent: null, key: null };
+    }
+    const last = segs[segs.length - 1];
+    return { parent: current, key: isNaN(last) ? last : parseInt(last) };
+  }
+  function _get(pathKey) {
+    const nodes = state.suite?.nodes || [];
+    const { parent, key } = _resolve(nodes, pathKey);
+    return parent ? parent[key] : null;
+  }
+  function _set(pathKey, value) {
+    const nodes = state.suite?.nodes || [];
+    const { parent, key } = _resolve(nodes, pathKey);
+    if (parent !== null && key !== null) parent[key] = value;
+  }
+  function removeNode(pathKey) {
+    if (!state.suite?.nodes) return;
+    const { parent, key } = _resolve(state.suite.nodes, pathKey);
+    if (parent === null || key === null) return;
+    if (Array.isArray(parent)) {
+      const idx = typeof key === "number" ? key : parseInt(String(key), 10);
+      if (Number.isNaN(idx) || idx < 0 || idx >= parent.length) return;
+      parent.splice(idx, 1);
+    } else if (typeof parent === "object") {
+      delete parent[key];
+    } else {
+      return;
+    }
+    _commit();
+  }
+  function toggleNode(pathKey) {
+    const node = _get(pathKey);
+    if (!node) return;
+    node.enabled = node.enabled === false ? void 0 : false;
+    _commit();
+  }
+  function _bindDragAndDrop(container) {
+    let _dragPath = null;
+    const clearDropHighlights = () => {
+      container.querySelectorAll(".flow-node").forEach((n) => n.classList.remove("drag-over"));
+      container.querySelectorAll(".flow-node").forEach((n) => n.classList.remove("drag-copy"));
+      container.querySelectorAll(".branch-body").forEach((n) => {
+        n.classList.remove("drag-over");
+        n.classList.remove("drag-copy");
+        const hint = n.querySelector(".branch-drop-hint");
+        if (hint) hint.textContent = "Drop to move inside";
+      });
+    };
+    const isCopyDrag = (event) => !!(event?.ctrlKey || event?.metaKey);
+    const resolveCopyMode = (event) => isCopyDrag(event) || event?.dataTransfer?.dropEffect === "copy";
+    const getArrayAtPath = (arrayPath) => {
+      let cursor = state.suite?.nodes;
+      if (!Array.isArray(cursor)) return null;
+      if (!arrayPath) return cursor;
+      const parts = String(arrayPath).split("-").filter(Boolean);
+      for (const part of parts) {
+        const key = isNaN(part) ? part : parseInt(part, 10);
+        cursor = cursor?.[key];
+        if (cursor === void 0 || cursor === null) return null;
+      }
+      return Array.isArray(cursor) ? cursor : null;
+    };
+    const isInvalidDestination = (fromPath, destinationArrayPath, copyMode = false) => {
+      if (copyMode) return false;
+      if (!destinationArrayPath) return false;
+      return destinationArrayPath === fromPath || destinationArrayPath.startsWith(`${fromPath}-`);
+    };
+    const moveDraggedNode = (destinationArrayPath, destinationIndex = null, copyMode = false) => {
+      if (!_dragPath) return;
+      const fromSegments = _dragPath.split("-");
+      const fromIndex = parseInt(fromSegments[fromSegments.length - 1], 10);
+      const fromArrayPath = fromSegments.slice(0, -1).join("-");
+      if (Number.isNaN(fromIndex)) return;
+      if (isInvalidDestination(_dragPath, destinationArrayPath, copyMode)) return;
+      const fromArray = getArrayAtPath(fromArrayPath);
+      const toArray = getArrayAtPath(destinationArrayPath);
+      if (!Array.isArray(fromArray) || !Array.isArray(toArray)) return;
+      if (fromIndex < 0 || fromIndex >= fromArray.length) return;
+      let item;
+      if (copyMode) {
+        item = JSON.parse(JSON.stringify(fromArray[fromIndex]));
+      } else {
+        [item] = fromArray.splice(fromIndex, 1);
+      }
+      if (!item) return;
+      let insertIndex = destinationIndex == null ? toArray.length : Math.max(0, Math.min(destinationIndex, toArray.length));
+      if (!copyMode && fromArray === toArray && destinationIndex != null && fromIndex < destinationIndex) {
+        insertIndex = Math.max(0, insertIndex - 1);
+      }
+      toArray.splice(insertIndex, 0, item);
+      _commit();
+    };
+    container.querySelectorAll(".flow-node").forEach((el) => {
+      const pathKey = el.dataset.path;
+      el.draggable = false;
+      const handle = el.querySelector(":scope > .flow-node-header > .drag-handle");
+      handle?.addEventListener("mousedown", () => {
+        el.draggable = true;
+      });
+      el.addEventListener("dragstart", (e) => {
+        _dragPath = pathKey;
+        el.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "copyMove";
+        e.dataTransfer.setData("text/plain", pathKey);
+        e.stopPropagation();
+      });
+      el.addEventListener("dragend", () => {
+        el.draggable = false;
+        el.classList.remove("dragging");
+        clearDropHighlights();
+        _dragPath = null;
+      });
+      el.addEventListener("dragover", (e) => {
+        if (!_dragPath || _dragPath === pathKey) return;
+        const dragSegs = _dragPath.split("-");
+        const overSegs = pathKey.split("-");
+        const destinationArrayPath = overSegs.slice(0, -1).join("-");
+        const copyMode = isCopyDrag(e);
+        if (isInvalidDestination(_dragPath, destinationArrayPath, copyMode)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = copyMode ? "copy" : "move";
+        clearDropHighlights();
+        el.classList.add("drag-over");
+        if (copyMode) el.classList.add("drag-copy");
+        e.stopPropagation();
+      });
+      el.addEventListener("dragleave", () => {
+        el.classList.remove("drag-over");
+      });
+      el.addEventListener("drop", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.remove("drag-over");
+        if (!_dragPath || _dragPath === pathKey) return;
+        const toSegs = pathKey.split("-");
+        const toIdx = parseInt(toSegs[toSegs.length - 1]);
+        if (Number.isNaN(toIdx)) return;
+        const destinationArrayPath = toSegs.slice(0, -1).join("-");
+        moveDraggedNode(destinationArrayPath, toIdx, resolveCopyMode(e));
+      });
+    });
+    container.querySelectorAll(".branch-body").forEach((branchBody) => {
+      branchBody.addEventListener("dragover", (e) => {
+        if (!_dragPath) return;
+        const parentPath = branchBody.dataset.parentPath || "";
+        const branchKey = branchBody.dataset.branch || "";
+        const destinationArrayPath = [parentPath, branchKey].filter(Boolean).join("-");
+        const copyMode = isCopyDrag(e);
+        if (isInvalidDestination(_dragPath, destinationArrayPath, copyMode)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = copyMode ? "copy" : "move";
+        clearDropHighlights();
+        branchBody.classList.add("drag-over");
+        if (copyMode) {
+          branchBody.classList.add("drag-copy");
+        }
+        const hint = branchBody.querySelector(".branch-drop-hint");
+        if (hint) hint.textContent = copyMode ? "Drop to copy inside" : "Drop to move inside";
+      });
+      branchBody.addEventListener("dragleave", () => {
+        branchBody.classList.remove("drag-over");
+      });
+      branchBody.addEventListener("drop", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        branchBody.classList.remove("drag-over");
+        if (!_dragPath) return;
+        const parentPath = branchBody.dataset.parentPath || "";
+        const branchKey = branchBody.dataset.branch || "";
+        const destinationArrayPath = [parentPath, branchKey].filter(Boolean).join("-");
+        moveDraggedNode(destinationArrayPath, null, resolveCopyMode(e));
+      });
+    });
+  }
+  function addSwitchCase(pathKey) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "switch") return;
+    if (!node.cases) node.cases = [];
+    const newCase = { condition: "true", nodes: [] };
+    node.cases.push(newCase);
+    _commit();
+  }
+  function addElseIfBranch(pathKey) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "if") return;
+    if (!Array.isArray(node.elseif)) node.elseif = [];
+    node.elseif.push({ condition: "true", nodes: [] });
+    _commit();
+  }
+  function addElseBranch(pathKey) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "if") return;
+    if (Array.isArray(node.else)) return;
+    node.else = [];
+    _commit();
+  }
+  function removeElseIfBranch(pathKey, branchIndex) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "if") return;
+    if (!Array.isArray(node.elseif) || branchIndex < 0 || branchIndex >= node.elseif.length) return;
+    node.elseif.splice(branchIndex, 1);
+    _commit();
+  }
+  function removeElseBranch(pathKey) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "if") return;
+    if (!Array.isArray(node.else)) return;
+    delete node.else;
+    _commit();
+  }
+  function editElseIfBranch(pathKey, branchIndex) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "if") return;
+    if (!Array.isArray(node.elseif) || branchIndex < 0 || branchIndex >= node.elseif.length) return;
+    const branch = node.elseif[branchIndex] || { condition: "true", nodes: [] };
+    const modal = document.getElementById("node-editor-modal");
+    if (!modal) return;
+    _editingPathKey = null;
+    _editingCaseCtx = null;
+    _editingElseIfCtx = { pathKey, branchIndex };
+    document.getElementById("node-editor-title").textContent = "Edit else-if branch";
+    document.getElementById("node-editor-body").innerHTML = `
         <div class="nef-field">
             <label>Else-if Condition <span class="nef-hint-text">(JS expression)</span></label>
-            <textarea id="nef-elseif-condition" rows="4" placeholder="pm.variables.get('status') === 'ready'">${m(String(o.condition||"true"))}</textarea>
+            <textarea id="nef-elseif-condition" rows="4" placeholder="pm.variables.get('status') === 'ready'">${escapeHtml(String(branch.condition || "true"))}</textarea>
         </div>
         <p class="nef-info">This condition is evaluated after the main <strong>if</strong> condition and before <strong>else</strong>.</p>
-    `,r.classList.remove("hidden"))}function $t(e){let t=b(e);!t||v(t.type)!=="switch"||(t.default=[],S())}function wt(e){let t=b(e);!t||v(t.type)!=="switch"||t.default!==void 0&&(delete t.default,S())}function Ct(e,t){let s=b(e);!s||v(s.type)!=="switch"||!Array.isArray(s.cases)||t<0||t>=s.cases.length||(s.cases.splice(t,1),S())}function At(e,t){let s=b(e);if(!s||v(s.type)!=="switch"||!Array.isArray(s.cases)||t<0||t>=s.cases.length)return;let o=s.cases[t]||{};D=null,B=null,q={pathKey:e,caseIndex:t};let r=document.getElementById("node-editor-modal");if(!r)return;let i=o.equals!==void 0,l=i?"equals":"condition",c=String(i?o.equals??"":o.condition||"true");document.getElementById("node-editor-title").textContent="Edit switch case",document.getElementById("node-editor-body").innerHTML=`
+    `;
+    modal.classList.remove("hidden");
+  }
+  function addSwitchDefault(pathKey) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "switch") return;
+    node.default = [];
+    _commit();
+  }
+  function removeSwitchDefault(pathKey) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "switch") return;
+    if (node.default === void 0) return;
+    delete node.default;
+    _commit();
+  }
+  function removeSwitchCase(pathKey, caseIndex) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "switch") return;
+    if (!Array.isArray(node.cases) || caseIndex < 0 || caseIndex >= node.cases.length) return;
+    node.cases.splice(caseIndex, 1);
+    _commit();
+  }
+  function editSwitchCase(pathKey, caseIndex) {
+    const node = _get(pathKey);
+    if (!node || _normalizeType(node.type) !== "switch") return;
+    if (!Array.isArray(node.cases) || caseIndex < 0 || caseIndex >= node.cases.length) return;
+    const targetCase = node.cases[caseIndex] || {};
+    _editingPathKey = null;
+    _editingElseIfCtx = null;
+    _editingCaseCtx = { pathKey, caseIndex };
+    const modal = document.getElementById("node-editor-modal");
+    if (!modal) return;
+    const isEquals = targetCase.equals !== void 0;
+    const initialType = isEquals ? "equals" : "condition";
+    const initialValue = isEquals ? String(targetCase.equals ?? "") : String(targetCase.condition || "true");
+    document.getElementById("node-editor-title").textContent = "Edit switch case";
+    document.getElementById("node-editor-body").innerHTML = `
         <div class="nef-field">
             <label>Matcher Type</label>
             <select id="nef-case-type">
-                <option value="condition" ${l==="condition"?"selected":""}>when condition</option>
-                <option value="equals" ${l==="equals"?"selected":""}>equals value</option>
+                <option value="condition" ${initialType === "condition" ? "selected" : ""}>when condition</option>
+                <option value="equals" ${initialType === "equals" ? "selected" : ""}>equals value</option>
             </select>
         </div>
         <div class="nef-field">
             <label>Matcher</label>
-            <textarea id="nef-case-value" rows="4" placeholder="e.g. pm.variables.get('status') === 'ready'">${m(c)}</textarea>
+            <textarea id="nef-case-value" rows="4" placeholder="e.g. pm.variables.get('status') === 'ready'">${escapeHtml(initialValue)}</textarea>
         </div>
         <p class="nef-info">Use <strong>when condition</strong> for JS expressions, or <strong>equals value</strong> for direct value matching against the switch expression.</p>
-    `,r.classList.remove("hidden")}function Tt(e){if(!a.suite)return null;a.suite.nodes||(a.suite.nodes=[]);let t=null;if(!w)a.suite.nodes.push(e),t=String(a.suite.nodes.length-1);else{let{pathKey:s,branch:o}=w,r=b(s);if(!r)a.suite.nodes.push(e),t=String(a.suite.nodes.length-1);else{let i=o.split("-"),l=r;for(let c of i){let d=isNaN(c)?c:parseInt(c);l[d]||(l[d]=[]),l=l[d]}Array.isArray(l)&&(l.push(e),t=`${s}-${o}-${l.length-1}`)}}return w=null,S(),t}function Mt(e){if(!e?.length||!a.suite)return;a.suite.nodes||(a.suite.nodes=[]);let t=e.map(i=>({type:"request",name:i.name,request:{slug:i.slug,collectionId:i.collectionId,requestId:i.requestId,name:i.name,collectionName:i.collectionName,method:i.method,folderPath:i.folderPath||"",enabled:!0},enabled:!0}));if(!w){a.suite.nodes.push(...t),S();return}let{pathKey:s,branch:o}=w,r=b(s);if(!r)a.suite.nodes.push(...t);else{let i=o.split("-"),l=r;for(let c of i){let d=isNaN(c)?c:parseInt(c);l[d]||(l[d]=[]),l=l[d]}Array.isArray(l)?l.push(...t):a.suite.nodes.push(...t)}w=null,S()}function S(){R(!0),_(),h.postMessage({type:"updateFlowNodes",nodes:a.suite?.nodes||[]})}function K(){document.getElementById("node-type-picker-modal")?.classList.remove("hidden")}function j(e=!1){document.getElementById("node-type-picker-modal")?.classList.add("hidden"),e||(w=null)}function be(e){if(e==="request"){j(!0),Promise.resolve().then(()=>(Y(),Ce)).then(s=>s.openAddRequestModal());return}j(!0);let t=Tt(Dt(e));t!==null&&Se(t)}function Dt(e){switch(e){case"request":return{type:"request",name:"Request",request:{}};case"script":return{type:"script",name:"Script",script:""};case"if":return{type:"if",name:"If",if:"",then:[],elseif:[],else:[]};case"for":return{type:"for",name:"For",condition:"true",nodes:[],maxIterations:100};case"while":return{type:"while",name:"While",while:"false",nodes:[],maxIterations:100};case"switch":return{type:"switch",name:"Switch",expression:"",cases:[]};case"block":return{type:"block",name:"Block",nodes:[]};default:return{type:e}}}function Se(e){q=null,B=null,D=e;let t=b(e);if(!t)return;let s=document.getElementById("node-editor-modal");s&&(document.getElementById("node-editor-title").textContent=`Edit ${t.type||"node"} node`,document.getElementById("node-editor-body").innerHTML=Pt(t),t.type==="request"&&document.getElementById("nef-open-suite-request-editor")?.addEventListener("click",()=>{let r=ge(t);r&&h.postMessage({command:"editSuiteRequest",slug:r})}),s.classList.remove("hidden"))}function P(){document.getElementById("node-editor-modal")?.classList.add("hidden"),D=null,q=null,B=null}function xe(){if(B){let s=b(B.pathKey);if(!s||v(s.type)!=="if"||!Array.isArray(s.elseif)||B.branchIndex<0||B.branchIndex>=s.elseif.length)return;let o=(document.getElementById("nef-elseif-condition")?.value||"").trim()||"true",r=s.elseif[B.branchIndex]||{condition:"true",nodes:[]};r.condition=o,Array.isArray(r.nodes)||(r.nodes=[]),s.elseif[B.branchIndex]=r,P(),S();return}if(q){let s=b(q.pathKey);if(!s||v(s.type)!=="switch"||!Array.isArray(s.cases)||q.caseIndex<0||q.caseIndex>=s.cases.length)return;let o=document.getElementById("nef-case-type")?.value||"condition",r=(document.getElementById("nef-case-value")?.value||"").trim(),i=s.cases[q.caseIndex]||{nodes:[]};o==="equals"?(i.equals=r,delete i.condition):(i.condition=r||"true",delete i.equals),Array.isArray(i.nodes)||(i.nodes=[]),s.cases[q.caseIndex]=i,P(),S();return}if(!D)return;let e=b(D);if(!e)return;let t=s=>document.getElementById(s);switch(e.name=t("nef-name")?.value.trim()||void 0,e.condition=t("nef-condition")?.value.trim()||void 0,v(e.type)){case"script":{e.script=t("nef-script")?.value||void 0,e.scriptRef=t("nef-script-ref")?.value.trim()||void 0,e.phase=t("nef-phase")?.value||"pre";break}case"if":{e.if=t("nef-if")?.value.trim()||"";break}case"for":{e.init=t("nef-for-init")?.value.trim()||void 0,e.loopCondition=t("nef-for-cond")?.value.trim()||"true",e.update=t("nef-for-update")?.value.trim()||void 0,e.maxIterations=parseInt(t("nef-max-iter")?.value)||100;break}case"while":{e.while=t("nef-while")?.value.trim()||"false",e.maxIterations=parseInt(t("nef-max-iter")?.value)||100;break}case"switch":{e.expression=t("nef-switch-expr")?.value.trim()||"";break}}bt(D,e),P(),S()}function Pt(e){let t=l=>m(l||""),s=(l,c,d=5,u="")=>`<textarea id="${l}" rows="${d}" placeholder="${u}">${t(c)}</textarea>`,o=(l,c,d="",u="text")=>`<input type="${u}" id="${l}" value="${t(c)}" placeholder="${d}">`,r=`
+    `;
+    modal.classList.remove("hidden");
+  }
+  function _insertNode(newNode) {
+    if (!state.suite) return null;
+    if (!state.suite.nodes) state.suite.nodes = [];
+    let insertedPath = null;
+    if (!_pendingAddCtx) {
+      state.suite.nodes.push(newNode);
+      insertedPath = String(state.suite.nodes.length - 1);
+    } else {
+      const { pathKey, branch } = _pendingAddCtx;
+      const parent = _get(pathKey);
+      if (!parent) {
+        state.suite.nodes.push(newNode);
+        insertedPath = String(state.suite.nodes.length - 1);
+      } else {
+        const parts = branch.split("-");
+        let target = parent;
+        for (const p of parts) {
+          const key = isNaN(p) ? p : parseInt(p);
+          if (!target[key]) target[key] = [];
+          target = target[key];
+        }
+        if (Array.isArray(target)) {
+          target.push(newNode);
+          insertedPath = `${pathKey}-${branch}-${target.length - 1}`;
+        }
+      }
+    }
+    _pendingAddCtx = null;
+    _commit();
+    return insertedPath;
+  }
+  function insertRequestNodes(requestArray) {
+    if (!requestArray?.length) return;
+    if (!state.suite) return;
+    if (!state.suite.nodes) state.suite.nodes = [];
+    const newNodes = requestArray.map((req) => ({
+      type: "request",
+      name: req.name,
+      request: {
+        slug: req.slug,
+        collectionId: req.collectionId,
+        requestId: req.requestId,
+        name: req.name,
+        collectionName: req.collectionName,
+        method: req.method,
+        folderPath: req.folderPath || "",
+        enabled: true
+      },
+      enabled: true
+    }));
+    if (!_pendingAddCtx) {
+      state.suite.nodes.push(...newNodes);
+      _commit();
+      return;
+    }
+    const { pathKey, branch } = _pendingAddCtx;
+    const parent = _get(pathKey);
+    if (!parent) {
+      state.suite.nodes.push(...newNodes);
+    } else {
+      const parts = branch.split("-");
+      let target = parent;
+      for (const p of parts) {
+        const key = isNaN(p) ? p : parseInt(p);
+        if (!target[key]) target[key] = [];
+        target = target[key];
+      }
+      if (Array.isArray(target)) {
+        target.push(...newNodes);
+      } else {
+        state.suite.nodes.push(...newNodes);
+      }
+    }
+    _pendingAddCtx = null;
+    _commit();
+  }
+  function _commit() {
+    setDirty(true);
+    renderFlowNodes();
+    vscode.postMessage({ type: "updateFlowNodes", nodes: state.suite?.nodes || [] });
+  }
+  function openTypePicker() {
+    document.getElementById("node-type-picker-modal")?.classList.remove("hidden");
+  }
+  function closeTypePicker(preservePendingContext = false) {
+    document.getElementById("node-type-picker-modal")?.classList.add("hidden");
+    if (!preservePendingContext) {
+      _pendingAddCtx = null;
+    }
+  }
+  function onTypePicked(type) {
+    if (type === "request") {
+      closeTypePicker(true);
+      Promise.resolve().then(() => (init_suite_editor(), suite_editor_exports)).then((m) => m.openAddRequestModal());
+      return;
+    }
+    closeTypePicker(true);
+    const insertedPath = _insertNode(_defaultNode(type));
+    if (insertedPath !== null) {
+      openNodeEditor(insertedPath);
+    }
+  }
+  function _defaultNode(type) {
+    switch (type) {
+      case "request":
+        return { type: "request", name: "Request", request: {} };
+      case "script":
+        return { type: "script", name: "Script", script: "" };
+      case "if":
+        return { type: "if", name: "If", if: "", then: [], elseif: [], else: [] };
+      case "for":
+        return { type: "for", name: "For", condition: "true", nodes: [], maxIterations: 100 };
+      case "while":
+        return { type: "while", name: "While", while: "false", nodes: [], maxIterations: 100 };
+      case "switch":
+        return { type: "switch", name: "Switch", expression: "", cases: [] };
+      case "block":
+        return { type: "block", name: "Block", nodes: [] };
+      default:
+        return { type };
+    }
+  }
+  function openNodeEditor(pathKey) {
+    _editingCaseCtx = null;
+    _editingElseIfCtx = null;
+    _editingPathKey = pathKey;
+    const node = _get(pathKey);
+    if (!node) return;
+    const modal = document.getElementById("node-editor-modal");
+    if (!modal) return;
+    document.getElementById("node-editor-title").textContent = `Edit ${node.type || "node"} node`;
+    document.getElementById("node-editor-body").innerHTML = _buildForm(node);
+    if (node.type === "request") {
+      const openBtn = document.getElementById("nef-open-suite-request-editor");
+      openBtn?.addEventListener("click", () => {
+        const slug = _getRequestSlug(node);
+        if (slug) {
+          vscode.postMessage({ command: "editSuiteRequest", slug });
+        }
+      });
+    }
+    modal.classList.remove("hidden");
+  }
+  function closeNodeEditor() {
+    document.getElementById("node-editor-modal")?.classList.add("hidden");
+    _editingPathKey = null;
+    _editingCaseCtx = null;
+    _editingElseIfCtx = null;
+  }
+  function saveNodeEditor() {
+    if (_editingElseIfCtx) {
+      const node2 = _get(_editingElseIfCtx.pathKey);
+      if (!node2 || _normalizeType(node2.type) !== "if") return;
+      if (!Array.isArray(node2.elseif) || _editingElseIfCtx.branchIndex < 0 || _editingElseIfCtx.branchIndex >= node2.elseif.length) return;
+      const condition = (document.getElementById("nef-elseif-condition")?.value || "").trim() || "true";
+      const branch = node2.elseif[_editingElseIfCtx.branchIndex] || { condition: "true", nodes: [] };
+      branch.condition = condition;
+      if (!Array.isArray(branch.nodes)) branch.nodes = [];
+      node2.elseif[_editingElseIfCtx.branchIndex] = branch;
+      closeNodeEditor();
+      _commit();
+      return;
+    }
+    if (_editingCaseCtx) {
+      const node2 = _get(_editingCaseCtx.pathKey);
+      if (!node2 || _normalizeType(node2.type) !== "switch") return;
+      if (!Array.isArray(node2.cases) || _editingCaseCtx.caseIndex < 0 || _editingCaseCtx.caseIndex >= node2.cases.length) return;
+      const matcherType = document.getElementById("nef-case-type")?.value || "condition";
+      const matcherValue = (document.getElementById("nef-case-value")?.value || "").trim();
+      const targetCase = node2.cases[_editingCaseCtx.caseIndex] || { nodes: [] };
+      if (matcherType === "equals") {
+        targetCase.equals = matcherValue;
+        delete targetCase.condition;
+      } else {
+        targetCase.condition = matcherValue || "true";
+        delete targetCase.equals;
+      }
+      if (!Array.isArray(targetCase.nodes)) targetCase.nodes = [];
+      node2.cases[_editingCaseCtx.caseIndex] = targetCase;
+      closeNodeEditor();
+      _commit();
+      return;
+    }
+    if (!_editingPathKey) return;
+    const node = _get(_editingPathKey);
+    if (!node) return;
+    const g = (id) => document.getElementById(id);
+    node.name = g("nef-name")?.value.trim() || void 0;
+    node.condition = g("nef-condition")?.value.trim() || void 0;
+    switch (_normalizeType(node.type)) {
+      case "script": {
+        node.script = g("nef-script")?.value || void 0;
+        node.scriptRef = g("nef-script-ref")?.value.trim() || void 0;
+        node.phase = g("nef-phase")?.value || "pre";
+        break;
+      }
+      case "if": {
+        node.if = g("nef-if")?.value.trim() || "";
+        break;
+      }
+      case "for": {
+        node.init = g("nef-for-init")?.value.trim() || void 0;
+        node.loopCondition = g("nef-for-cond")?.value.trim() || "true";
+        node.update = g("nef-for-update")?.value.trim() || void 0;
+        node.maxIterations = parseInt(g("nef-max-iter")?.value) || 100;
+        break;
+      }
+      case "while": {
+        node.while = g("nef-while")?.value.trim() || "false";
+        node.maxIterations = parseInt(g("nef-max-iter")?.value) || 100;
+        break;
+      }
+      case "switch": {
+        node.expression = g("nef-switch-expr")?.value.trim() || "";
+        break;
+      }
+    }
+    _set(_editingPathKey, node);
+    closeNodeEditor();
+    _commit();
+  }
+  function _buildForm(node) {
+    const v = (s) => escapeHtml(s || "");
+    const ta = (id, val, rows = 5, ph = "") => `<textarea id="${id}" rows="${rows}" placeholder="${ph}">${v(val)}</textarea>`;
+    const inp = (id, val, ph = "", type = "text") => `<input type="${type}" id="${id}" value="${v(val)}" placeholder="${ph}">`;
+    const common = `
         <div class="nef-field">
             <label>Label</label>
-            ${o("nef-name",e.name,"Optional display name")}
+            ${inp("nef-name", node.name, "Optional display name")}
         </div>
         <div class="nef-field">
             <label>Guard Condition <span class="nef-hint-text">(skip if false)</span></label>
-            ${o("nef-condition",e.condition,"pm.variables.get('skip') !== 'true'")}
-        </div>`,i="";switch(v(e.type)){case"script":{let l=typeof e.script=="string"?e.script:(e.script||[]).join(`
-`);i=`
+            ${inp("nef-condition", node.condition, "pm.variables.get('skip') !== 'true'")}
+        </div>`;
+    let extra = "";
+    switch (_normalizeType(node.type)) {
+      case "script": {
+        const src = typeof node.script === "string" ? node.script : (node.script || []).join("\n");
+        extra = `
                 <div class="nef-field">
                     <label>Script Ref <span class="nef-hint-text">(key from suite.scripts library)</span></label>
-                    ${o("nef-script-ref",e.scriptRef,"e.g. mySetup")}
+                    ${inp("nef-script-ref", node.scriptRef, "e.g. mySetup")}
                 </div>
                 <div class="nef-field">
                     <label>Inline Script</label>
-                    ${s("nef-script",l,8,"pm.variables.set('key', 'value');")}
+                    ${ta("nef-script", src, 8, "pm.variables.set('key', 'value');")}
                 </div>
                 <div class="nef-field">
                     <label>Phase</label>
                     <select id="nef-phase">
-                        <option value="pre"  ${e.phase!=="post"?"selected":""}>pre-request</option>
-                        <option value="post" ${e.phase==="post"?"selected":""}>post-response</option>
+                        <option value="pre"  ${node.phase !== "post" ? "selected" : ""}>pre-request</option>
+                        <option value="post" ${node.phase === "post" ? "selected" : ""}>post-response</option>
                     </select>
-                </div>`;break}case"if":{i=`
+                </div>`;
+        break;
+      }
+      case "if": {
+        extra = `
                 <div class="nef-field">
                     <label>Condition <span class="nef-hint-text">(JS expression \u2192 truthy/falsy)</span></label>
-                    ${o("nef-if",e.if,"pm.variables.get('role') === 'admin'")}
+                    ${inp("nef-if", node.if, "pm.variables.get('role') === 'admin'")}
                 </div>
-                <p class="nef-info">Manage <strong>then</strong> and <strong>else</strong> branches in the flow tree.</p>`;break}case"for":{let l=typeof e.init=="string"?e.init:(e.init||[]).join(`
-`),c=typeof e.update=="string"?e.update:(e.update||[]).join(`
-`),d=e.loopCondition??e.condition??"";i=`
+                <p class="nef-info">Manage <strong>then</strong> and <strong>else</strong> branches in the flow tree.</p>`;
+        break;
+      }
+      case "for": {
+        const init = typeof node.init === "string" ? node.init : (node.init || []).join("\n");
+        const update = typeof node.update === "string" ? node.update : (node.update || []).join("\n");
+        const loopCond = node.loopCondition ?? node.condition ?? "";
+        extra = `
                 <div class="nef-field">
                     <label>Init Script <span class="nef-hint-text">(runs once before loop)</span></label>
-                    ${s("nef-for-init",l,3,"pm.variables.set('i', 0);")}
+                    ${ta("nef-for-init", init, 3, "pm.variables.set('i', 0);")}
                 </div>
                 <div class="nef-field">
                     <label>Loop Condition</label>
-                    ${o("nef-for-cond",d,"Number(pm.variables.get('i')) < 5")}
+                    ${inp("nef-for-cond", loopCond, "Number(pm.variables.get('i')) < 5")}
                 </div>
                 <div class="nef-field">
                     <label>Update <span class="nef-hint-text">(runs after each body)</span></label>
-                    ${s("nef-for-update",c,3,"pm.variables.set('i', Number(pm.variables.get('i')) + 1);")}
+                    ${ta("nef-for-update", update, 3, "pm.variables.set('i', Number(pm.variables.get('i')) + 1);")}
                 </div>
                 <div class="nef-field">
                     <label>Max Iterations</label>
-                    ${o("nef-max-iter",e.maxIterations??100,"","number")}
+                    ${inp("nef-max-iter", node.maxIterations ?? 100, "", "number")}
                 </div>
-                <p class="nef-info">Add loop <strong>body</strong> nodes in the flow tree.</p>`;break}case"while":{i=`
+                <p class="nef-info">Add loop <strong>body</strong> nodes in the flow tree.</p>`;
+        break;
+      }
+      case "while": {
+        extra = `
                 <div class="nef-field">
                     <label>Loop While <span class="nef-hint-text">(JS expression, continues while truthy)</span></label>
-                    ${o("nef-while",e.while,"pm.variables.get('retry') === 'true'")}
+                    ${inp("nef-while", node.while, "pm.variables.get('retry') === 'true'")}
                 </div>
                 <div class="nef-field">
                     <label>Max Iterations</label>
-                    ${o("nef-max-iter",e.maxIterations??100,"","number")}
+                    ${inp("nef-max-iter", node.maxIterations ?? 100, "", "number")}
                 </div>
-                <p class="nef-info">Add loop <strong>body</strong> nodes in the flow tree.</p>`;break}case"switch":{i=`
+                <p class="nef-info">Add loop <strong>body</strong> nodes in the flow tree.</p>`;
+        break;
+      }
+      case "switch": {
+        extra = `
                 <div class="nef-field">
                     <label>Switch Expression <span class="nef-hint-text">(JS expression evaluated once)</span></label>
-                    ${o("nef-switch-expr",e.expression,"pm.variables.get('status')")}
+                    ${inp("nef-switch-expr", node.expression, "pm.variables.get('status')")}
                 </div>
-                <p class="nef-info">Manage <strong>cases</strong> and <strong>default</strong> in the flow tree using <strong>+ Add Case</strong> and <strong>+ Add Default</strong>.</p>`;break}case"block":{i='<p class="nef-info">Group node \u2013 add children in the flow tree.</p>';break}case"request":{let l=e.request||{};i=`
+                <p class="nef-info">Manage <strong>cases</strong> and <strong>default</strong> in the flow tree using <strong>+ Add Case</strong> and <strong>+ Add Default</strong>.</p>`;
+        break;
+      }
+      case "block": {
+        extra = `<p class="nef-info">Group node \u2013 add children in the flow tree.</p>`;
+        break;
+      }
+      case "request": {
+        const req = node.request || {};
+        extra = `
                 <p class="nef-info">Request nodes reference collection requests.
                 Use "+ Add Node" and choose <strong>Request</strong> in the Flow panel.</p>
                 <div class="nef-field">
@@ -175,60 +1583,1403 @@
                     </button>
                 </div>
                 <div class="nef-field"><label>Collection</label>
-                    <input type="text" value="${t(l.collectionId)}" readonly class="readonly-field">
+                    <input type="text" value="${v(req.collectionId)}" readonly class="readonly-field">
                 </div>
                 <div class="nef-field"><label>Request ID</label>
-                    <input type="text" value="${t(l.requestId)}" readonly class="readonly-field">
+                    <input type="text" value="${v(req.requestId)}" readonly class="readonly-field">
                 </div>
                 <div class="nef-field"><label>Name</label>
-                    <input type="text" value="${t(l.name)}" readonly class="readonly-field">
-                </div>`;break}}return r+i}function Ht(){if(a.suite&&!(a.suite.nodes&&a.suite.nodes.length>0)){if(!a.suite.requests||a.suite.requests.length===0){a.suite.nodes=[];return}a.suite.nodes=a.suite.requests.map(e=>({type:"request",name:e.name,request:{slug:e.slug,collectionId:e.collectionId,requestId:e.requestId,name:e.name,collectionName:e.collectionName,method:e.method,folderPath:e.folderPath||"",enabled:e.enabled!==!1},enabled:e.enabled!==!1}))}}function Nt(){if(!a.suite?.nodes||!a.suite?.requests?.length)return;let e=t=>{for(let s of t){if(s?.type==="request"&&s.request){let o=a.suite.requests.find(r=>r.collectionId===s.request.collectionId&&r.requestId===s.request.requestId);o?.slug&&!s.request.slug&&(s.request.slug=o.slug)}if(Array.isArray(s?.nodes)&&e(s.nodes),Array.isArray(s?.then)&&e(s.then),Array.isArray(s?.elseif))for(let o of s.elseif)Array.isArray(o?.nodes)&&e(o.nodes);if(Array.isArray(s?.else)&&e(s.else),Array.isArray(s?.default)&&e(s.default),Array.isArray(s?.cases))for(let o of s.cases)Array.isArray(o?.nodes)&&e(o.nodes)}};e(a.suite.nodes)}function Le(e){a.suite&&(!e||e.length===0?Ht():a.suite.nodes=e,Nt(),_())}var Me,pt,w,D,q,B,Z,Q,he=F(()=>{"use strict";$();Y();A();Me=[{type:"request",label:"Request",icon:"\u{1F310}",color:"#4caf50",description:"Run a request from a collection"},{type:"script",label:"Script",icon:"\u26A1",color:"#9c27b0",description:"Run a script (pm.variables, pm.environment \u2026)"},{type:"if",label:"If / Else",icon:"\u25C7",color:"#2196f3",description:"Conditional branch on a JS expression"},{type:"for",label:"For Loop",icon:"\u21BB",color:"#ff9800",description:"Init / condition / update loop"},{type:"while",label:"While Loop",icon:"\u21BA",color:"#ff5722",description:"Loop while a JS expression is true"},{type:"switch",label:"Switch",icon:"\u21CC",color:"#009688",description:"Multi-branch switch on a JS expression"},{type:"block",label:"Block",icon:"\u25A3",color:"#607d8b",description:"Group nodes together"}],pt={script:"#9c27b0",if:"#2196f3",for:"#ff9800",while:"#ff5722",switch:"#009688",block:"#607d8b",request:"#4caf50"};w=null,D=null,q=null,B=null,Z=new Set,Q=new Set});he();$();A();function Ft(e){let t=a.results[e];if(!t)return;let s=C(t);if(a.selectedResultIndex=e,Ot(s),s.resultFile&&a.suiteId&&a.currentRunId){let o=a.viewingHistoryRun||a.currentRunId;h.postMessage({type:"getResultDetails",suiteId:a.suiteId,runId:o,resultFile:s.resultFile})}else Fe(s)}function Ot(e){n.modalStatusIcon&&(n.modalStatusIcon.textContent=e.passed?"\u2713":"\u2717",n.modalStatusIcon.className=`modal-status-icon ${e.passed?"passed":"failed"}`),n.modalRequestName&&(n.modalRequestName.textContent=e.name),n.modalRequestMeta&&(n.modalRequestMeta.textContent=`${e.method} ${e.status} \u2022 ${e.duration}ms`),n.modalTabs?.forEach(t=>t.classList.remove("active")),n.modalPanels?.forEach(t=>t.classList.remove("active")),n.modalTabs?.[0]?.classList.add("active"),n.modalPanels?.[0]?.classList.add("active"),E.responseBodyMonacoEditor&&E.responseBodyMonacoEditor.setValue("Loading..."),n.responseModal.classList.remove("hidden")}function He(e){e&&Fe(e)}function Ne(e){E.responseBodyMonacoEditor&&E.responseBodyMonacoEditor.setValue(`Error loading details: ${e}`)}function Fe(e){let t=e.response?.body??e.responseBody,s=e.response?.headers??e.responseHeaders??{},o=e.request?.body??e.requestBody,r=e.request?.headers??e.requestHeaders??{};if(Ie(t),n.responseHeadersTable&&(n.responseHeadersTable.innerHTML=Object.entries(s).map(([p,f])=>`<tr><td>${m(p)}</td><td>${m(String(f))}</td></tr>`).join("")||'<tr><td colspan="2">No headers</td></tr>'),n.requestUrl&&(n.requestUrl.textContent=e.url||""),n.requestMethodDuration){let p=e.method||"",f=e.duration!=null?`${e.duration}ms`:"";n.requestMethodDuration.textContent=[p,f].filter(Boolean).join(" \u2022 ")}n.requestHeadersTable&&(n.requestHeadersTable.innerHTML=Object.entries(r).map(([p,f])=>`<tr><td>${m(p)}</td><td>${m(String(f))}</td></tr>`).join("")||'<tr><td colspan="2">No headers</td></tr>');let i=d(o),l=i&&i.type!=="none",c=i?.type?`Request Body (${i.type} ${i.format?" / "+i.format:""})`:"Request Body";if(n.requestBodyTab&&n.requestBodyTab.classList.toggle("hidden",!l),n.requestBodyPanel&&n.requestBodyPanel.classList.toggle("hidden",!l),l||(n.requestHeadersTab?.classList.add("active"),n.requestBodyTab?.classList.remove("active"),n.requestHeadersPanel?.classList.add("active"),n.requestBodyPanel?.classList.remove("active")),n.requestBodyHeading&&(n.requestBodyHeading.textContent=c),n.requestBodyContent)if(l){let p=i?.content??"";n.requestBodyContent.textContent=u(p,i?.type)}else n.requestBodyContent.textContent="No body";Pe(e.assertions||[]);function d(p){if(p==null)return null;if(typeof p=="string")return{type:"raw",content:p};if(typeof p=="object"){if("type"in p){let f=p.type||"raw",y=p.content!=null?p.content:"";return{type:f,content:y}}return{type:"raw",content:p}}return{type:"raw",content:String(p)}}function u(p,f){if(p==null)return"";if(typeof p=="string"){if(f==="raw"||f==="graphql"||f==="x-www-form-urlencoded"||f==="binary")try{let y=JSON.parse(p);return JSON.stringify(y,null,2)}catch{return p}try{let y=JSON.parse(p);return JSON.stringify(y,null,2)}catch{return p}}try{return JSON.stringify(p,null,2)}catch{return String(p)}}Pe(e.assertions||[])}function Ee(){n.responseBodyEditor&&!E.responseBodyMonacoEditor&&window.monaco&&(E.responseBodyMonacoEditor=monaco.editor.create(n.responseBodyEditor,{value:"// Response body will appear here",language:"json",theme:"vs-dark",readOnly:!0,minimap:{enabled:!1},lineNumbers:"on",scrollBeyondLastLine:!1,automaticLayout:!0,wordWrap:"on",folding:!0}))}function Ie(e){let t=n.bodyFormatSelect?.value||"auto",s="",o="json";if(e==null)s="// No response body";else if(t==="auto")if(typeof e=="object")s=JSON.stringify(e,null,2);else if(typeof e=="string")try{let r=JSON.parse(e);s=JSON.stringify(r,null,2)}catch{s=e,o="text"}else s=String(e),o="text";else if(t==="json")try{let r=typeof e=="object"?e:JSON.parse(e);s=JSON.stringify(r,null,2)}catch{s=String(e)}else s=typeof e=="object"?JSON.stringify(e,null,2):String(e),o=t==="xml"?"xml":"text";!E.responseBodyMonacoEditor&&window.monaco&&Ee(),E.responseBodyMonacoEditor?(monaco.editor.setModelLanguage(E.responseBodyMonacoEditor.getModel(),o),E.responseBodyMonacoEditor.setValue(s)):n.responseBodyEditor&&(n.responseBodyEditor.textContent=s)}function Pe(e){if(!n.testSummary||!n.testList)return;let t=e.filter(o=>o.passed).length,s=e.filter(o=>!o.passed).length;if(n.testSummary.innerHTML=`
-        <div class="test-summary-item passed">\u2713 ${t} passed</div>
-        <div class="test-summary-item failed">\u2717 ${s} failed</div>
-    `,e.length===0){n.testList.innerHTML='<div class="test-item"><span class="test-content">No tests defined</span></div>';return}n.testList.innerHTML=e.map(o=>`
-        <div class="test-item ${o.passed?"passed":"failed"}">
-            <span class="test-icon ${o.passed?"passed":"failed"}">${o.passed?"\u2713":"\u2717"}</span>
+                    <input type="text" value="${v(req.name)}" readonly class="readonly-field">
+                </div>`;
+        break;
+      }
+    }
+    return common + extra;
+  }
+  function _migrateRequestsToNodes() {
+    if (!state.suite) return;
+    if (state.suite.nodes && state.suite.nodes.length > 0) {
+      return;
+    }
+    if (!state.suite.requests || state.suite.requests.length === 0) {
+      state.suite.nodes = [];
+      return;
+    }
+    state.suite.nodes = state.suite.requests.map((req) => ({
+      type: "request",
+      name: req.name,
+      request: {
+        slug: req.slug,
+        collectionId: req.collectionId,
+        requestId: req.requestId,
+        name: req.name,
+        collectionName: req.collectionName,
+        method: req.method,
+        folderPath: req.folderPath || "",
+        enabled: req.enabled !== false
+      },
+      enabled: req.enabled !== false
+    }));
+  }
+  function _hydrateNodeSlugsFromRequests() {
+    if (!state.suite?.nodes || !state.suite?.requests?.length) return;
+    const visit = (nodes) => {
+      for (const node of nodes) {
+        if (node?.type === "request" && node.request) {
+          const found = state.suite.requests.find(
+            (r) => r.collectionId === node.request.collectionId && r.requestId === node.request.requestId
+          );
+          if (found?.slug && !node.request.slug) {
+            node.request.slug = found.slug;
+          }
+        }
+        if (Array.isArray(node?.nodes)) visit(node.nodes);
+        if (Array.isArray(node?.then)) visit(node.then);
+        if (Array.isArray(node?.elseif)) {
+          for (const branch of node.elseif) {
+            if (Array.isArray(branch?.nodes)) visit(branch.nodes);
+          }
+        }
+        if (Array.isArray(node?.else)) visit(node.else);
+        if (Array.isArray(node?.default)) visit(node.default);
+        if (Array.isArray(node?.cases)) {
+          for (const c of node.cases) {
+            if (Array.isArray(c?.nodes)) visit(c.nodes);
+          }
+        }
+      }
+    };
+    visit(state.suite.nodes);
+  }
+  function applyIncomingFlowNodes(nodes) {
+    if (!state.suite) return;
+    if (!nodes || nodes.length === 0) {
+      _migrateRequestsToNodes();
+    } else {
+      state.suite.nodes = nodes;
+    }
+    _hydrateNodeSlugsFromRequests();
+    renderFlowNodes();
+  }
+  var NODE_TYPES, NODE_COLOR, _pendingAddCtx, _editingPathKey, _editingCaseCtx, _editingElseIfCtx, _collapsedNodeKeys, _collapsedBranchKeys;
+  var init_flow_editor = __esm({
+    "resources/features/test-suite/modules/flow-editor.js"() {
+      "use strict";
+      init_state();
+      init_suite_editor();
+      init_utils();
+      NODE_TYPES = [
+        { type: "request", label: "Request", icon: "\u{1F310}", color: "#4caf50", description: "Run a request from a collection" },
+        { type: "script", label: "Script", icon: "\u26A1", color: "#9c27b0", description: "Run a script (pm.variables, pm.environment \u2026)" },
+        { type: "if", label: "If / Else", icon: "\u25C7", color: "#2196f3", description: "Conditional branch on a JS expression" },
+        { type: "for", label: "For Loop", icon: "\u21BB", color: "#ff9800", description: "Init / condition / update loop" },
+        { type: "while", label: "While Loop", icon: "\u21BA", color: "#ff5722", description: "Loop while a JS expression is true" },
+        { type: "switch", label: "Switch", icon: "\u21CC", color: "#009688", description: "Multi-branch switch on a JS expression" },
+        { type: "block", label: "Block", icon: "\u25A3", color: "#607d8b", description: "Group nodes together" }
+      ];
+      NODE_COLOR = {
+        script: "#9c27b0",
+        if: "#2196f3",
+        for: "#ff9800",
+        while: "#ff5722",
+        switch: "#009688",
+        block: "#607d8b",
+        request: "#4caf50"
+      };
+      _pendingAddCtx = null;
+      _editingPathKey = null;
+      _editingCaseCtx = null;
+      _editingElseIfCtx = null;
+      _collapsedNodeKeys = /* @__PURE__ */ new Set();
+      _collapsedBranchKeys = /* @__PURE__ */ new Set();
+    }
+  });
+
+  // resources/features/test-suite/modules/main.js
+  init_flow_editor();
+
+  // resources/features/test-suite/modules/results-view.js
+  init_state();
+  init_utils();
+  function showResultDetail(index) {
+    const compactResult = state.results[index];
+    if (!compactResult) return;
+    const result = expandSummary(compactResult);
+    state.selectedResultIndex = index;
+    showModalWithSummary(result);
+    if (result.resultFile && state.suiteId && state.currentRunId) {
+      const runId = state.viewingHistoryRun || state.currentRunId;
+      vscode.postMessage({
+        type: "getResultDetails",
+        suiteId: state.suiteId,
+        runId,
+        resultFile: result.resultFile
+      });
+    } else {
+      populateModalWithDetails(result);
+    }
+  }
+  function showModalWithSummary(result) {
+    if (elements.modalStatusIcon) {
+      elements.modalStatusIcon.textContent = result.passed ? "\u2713" : "\u2717";
+      elements.modalStatusIcon.className = `modal-status-icon ${result.passed ? "passed" : "failed"}`;
+    }
+    if (elements.modalRequestName) {
+      elements.modalRequestName.textContent = result.name;
+    }
+    if (elements.modalRequestMeta) {
+      elements.modalRequestMeta.textContent = `${result.method} ${result.status} \u2022 ${result.duration}ms`;
+    }
+    elements.modalTabs?.forEach((t) => t.classList.remove("active"));
+    elements.modalPanels?.forEach((p) => p.classList.remove("active"));
+    elements.modalTabs?.[0]?.classList.add("active");
+    elements.modalPanels?.[0]?.classList.add("active");
+    if (editorState.responseBodyMonacoEditor) {
+      editorState.responseBodyMonacoEditor.setValue("Loading...");
+    }
+    elements.responseModal.classList.remove("hidden");
+  }
+  function handleResultDetails(details) {
+    if (details) {
+      populateModalWithDetails(details);
+    }
+  }
+  function handleResultDetailsError(error) {
+    if (editorState.responseBodyMonacoEditor) {
+      editorState.responseBodyMonacoEditor.setValue(`Error loading details: ${error}`);
+    }
+  }
+  function populateModalWithDetails(result) {
+    const responseBody = result.response?.body ?? result.responseBody;
+    const responseHeaders = result.response?.headers ?? result.responseHeaders ?? {};
+    const requestBody = result.request?.body ?? result.requestBody;
+    const requestHeaders = result.request?.headers ?? result.requestHeaders ?? {};
+    formatAndDisplayBody(responseBody);
+    if (elements.responseHeadersTable) {
+      elements.responseHeadersTable.innerHTML = Object.entries(responseHeaders).map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(String(value))}</td></tr>`).join("") || '<tr><td colspan="2">No headers</td></tr>';
+    }
+    if (elements.requestUrl) elements.requestUrl.textContent = result.url || "";
+    if (elements.requestMethodDuration) {
+      const methodText = result.method || "";
+      const durationText = result.duration != null ? `${result.duration}ms` : "";
+      elements.requestMethodDuration.textContent = [methodText, durationText].filter(Boolean).join(" \u2022 ");
+    }
+    if (elements.requestHeadersTable) {
+      elements.requestHeadersTable.innerHTML = Object.entries(requestHeaders).map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(String(value))}</td></tr>`).join("") || '<tr><td colspan="2">No headers</td></tr>';
+    }
+    const normalizedRequestBody = normalizeRequestBody(requestBody);
+    const hasRequestBody = normalizedRequestBody && normalizedRequestBody.type !== "none";
+    const bodyLabel = normalizedRequestBody?.type ? `Request Body (${normalizedRequestBody.type} ${normalizedRequestBody.format ? " / " + normalizedRequestBody.format : ""})` : "Request Body";
+    if (elements.requestBodyTab) {
+      elements.requestBodyTab.classList.toggle("hidden", !hasRequestBody);
+    }
+    if (elements.requestBodyPanel) {
+      elements.requestBodyPanel.classList.toggle("hidden", !hasRequestBody);
+    }
+    if (!hasRequestBody) {
+      elements.requestHeadersTab?.classList.add("active");
+      elements.requestBodyTab?.classList.remove("active");
+      elements.requestHeadersPanel?.classList.add("active");
+      elements.requestBodyPanel?.classList.remove("active");
+    }
+    if (elements.requestBodyHeading) {
+      elements.requestBodyHeading.textContent = bodyLabel;
+    }
+    if (elements.requestBodyContent) {
+      if (hasRequestBody) {
+        const content = normalizedRequestBody?.content ?? "";
+        elements.requestBodyContent.textContent = formatRequestBodyContent(content, normalizedRequestBody?.type);
+      } else {
+        elements.requestBodyContent.textContent = "No body";
+      }
+    }
+    populateTestResults(result.assertions || []);
+    function normalizeRequestBody(body) {
+      if (body == null) return null;
+      if (typeof body === "string") {
+        return { type: "raw", content: body };
+      }
+      if (typeof body === "object") {
+        if ("type" in body) {
+          const type = body.type || "raw";
+          const content = body.content != null ? body.content : "";
+          return { type, content };
+        }
+        return { type: "raw", content: body };
+      }
+      return { type: "raw", content: String(body) };
+    }
+    function formatRequestBodyContent(content, type) {
+      if (content == null) return "";
+      if (typeof content === "string") {
+        if (type === "raw" || type === "graphql" || type === "x-www-form-urlencoded" || type === "binary") {
+          try {
+            const parsed = JSON.parse(content);
+            return JSON.stringify(parsed, null, 2);
+          } catch {
+            return content;
+          }
+        }
+        try {
+          const parsed = JSON.parse(content);
+          return JSON.stringify(parsed, null, 2);
+        } catch {
+          return content;
+        }
+      }
+      try {
+        return JSON.stringify(content, null, 2);
+      } catch {
+        return String(content);
+      }
+    }
+    populateTestResults(result.assertions || []);
+  }
+  function initResponseBodyEditor() {
+    if (!elements.responseBodyEditor) return;
+    if (!editorState.responseBodyMonacoEditor && window.monaco) {
+      editorState.responseBodyMonacoEditor = monaco.editor.create(elements.responseBodyEditor, {
+        value: "// Response body will appear here",
+        language: "json",
+        theme: "vs-dark",
+        readOnly: true,
+        minimap: { enabled: false },
+        lineNumbers: "on",
+        scrollBeyondLastLine: false,
+        automaticLayout: true,
+        wordWrap: "on",
+        folding: true
+      });
+    }
+  }
+  function formatAndDisplayBody(body) {
+    const format = elements.bodyFormatSelect?.value || "auto";
+    let displayText = "";
+    let language = "json";
+    if (body === void 0 || body === null) {
+      displayText = "// No response body";
+    } else if (format === "auto") {
+      if (typeof body === "object") {
+        displayText = JSON.stringify(body, null, 2);
+      } else if (typeof body === "string") {
+        try {
+          const parsed = JSON.parse(body);
+          displayText = JSON.stringify(parsed, null, 2);
+        } catch {
+          displayText = body;
+          language = "text";
+        }
+      } else {
+        displayText = String(body);
+        language = "text";
+      }
+    } else if (format === "json") {
+      try {
+        const parsed = typeof body === "object" ? body : JSON.parse(body);
+        displayText = JSON.stringify(parsed, null, 2);
+      } catch {
+        displayText = String(body);
+      }
+    } else {
+      displayText = typeof body === "object" ? JSON.stringify(body, null, 2) : String(body);
+      language = format === "xml" ? "xml" : "text";
+    }
+    if (!editorState.responseBodyMonacoEditor && window.monaco) {
+      initResponseBodyEditor();
+    }
+    if (editorState.responseBodyMonacoEditor) {
+      monaco.editor.setModelLanguage(editorState.responseBodyMonacoEditor.getModel(), language);
+      editorState.responseBodyMonacoEditor.setValue(displayText);
+    } else {
+      console.warn("[formatAndDisplayBody] Monaco editor not available, body cannot be displayed");
+      if (elements.responseBodyEditor) {
+        elements.responseBodyEditor.textContent = displayText;
+      }
+    }
+  }
+  function populateTestResults(assertions) {
+    if (!elements.testSummary || !elements.testList) return;
+    const passed = assertions.filter((a) => a.passed).length;
+    const failed = assertions.filter((a) => !a.passed).length;
+    elements.testSummary.innerHTML = `
+        <div class="test-summary-item passed">\u2713 ${passed} passed</div>
+        <div class="test-summary-item failed">\u2717 ${failed} failed</div>
+    `;
+    if (assertions.length === 0) {
+      elements.testList.innerHTML = '<div class="test-item"><span class="test-content">No tests defined</span></div>';
+      return;
+    }
+    elements.testList.innerHTML = assertions.map((test) => `
+        <div class="test-item ${test.passed ? "passed" : "failed"}">
+            <span class="test-icon ${test.passed ? "passed" : "failed"}">${test.passed ? "\u2713" : "\u2717"}</span>
             <div class="test-content">
-                <div class="test-name">${m(o.name)}</div>
-                ${o.message?`<div class="test-message">${m(o.message)}</div>`:""}
+                <div class="test-name">${escapeHtml(test.name)}</div>
+                ${test.message ? `<div class="test-message">${escapeHtml(test.message)}</div>` : ""}
             </div>
         </div>
-    `).join("")}function ee(){n.responseModal&&n.responseModal.classList.add("hidden"),a.selectedResultIndex=-1}function Oe(){let e=a.results.map(t=>C(t));h.postMessage({type:"exportReport",format:"json",data:{suite:a.suite,results:e,statistics:a.statistics}})}function _e(){if(!a.reportPath){h.postMessage({type:"exportReport",format:"html",reportPath:null});return}h.postMessage({type:"exportReport",format:"html",reportPath:a.reportPath})}function je(){h.postMessage({type:"exportReport",format:"statistics",data:{suite:a.suite,statistics:a.statistics}})}function ze(){if(!n.panelResizer)return;let e=!1,t=0,s=0,o=document.querySelector(".runner-left-panel"),r=document.querySelector(".runner-main"),i=4,l=200,c=200,d=()=>{let p=r?.clientWidth||0;return Math.max(l,p-c-i)},u=p=>{let f=d(),y=Math.max(l,Math.min(f,p));r.style.gridTemplateColumns=`${y}px ${i}px 1fr`};n.panelResizer.addEventListener("mousedown",p=>{e=!0,t=p.clientX,s=o.offsetWidth,n.panelResizer.classList.add("resizing"),document.body.style.cursor="col-resize",document.body.style.userSelect="none"}),document.addEventListener("mousemove",p=>{if(!e)return;let f=p.clientX-t;u(s+f)}),window.addEventListener("resize",()=>{let p=o?.offsetWidth||l;u(p)}),document.addEventListener("mouseup",()=>{e&&(e=!1,n.panelResizer.classList.remove("resizing"),document.body.style.cursor="",document.body.style.userSelect="")})}function Je(){if(!n.resultsList)return;n.resultsList.addEventListener("scroll",_t);let e=n.resultsList.querySelector(".virtual-spacer");e||(e=document.createElement("div"),e.className="virtual-spacer",e.style.position="absolute",e.style.top="0",e.style.left="0",e.style.width="1px",e.style.pointerEvents="none",n.resultsList.appendChild(e));let t=n.resultsList.querySelector(".virtual-items");t||(t=document.createElement("div"),t.className="virtual-items",n.resultsList.appendChild(t))}function _t(){if(!n.resultsList)return;let e=n.resultsList.scrollTop,t=a.displayItems.length*I.itemHeight,s=n.resultsList.clientHeight||400,o=e+s>=t-50;!o&&a.isRunning&&(a.autoScroll=!1),o&&a.isRunning&&(a.autoScroll=!0),g.scrollTop=e,z()}function z(){if(!n.resultsList)return;let e=a.displayItems.length;if(e===0){let f=n.resultsList.querySelector(".virtual-items");f&&(f.innerHTML="");return}let t=n.resultsList.scrollTop,s=n.resultsList.clientHeight||400,o=I.itemHeight,r=I.bufferSize,i=Math.max(0,Math.floor(t/o)-r),l=Math.ceil(s/o)+r*2,c=Math.min(e,i+l),d=n.resultsList.querySelector(".virtual-spacer");d&&(d.style.height=`${e*o}px`);let u=n.resultsList.querySelector(".virtual-items");if(u||(u=document.createElement("div"),u.className="virtual-items",n.resultsList.appendChild(u)),u.style.position="absolute",u.style.top=`${i*o}px`,u.style.left="0",u.style.right="0",i===g.startIndex&&c===g.endIndex&&u.children.length===c-i)return;g.startIndex=i,g.endIndex=c;let p=document.createDocumentFragment();for(let f=i;f<c;f++){let y=a.displayItems[f];y&&p.appendChild(Wt(y))}u.innerHTML="",u.appendChild(p)}function jt(e,t,s){let o=String(s).padStart(2,"0"),r="";return t==="block"?r=e||"(unnamed block)":e&&(r=e.split("/").map(l=>l.replace(/^\s*\d+\s*-\s*/,"")).join("/")),r||(r="(root)"),`${o} - ${r}`}function zt(e){return{cn:e.collectionName||"",fp:e.groupPath||e.folderPath||"",gt:e.groupType||"folder"}}function J(){let e=[],t=a.results.map(C),s=!0,o=null,r=null,i=0,l=null,c=!1,d=!1;for(let u=0;u<t.length;u++){let p=t[u],{cn:f,fp:y,gt:x}=zt(p);if(s&&p.iteration!==o&&(d=a.collapsedIterations.has(p.iteration),e.push({type:"iter",iteration:p.iteration}),o=p.iteration,r=null,i=0,d)||d)continue;let L=`${x}\0${y}`;L!==r&&(i++,l=`${p.iteration}\0${L}`,c=a.collapsedGroups.has(l),e.push({type:"group",label:jt(y,x,i),groupType:x,groupKey:l,collapsed:c}),r=L),c||e.push({type:"result",resultIndex:u,expanded:p})}a.displayItems=e}function Jt(e){let t=a.collapsedIterations.has(e),s=document.createElement("div");return s.className=`result-iter-header${t?" collapsed":""}`,s.style.height=`${I.itemHeight}px`,s.style.boxSizing="border-box",s.title=t?"Click to expand":"Click to collapse",s.innerHTML=`
-        <span class="iter-header-toggle">${t?"\u25B8":"\u25BE"}</span>
-        <span class="iter-header-label">Iteration ${e}</span>
-    `,s.addEventListener("click",o=>{o.preventDefault(),o.stopPropagation(),Gt(e)}),s}function Gt(e){a.collapsedIterations.has(e)?a.collapsedIterations.delete(e):a.collapsedIterations.add(e),J();let t=n.resultsList?.querySelector(".virtual-spacer");t&&(t.style.height=`${a.displayItems.length*I.itemHeight}px`),g.startIndex=0,g.endIndex=0,z()}function Ut(e,t,s,o){let r=document.createElement("div");r.className=`result-group-header${o?" collapsed":""}`,r.style.height=`${I.itemHeight}px`,r.style.boxSizing="border-box",r.title=o?"Click to expand":"Click to collapse";let i=t==="block"?"\u{1F9E9}":"\u{1F4C1}";return r.innerHTML=`<span class="group-header-toggle">${o?"\u25B8":"\u25BE"}</span><span class="group-header-icon">${i}</span><span class="group-header-label" title="${m(e)}">${m(e)}</span>`,s!=null&&(r.dataset.groupKey=s,r.addEventListener("click",l=>{l.preventDefault(),l.stopPropagation(),Vt(s)})),r}function Vt(e){a.collapsedGroups.has(e)?a.collapsedGroups.delete(e):a.collapsedGroups.add(e),J();let t=n.resultsList?.querySelector(".virtual-spacer");t&&(t.style.height=`${a.displayItems.length*I.itemHeight}px`),g.startIndex=0,g.endIndex=0,z()}function Wt(e){return e.type==="iter"?Jt(e.iteration):e.type==="group"?Ut(e.label,e.groupType,e.groupKey,e.collapsed):Xt(a.results[e.resultIndex],e.resultIndex,e.expanded)}function Xt(e,t,s){let o=s||C(e),r=o.name,i=document.createElement("div");i.className=`result-item ${o.passed?"passed":"failed"}`,i.dataset.resultIndex=t,i.dataset.resultFile=o.resultFile||"",i.title="Click to view details",i.style.height=`${I.itemHeight}px`,i.style.boxSizing="border-box";let l=o.status>=200&&o.status<300?"success":o.status>=300&&o.status<400?"redirect":"error";return i.innerHTML=`
-        <span class="result-icon ${o.passed?"passed":"failed"}">
-            ${o.passed?"\u2713":"\u2717"}
+    `).join("");
+  }
+  function closeModal() {
+    if (elements.responseModal) {
+      elements.responseModal.classList.add("hidden");
+    }
+    state.selectedResultIndex = -1;
+  }
+  function exportJunitReport() {
+    const expandedResults = state.results.map((r) => expandSummary(r));
+    vscode.postMessage({
+      type: "exportReport",
+      format: "junit",
+      data: {
+        suite: state.suite,
+        results: expandedResults,
+        statistics: state.statistics
+      }
+    });
+  }
+  function exportHtmlReport() {
+    vscode.postMessage({
+      type: "exportReport",
+      format: "html",
+      reportPath: state.reportPath || null,
+      suiteId: state.suiteId || null,
+      runId: state.currentRunId || null
+    });
+  }
+  function exportStatisticsReport() {
+    vscode.postMessage({
+      type: "exportReport",
+      format: "statistics-html",
+      data: {
+        suite: state.suite,
+        statistics: state.statistics
+      }
+    });
+  }
+  function fixErrors() {
+    const allResults = state.results || [];
+    if (!allResults.length) {
+      vscode.postMessage({ type: "fixErrors", noResults: true });
+      return;
+    }
+    const failedResults = allResults.filter((r) => !(r.p ?? r.passed));
+    if (!failedResults.length) {
+      vscode.postMessage({ type: "fixErrors", allPassed: true });
+      return;
+    }
+    vscode.postMessage({
+      type: "fixErrors",
+      suiteId: state.suiteId || null,
+      runId: state.currentRunId || null,
+      suiteName: state.suite?.name || "Test Suite",
+      environment: state.selectedEnvironment || null,
+      failedResults: failedResults.map((r) => ({
+        name: r.n || r.name || "",
+        method: r.m !== void 0 ? ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT"][r.m] || String(r.m) : r.method || "",
+        // URL is not stored in compact summaries; reconstruct from available fields
+        url: r.url || r.u || "",
+        status: r.s ?? r.status ?? 0,
+        collectionName: r.cn || r.collectionName || "",
+        folderPath: r.fp || r.folderPath || "",
+        error: r.e || r.error || null,
+        assertionsFailed: r.af ?? 0
+      }))
+    });
+  }
+  function initPanelResizer() {
+    if (!elements.panelResizer) return;
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+    const leftPanel = document.querySelector(".runner-left-panel");
+    const main = document.querySelector(".runner-main");
+    const PANEL_RESIZER_WIDTH = 4;
+    const LEFT_PANEL_MIN = 200;
+    const RIGHT_PANEL_MIN = 200;
+    const getMaxLeftWidth = () => {
+      const containerWidth = main?.clientWidth || 0;
+      return Math.max(LEFT_PANEL_MIN, containerWidth - RIGHT_PANEL_MIN - PANEL_RESIZER_WIDTH);
+    };
+    const applyLeftWidth = (requestedWidth) => {
+      const maxLeft = getMaxLeftWidth();
+      const leftWidth = Math.max(LEFT_PANEL_MIN, Math.min(maxLeft, requestedWidth));
+      main.style.gridTemplateColumns = `${leftWidth}px ${PANEL_RESIZER_WIDTH}px 1fr`;
+    };
+    elements.panelResizer.addEventListener("mousedown", (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = leftPanel.offsetWidth;
+      elements.panelResizer.classList.add("resizing");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!isResizing) return;
+      const delta = e.clientX - startX;
+      applyLeftWidth(startWidth + delta);
+    });
+    window.addEventListener("resize", () => {
+      const currentLeft = leftPanel?.offsetWidth || LEFT_PANEL_MIN;
+      applyLeftWidth(currentLeft);
+    });
+    document.addEventListener("mouseup", () => {
+      if (isResizing) {
+        isResizing = false;
+        elements.panelResizer.classList.remove("resizing");
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    });
+  }
+  function initVirtualScroll() {
+    if (!elements.resultsList) return;
+    elements.resultsList.addEventListener("scroll", onResultsScroll);
+    let spacer = elements.resultsList.querySelector(".virtual-spacer");
+    if (!spacer) {
+      spacer = document.createElement("div");
+      spacer.className = "virtual-spacer";
+      spacer.style.position = "absolute";
+      spacer.style.top = "0";
+      spacer.style.left = "0";
+      spacer.style.width = "1px";
+      spacer.style.pointerEvents = "none";
+      elements.resultsList.appendChild(spacer);
+    }
+    let itemsContainer = elements.resultsList.querySelector(".virtual-items");
+    if (!itemsContainer) {
+      itemsContainer = document.createElement("div");
+      itemsContainer.className = "virtual-items";
+      elements.resultsList.appendChild(itemsContainer);
+    }
+  }
+  function onResultsScroll() {
+    if (!elements.resultsList) return;
+    const scrollTop = elements.resultsList.scrollTop;
+    const totalHeight = state.displayItems.length * VIRTUAL_SCROLL.itemHeight;
+    const containerHeight = elements.resultsList.clientHeight || 400;
+    const isAtBottom = scrollTop + containerHeight >= totalHeight - 50;
+    if (!isAtBottom && state.isRunning) {
+      state.autoScroll = false;
+    }
+    if (isAtBottom && state.isRunning) {
+      state.autoScroll = true;
+    }
+    virtualScrollState.scrollTop = scrollTop;
+    renderVirtualResults();
+  }
+  function renderVirtualResults() {
+    if (!elements.resultsList) return;
+    const totalItems = state.displayItems.length;
+    if (totalItems === 0) {
+      const itemsContainer2 = elements.resultsList.querySelector(".virtual-items");
+      if (itemsContainer2) itemsContainer2.innerHTML = "";
+      return;
+    }
+    const scrollTop = elements.resultsList.scrollTop;
+    const containerHeight = elements.resultsList.clientHeight || 400;
+    const itemHeight = VIRTUAL_SCROLL.itemHeight;
+    const buffer = VIRTUAL_SCROLL.bufferSize;
+    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
+    const visibleCount = Math.ceil(containerHeight / itemHeight) + buffer * 2;
+    const endIndex = Math.min(totalItems, startIndex + visibleCount);
+    const spacer = elements.resultsList.querySelector(".virtual-spacer");
+    if (spacer) {
+      spacer.style.height = `${totalItems * itemHeight}px`;
+    }
+    let itemsContainer = elements.resultsList.querySelector(".virtual-items");
+    if (!itemsContainer) {
+      itemsContainer = document.createElement("div");
+      itemsContainer.className = "virtual-items";
+      elements.resultsList.appendChild(itemsContainer);
+    }
+    itemsContainer.style.position = "absolute";
+    itemsContainer.style.top = `${startIndex * itemHeight}px`;
+    itemsContainer.style.left = "0";
+    itemsContainer.style.right = "0";
+    if (startIndex === virtualScrollState.startIndex && endIndex === virtualScrollState.endIndex && itemsContainer.children.length === endIndex - startIndex) {
+      return;
+    }
+    virtualScrollState.startIndex = startIndex;
+    virtualScrollState.endIndex = endIndex;
+    const fragment = document.createDocumentFragment();
+    for (let i = startIndex; i < endIndex; i++) {
+      const di = state.displayItems[i];
+      if (di) {
+        fragment.appendChild(createDisplayRowElement(di));
+      }
+    }
+    itemsContainer.innerHTML = "";
+    itemsContainer.appendChild(fragment);
+  }
+  function groupLabel(fp, gt, index) {
+    const num = String(index).padStart(2, "0");
+    let label = "";
+    if (gt === "block") {
+      label = fp || "(unnamed block)";
+    } else if (fp) {
+      const folders = fp.split("/").map((p) => p.replace(/^\s*\d+\s*-\s*/, "")).join("/");
+      label = folders;
+    }
+    if (!label) label = "(root)";
+    return `${num} - ${label}`;
+  }
+  function resolveGroupKeyParts(expanded) {
+    return {
+      cn: expanded.collectionName || "",
+      fp: expanded.groupPath || expanded.folderPath || "",
+      gt: expanded.groupType || "folder"
+    };
+  }
+  function buildDisplayItems() {
+    const items = [];
+    const expandedList = state.results.map(expandSummary);
+    const multiIter = true;
+    let lastIter = null;
+    let lastKey = null;
+    let groupIndex = 0;
+    let currentGroupKey = null;
+    let currentCollapsed = false;
+    let currentIterationCollapsed = false;
+    for (let i = 0; i < expandedList.length; i++) {
+      const e = expandedList[i];
+      const { cn, fp, gt } = resolveGroupKeyParts(e);
+      if (multiIter && e.iteration !== lastIter) {
+        currentIterationCollapsed = state.collapsedIterations.has(e.iteration);
+        items.push({ type: "iter", iteration: e.iteration });
+        lastIter = e.iteration;
+        lastKey = null;
+        groupIndex = 0;
+        if (currentIterationCollapsed) {
+          continue;
+        }
+      }
+      if (currentIterationCollapsed) {
+        continue;
+      }
+      const key = `${gt}\0${fp}`;
+      if (key !== lastKey) {
+        groupIndex++;
+        currentGroupKey = `${e.iteration}\0${key}`;
+        currentCollapsed = state.collapsedGroups.has(currentGroupKey);
+        items.push({
+          type: "group",
+          label: groupLabel(fp, gt, groupIndex),
+          groupType: gt,
+          groupKey: currentGroupKey,
+          collapsed: currentCollapsed
+        });
+        lastKey = key;
+      }
+      if (!currentCollapsed) {
+        items.push({ type: "result", resultIndex: i, expanded: e });
+      }
+    }
+    state.displayItems = items;
+  }
+  function createIterHeaderElement(iteration) {
+    const collapsed = state.collapsedIterations.has(iteration);
+    const el = document.createElement("div");
+    el.className = `result-iter-header${collapsed ? " collapsed" : ""}`;
+    el.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
+    el.style.boxSizing = "border-box";
+    el.title = collapsed ? "Click to expand" : "Click to collapse";
+    el.innerHTML = `
+        <span class="iter-header-toggle">${collapsed ? "\u25B8" : "\u25BE"}</span>
+        <span class="iter-header-label">Iteration ${iteration}</span>
+    `;
+    el.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleIterationCollapse(iteration);
+    });
+    return el;
+  }
+  function toggleIterationCollapse(iteration) {
+    if (state.collapsedIterations.has(iteration)) {
+      state.collapsedIterations.delete(iteration);
+    } else {
+      state.collapsedIterations.add(iteration);
+    }
+    buildDisplayItems();
+    const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+    if (spacer) {
+      spacer.style.height = `${state.displayItems.length * VIRTUAL_SCROLL.itemHeight}px`;
+    }
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    renderVirtualResults();
+  }
+  function createGroupHeaderElement(label, groupType, groupKey, collapsed) {
+    const el = document.createElement("div");
+    el.className = `result-group-header${collapsed ? " collapsed" : ""}`;
+    el.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
+    el.style.boxSizing = "border-box";
+    el.title = collapsed ? "Click to expand" : "Click to collapse";
+    const icon = groupType === "block" ? "\u{1F9E9}" : "\u{1F4C1}";
+    el.innerHTML = `<span class="group-header-toggle">${collapsed ? "\u25B8" : "\u25BE"}</span><span class="group-header-icon">${icon}</span><span class="group-header-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+    if (groupKey != null) {
+      el.dataset.groupKey = groupKey;
+      el.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleGroupCollapse(groupKey);
+      });
+    }
+    return el;
+  }
+  function toggleGroupCollapse(groupKey) {
+    if (state.collapsedGroups.has(groupKey)) {
+      state.collapsedGroups.delete(groupKey);
+    } else {
+      state.collapsedGroups.add(groupKey);
+    }
+    buildDisplayItems();
+    const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+    if (spacer) {
+      spacer.style.height = `${state.displayItems.length * VIRTUAL_SCROLL.itemHeight}px`;
+    }
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    renderVirtualResults();
+  }
+  function createDisplayRowElement(di) {
+    if (di.type === "iter") return createIterHeaderElement(di.iteration);
+    if (di.type === "group") return createGroupHeaderElement(di.label, di.groupType, di.groupKey, di.collapsed);
+    return createResultItemElement(state.results[di.resultIndex], di.resultIndex, di.expanded);
+  }
+  function createResultItemElement(compactResult, index, preExpanded) {
+    const result = preExpanded || expandSummary(compactResult);
+    const fullPath = result.name;
+    const item = document.createElement("div");
+    item.className = `result-item ${result.passed ? "passed" : "failed"}`;
+    item.dataset.resultIndex = index;
+    item.dataset.resultFile = result.resultFile || "";
+    item.title = "Click to view details";
+    item.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
+    item.style.boxSizing = "border-box";
+    const statusClass = result.status >= 200 && result.status < 300 ? "success" : result.status >= 300 && result.status < 400 ? "redirect" : "error";
+    item.innerHTML = `
+        <span class="result-icon ${result.passed ? "passed" : "failed"}">
+            ${result.passed ? "\u2713" : "\u2717"}
         </span>
-        <span class="result-method ${o.method}">${m(o.method||"GET")}</span>
+        <span class="result-method ${result.method}">${escapeHtml(result.method || "GET")}</span>
         <div class="result-details">
-            <div class="result-name" title="${m(r)}">${m(r)}</div>
+            <div class="result-name" title="${escapeHtml(fullPath)}">${escapeHtml(fullPath)}</div>
         </div>
-        <span class="result-status ${l}">${o.status||"-"}</span>
-        <span class="result-duration">${o.duration}ms</span>
-    `,i.addEventListener("click",c=>{c.preventDefault(),c.stopPropagation(),a.autoScroll=!1,Ft(t)}),i}function Ge(){if(!n.resultsList)return;J(),g.startIndex=0,g.endIndex=0,g.scrollTop=0;let e=n.resultsList.querySelector(".virtual-spacer");e&&(e.style.height=`${a.displayItems.length*I.itemHeight}px`);let t=n.resultsList.querySelector(".empty-state");t&&t.remove(),n.resultsList.scrollTop=0,n.resultsList.dispatchEvent(new Event("scroll"))}$();X();A();function G(){h.postMessage({type:"getRunHistory"})}function Ue(e){a.historyRuns=e||[],Ye()}function Ve(e,t){let s=a.loadingAsLatest;if(a.loadingAsLatest=!1,a.viewingHistoryRun=s?null:e.runId,a.historyManifest=s?null:e,a.results=t,a.collapsedGroups.clear(),a.collapsedIterations.clear(),a.currentRunId=e.runId,a.passed=e.stats.passed,a.failed=e.stats.failed,a.skipped=e.stats.skipped||0,a.totalRequests=e.stats.totalRequests||0,a.completedRequests=e.stats.totalRequests||0,e.requestStats){let o=Object.values(e.requestStats).map(r=>({name:r.name||"Unknown",count:r.count||0,min:r.minDuration||0,max:r.maxDuration||0,avg:r.avgDuration||0,p95:r.p95||0,p99:r.p99||0}));a.statistics={byRequest:o,errors:[]}}if(n.historyBanner)if(s)n.historyBanner.classList.add("hidden");else{n.historyBanner.classList.remove("hidden");let o=new Date(e.startTime).toLocaleString();n.historyBannerText.textContent=`Viewing run from ${o}`}Qe(),e.config&&(n.iterationsInput.value=e.config.iterations||1,n.delayInput.value=e.config.delayBetweenRequests||0,n.stopOnErrorCheck.checked=e.config.stopOnError||!1),Zt("results-tab"),n.progressSection.style.display="",W(n.progressBar,{total:a.totalRequests,passed:a.passed,failed:a.failed}),n.progressText.textContent=`${e.stats.totalRequests} / ${e.stats.totalRequests} (completed)`,n.passedCount&&(n.passedCount.textContent=e.stats.passed),n.failedCount&&(n.failedCount.textContent=e.stats.failed),n.skippedCount&&(n.skippedCount.textContent=a.skipped),Ge(),T()}function We(e){a.historyRuns=a.historyRuns.filter(t=>t.runId!==e),Ye(),a.viewingHistoryRun===e&&qe()}function qe(){if(a.historyRuns.length>0)a.loadingAsLatest=!0,Xe(a.historyRuns[0].runId);else{a.viewingHistoryRun=null,a.historyManifest=null,a.results=[],a.displayItems=[],a.collapsedGroups.clear(),a.collapsedIterations.clear(),a.passed=0,a.failed=0,a.skipped=0,a.currentRunId=null,a.totalRequests=0,a.completedRequests=0,n.historyBanner&&n.historyBanner.classList.add("hidden"),n.progressSection.style.display="none";let e=n.resultsList?.querySelector(".virtual-items");e&&(e.innerHTML="");let t=n.resultsList?.querySelector(".virtual-spacer");t&&(t.style.height="0px"),Qe()}}function Xe(e){h.postMessage({type:"loadHistoryRun",runId:e})}function Yt(e){h.postMessage({type:"deleteHistoryRun",runId:e})}function Ye(){if(!n.historyList)return;if(a.historyRuns.length===0){n.historyList.innerHTML=`
+        <span class="result-status ${statusClass}">${result.status || "-"}</span>
+        <span class="result-duration">${result.duration}ms</span>
+    `;
+    item.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      state.autoScroll = false;
+      showResultDetail(index);
+    });
+    return item;
+  }
+  function renderVirtualScrollResults() {
+    if (!elements.resultsList) return;
+    buildDisplayItems();
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    virtualScrollState.scrollTop = 0;
+    const spacer = elements.resultsList.querySelector(".virtual-spacer");
+    if (spacer) {
+      spacer.style.height = `${state.displayItems.length * VIRTUAL_SCROLL.itemHeight}px`;
+    }
+    const emptyState = elements.resultsList.querySelector(".empty-state");
+    if (emptyState) emptyState.remove();
+    elements.resultsList.scrollTop = 0;
+    elements.resultsList.dispatchEvent(new Event("scroll"));
+  }
+
+  // resources/features/test-suite/modules/history.js
+  init_state();
+  init_statistics();
+  init_utils();
+  function requestRunHistory() {
+    vscode.postMessage({ type: "getRunHistory" });
+  }
+  function handleRunHistory(runs) {
+    state.historyRuns = runs || [];
+    renderHistoryList();
+  }
+  function handleHistoryRunLoaded(manifest, summaries) {
+    const isLatest = state.loadingAsLatest;
+    state.loadingAsLatest = false;
+    state.viewingHistoryRun = isLatest ? null : manifest.runId;
+    state.historyManifest = isLatest ? null : manifest;
+    state.results = summaries;
+    state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
+    state.currentRunId = manifest.runId;
+    state.passed = manifest.stats.passed;
+    state.failed = manifest.stats.failed;
+    state.skipped = manifest.stats.skipped || 0;
+    state.totalRequests = manifest.stats.totalRequests || 0;
+    state.completedRequests = manifest.stats.totalRequests || 0;
+    if (manifest.requestStats) {
+      const byRequest = Object.values(manifest.requestStats).map((rs) => ({
+        name: rs.name || "Unknown",
+        count: rs.count || 0,
+        min: rs.minDuration || 0,
+        max: rs.maxDuration || 0,
+        avg: rs.avgDuration || 0,
+        p95: rs.p95 || 0,
+        p99: rs.p99 || 0
+      }));
+      state.statistics = { byRequest, errors: [] };
+    }
+    if (elements.historyBanner) {
+      if (isLatest) {
+        elements.historyBanner.classList.add("hidden");
+      } else {
+        elements.historyBanner.classList.remove("hidden");
+        const date = new Date(manifest.startTime).toLocaleString();
+        elements.historyBannerText.textContent = `Viewing run from ${date}`;
+      }
+    }
+    updateSummaryCards();
+    if (manifest.config) {
+      elements.iterationsInput.value = manifest.config.iterations || 1;
+      elements.delayInput.value = manifest.config.delayBetweenRequests || 0;
+      elements.stopOnErrorCheck.checked = manifest.config.stopOnError || false;
+    }
+    switchToTab("results-tab");
+    elements.progressSection.style.display = "";
+    renderProgressBar(elements.progressBar, {
+      total: state.totalRequests,
+      passed: state.passed,
+      failed: state.failed
+    });
+    elements.progressText.textContent = `${manifest.stats.totalRequests} / ${manifest.stats.totalRequests} (completed)`;
+    if (elements.passedCount) elements.passedCount.textContent = manifest.stats.passed;
+    if (elements.failedCount) elements.failedCount.textContent = manifest.stats.failed;
+    if (elements.skippedCount) elements.skippedCount.textContent = state.skipped;
+    renderVirtualScrollResults();
+    renderStatistics();
+  }
+  function handleHistoryRunDeleted(runId) {
+    state.historyRuns = state.historyRuns.filter((r) => r.runId !== runId);
+    renderHistoryList();
+    if (state.viewingHistoryRun === runId) {
+      clearHistoryView();
+    }
+  }
+  function clearHistoryView() {
+    if (state.historyRuns.length > 0) {
+      state.loadingAsLatest = true;
+      loadHistoryRun(state.historyRuns[0].runId);
+    } else {
+      state.viewingHistoryRun = null;
+      state.historyManifest = null;
+      state.results = [];
+      state.displayItems = [];
+      state.collapsedGroups.clear();
+      state.collapsedIterations.clear();
+      state.passed = 0;
+      state.failed = 0;
+      state.skipped = 0;
+      state.currentRunId = null;
+      state.totalRequests = 0;
+      state.completedRequests = 0;
+      if (elements.historyBanner) {
+        elements.historyBanner.classList.add("hidden");
+      }
+      elements.progressSection.style.display = "none";
+      const itemsContainer = elements.resultsList?.querySelector(".virtual-items");
+      if (itemsContainer) itemsContainer.innerHTML = "";
+      const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+      if (spacer) spacer.style.height = "0px";
+      updateSummaryCards();
+    }
+  }
+  function loadHistoryRun(runId) {
+    vscode.postMessage({ type: "loadHistoryRun", runId });
+  }
+  function deleteHistoryRun(runId) {
+    vscode.postMessage({ type: "deleteHistoryRun", runId });
+  }
+  function renderHistoryList() {
+    if (!elements.historyList) return;
+    if (state.historyRuns.length === 0) {
+      elements.historyList.innerHTML = `
             <div class="empty-state">
                 <p>No run history</p>
                 <p class="hint">Run the suite to generate history</p>
             </div>
-        `;return}let e=a.historyRuns.map(t=>{let s=new Date(t.startTime).toLocaleString(),o=t.stats.totalRequests,r=o>0?(t.stats.passed/o*100).toFixed(0):"0",i=Ze(t.stats.totalDuration),l=t.status==="completed"?"success":t.status==="aborted"?"warning":"error",c=a.viewingHistoryRun===t.runId;return`
-            <div class="history-entry ${l} ${c?"active":""}" data-run-id="${m(t.runId)}">
+        `;
+      return;
+    }
+    const html = state.historyRuns.map((run) => {
+      const date = new Date(run.startTime).toLocaleString();
+      const total = run.stats.totalRequests;
+      const passRate = total > 0 ? (run.stats.passed / total * 100).toFixed(0) : "0";
+      const duration = formatHistoryDuration(run.stats.totalDuration);
+      const statusClass = run.status === "completed" ? "success" : run.status === "aborted" ? "warning" : "error";
+      const isActive = state.viewingHistoryRun === run.runId;
+      return `
+            <div class="history-entry ${statusClass} ${isActive ? "active" : ""}" data-run-id="${escapeHtml(run.runId)}">
                 <div class="history-entry-header">
-                    <span class="history-date">${m(s)}</span>
-                    <span class="history-status badge-${t.status}">${m(t.status)}</span>
+                    <span class="history-date">${escapeHtml(date)}</span>
+                    <span class="history-status badge-${run.status}">${escapeHtml(run.status)}</span>
                 </div>
                 <div class="history-entry-stats">
-                    <span class="history-pass-rate">${r}%</span>
+                    <span class="history-pass-rate">${passRate}%</span>
                     <span class="history-counts">
-                        <span class="stat-passed">${t.stats.passed}\u2713</span>
-                        <span class="stat-failed">${t.stats.failed}\u2717</span>
+                        <span class="stat-passed">${run.stats.passed}\u2713</span>
+                        <span class="stat-failed">${run.stats.failed}\u2717</span>
                     </span>
-                    <span class="history-duration">${i}</span>
-                    <span class="history-iterations">${t.config.iterations} iter</span>
+                    <span class="history-duration">${duration}</span>
+                    <span class="history-iterations">${run.config.iterations} iter</span>
                 </div>
                 <div class="history-entry-actions">
-                    <button class="btn-link history-load-btn" data-run-id="${m(t.runId)}">Load</button>
-                    <button class="btn-link danger history-delete-btn" data-run-id="${m(t.runId)}">Delete</button>
+                    <button class="btn-link history-load-btn" data-run-id="${escapeHtml(run.runId)}">Load</button>
+                    <button class="btn-link danger history-delete-btn" data-run-id="${escapeHtml(run.runId)}">Delete</button>
                 </div>
             </div>
-        `}).join("");n.historyList.innerHTML=e,n.historyList.querySelectorAll(".history-load-btn").forEach(t=>{t.addEventListener("click",()=>{let s=t.dataset.runId;s&&Xe(s)})}),n.historyList.querySelectorAll(".history-delete-btn").forEach(t=>{t.addEventListener("click",()=>{let s=t.dataset.runId;s&&Yt(s)})})}function Ze(e){if(e<1e3)return`${e}ms`;if(e<6e4)return`${(e/1e3).toFixed(1)}s`;let t=Math.floor(e/6e4),s=(e%6e4/1e3).toFixed(0);return`${t}m ${s}s`}function Qe(){let e=a.passed+a.failed+a.skipped,t=e>0?(a.passed/e*100).toFixed(0):"0";n.summaryPassed&&(n.summaryPassed.textContent=a.passed),n.summaryFailed&&(n.summaryFailed.textContent=a.failed),n.summarySkipped&&(n.summarySkipped.textContent=a.skipped),n.summaryPassRate&&(n.summaryPassRate.textContent=`${t}%`),a.historyManifest&&n.summaryDuration&&(n.summaryDuration.textContent=Ze(a.historyManifest.stats.totalDuration))}function Zt(e){n.tabBtns?.forEach(s=>s.classList.remove("active")),n.tabContents?.forEach(s=>s.classList.remove("active"));let t=document.querySelector(`.tab-btn[data-tab="${e}"]`);t&&t.classList.add("active"),document.getElementById(e)?.classList.add("active")}$();X();A();function H(e){let t=0;for(let s of e||[])if(!(!s||s.enabled===!1)){if(s.type==="request"){t+=1;continue}if(Array.isArray(s.nodes)&&(t+=H(s.nodes)),s.type==="if"&&(t+=H(s.then),t+=H(s.else),Array.isArray(s.elseif)))for(let o of s.elseif)t+=H(o?.nodes);if(s.type==="switch"){if(Array.isArray(s.cases))for(let o of s.cases)t+=H(o?.nodes);t+=H(s.default)}}return t}async function Ke(){a.isRunning=!0,a.results=[],a.displayItems=[],a.collapsedGroups.clear(),a.collapsedIterations.clear(),a.statistics=null,a.passed=0,a.failed=0,a.skipped=0,a.currentRunId=null,a.autoScroll=!0,a.reportPath=null,a.completedRequests=0,a.runStartTime=Date.now(),g.startIndex=0,g.endIndex=0,g.scrollTop=0;let e=parseInt(n.iterationsInput.value)||1,t=H(a.suite?.nodes||[]);a.iterations=e,a.totalRequests=e*t,n.runBtn.disabled=!0,n.stopBtn.disabled=!1,n.progressSection.style.display="block";let s=n.resultsList?.querySelector(".empty-state");s&&(s.style.display="none");let o=n.resultsList?.querySelector(".virtual-items");o&&(o.innerHTML="");let r=n.resultsList?.querySelector(".virtual-spacer");r&&(r.style.height="0px"),n.resultsList&&(n.resultsList.scrollTop=0),Re(),U();let i={iterations:e,delay:parseInt(n.delayInput.value)||0,environmentId:a.selectedEnvironment,stopOnError:n.stopOnErrorCheck.checked,readFromSharedSession:n.readFromSharedSessionCheck.checked,writeToSharedSession:n.writeToSharedSessionCheck.checked,dataFile:a.dataFile};h.postMessage({type:"startRun",config:i})}function et(){a.isRunning=!1,n.runBtn.disabled=!1,n.stopBtn.disabled=!0,h.postMessage({type:"stopRun"})}function tt(e,t,s,o){a.currentRunId=e,a.suiteId=t,a.autoScroll=!0,a.completedRequests=0,typeof s=="number"&&(a.totalRequests=s),typeof o=="number"&&(a.iterations=o),U(),a.viewingHistoryRun&&(a.viewingHistoryRun=null,a.historyManifest=null,n.historyBanner&&n.historyBanner.classList.add("hidden"))}function st(e,t,s,o,r){a.completedRequests=Number(e)||0,a.totalRequests=Number(t)||0,typeof s=="number"&&(a.passed=s),typeof o=="number"&&(a.failed=o),typeof r=="number"&&(a.skipped=r),U()}function nt(e){a.results.push(e);let t=C(e);if(J(),z(),a.autoScroll&&n.resultsList){let s=a.displayItems.length*I.itemHeight,o=n.resultsList.clientHeight||400;n.resultsList.scrollTop=s-o}}function at(e){a.statistics=e,T()}function U(){let e=a.totalRequests||0,t=Math.max(0,Math.min(e,a.completedRequests||0));W(n.progressBar,{total:e,passed:a.passed,failed:a.failed}),n.progressText.textContent=`${t} / ${e}`,n.passedCount.textContent=a.passed,n.failedCount.textContent=a.failed,n.skippedCount.textContent=a.skipped,Qt()}function Qt(){let e=a.passed+a.failed,t=e>0?a.passed/e*100:0,s=a.runStartTime?(Date.now()-a.runStartTime)/1e3:0;n.summaryPassed&&(n.summaryPassed.textContent=a.passed),n.summaryFailed&&(n.summaryFailed.textContent=a.failed),n.summarySkipped&&(n.summarySkipped.textContent=a.skipped),n.summaryPassRate&&(n.summaryPassRate.textContent=`${t.toFixed(1)}%`),n.summaryDuration&&(n.summaryDuration.textContent=`${s.toFixed(2)}s`)}function ot(e,t){a.isRunning=!1,a.autoScroll=!1,a.reportPath=t||null;let s=a.runStartTime?Date.now()-a.runStartTime:0;e?(a.passed=e.passed||0,a.failed=e.failed||0,a.skipped=e.skipped||0,a.completedRequests=a.totalRequests||a.passed+a.failed+a.skipped,a.statistics={...a.statistics,passed:e.passed,failed:e.failed,skipped:e.skipped,passRate:e.passRate,duration:s}):a.statistics={...a.statistics,duration:s},U(),n.runBtn.disabled=!1,n.stopBtn.disabled=!0,T(),a.historyRuns.length>0&&G()}function rt(){a.isRunning=!1,a.autoScroll=!1,U(),n.runBtn.disabled=!1,n.stopBtn.disabled=!0}$();Y();function it(){Object.assign(n,{suiteName:document.getElementById("suite-name"),suiteDescriptionContainer:document.getElementById("suite-description-container"),suiteDescriptionDisplay:document.getElementById("suite-description-display"),suiteDescriptionTooltip:document.getElementById("suite-description-tooltip"),suiteDescriptionEdit:document.getElementById("suite-description-edit"),suiteActionsBtn:document.getElementById("suite-actions-btn"),suiteActionsDropdown:document.getElementById("suite-actions-dropdown"),suiteActionsMenuContainer:document.getElementById("suite-actions-menu-container"),addFlowNodeBtn:document.getElementById("add-flow-node-btn"),runBtn:document.getElementById("run-btn"),stopBtn:document.getElementById("stop-btn"),environmentDisplay:document.getElementById("environment-display"),iterationsInput:document.getElementById("iterations-input"),delayInput:document.getElementById("delay-input"),dataFilePath:document.getElementById("data-file-path"),browseDataBtn:document.getElementById("browse-data-btn"),clearDataBtn:document.getElementById("clear-data-btn"),stopOnErrorCheck:document.getElementById("stop-on-error-check"),readFromSharedSessionCheck:document.getElementById("read-from-shared-session-check"),writeToSharedSessionCheck:document.getElementById("write-to-shared-session-check"),selectAllBtn:document.getElementById("select-all-btn"),deselectAllBtn:document.getElementById("deselect-all-btn"),requestList:document.getElementById("request-list"),saveSuiteBtn:document.getElementById("save-suite-btn"),progressSection:document.getElementById("progress-section"),progressBar:document.getElementById("progress-bar"),progressText:document.getElementById("progress-text"),passedCount:document.getElementById("passed-count"),failedCount:document.getElementById("failed-count"),skippedCount:document.getElementById("skipped-count"),resultsSummary:document.getElementById("results-summary"),summaryPassed:document.getElementById("summary-passed"),summaryFailed:document.getElementById("summary-failed"),summarySkipped:document.getElementById("summary-skipped"),summaryPassRate:document.getElementById("summary-pass-rate"),summaryDuration:document.getElementById("summary-duration"),tabBtns:document.querySelectorAll(".tab-btn"),tabContents:document.querySelectorAll(".tab-content"),resultsList:document.getElementById("results-list"),exportJsonBtn:document.getElementById("export-json-btn"),exportHtmlBtn:document.getElementById("export-html-btn"),statsTableBody:document.getElementById("stats-table-body"),errorSummary:document.getElementById("error-summary"),errorList:document.getElementById("error-list"),exportReportBtn:document.getElementById("export-report-btn"),addRequestModal:document.getElementById("add-request-modal"),addModalCloseBtn:document.getElementById("add-modal-close-btn"),requestSearch:document.getElementById("request-search"),availableRequestsList:document.getElementById("available-requests-list"),addSelectedBtn:document.getElementById("add-selected-btn"),cancelAddBtn:document.getElementById("cancel-add-btn"),responseModal:document.getElementById("response-modal"),modalCloseBtn:document.getElementById("modal-close-btn"),modalStatusIcon:document.getElementById("modal-status-icon"),modalRequestName:document.getElementById("modal-request-name"),modalRequestMeta:document.getElementById("modal-request-meta"),modalTabs:document.querySelectorAll(".modal-tab"),modalPanels:document.querySelectorAll(".modal-panel"),responseBodyEditor:document.getElementById("response-body-editor"),responseHeadersTable:document.getElementById("response-headers-table"),requestUrl:document.getElementById("request-url"),requestMethodDuration:document.getElementById("request-method-duration"),requestHeadersTab:document.getElementById("request-headers-tab"),requestBodyTab:document.getElementById("request-body-tab"),requestHeadersPanel:document.getElementById("request-headers-panel"),requestBodyPanel:document.getElementById("request-body-panel"),requestBodyHeading:document.getElementById("request-body-heading"),requestHeadersTable:document.getElementById("request-headers-table"),requestBodyContent:document.getElementById("request-body-content"),requestSubtabs:document.querySelectorAll(".request-subtab"),requestSubpanels:document.querySelectorAll(".request-subpanel"),testSummary:document.getElementById("test-summary"),testList:document.getElementById("test-list"),bodyFormatSelect:document.getElementById("body-format-select"),copyBodyBtn:document.getElementById("copy-body-btn"),panelResizer:document.getElementById("panel-resizer"),historyList:document.getElementById("history-list"),refreshHistoryBtn:document.getElementById("refresh-history-btn"),historyBanner:document.getElementById("history-banner"),historyBannerText:document.getElementById("history-banner-text"),backToLatestBtn:document.getElementById("back-to-latest-btn")}),Ee(),ze(),Je(),Kt(),h.postMessage({type:"ready"})}function Kt(){n.suiteActionsBtn?.addEventListener("click",e=>{e.stopPropagation();let t=n.suiteActionsDropdown?.classList.contains("hidden");n.suiteActionsDropdown?.classList.toggle("hidden",!t)}),n.suiteActionsDropdown?.addEventListener("click",e=>{let t=e.target?.dataset?.suiteAction;t&&(n.suiteActionsDropdown?.classList.add("hidden"),h.postMessage({type:"manageSuiteFiles",action:t}))}),document.addEventListener("click",e=>{n.suiteActionsMenuContainer?.contains(e.target)||n.suiteActionsDropdown?.classList.add("hidden")}),n.addFlowNodeBtn?.addEventListener("click",()=>K()),document.getElementById("node-type-picker-close")?.addEventListener("click",j),document.getElementById("node-type-grid")?.addEventListener("click",e=>{let t=e.target.closest(".node-type-card");t&&be(t.dataset.type)}),document.getElementById("node-editor-close")?.addEventListener("click",P),document.getElementById("node-editor-cancel")?.addEventListener("click",P),document.getElementById("node-editor-save")?.addEventListener("click",xe),n.runBtn?.addEventListener("click",Ke),n.stopBtn?.addEventListener("click",et),n.saveSuiteBtn?.addEventListener("click",ce),n.suiteName?.addEventListener("input",()=>{a.suite&&(a.suite.name=n.suiteName.value,R(!0))}),ye(n.suiteDescriptionDisplay,n.suiteDescriptionTooltip,n.suiteDescriptionEdit,()=>a.suite?.description||"",e=>{a.suite&&(a.suite.description=e,R(!0))}),n.browseDataBtn?.addEventListener("click",ie),n.clearDataBtn?.addEventListener("click",le),n.exportJsonBtn?.addEventListener("click",Oe),n.exportHtmlBtn?.addEventListener("click",_e),n.exportReportBtn?.addEventListener("click",je),n.tabBtns?.forEach(e=>{e.addEventListener("click",()=>{let t=e.dataset.tab;n.tabBtns.forEach(s=>s.classList.remove("active")),n.tabContents?.forEach(s=>s.classList.remove("active")),e.classList.add("active"),document.getElementById(t)?.classList.add("active")})}),n.addModalCloseBtn?.addEventListener("click",M),n.cancelAddBtn?.addEventListener("click",M),n.addSelectedBtn?.addEventListener("click",me),n.requestSearch?.addEventListener("input",fe),n.addRequestModal?.addEventListener("click",e=>{e.target===n.addRequestModal&&M()}),n.modalCloseBtn?.addEventListener("click",ee),n.responseModal?.addEventListener("click",e=>{e.target===n.responseModal&&ee()}),n.modalTabs?.forEach(e=>{e.addEventListener("click",()=>{let t=e.dataset.panel;n.modalTabs.forEach(s=>s.classList.remove("active")),n.modalPanels?.forEach(s=>s.classList.remove("active")),e.classList.add("active"),document.getElementById(t)?.classList.add("active")})}),n.requestSubtabs?.forEach(e=>{e.addEventListener("click",()=>{let t=e.dataset.panel;n.requestSubtabs?.forEach(s=>s.classList.remove("active")),n.requestSubpanels?.forEach(s=>s.classList.remove("active")),e.classList.add("active"),document.getElementById(t)?.classList.add("active")})}),n.copyBodyBtn?.addEventListener("click",()=>{let e=E.responseBodyMonacoEditor?E.responseBodyMonacoEditor.getValue():"";navigator.clipboard.writeText(e).then(()=>{n.copyBodyBtn.textContent="Copied!",setTimeout(()=>n.copyBodyBtn.textContent="Copy",2e3)})}),n.bodyFormatSelect?.addEventListener("change",()=>{if(a.selectedResultIndex>=0){let e=a.results[a.selectedResultIndex];e&&Ie(e.responseBody)}}),document.addEventListener("keydown",e=>{e.key==="Escape"&&(n.suiteActionsDropdown?.classList.add("hidden"),n.responseModal?.classList.contains("hidden")?n.addRequestModal?.classList.contains("hidden")||M():ee())}),n.refreshHistoryBtn?.addEventListener("click",G),n.backToLatestBtn?.addEventListener("click",qe),n.tabBtns?.forEach(e=>{e.addEventListener("click",()=>{e.dataset.tab==="history-tab"&&G()})}),window.addEventListener("message",es)}function es(e){let t=e.data;switch(t.type){case"setSuite":ne(t.suite,t.requests),Le(t.suite?.nodes||[]);break;case"setEnvironments":ae(t.environments);break;case"setAvailableRequests":oe(t.requests);break;case"setDataFile":re(t.filePath,t.content);break;case"runStarted":tt(t.runId,t.suiteId,t.totalRequests,t.iterations);break;case"runProgress":st(t.current,t.total,t.passed,t.failed,t.skipped);break;case"requestResult":nt(t.result);break;case"statisticsUpdate":at(t.statistics);break;case"runComplete":ot(t.summary,t.reportPath);break;case"runStopped":rt();break;case"resultDetails":He(t.details);break;case"resultDetailsError":Ne(t.error);break;case"suiteSaved":de(t.suite);break;case"saveSuiteResult":ue(t.success,t.suiteId,t.error);break;case"runHistory":Ue(t.runs);break;case"historyRunLoaded":Ve(t.manifest,t.summaries);break;case"historyRunDeleted":We(t.runId);break;case"error":break}}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",it):it();})();
+        `;
+    }).join("");
+    elements.historyList.innerHTML = html;
+    elements.historyList.querySelectorAll(".history-load-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const runId = btn.dataset.runId;
+        if (runId) loadHistoryRun(runId);
+      });
+    });
+    elements.historyList.querySelectorAll(".history-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const runId = btn.dataset.runId;
+        if (runId) deleteHistoryRun(runId);
+      });
+    });
+  }
+  function formatHistoryDuration(ms) {
+    if (ms < 1e3) return `${ms}ms`;
+    if (ms < 6e4) return `${(ms / 1e3).toFixed(1)}s`;
+    const minutes = Math.floor(ms / 6e4);
+    const seconds = (ms % 6e4 / 1e3).toFixed(0);
+    return `${minutes}m ${seconds}s`;
+  }
+  function updateSummaryCards() {
+    const total = state.passed + state.failed + state.skipped;
+    const passRate = total > 0 ? (state.passed / total * 100).toFixed(0) : "0";
+    if (elements.summaryPassed) elements.summaryPassed.textContent = state.passed;
+    if (elements.summaryFailed) elements.summaryFailed.textContent = state.failed;
+    if (elements.summarySkipped) elements.summarySkipped.textContent = state.skipped;
+    if (elements.summaryPassRate) elements.summaryPassRate.textContent = `${passRate}%`;
+    if (state.historyManifest && elements.summaryDuration) {
+      elements.summaryDuration.textContent = formatHistoryDuration(state.historyManifest.stats.totalDuration);
+    }
+  }
+  function switchToTab(tabId) {
+    elements.tabBtns?.forEach((t) => t.classList.remove("active"));
+    elements.tabContents?.forEach((c) => c.classList.remove("active"));
+    const targetTab = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    if (targetTab) targetTab.classList.add("active");
+    document.getElementById(tabId)?.classList.add("active");
+  }
+
+  // resources/features/test-suite/modules/run.js
+  init_state();
+  init_statistics();
+  init_utils();
+  function countEnabledRequestNodes(nodes) {
+    let count = 0;
+    for (const node of nodes || []) {
+      if (!node || node.enabled === false) continue;
+      if (node.type === "request") {
+        count += 1;
+        continue;
+      }
+      if (Array.isArray(node.nodes)) {
+        count += countEnabledRequestNodes(node.nodes);
+      }
+      if (node.type === "if") {
+        count += countEnabledRequestNodes(node.then);
+        count += countEnabledRequestNodes(node.else);
+        if (Array.isArray(node.elseif)) {
+          for (const branch of node.elseif) {
+            count += countEnabledRequestNodes(branch?.nodes);
+          }
+        }
+      }
+      if (node.type === "switch") {
+        if (Array.isArray(node.cases)) {
+          for (const c of node.cases) {
+            count += countEnabledRequestNodes(c?.nodes);
+          }
+        }
+        count += countEnabledRequestNodes(node.default);
+      }
+    }
+    return count;
+  }
+  async function startRun() {
+    state.isRunning = true;
+    state.results = [];
+    state.displayItems = [];
+    state.collapsedGroups.clear();
+    state.collapsedIterations.clear();
+    state.statistics = null;
+    state.passed = 0;
+    state.failed = 0;
+    state.skipped = 0;
+    state.currentRunId = null;
+    state.autoScroll = true;
+    state.reportPath = null;
+    state.completedRequests = 0;
+    state.runStartTime = Date.now();
+    virtualScrollState.startIndex = 0;
+    virtualScrollState.endIndex = 0;
+    virtualScrollState.scrollTop = 0;
+    const iterations = parseInt(elements.iterationsInput.value) || 1;
+    const enabledRequestCount = countEnabledRequestNodes(state.suite?.nodes || []);
+    state.iterations = iterations;
+    state.totalRequests = iterations * enabledRequestCount;
+    elements.runBtn.disabled = true;
+    elements.stopBtn.disabled = false;
+    elements.progressSection.style.display = "block";
+    const emptyState = elements.resultsList?.querySelector(".empty-state");
+    if (emptyState) emptyState.style.display = "none";
+    const itemsContainer = elements.resultsList?.querySelector(".virtual-items");
+    if (itemsContainer) itemsContainer.innerHTML = "";
+    const spacer = elements.resultsList?.querySelector(".virtual-spacer");
+    if (spacer) spacer.style.height = "0px";
+    if (elements.resultsList) elements.resultsList.scrollTop = 0;
+    resetStatistics();
+    updateProgress();
+    const config = {
+      iterations,
+      delay: parseInt(elements.delayInput.value) || 0,
+      environmentId: state.selectedEnvironment,
+      stopOnError: elements.stopOnErrorCheck.checked,
+      readFromSharedSession: elements.readFromSharedSessionCheck.checked,
+      writeToSharedSession: elements.writeToSharedSessionCheck.checked,
+      dataFile: state.dataFile
+    };
+    vscode.postMessage({
+      type: "startRun",
+      config
+    });
+  }
+  function stopRun() {
+    state.isRunning = false;
+    elements.runBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+    vscode.postMessage({ type: "stopRun" });
+  }
+  function handleRunStarted(runId, suiteId, totalRequests, iterations) {
+    state.currentRunId = runId;
+    state.suiteId = suiteId;
+    state.autoScroll = true;
+    state.completedRequests = 0;
+    if (typeof totalRequests === "number") {
+      state.totalRequests = totalRequests;
+    }
+    if (typeof iterations === "number") {
+      state.iterations = iterations;
+    }
+    updateProgress();
+    if (state.viewingHistoryRun) {
+      state.viewingHistoryRun = null;
+      state.historyManifest = null;
+      if (elements.historyBanner) {
+        elements.historyBanner.classList.add("hidden");
+      }
+    }
+  }
+  function handleRunProgress(current, total, passed, failed, skipped) {
+    state.completedRequests = Number(current) || 0;
+    state.totalRequests = Number(total) || 0;
+    if (typeof passed === "number") {
+      state.passed = passed;
+    }
+    if (typeof failed === "number") {
+      state.failed = failed;
+    }
+    if (typeof skipped === "number") {
+      state.skipped = skipped;
+    }
+    updateProgress();
+  }
+  function handleRequestResult(result) {
+    state.results.push(result);
+    const expanded = expandSummary(result);
+    buildDisplayItems();
+    renderVirtualResults();
+    if (state.autoScroll && elements.resultsList) {
+      const totalHeight = state.displayItems.length * VIRTUAL_SCROLL.itemHeight;
+      const containerHeight = elements.resultsList.clientHeight || 400;
+      elements.resultsList.scrollTop = totalHeight - containerHeight;
+    }
+  }
+  function handleStatisticsUpdate(statistics) {
+    state.statistics = statistics;
+    renderStatistics();
+  }
+  function updateProgress() {
+    const total = state.totalRequests || 0;
+    const completed = Math.max(0, Math.min(total, state.completedRequests || 0));
+    renderProgressBar(elements.progressBar, {
+      total,
+      passed: state.passed,
+      failed: state.failed
+    });
+    elements.progressText.textContent = `${completed} / ${total}`;
+    elements.passedCount.textContent = state.passed;
+    elements.failedCount.textContent = state.failed;
+    elements.skippedCount.textContent = state.skipped;
+    updateRealTimeStats();
+  }
+  function updateRealTimeStats() {
+    const total = state.passed + state.failed;
+    const passRate = total > 0 ? state.passed / total * 100 : 0;
+    const duration = state.runStartTime ? (Date.now() - state.runStartTime) / 1e3 : 0;
+    if (elements.summaryPassed) elements.summaryPassed.textContent = state.passed;
+    if (elements.summaryFailed) elements.summaryFailed.textContent = state.failed;
+    if (elements.summarySkipped) elements.summarySkipped.textContent = state.skipped;
+    if (elements.summaryPassRate) elements.summaryPassRate.textContent = `${passRate.toFixed(1)}%`;
+    if (elements.summaryDuration) elements.summaryDuration.textContent = `${duration.toFixed(2)}s`;
+  }
+  function handleRunComplete(summary, reportPath) {
+    state.isRunning = false;
+    state.autoScroll = false;
+    state.reportPath = reportPath || null;
+    const finalDuration = state.runStartTime ? Date.now() - state.runStartTime : 0;
+    if (summary) {
+      state.passed = summary.passed || 0;
+      state.failed = summary.failed || 0;
+      state.skipped = summary.skipped || 0;
+      state.completedRequests = state.totalRequests || state.passed + state.failed + state.skipped;
+      state.statistics = {
+        ...state.statistics,
+        passed: summary.passed,
+        failed: summary.failed,
+        skipped: summary.skipped,
+        passRate: summary.passRate,
+        duration: finalDuration
+        // Use calculated duration
+      };
+    } else {
+      state.statistics = {
+        ...state.statistics,
+        duration: finalDuration
+      };
+    }
+    updateProgress();
+    elements.runBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+    renderStatistics();
+    if (state.historyRuns.length > 0) {
+      requestRunHistory();
+    }
+  }
+  function handleRunStopped() {
+    state.isRunning = false;
+    state.autoScroll = false;
+    updateProgress();
+    elements.runBtn.disabled = false;
+    elements.stopBtn.disabled = true;
+  }
+
+  // resources/features/test-suite/modules/main.js
+  init_state();
+  init_suite_editor();
+  function initialize() {
+    Object.assign(elements, {
+      suiteName: document.getElementById("suite-name"),
+      suiteDescriptionContainer: document.getElementById("suite-description-container"),
+      suiteDescriptionDisplay: document.getElementById("suite-description-display"),
+      suiteDescriptionTooltip: document.getElementById("suite-description-tooltip"),
+      suiteDescriptionEdit: document.getElementById("suite-description-edit"),
+      suiteActionsBtn: document.getElementById("suite-actions-btn"),
+      suiteActionsDropdown: document.getElementById("suite-actions-dropdown"),
+      suiteActionsMenuContainer: document.getElementById("suite-actions-menu-container"),
+      // Flow editor (primary UI)
+      addFlowNodeBtn: document.getElementById("add-flow-node-btn"),
+      runBtn: document.getElementById("run-btn"),
+      stopBtn: document.getElementById("stop-btn"),
+      environmentDisplay: document.getElementById("environment-display"),
+      iterationsInput: document.getElementById("iterations-input"),
+      delayInput: document.getElementById("delay-input"),
+      dataFilePath: document.getElementById("data-file-path"),
+      browseDataBtn: document.getElementById("browse-data-btn"),
+      clearDataBtn: document.getElementById("clear-data-btn"),
+      stopOnErrorCheck: document.getElementById("stop-on-error-check"),
+      readFromSharedSessionCheck: document.getElementById("read-from-shared-session-check"),
+      writeToSharedSessionCheck: document.getElementById("write-to-shared-session-check"),
+      selectAllBtn: document.getElementById("select-all-btn"),
+      deselectAllBtn: document.getElementById("deselect-all-btn"),
+      requestList: document.getElementById("request-list"),
+      saveSuiteBtn: document.getElementById("save-suite-btn"),
+      progressSection: document.getElementById("progress-section"),
+      progressBar: document.getElementById("progress-bar"),
+      progressText: document.getElementById("progress-text"),
+      passedCount: document.getElementById("passed-count"),
+      failedCount: document.getElementById("failed-count"),
+      skippedCount: document.getElementById("skipped-count"),
+      // Real-time summary cards (above tabs)
+      resultsSummary: document.getElementById("results-summary"),
+      summaryPassed: document.getElementById("summary-passed"),
+      summaryFailed: document.getElementById("summary-failed"),
+      summarySkipped: document.getElementById("summary-skipped"),
+      summaryPassRate: document.getElementById("summary-pass-rate"),
+      summaryDuration: document.getElementById("summary-duration"),
+      // Tabs
+      tabBtns: document.querySelectorAll(".tab-btn"),
+      tabContents: document.querySelectorAll(".tab-content"),
+      // Results
+      resultsList: document.getElementById("results-list"),
+      exportJunitBtn: document.getElementById("export-junit-btn"),
+      exportHtmlBtn: document.getElementById("export-html-btn"),
+      fixErrorsBtn: document.getElementById("fix-errors-btn"),
+      // Statistics (Response Time table and Error Summary only)
+      statsTableBody: document.getElementById("stats-table-body"),
+      errorSummary: document.getElementById("error-summary"),
+      errorList: document.getElementById("error-list"),
+      exportReportBtn: document.getElementById("export-report-btn"),
+      // Add Request Modal
+      addRequestModal: document.getElementById("add-request-modal"),
+      addModalCloseBtn: document.getElementById("add-modal-close-btn"),
+      requestSearch: document.getElementById("request-search"),
+      availableRequestsList: document.getElementById("available-requests-list"),
+      addSelectedBtn: document.getElementById("add-selected-btn"),
+      cancelAddBtn: document.getElementById("cancel-add-btn"),
+      // Response Detail Modal
+      responseModal: document.getElementById("response-modal"),
+      modalCloseBtn: document.getElementById("modal-close-btn"),
+      modalStatusIcon: document.getElementById("modal-status-icon"),
+      modalRequestName: document.getElementById("modal-request-name"),
+      modalRequestMeta: document.getElementById("modal-request-meta"),
+      modalTabs: document.querySelectorAll(".modal-tab"),
+      modalPanels: document.querySelectorAll(".modal-panel"),
+      responseBodyEditor: document.getElementById("response-body-editor"),
+      responseHeadersTable: document.getElementById("response-headers-table"),
+      requestUrl: document.getElementById("request-url"),
+      requestMethodDuration: document.getElementById("request-method-duration"),
+      requestHeadersTab: document.getElementById("request-headers-tab"),
+      requestBodyTab: document.getElementById("request-body-tab"),
+      requestHeadersPanel: document.getElementById("request-headers-panel"),
+      requestBodyPanel: document.getElementById("request-body-panel"),
+      requestBodyHeading: document.getElementById("request-body-heading"),
+      requestHeadersTable: document.getElementById("request-headers-table"),
+      requestBodyContent: document.getElementById("request-body-content"),
+      requestSubtabs: document.querySelectorAll(".request-subtab"),
+      requestSubpanels: document.querySelectorAll(".request-subpanel"),
+      testSummary: document.getElementById("test-summary"),
+      testList: document.getElementById("test-list"),
+      bodyFormatSelect: document.getElementById("body-format-select"),
+      copyBodyBtn: document.getElementById("copy-body-btn"),
+      // Panel resizer
+      panelResizer: document.getElementById("panel-resizer"),
+      // History
+      historyList: document.getElementById("history-list"),
+      refreshHistoryBtn: document.getElementById("refresh-history-btn"),
+      historyBanner: document.getElementById("history-banner"),
+      historyBannerText: document.getElementById("history-banner-text"),
+      backToLatestBtn: document.getElementById("back-to-latest-btn")
+    });
+    initResponseBodyEditor();
+    initPanelResizer();
+    initVirtualScroll();
+    setupEventListeners();
+    vscode.postMessage({ type: "ready" });
+  }
+  function setupEventListeners() {
+    elements.suiteActionsBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = elements.suiteActionsDropdown?.classList.contains("hidden");
+      elements.suiteActionsDropdown?.classList.toggle("hidden", !isHidden);
+    });
+    elements.suiteActionsDropdown?.addEventListener("click", (e) => {
+      const action = e.target?.dataset?.suiteAction;
+      if (!action) {
+        return;
+      }
+      elements.suiteActionsDropdown?.classList.add("hidden");
+      vscode.postMessage({
+        type: "manageSuiteFiles",
+        action
+      });
+    });
+    document.addEventListener("click", (e) => {
+      if (!elements.suiteActionsMenuContainer?.contains(e.target)) {
+        elements.suiteActionsDropdown?.classList.add("hidden");
+      }
+    });
+    elements.addFlowNodeBtn?.addEventListener("click", () => openTypePicker());
+    document.getElementById("node-type-picker-close")?.addEventListener("click", closeTypePicker);
+    document.getElementById("node-type-grid")?.addEventListener("click", (e) => {
+      const card = e.target.closest(".node-type-card");
+      if (card) onTypePicked(card.dataset.type);
+    });
+    document.getElementById("node-editor-close")?.addEventListener("click", closeNodeEditor);
+    document.getElementById("node-editor-cancel")?.addEventListener("click", closeNodeEditor);
+    document.getElementById("node-editor-save")?.addEventListener("click", saveNodeEditor);
+    elements.runBtn?.addEventListener("click", startRun);
+    elements.stopBtn?.addEventListener("click", stopRun);
+    elements.saveSuiteBtn?.addEventListener("click", saveSuite);
+    elements.suiteName?.addEventListener("input", () => {
+      if (state.suite) {
+        state.suite.name = elements.suiteName.value;
+        setDirty(true);
+      }
+    });
+    setupDescriptionInteraction(
+      elements.suiteDescriptionDisplay,
+      elements.suiteDescriptionTooltip,
+      elements.suiteDescriptionEdit,
+      () => state.suite?.description || "",
+      (value) => {
+        if (state.suite) {
+          state.suite.description = value;
+          setDirty(true);
+        }
+      }
+    );
+    elements.browseDataBtn?.addEventListener("click", browseDataFile);
+    elements.clearDataBtn?.addEventListener("click", clearDataFile);
+    elements.exportJunitBtn?.addEventListener("click", exportJunitReport);
+    elements.exportHtmlBtn?.addEventListener("click", exportHtmlReport);
+    elements.fixErrorsBtn?.addEventListener("click", fixErrors);
+    elements.exportReportBtn?.addEventListener("click", exportStatisticsReport);
+    elements.tabBtns?.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const tabId = tab.dataset.tab;
+        elements.tabBtns.forEach((t) => t.classList.remove("active"));
+        elements.tabContents?.forEach((c) => c.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tabId)?.classList.add("active");
+      });
+    });
+    elements.addModalCloseBtn?.addEventListener("click", closeAddRequestModal);
+    elements.cancelAddBtn?.addEventListener("click", closeAddRequestModal);
+    elements.addSelectedBtn?.addEventListener("click", addSelectedRequests);
+    elements.requestSearch?.addEventListener("input", filterAvailableRequests);
+    elements.addRequestModal?.addEventListener("click", (e) => {
+      if (e.target === elements.addRequestModal) closeAddRequestModal();
+    });
+    elements.modalCloseBtn?.addEventListener("click", closeModal);
+    elements.responseModal?.addEventListener("click", (e) => {
+      if (e.target === elements.responseModal) closeModal();
+    });
+    elements.modalTabs?.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const panelId = tab.dataset.panel;
+        elements.modalTabs.forEach((t) => t.classList.remove("active"));
+        elements.modalPanels?.forEach((p) => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(panelId)?.classList.add("active");
+      });
+    });
+    elements.requestSubtabs?.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const panelId = tab.dataset.panel;
+        elements.requestSubtabs?.forEach((t) => t.classList.remove("active"));
+        elements.requestSubpanels?.forEach((p) => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(panelId)?.classList.add("active");
+      });
+    });
+    elements.copyBodyBtn?.addEventListener("click", () => {
+      const content = editorState.responseBodyMonacoEditor ? editorState.responseBodyMonacoEditor.getValue() : "";
+      navigator.clipboard.writeText(content).then(() => {
+        elements.copyBodyBtn.textContent = "Copied!";
+        setTimeout(() => elements.copyBodyBtn.textContent = "Copy", 2e3);
+      });
+    });
+    elements.bodyFormatSelect?.addEventListener("change", () => {
+      if (state.selectedResultIndex >= 0) {
+        const result = state.results[state.selectedResultIndex];
+        if (result) formatAndDisplayBody(result.responseBody);
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        elements.suiteActionsDropdown?.classList.add("hidden");
+        if (!elements.responseModal?.classList.contains("hidden")) {
+          closeModal();
+        } else if (!elements.addRequestModal?.classList.contains("hidden")) {
+          closeAddRequestModal();
+        }
+      }
+    });
+    elements.refreshHistoryBtn?.addEventListener("click", requestRunHistory);
+    elements.backToLatestBtn?.addEventListener("click", clearHistoryView);
+    elements.tabBtns?.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        if (tab.dataset.tab === "history-tab") {
+          requestRunHistory();
+        }
+      });
+    });
+    window.addEventListener("message", handleMessage);
+  }
+  function handleMessage(event) {
+    const message = event.data;
+    switch (message.type) {
+      case "setSuite":
+        setSuite(message.suite, message.requests);
+        applyIncomingFlowNodes(message.suite?.nodes || []);
+        break;
+      case "setEnvironments":
+        setEnvironments(message.environments);
+        break;
+      case "setAvailableRequests":
+        setAvailableRequests(message.requests);
+        break;
+      case "setDataFile":
+        setDataFile(message.filePath, message.content);
+        break;
+      case "runStarted":
+        handleRunStarted(message.runId, message.suiteId, message.totalRequests, message.iterations);
+        break;
+      case "runProgress":
+        handleRunProgress(message.current, message.total, message.passed, message.failed, message.skipped);
+        break;
+      case "requestResult":
+        handleRequestResult(message.result);
+        break;
+      case "statisticsUpdate":
+        handleStatisticsUpdate(message.statistics);
+        break;
+      case "runComplete":
+        handleRunComplete(message.summary, message.reportPath);
+        break;
+      case "runStopped":
+        handleRunStopped();
+        break;
+      case "resultDetails":
+        handleResultDetails(message.details);
+        break;
+      case "resultDetailsError":
+        handleResultDetailsError(message.error);
+        break;
+      case "suiteSaved":
+        handleSuiteSaved(message.suite);
+        break;
+      case "saveSuiteResult":
+        handleSaveSuiteResult(message.success, message.suiteId, message.error);
+        break;
+      case "runHistory":
+        handleRunHistory(message.runs);
+        break;
+      case "historyRunLoaded":
+        handleHistoryRunLoaded(message.manifest, message.summaries);
+        break;
+      case "historyRunDeleted":
+        handleHistoryRunDeleted(message.runId);
+        break;
+      case "error":
+        console.error("[TestSuite] Error:", message.error || message.message);
+        break;
+    }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initialize);
+  } else {
+    initialize();
+  }
+})();
+//# sourceMappingURL=bundle.js.map

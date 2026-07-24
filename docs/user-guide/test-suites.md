@@ -66,6 +66,8 @@ Both actions open the suite runner backed by a temporary suite. The temporary su
 
 **Run Folder is recursive** and includes nested subfolders.
 
+> Folder path note: when a folder name itself contains `/`, HTTP Forge still treats it as a single folder name. In user-facing displays, separate folder levels with ` / `, for example `agl-page-composition / TRAY/EPG / AVS5-5304 - TRAY/EPG`.
+
 ## Performance testing a single request
 
 Right-click any request in the **Collections** tree and select **Run Performance Test**.
@@ -216,6 +218,13 @@ The **Statistics** response-time table shows full `Collection > Folder > Request
 |---|---|
 | **Export HTML** | Opens the pre-generated HTML report in your browser. If the file is missing it is regenerated automatically from stored run data. |
 | **Export JUnit XML** | Generates a JUnit-compatible XML file (`<testsuites>`, `<properties>`, `<failure>`, `<skipped>`, `<system-out>`) compatible with GitHub Actions, GitLab CI, Jenkins, and other CI tools. |
+| **Fix Errors** | Opens GitHub Copilot Chat with a structured failure-analysis prompt for the current run. If `run-summary.md` exists for the run, HTTP Forge references that file directly; otherwise it falls back to an inline summary of failed requests. |
+
+### AI-assisted failure analysis
+
+- **Fix Errors** is available when the current run contains failed requests.
+- HTTP Forge checks whether GitHub Copilot Chat is installed before opening the analysis flow.
+- The generated prompt asks Copilot to analyse failures from a business perspective, use MCP-backed Confluence/Jira context if available, and avoid suggesting weaker assertions.
 
 ### Export options (Statistics tab)
 
