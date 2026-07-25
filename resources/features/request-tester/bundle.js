@@ -5462,12 +5462,12 @@ ${f.description}` },
     onAiCompareResponses,
     vscode: vscode3
   }) {
-    function renderCopilotLink(query) {
+    function renderCopilotLink(query, attachFiles) {
       if (!query) return "";
       const safeQuery = encodeURIComponent(query);
+      const safeAttachFiles = attachFiles && attachFiles.length ? encodeURIComponent(JSON.stringify(attachFiles)) : "";
       return `<div class="ai-copilot-refine">
-            <a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQuery}"
-               title="Open this result in GitHub Copilot Chat to ask follow-up questions">
+            <a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQuery}"` + (safeAttachFiles ? ` data-copilot-attach-files="${safeAttachFiles}"` : "") + ` title="Open this result in GitHub Copilot Chat to ask follow-up questions">
                \u2726 Refine in Copilot Chat \u2197
             </a>
         </div>`;
@@ -5594,7 +5594,8 @@ ${f.description}` },
           link.addEventListener("click", (e) => {
             e.preventDefault();
             const query = decodeURIComponent(link.dataset.copilotQuery || "");
-            if (query && vscode3) vscode3.postMessage({ command: "openInCopilot", query });
+            const attachFiles = link.dataset.copilotAttachFiles ? JSON.parse(decodeURIComponent(link.dataset.copilotAttachFiles)) : [];
+            if (query && vscode3) vscode3.postMessage({ command: "openInCopilot", query, extraFiles: attachFiles });
           });
         });
       }
@@ -5686,7 +5687,7 @@ ${f.description}` },
         });
       };
     }
-    function showAiExplainPanel(text, error, copilotQuery) {
+    function showAiExplainPanel(text, error, copilotQuery, attachFiles) {
       const tab = document.querySelector('.ai-vtab[data-ai-tab="explain"]');
       if (tab) tab.dataset.loaded = "true";
       const panel = getAiTabPanel("explain");
@@ -5694,11 +5695,11 @@ ${f.description}` },
       if (error) {
         showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml2(error)}</span>`);
       } else {
-        const copilotLink = copilotQuery ? renderCopilotLink(copilotQuery) : "";
+        const copilotLink = copilotQuery ? renderCopilotLink(copilotQuery, attachFiles) : "";
         showAiPanel(panel, escapeHtml2(text || "").replace(/\n/g, "<br>") + copilotLink);
       }
     }
-    function showAiContractTestsPanel(snippets, error, onApply, copilotQuery) {
+    function showAiContractTestsPanel(snippets, error, onApply, copilotQuery, attachFiles) {
       const tab = document.querySelector('.ai-vtab[data-ai-tab="contract"]');
       if (tab) tab.dataset.loaded = "true";
       const panel = getAiTabPanel("contract");
@@ -5728,7 +5729,7 @@ ${f.description}` },
       }]);
       if (copilotQuery) {
         const content = panel.querySelector(".ai-vtab-content");
-        if (content) content.insertAdjacentHTML("beforeend", renderCopilotLink(copilotQuery));
+        if (content) content.insertAdjacentHTML("beforeend", renderCopilotLink(copilotQuery, attachFiles));
       }
     }
     function showAiExtractVarsPanel(variables, script, error, onApply, onAddToEnv) {
@@ -5809,7 +5810,7 @@ ${f.description}` },
         className: "btn btn-secondary"
       }]);
     }
-    function showAiComparePanel(text, error, copilotQuery) {
+    function showAiComparePanel(text, error, copilotQuery, attachFiles) {
       const tab = document.querySelector('.ai-vtab[data-ai-tab="compare"]');
       if (tab) tab.dataset.loaded = "true";
       const panel = getAiTabPanel("compare");
@@ -5817,7 +5818,7 @@ ${f.description}` },
       if (error) {
         showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml2(error)}</span>`);
       } else {
-        showAiPanel(panel, escapeHtml2(text || "").replace(/\n/g, "<br>") + (copilotQuery ? renderCopilotLink(copilotQuery) : ""));
+        showAiPanel(panel, escapeHtml2(text || "").replace(/\n/g, "<br>") + (copilotQuery ? renderCopilotLink(copilotQuery, attachFiles) : ""));
       }
     }
     let currentBodyView = "raw";
@@ -6467,7 +6468,7 @@ console.log('Post-response script executed');
        * @param {string|null} snippet
        * @param {string|null} error
        */
-      handleAiFixResult(testName, explanation, snippet, error, copilotQuery) {
+      handleAiFixResult(testName, explanation, snippet, error, copilotQuery, attachFiles) {
         if (!listElement) return;
         const item = listElement.querySelector(`.test-result.failed[data-test-name="${CSS.escape(testName)}"]`);
         if (!item) return;
@@ -6478,7 +6479,8 @@ console.log('Post-response script executed');
         }
         const fixDiv = item.querySelector(".test-ai-fix");
         if (!fixDiv) return;
-        const copilotLink = copilotQuery ? `<div class="ai-copilot-refine"><a class="ai-copilot-refine-link" href="#" data-copilot-query="${encodeURIComponent(copilotQuery)}" title="Open in Copilot Chat for follow-up">\u2726 Refine in Copilot Chat \u2197</a></div>` : "";
+        const safeAttachFiles = attachFiles && attachFiles.length ? encodeURIComponent(JSON.stringify(attachFiles)) : "";
+        const copilotLink = copilotQuery ? `<div class="ai-copilot-refine"><a class="ai-copilot-refine-link" href="#" data-copilot-query="${encodeURIComponent(copilotQuery)}"` + (safeAttachFiles ? ` data-copilot-attach-files="${safeAttachFiles}"` : "") + ` title="Open in Copilot Chat for follow-up">\u2726 Refine in Copilot Chat \u2197</a></div>` : "";
         if (error) {
           fixDiv.innerHTML = `<span class="ai-fix-error">${escapeHtmlFn(error)}</span>${copilotLink}`;
         } else {
@@ -6488,7 +6490,8 @@ console.log('Post-response script executed');
           link.addEventListener("click", (e) => {
             e.preventDefault();
             const query = decodeURIComponent(link.dataset.copilotQuery || "");
-            if (query && typeof vscode !== "undefined") vscode.postMessage({ command: "openInCopilot", query });
+            const extraFiles = link.dataset.copilotAttachFiles ? JSON.parse(decodeURIComponent(link.dataset.copilotAttachFiles)) : [];
+            if (query && typeof vscode !== "undefined") vscode.postMessage({ command: "openInCopilot", query, extraFiles });
           });
         });
         fixDiv.classList.remove("hidden");
@@ -7410,10 +7413,10 @@ console.log('Post-response script executed');
       this.responseHandler?.updateAiSuggestions(msg.suggestions || null, msg.error || null);
     }
     handleAiExplainResult(msg) {
-      this.responseHandler?.showAiExplainPanel(msg.text || null, msg.error || null, msg.copilotQuery || null);
+      this.responseHandler?.showAiExplainPanel(msg.text || null, msg.error || null, msg.copilotQuery || null, msg.attachFiles);
     }
     handleAiFixTestResult(msg) {
-      this.testResultsManager?.handleAiFixResult(msg.testName, msg.explanation, msg.snippet, msg.error, msg.copilotQuery || null);
+      this.testResultsManager?.handleAiFixResult(msg.testName, msg.explanation, msg.snippet, msg.error, msg.copilotQuery || null, msg.attachFiles);
     }
     handleAiGeneratedScript(msg) {
       const phase = msg.phase ?? "post-response";
@@ -7467,10 +7470,13 @@ console.log('Post-response script executed');
             docTabEl.appendChild(refine);
           }
           const safeQ = encodeURIComponent(msg.copilotQuery);
-          refine.innerHTML = `<a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQ}">\u2726 Improve docs in Copilot Chat \u2197</a>`;
+          const safeAttachFiles = msg.attachFiles && msg.attachFiles.length ? encodeURIComponent(JSON.stringify(msg.attachFiles)) : "";
+          refine.innerHTML = `<a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQ}"` + (safeAttachFiles ? ` data-copilot-attach-files="${safeAttachFiles}"` : "") + `>\u2726 Improve docs in Copilot Chat \u2197</a>`;
           refine.querySelector("[data-copilot-query]")?.addEventListener("click", (e) => {
             e.preventDefault();
-            vscode2.postMessage({ command: "openInCopilot", query: decodeURIComponent(safeQ) });
+            const query = decodeURIComponent(safeQ);
+            const extraFiles = safeAttachFiles ? JSON.parse(decodeURIComponent(safeAttachFiles)) : [];
+            vscode2.postMessage({ command: "openInCopilot", query, extraFiles });
           });
         }
       }
@@ -7506,7 +7512,8 @@ console.log('Post-response script executed');
         msg.snippets || [],
         msg.error || null,
         (script) => vscode2.postMessage({ command: "applyAssertions", script }),
-        msg.copilotQuery || null
+        msg.copilotQuery || null,
+        msg.attachFiles
       );
     }
     handleAiExtractVarsResult(msg) {
@@ -7578,7 +7585,7 @@ console.log('Post-response script executed');
       panel.classList.remove("hidden");
     }
     handleAiCompareResult(msg) {
-      this.responseHandler?.showAiComparePanel(msg.text || null, msg.error || null, msg.copilotQuery || null);
+      this.responseHandler?.showAiComparePanel(msg.text || null, msg.error || null, msg.copilotQuery || null, msg.attachFiles);
     }
     /**
      * Replace a hardcoded value with {{varName}} in the URL, a header, or the request body.

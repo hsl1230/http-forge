@@ -1305,11 +1305,11 @@ class RequestTesterApp {
     }
 
     handleAiExplainResult(msg) {
-        this.responseHandler?.showAiExplainPanel(msg.text || null, msg.error || null, msg.copilotQuery || null);
+        this.responseHandler?.showAiExplainPanel(msg.text || null, msg.error || null, msg.copilotQuery || null, msg.attachFiles);
     }
 
     handleAiFixTestResult(msg) {
-        this.testResultsManager?.handleAiFixResult(msg.testName, msg.explanation, msg.snippet, msg.error, msg.copilotQuery || null);
+        this.testResultsManager?.handleAiFixResult(msg.testName, msg.explanation, msg.snippet, msg.error, msg.copilotQuery || null, msg.attachFiles);
     }
 
     handleAiGeneratedScript(msg) {
@@ -1357,10 +1357,17 @@ class RequestTesterApp {
                     docTabEl.appendChild(refine);
                 }
                 const safeQ = encodeURIComponent(msg.copilotQuery);
-                refine.innerHTML = `<a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQ}">✦ Improve docs in Copilot Chat ↗</a>`;
+                const safeAttachFiles = msg.attachFiles && msg.attachFiles.length
+                    ? encodeURIComponent(JSON.stringify(msg.attachFiles))
+                    : '';
+                refine.innerHTML = `<a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQ}"` +
+                    (safeAttachFiles ? ` data-copilot-attach-files="${safeAttachFiles}"` : '') +
+                    `>✦ Improve docs in Copilot Chat ↗</a>`;
                 refine.querySelector('[data-copilot-query]')?.addEventListener('click', (e) => {
                     e.preventDefault();
-                    vscode.postMessage({ command: 'openInCopilot', query: decodeURIComponent(safeQ) });
+                    const query = decodeURIComponent(safeQ);
+                    const extraFiles = safeAttachFiles ? JSON.parse(decodeURIComponent(safeAttachFiles)) : [];
+                    vscode.postMessage({ command: 'openInCopilot', query, extraFiles });
                 });
             }
         }
@@ -1392,7 +1399,8 @@ class RequestTesterApp {
             msg.snippets || [],
             msg.error || null,
             (script) => vscode.postMessage({ command: 'applyAssertions', script }),
-            msg.copilotQuery || null
+            msg.copilotQuery || null,
+            msg.attachFiles
         );
     }
 
@@ -1468,7 +1476,7 @@ class RequestTesterApp {
     }
 
     handleAiCompareResult(msg) {
-        this.responseHandler?.showAiComparePanel(msg.text || null, msg.error || null, msg.copilotQuery || null);
+        this.responseHandler?.showAiComparePanel(msg.text || null, msg.error || null, msg.copilotQuery || null, msg.attachFiles);
     }
 
     /**

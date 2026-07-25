@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
+import { openCopilotPromptEditor } from '../../../shared/copilot-prompt-editor';
 import { IPanelContextProvider } from '../interfaces';
 
 /**
@@ -140,16 +141,8 @@ export class SuggestAssertionsHandler implements IMessageHandler {
    * attached file chips and the prompt, then presses Enter when ready.
    */
   private async openCopilotChat(query: string, extraFiles?: vscode.Uri[]): Promise<void> {
-    const hasCopilot = !!vscode.extensions.getExtension('GitHub.copilot-chat');
-    if (!hasCopilot) {
-      vscode.window.showInformationMessage('GitHub Copilot Chat is required. Install it from the Extensions marketplace.');
-      return;
-    }
     const attachFiles = [...this.getContextAttachFiles(), ...(extraFiles ?? [])];
-    await vscode.commands.executeCommand('workbench.action.chat.open', {
-      query,
-      ...(attachFiles.length ? { attachFiles } : {})
-    });
+    await openCopilotPromptEditor(query, attachFiles);
   }
 
   /**
@@ -172,9 +165,10 @@ export class SuggestAssertionsHandler implements IMessageHandler {
    * Open GitHub Copilot Chat with the given query pre-filled.
    * Falls back gracefully if Copilot Chat isn't installed.
    */
-  private async handleOpenInCopilot(message: { query?: string }): Promise<void> {
-    // Attach all available context files alongside the query
-    await this.openCopilotChat(message.query ?? '');
+  private async handleOpenInCopilot(message: { query?: string; extraFiles?: string[] }): Promise<void> {
+    // Reconstruct URI objects from serialized file paths sent from the webview.
+    const extraFiles = (message.extraFiles ?? []).map(path => vscode.Uri.file(path));
+    await this.openCopilotChat(message.query ?? '', extraFiles);
   }
 
   private async callLm(prompt: string): Promise<{ raw: string } | { error: string }> {
@@ -255,11 +249,11 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     // Attach the request file dir so Copilot can read the full post-response script
     const historyStorage = this.contextProvider.getHistoryStoragePath();
     const requestDirPath = historyStorage?.requestPath ?? '';
-    const fileRef = requestDirPath
-      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
-      : '';
-    const fileBlock = fileRef
-      ? `\nRequest file (contains full post-response script with this test): ${fileRef}\n`
+    const attachFiles = requestDirPath && fs.existsSync(requestDirPath)
+      ? [vscode.Uri.file(requestDirPath)]
+      : [];
+    const fileBlock = attachFiles.length
+      ? `\nRequest files (contains the full post-response script with this test and related request artifacts)\n`
       : '';
 
     const prompt =
@@ -277,14 +271,15 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `A pm.test() assertion is failing and I need help fixing it.\n\n` +
       `Test: "${message.testName ?? ''}"\nError: ${message.error ?? ''}\n` +
       `Request: ${message.method ?? 'GET'} ${message.url ?? ''} | HTTP ${message.responseStatus ?? '?'}\n` +
-      (fileRef ? `\nFull post-response script: ${fileRef}\n` : '') +
+      (attachFiles.length ? `\nThe request directory is attached so you can inspect the full post-response script and related request files.\n` : '') +
       `\nResponse body:\n${truncatedBody}\n\n` +
       `Please explain why this assertion fails and provide a corrected pm.test() snippet.`
     );
 
+    const attachFilePaths = attachFiles.map(f => f.fsPath);
     const result = await this.callLm(prompt);
     if ('error' in result) {
-      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, error: result.error, copilotQuery });
+      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, error: result.error, copilotQuery, attachFiles: attachFilePaths });
       return;
     }
     try {
@@ -292,9 +287,9 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON in response');
       const parsed = JSON.parse(jsonMatch[0]);
-      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, ...parsed, copilotQuery });
+      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, ...parsed, copilotQuery, attachFiles: attachFilePaths });
     } catch {
-      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, error: 'Could not parse AI response. Try again.', copilotQuery });
+      messenger.postMessage({ command: 'aiFixTestResult', testName: message.testName, error: 'Could not parse AI response. Try again.', copilotQuery, attachFiles: attachFilePaths });
     }
   }
 
@@ -318,11 +313,11 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     const phase = message.phase ?? 'post-response';
     const historyStorage = this.contextProvider.getHistoryStoragePath();
     const requestDirPath = historyStorage?.requestPath ?? '';
-    const fileRef = requestDirPath
-      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
-      : '';
-    const fileBlock = fileRef
-      ? `\nRequest files (description, existing scripts, request body, response schema): ${fileRef}\n`
+    const attachFiles = requestDirPath && fs.existsSync(requestDirPath)
+      ? [vscode.Uri.file(requestDirPath)]
+      : [];
+    const fileBlock = attachFiles.length
+      ? `\nRequest files (description, existing scripts, request body, and response schema are attached)\n`
       : '';
 
     const responseBlock = message.responseStatus
@@ -346,7 +341,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     );
 
     try {
-      await this.openCopilotChat(query);
+      await this.openCopilotChat(query, attachFiles);
       messenger.postMessage({ command: 'aiGeneratedScript', phase, openedInCopilot: true });
     } catch (err: any) {
       messenger.postMessage({ command: 'aiGeneratedScript', phase, error: err?.message ?? 'Failed to open Copilot Chat.' });
@@ -365,12 +360,11 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       ? `\nExample response: ${message.responseStatus}\n${(message.responseBody ?? '').slice(0, 600)}`
       : '';
 
-    // Build #file: ref so the copilotQuery can point Copilot to the existing doc.md and description
     const historyStorage = this.contextProvider.getHistoryStoragePath();
     const requestDirPath = historyStorage?.requestPath ?? '';
-    const fileRef = requestDirPath
-      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
-      : '';
+    const attachFiles = requestDirPath && fs.existsSync(requestDirPath)
+      ? [vscode.Uri.file(requestDirPath)]
+      : [];
 
     const prompt =
       `Generate concise markdown documentation for this HTTP API endpoint.\n` +
@@ -385,7 +379,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     const copilotQuery = this.buildCopilotQuery(
       `Generate or improve markdown documentation for this HTTP API endpoint in HTTP Forge.\n\n` +
       `${message.method ?? 'GET'} ${message.url ?? ''}\n` +
-      (fileRef ? `\nRequest files (read for existing doc.md and endpoint description): ${fileRef}\n` : '') +
+      (attachFiles.length ? `\nThe request directory is attached so you can inspect existing doc.md and the endpoint description.\n` : '') +
       (headerList !== 'none' ? `\nHeaders: ${headerList}` : '') +
       bodyBlock + responseBlock +
       `\n\nPlease:\n` +
@@ -395,11 +389,12 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `4. Return ONLY markdown. Use ## headings.`
     );
 
+    const attachFilePaths = attachFiles.map(f => f.fsPath);
     const result = await this.callLm(prompt);
     if ('error' in result) {
-      messenger.postMessage({ command: 'aiGeneratedDocs', error: result.error, copilotQuery });
+      messenger.postMessage({ command: 'aiGeneratedDocs', error: result.error, copilotQuery, attachFiles: attachFilePaths });
     } else {
-      messenger.postMessage({ command: 'aiGeneratedDocs', markdown: result.raw.trim(), copilotQuery });
+      messenger.postMessage({ command: 'aiGeneratedDocs', markdown: result.raw.trim(), copilotQuery, attachFiles: attachFilePaths });
     }
   }
 
@@ -442,11 +437,11 @@ export class SuggestAssertionsHandler implements IMessageHandler {
 
     const historyStorage = this.contextProvider.getHistoryStoragePath();
     const requestDirPath = historyStorage?.requestPath ?? '';
-    const fileRef = requestDirPath
-      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
-      : '';
-    const fileBlock = fileRef
-      ? `\nRequest files (read for responseSchema — this IS the contract): ${fileRef}\n`
+    const attachFiles = requestDirPath && fs.existsSync(requestDirPath)
+      ? [vscode.Uri.file(requestDirPath)]
+      : [];
+    const fileBlock = attachFiles.length
+      ? `\nRequest files (responseSchema and related request artifacts are attached)\n`
       : '';
 
     const truncatedBody = (message.body ?? '').slice(0, 1500);
@@ -467,7 +462,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     );
 
     try {
-      await this.openCopilotChat(query);
+      await this.openCopilotChat(query, attachFiles);
       messenger.postMessage({ command: 'aiContractTestsResult', openedInCopilot: true });
     } catch (err: any) {
       messenger.postMessage({ command: 'aiContractTestsResult', error: err?.message ?? 'Failed to open Copilot Chat.' });
@@ -583,9 +578,9 @@ export class SuggestAssertionsHandler implements IMessageHandler {
 
     const historyStorage = this.contextProvider.getHistoryStoragePath();
     const requestDirPath = historyStorage?.requestPath ?? '';
-    const fileRef = requestDirPath
-      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
-      : '';
+    const attachFiles = requestDirPath && fs.existsSync(requestDirPath)
+      ? [vscode.Uri.file(requestDirPath)]
+      : [];
 
     const prompt =
       `You are an API testing expert. Compare these two HTTP responses for the same endpoint.\n\n` +
@@ -600,7 +595,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     const copilotQuery = this.buildCopilotQuery(
       `I need to understand what changed between two responses for the same endpoint in HTTP Forge.\n\n` +
       `Endpoint: ${message.method ?? 'GET'} ${message.url ?? ''}\n` +
-      (fileRef ? `\nRequest files (endpoint description and business context): ${fileRef}\n` : '') +
+      (attachFiles.length ? `\nThe request directory is attached so you can inspect the endpoint description and related files.\n` : '') +
       `\nPREVIOUS response (HTTP ${message.previousStatus ?? '?'}):\n${previousTrunc}\n\n` +
       `CURRENT response (HTTP ${message.currentStatus ?? '?'}):\n${currentTrunc}\n\n` +
       `Please:\n` +
@@ -610,11 +605,12 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       `4. Suggest pm.test() assertions that would catch this difference in future runs.`
     );
 
+    const attachFilePaths = attachFiles.map(f => f.fsPath);
     const result = await this.callLm(prompt);
     if ('error' in result) {
-      messenger.postMessage({ command: 'aiCompareResult', error: result.error, copilotQuery });
+      messenger.postMessage({ command: 'aiCompareResult', error: result.error, copilotQuery, attachFiles: attachFilePaths });
     } else {
-      messenger.postMessage({ command: 'aiCompareResult', text: result.raw.trim(), copilotQuery });
+      messenger.postMessage({ command: 'aiCompareResult', text: result.raw.trim(), copilotQuery, attachFiles: attachFilePaths });
     }
   }
 
@@ -660,14 +656,14 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     const historySection = ctx.endpointHistory
       ? `\nCall history for this endpoint:\n${ctx.endpointHistory}` : '';
 
-    // Attach request dir via #file: so Copilot can read description, scripts, schema
+    // Attach the request directory so Copilot can read description, scripts, and schema
     const historyStorage = this.contextProvider.getHistoryStoragePath();
     const requestDirPath = historyStorage?.requestPath ?? '';
-    const fileRef = requestDirPath
-      ? `#file:${vscode.workspace.asRelativePath(requestDirPath, false)}`
-      : '';
-    const fileBlock = fileRef
-      ? `\nRequest files (description, existing scripts, response schema): ${fileRef}\n`
+    const attachFiles = requestDirPath && fs.existsSync(requestDirPath)
+      ? [vscode.Uri.file(requestDirPath)]
+      : [];
+    const fileBlock = attachFiles.length
+      ? `\nRequest files (description, existing scripts, and response schema are attached)\n`
       : '';
 
     const priorContext = history.length > 0
@@ -682,7 +678,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     );
 
     try {
-      await this.openCopilotChat(query);
+      await this.openCopilotChat(query, attachFiles);
       // Signal the webview that we've opened Copilot Chat (no response body needed)
       messenger.postMessage({ command: 'aiChatResponse', openedInCopilot: true });
     } catch (err: any) {
@@ -709,27 +705,20 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       return;
     }
 
-    // Resolve .http-forge file paths so Copilot can read them directly via #file: —
-    // no need to embed content in the prompt.
+    // Attach the request directory and any history folder so Copilot can inspect the files directly
     const historyStorage = this.contextProvider.getHistoryStoragePath();
     const requestDirPath = historyStorage?.requestPath ?? '';
+    const attachFiles: vscode.Uri[] = [];
 
-    // Build #file: references for files that exist on disk
-    const fileRefs: string[] = [];
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
-
-    const addFileRef = (absPath: string) => {
-      if (!absPath) return;
-      const rel = vscode.workspace.asRelativePath(absPath, false);
-      if (rel && rel !== absPath) {
-        fileRefs.push(`#file:${rel}`);
-      }
+    const addAttachFile = (absPath: string) => {
+      if (!absPath || !fs.existsSync(absPath)) return;
+      attachFiles.push(vscode.Uri.file(absPath));
     };
 
     // 1. Request dir: contains request.json (description, scripts, body schema, response schema)
     //    and scripts/post-response.js (existing assertions)
     if (requestDirPath) {
-      addFileRef(requestDirPath);
+      addAttachFile(requestDirPath);
     }
 
     // 2. History folder for this request (response patterns across runs)
@@ -741,12 +730,12 @@ export class SuggestAssertionsHandler implements IMessageHandler {
           historyStorage.environment,
           historyStorage.requestId
         );
-        addFileRef(historyRequestDir);
+        addAttachFile(historyRequestDir);
       }
     }
 
-    const fileRefBlock = fileRefs.length > 0
-      ? `\nContext files (read these for full details — description, existing assertions, response schema, history):\n${fileRefs.join('\n')}\n`
+    const fileRefBlock = attachFiles.length > 0
+      ? `\nContext files (description, existing assertions, response schema, and history are attached)\n`
       : '';
 
     const truncatedResponseBody = (message.body ?? '').slice(0, 1500);
@@ -775,7 +764,7 @@ export class SuggestAssertionsHandler implements IMessageHandler {
     );
 
     try {
-      await this.openCopilotChat(query);
+      await this.openCopilotChat(query, attachFiles);
       messenger.postMessage({ command: 'aiAssertionSuggestions', openedInCopilot: true });
     } catch (err: any) {
       messenger.postMessage({

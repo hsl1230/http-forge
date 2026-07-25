@@ -14,6 +14,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
+import { openCopilotPromptEditor } from '../../../shared/copilot-prompt-editor';
 
 export type ExportFormat = 'junit' | 'html' | 'statistics-html';
 
@@ -47,6 +48,9 @@ export class ExportHandler implements IMessageHandler {
         runId?: string | null;
         suiteName?: string;
         environment?: string | null;
+        collectionId?: string | null;
+        collectionName?: string | null;
+        folderPath?: string | null;
         noResults?: boolean;
         allPassed?: boolean;
         failedResults?: Array<{
@@ -69,26 +73,20 @@ export class ExportHandler implements IMessageHandler {
         const failures = message.failedResults ?? [];
 
         // Handle no-results / all-passed sentinel messages from webview
-        if ((message as any).noResults) {
-            vscode.window.showInformationMessage('Run the test suite first to see results.');
-            return;
-        }
-        if ((message as any).allPassed) {
-            vscode.window.showInformationMessage('All requests passed — nothing to fix! ✅');
-            return;
-        }
+        const isNoResults = !!(message as any).noResults;
+        const isAllPassed = !!(message as any).allPassed;
 
-        if (!failures.length) {
-            vscode.window.showInformationMessage('No failed requests to analyse.');
-            return;
-        }
+        // Instead of returning early for these sentinel states, continue and
+        // open Copilot Chat so the user can add context and request analysis
+        // for issues not detected by assertions (schema drift, latency,
+        // header changes, missing fields, etc.). We'll build an appropriate
+        // query below depending on the flags and available run/suite files.
 
         const configService = getServiceContainer().config;
         let query: string;
         const attachFiles: vscode.Uri[] = [];
-        const pathHints: string[] = [];
 
-        const addFileCandidate = (candidate: string | null | undefined): void => {
+        const addContextCandidate = (candidate: string | null | undefined): void => {
             if (!candidate) {
                 return;
             }
@@ -96,19 +94,15 @@ export class ExportHandler implements IMessageHandler {
             if (!normalized || !fs.existsSync(normalized)) {
                 return;
             }
-            const stat = fs.statSync(normalized);
-            if (stat.isFile()) {
-                attachFiles.push(vscode.Uri.file(normalized));
-                pathHints.push(normalized);
-            } else if (stat.isDirectory()) {
-                pathHints.push(normalized);
-            }
+            attachFiles.push(vscode.Uri.file(normalized));
         };
 
         // Prefer run-summary.md — attach it as a file (works with absolute paths,
         // more reliable than #file: text in the query).
         const suiteId = message.suiteId;
         const runId = message.runId;
+        const collectionName = message.collectionName ?? failures.find(f => f.collectionName)?.collectionName ?? null;
+        const folderPath = message.folderPath ?? failures.find(f => f.folderPath)?.folderPath ?? null;
         let mdPath: string | null = null;
 
         if (suiteId && runId) {
@@ -117,31 +111,51 @@ export class ExportHandler implements IMessageHandler {
             const candidate = path.join(runDir, 'run-summary.md');
             if (fs.existsSync(candidate)) {
                 mdPath = candidate;
-                addFileCandidate(candidate);
+                addContextCandidate(candidate);
             }
-            addFileCandidate(runDir);
+            addContextCandidate(runDir);
 
             // Also attach the suite file if available so Copilot can read suite metadata.
             const suitesPath = configService.getSuitesPath();
             if (suitesPath) {
                 const suiteFile = path.join(suitesPath, `${suiteId}.suite.json`);
-                addFileCandidate(suiteFile);
+                addContextCandidate(suiteFile);
+            }
+        } else {
+            const collectionsPath = configService.getCollectionsPath();
+            if (collectionsPath) {
+                const collectionService = (getServiceContainer() as any).collection;
+                const resolvedCollectionId = message.collectionId
+                    || (collectionName && collectionService?.getCollectionByName?.(collectionName)?.id)
+                    || null;
+
+                if (resolvedCollectionId) {
+                    addContextCandidate(path.join(collectionsPath, resolvedCollectionId));
+                    if (folderPath) {
+                        const folderSegments = folderPath.split('/').filter(Boolean);
+                        addContextCandidate(path.join(collectionsPath, resolvedCollectionId, ...folderSegments));
+                    }
+                } else if (collectionName) {
+                    addContextCandidate(path.join(collectionsPath, collectionName));
+                    if (folderPath) {
+                        const folderSegments = folderPath.split('/').filter(Boolean);
+                        addContextCandidate(path.join(collectionsPath, collectionName, ...folderSegments));
+                    }
+                }
             }
         }
 
-        if (mdPath) {
-            // run-summary.md attached — Copilot reads it directly as a context file
-            const pathBlock = pathHints.length
-                ? `\n\nRelevant files/paths:\n- ${pathHints.join('\n- ')}`
-                : '';
+        if (mdPath || attachFiles.length) {
+            const contextSummary = mdPath
+                ? 'The attached run-summary.md and related request, suite, or collection files contain the full details.'
+                : 'The attached request, suite, or collection files contain the full details.';
             query = [
-                `I have test suite failures in HTTP Forge. The attached run-summary.md contains full details.`,
+                `I have HTTP Forge run failures. ${contextSummary}`,
                 ``,
                 `Please analyse each failure from a business perspective following the "How to Analyse"`,
                 `instructions in the file. Use MCP tools (Confluence/Jira) if available.`,
                 `If no MCP tools are configured, ask me to configure one or paste the relevant docs here.`,
                 `Also ask me to attach the backend service/controller code for the failing endpoints.`,
-                pathBlock,
             ].join('\n').slice(0, 2000);
         } else {
             // Fallback — build inline context and attach suite file + dir if available
@@ -157,35 +171,66 @@ export class ExportHandler implements IMessageHandler {
                     attachFiles.push(vscode.Uri.file(suiteDir));
                 }
             }
-            const failureList = failures
-                .map((f, i) => {
-                    const location = f.url
-                        ? `${f.method} ${f.url}`
-                        : `${f.method} — ${f.collectionName || ''}${f.folderPath ? `/${f.folderPath}` : ''} / ${f.name}`;
-                    return `${i + 1}. ${f.name} (${location})\n` +
-                        `   Status: ${f.status}${f.error ? ` | ${f.error}` : ''}` +
-                        (f.assertionsFailed > 0 ? ` | ${f.assertionsFailed} assertion(s) failed` : '');
-                }).join('\n');
-            const envBlock = message.environment ? `\nEnvironment: ${message.environment}` : '';
-            query = [
-                `Test suite "${message.suiteName ?? 'Test Suite'}" has ${failures.length} failure${failures.length !== 1 ? 's' : ''}.${envBlock}`,
-                ``,
-                `Failed requests:`,
-                failureList.slice(0, 1500),
-                ``,
-                `Please analyse each failure from a business perspective.`,
-                `Use Confluence/Jira MCP tools to find requirements. If no MCP tools are configured,`,
-                `ask me to configure one or paste the relevant documentation here.`,
-                `Ask me to attach the backend service/controller code for the failing endpoints.`,
-                `Do NOT suggest disabling or weakening assertions.`,
-            ].join('\n').slice(0, 3000);
+            // If there are no run results, prompt the user to attach context
+            if (isNoResults) {
+                const envBlock = message.environment ? `\nEnvironment: ${message.environment}` : '';
+                query = [
+                    `No run results are available for the current HTTP Forge run.${envBlock}`,
+                    ``,
+                    `I want to investigate potential issues that may not be captured by assertions (schema drift, missing fields, latency regressions, header changes, suspicious payloads, security leaks).`,
+                    `Use this chat to help me define checks, suggest additional pm.test() assertions, and request any files you need (run-summary.md, sample responses, backend code).`,
+                ].join('\n').slice(0, 2000);
+            }
+            // All requests passed (or no failed results were reported) — still allow deeper analysis
+            else if (isAllPassed || !failures.length) {
+                const envBlock = message.environment ? `\nEnvironment: ${message.environment}` : '';
+                const failureCount = failures.length;
+                // Attach suite files where possible (already added above)
+                query = [
+                    `All requests in the current HTTP Forge run passed (reported failures: ${failureCount}).${envBlock}`,
+                    ``,
+                    `I want you to look for issues not detected by the existing assertions. Consider:`,
+                    `- Response schema drift or missing required fields`,
+                    `- Unexpected success codes or changed semantics`,
+                    `- Response size regressions or spikes`,
+                    `- Latency regressions beyond expected thresholds`,
+                    `- Suspicious header or content-type changes`,
+                    `- Potential security/data-leak indicators in payloads`,
+                    `Please suggest concrete pm.test() assertions, schema checks, and heuristics I can add to the run. If you need runtime data, ask me to attach a recent run-summary.md or sample responses.`,
+                    `Do NOT suggest weakening assertions.`,
+                ].join('\n').slice(0, 3000);
+            }
+            // Default behaviour: build inline failure list and prompt for analysis
+            else {
+                const failureList = failures
+                    .map((f, i) => {
+                        const location = f.url
+                            ? `${f.method} ${f.url}`
+                            : `${f.method} — ${f.collectionName || ''}${f.folderPath ? `/${f.folderPath}` : ''} / ${f.name}`;
+                        return `${i + 1}. ${f.name} (${location})\n` +
+                            `   Status: ${f.status}${f.error ? ` | ${f.error}` : ''}` +
+                            (f.assertionsFailed > 0 ? ` | ${f.assertionsFailed} assertion(s) failed` : '');
+                    }).join('\n');
+                const envBlock = message.environment ? `\nEnvironment: ${message.environment}` : '';
+                const targetLabel = message.suiteName || collectionName || 'HTTP Forge run';
+                query = [
+                    `The current ${message.suiteName ? 'test suite' : (collectionName ? 'collection/folder run' : 'HTTP Forge run')} "${targetLabel}" has ${failures.length} failure${failures.length !== 1 ? 's' : ''}.${envBlock}`,
+                    ``,
+                    `Failed requests:`,
+                    failureList.slice(0, 1500),
+                    ``,
+                    `Please analyse each failure from a business perspective.`,
+                    `Use Confluence/Jira MCP tools to find requirements. If no MCP tools are configured,`,
+                    `ask me to configure one or paste the relevant documentation here.`,
+                    `Ask me to attach the backend service/controller code for the failing endpoints.`,
+                    `Do NOT suggest disabling or weakening assertions.`,
+                ].join('\n').slice(0, 3000);
+            }
         }
 
+        // Let the user review and edit the prompt before opening Copilot Chat.
         try {
-            await vscode.commands.executeCommand('workbench.action.chat.open', {
-                query,
-                ...(attachFiles.length ? { attachFiles } : {})
-            });
+            await openCopilotPromptEditor(query, attachFiles);
         } catch (err: any) {
             vscode.window.showErrorMessage(`Failed to open Copilot Chat: ${err?.message ?? err}`);
         }

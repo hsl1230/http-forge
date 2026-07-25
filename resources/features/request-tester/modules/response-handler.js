@@ -41,12 +41,16 @@ function createResponseHandler({
      * Render a small "Refine in Copilot ↗" link that opens the Copilot Chat
      * panel with the given query pre-filled.
      */
-    function renderCopilotLink(query) {
+    function renderCopilotLink(query, attachFiles) {
         if (!query) return '';
         const safeQuery = encodeURIComponent(query);
+        const safeAttachFiles = attachFiles && attachFiles.length
+            ? encodeURIComponent(JSON.stringify(attachFiles))
+            : '';
         return `<div class="ai-copilot-refine">
-            <a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQuery}"
-               title="Open this result in GitHub Copilot Chat to ask follow-up questions">
+            <a class="ai-copilot-refine-link" href="#" data-copilot-query="${safeQuery}"` +
+               (safeAttachFiles ? ` data-copilot-attach-files="${safeAttachFiles}"` : '') +
+               ` title="Open this result in GitHub Copilot Chat to ask follow-up questions">
                ✦ Refine in Copilot Chat ↗
             </a>
         </div>`;
@@ -196,7 +200,10 @@ function createResponseHandler({
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
                     const query = decodeURIComponent(link.dataset.copilotQuery || '');
-                    if (query && vscode) vscode.postMessage({ command: 'openInCopilot', query });
+                    const attachFiles = (link.dataset.copilotAttachFiles
+                        ? JSON.parse(decodeURIComponent(link.dataset.copilotAttachFiles))
+                        : []);
+                    if (query && vscode) vscode.postMessage({ command: 'openInCopilot', query, extraFiles: attachFiles });
                 });
             });
         }
@@ -278,7 +285,7 @@ function createResponseHandler({
         tab.oncontextmenu = (e) => { e.preventDefault(); showAiTabContextMenu(e, () => { tab.dataset.loaded = ''; trigger(); }); };
     }
 
-    function showAiExplainPanel(text, error, copilotQuery) {
+    function showAiExplainPanel(text, error, copilotQuery, attachFiles) {
         const tab = document.querySelector('.ai-vtab[data-ai-tab="explain"]');
         if (tab) tab.dataset.loaded = 'true';
         const panel = getAiTabPanel('explain');
@@ -286,13 +293,13 @@ function createResponseHandler({
         if (error) {
             showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
         } else {
-            const copilotLink = copilotQuery ? renderCopilotLink(copilotQuery) : '';
+            const copilotLink = copilotQuery ? renderCopilotLink(copilotQuery, attachFiles) : '';
             showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>') + copilotLink);
         }
     }
 
     /** Show contract-test snippets in the AI tab panel with a selective apply button. */
-    function showAiContractTestsPanel(snippets, error, onApply, copilotQuery) {
+    function showAiContractTestsPanel(snippets, error, onApply, copilotQuery, attachFiles) {
         const tab = document.querySelector('.ai-vtab[data-ai-tab="contract"]');
         if (tab) tab.dataset.loaded = 'true';
         const panel = getAiTabPanel('contract');
@@ -325,7 +332,7 @@ function createResponseHandler({
         }]);
         if (copilotQuery) {
             const content = panel.querySelector('.ai-vtab-content');
-            if (content) content.insertAdjacentHTML('beforeend', renderCopilotLink(copilotQuery));
+            if (content) content.insertAdjacentHTML('beforeend', renderCopilotLink(copilotQuery, attachFiles));
         }
     }
 
@@ -413,7 +420,7 @@ function createResponseHandler({
     }
 
     /** Show response comparison text in the AI tab panel. */
-    function showAiComparePanel(text, error, copilotQuery) {
+    function showAiComparePanel(text, error, copilotQuery, attachFiles) {
         const tab = document.querySelector('.ai-vtab[data-ai-tab="compare"]');
         if (tab) tab.dataset.loaded = 'true';
         const panel = getAiTabPanel('compare');
@@ -421,7 +428,7 @@ function createResponseHandler({
         if (error) {
             showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">⚠ ${escapeHtml(error)}</span>`);
         } else {
-            showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>') + (copilotQuery ? renderCopilotLink(copilotQuery) : ''));
+            showAiPanel(panel, escapeHtml(text || '').replace(/\n/g, '<br>') + (copilotQuery ? renderCopilotLink(copilotQuery, attachFiles) : ''));
         }
     }
 

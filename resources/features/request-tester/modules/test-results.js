@@ -158,7 +158,7 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
          * @param {string|null} snippet
          * @param {string|null} error
          */
-        handleAiFixResult(testName, explanation, snippet, error, copilotQuery) {
+        handleAiFixResult(testName, explanation, snippet, error, copilotQuery, attachFiles) {
             if (!listElement) return;
             const item = listElement.querySelector(`.test-result.failed[data-test-name="${CSS.escape(testName)}"]`);
             if (!item) return;
@@ -166,8 +166,13 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
             if (btn) { btn.disabled = false; btn.textContent = '✨ Fix'; }
             const fixDiv = item.querySelector('.test-ai-fix');
             if (!fixDiv) return;
+            const safeAttachFiles = attachFiles && attachFiles.length
+                ? encodeURIComponent(JSON.stringify(attachFiles))
+                : '';
             const copilotLink = copilotQuery
-                ? `<div class="ai-copilot-refine"><a class="ai-copilot-refine-link" href="#" data-copilot-query="${encodeURIComponent(copilotQuery)}" title="Open in Copilot Chat for follow-up">✦ Refine in Copilot Chat ↗</a></div>`
+                ? `<div class="ai-copilot-refine"><a class="ai-copilot-refine-link" href="#" data-copilot-query="${encodeURIComponent(copilotQuery)}"` +
+                    (safeAttachFiles ? ` data-copilot-attach-files="${safeAttachFiles}"` : '') +
+                    ` title="Open in Copilot Chat for follow-up">✦ Refine in Copilot Chat ↗</a></div>`
                 : '';
             if (error) {
                 fixDiv.innerHTML = `<span class="ai-fix-error">${escapeHtmlFn(error)}</span>${copilotLink}`;
@@ -182,7 +187,10 @@ function createTestResultsManager(escapeHtmlFnOrOptions) {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
                     const query = decodeURIComponent(link.dataset.copilotQuery || '');
-                    if (query && typeof vscode !== 'undefined') vscode.postMessage({ command: 'openInCopilot', query });
+                    const extraFiles = link.dataset.copilotAttachFiles
+                        ? JSON.parse(decodeURIComponent(link.dataset.copilotAttachFiles))
+                        : [];
+                    if (query && typeof vscode !== 'undefined') vscode.postMessage({ command: 'openInCopilot', query, extraFiles });
                 });
             });
             fixDiv.classList.remove('hidden');
