@@ -1,20 +1,20 @@
 {
   "compilerOptions": {
+    "target": "ES2020",
     "module": "commonjs",
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
+    "lib": ["ES2020", "DOM"],
     "outDir": "out",
     "rootDir": "src",
-    "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
     "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
     "declaration": true,
-    "declarationMap": true,
-    "types": ["jest", "node"]
+    "types": ["node", "vscode"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "out", ".vscode-test", "src/**/__tests__", "src/**/*.spec.ts", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "out", "coverage", ".vscode-test", ".claude"]
 }

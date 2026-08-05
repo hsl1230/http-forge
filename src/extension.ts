@@ -5,6 +5,7 @@ import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { enhanceCollectionWithAi } from './infrastructure/ai-collection-enhancer';
 import { applyEnvSuggestions, scanCollectionForEnvVars } from './infrastructure/ai-env-suggester';
 import { parseCurlCommand } from './infrastructure/curl-parser';
+import { CopilotAiProvider } from './infrastructure/copilot-ai-provider';
 import { McpExecutor } from './infrastructure/mcp/mcp-executor';
 import { McpServerService } from './infrastructure/mcp/mcp-server';
 import { McpToolRegistry } from './infrastructure/mcp/mcp-tool-registry';
@@ -21,6 +22,7 @@ import { RequestTesterPanel } from './presentation/webview/panels/request-tester
 import { RequestTesterPanelManager } from './presentation/webview/panels/request-tester/request-tester-panel-manager';
 import { TestSuitePanel } from './presentation/webview/panels/test-suite';
 import { COMMAND_IDS, EXTENSION_ID } from './shared/constants';
+import { runImportRequestCommand } from './commands/importRequest';
 import { ensureRequestDefaults, RequestContext } from './shared/utils';
 
 // Service container for dependency injection
@@ -115,6 +117,11 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
   });
 
   // Register all commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand('http-forge.importRequest', async () => {
+      await runImportRequestCommand(context);
+    })
+  );
   registerCommands(context, workspaceFolder);
 
   // Register OAuth2 callback URI handler
@@ -191,7 +198,8 @@ function setupMcpServer(context: vscode.ExtensionContext, workspaceFolder: strin
         s.envConfigService as any,
         testSuiteService!,
         s.configService as any,
-        registry
+        registry,
+        new CopilotAiProvider()
       );
       mcpServer = new McpServerService(registry, executor, mcpPort, s.configService as any, workspaceFolder);
 

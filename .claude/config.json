@@ -1,0 +1,34 @@
+{
+  "projectType": "vscode-extension",
+  "root": ".",
+  "docsPath": "docs",
+  "corePath": "../http-forge.core",
+  "coreDocsPath": "../http-forge.core/docs",
+  "readme": "README.md",
+  "mainDoc": "DEVELOPMENT.md",
+  "license": "LICENSE",
+  "templates": "./.claude/templates",
+  "commandsPath": "./.claude/commands",
+  "hooksPath": "./.claude/hooks",
+  "notes": "This config helps Claude Code understand this repository as a VS Code extension and points to the main documentation under /docs and the core implementation in ../http-forge.core. Excludes .claude from TypeScript compilation via tsconfig.json.",
+  "suggestedNodeVersion": "20.x"
+}
+{
+  "name": "http-forge",
+  "version": "0.1.0",
+  "description": "Claude management configuration for http-forge extension",
+  "hooks": {
+    "pre-commit": ".claude/hooks/pre-commit.js",
+    "post-test": ".claude/hooks/post-test.js"
+  },
+  "commands": {
+    "compile": ".claude/commands/compile.js",
+    "test": ".claude/commands/test.js"
+  },
+  "templates": {
+    "command": ".claude/templates/command.ts",
+    "provider": ".claude/templates/provider.ts",
+    "extension": ".claude/templates/extension.ts",
+    "test": ".claude/templates/test.ts"
+  }
+}

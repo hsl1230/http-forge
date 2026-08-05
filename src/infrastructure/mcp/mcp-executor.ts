@@ -33,6 +33,7 @@ import {
     resolveToken,
     type Collection,
     type GenericToolName,
+    type IAiProvider,
     type IConfigService,
     type McpDispatchServices,
     type McpPromptDef,
@@ -124,7 +125,8 @@ export class McpExecutor {
         private readonly envConfigService: IEnvironmentConfigService,
         private readonly testSuiteService: ITestSuiteService,
         private readonly configService: IConfigService,
-        private readonly registry: McpToolRegistry
+        private readonly registry: McpToolRegistry,
+        private readonly aiProvider?: IAiProvider
     ) {}
 
     async call(toolName: string, args: Record<string, any>): Promise<string> {
@@ -169,6 +171,7 @@ export class McpExecutor {
             testSuite: this.testSuiteService,
             environmentConfig: this.envConfigService,
             workspaceFolder: this.configService.getWorkspacePath(),
+            ...(this.aiProvider ? { aiProvider: this.aiProvider } : {}),
         };
         const callbacks: McpRunCallbacks = {
             runRequest: (col, requestId, runArgs) =>

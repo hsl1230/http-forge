@@ -132,7 +132,62 @@ export class SuggestAssertionsHandler implements IMessageHandler {
       } catch { /* skip if configService unavailable */ }
     }
 
+    // Workspace business knowledge — .http-forge/knowledge/**/*.md (Confluence
+    // exports, Jira summaries, ADRs) plus README.md, all at the forge root.
+    for (const p of this.getKnowledgeFilePaths(historyStorage?.requestPath)) {
+      add(p);
+    }
+
     return attachFiles;
+  }
+
+  /**
+   * Find the forge root by walking up from the request directory, then return
+   * every markdown file under .http-forge/knowledge/ plus the workspace README.
+   */
+  private getKnowledgeFilePaths(requestPath?: string): string[] {
+    if (!requestPath || !fs.existsSync(requestPath)) return [];
+
+    const results: string[] = [];
+    const forgeRoot = this.findForgeRoot(requestPath);
+    if (!forgeRoot) return results;
+
+    const walk = (dir: string): void => {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.isFile() && (entry.name.endsWith('.md') || entry.name.endsWith('.markdown'))) {
+          results.push(full);
+        }
+      }
+    };
+    const knowledgeDir = path.join(forgeRoot, '.http-forge', 'knowledge');
+    walk(knowledgeDir);
+
+    for (const name of ['README.md', 'AGENTS.md']) {
+      const p = path.join(forgeRoot, name);
+      if (fs.existsSync(p)) results.push(p);
+    }
+
+    return results;
+  }
+
+  /** Walk up from a path until we find a directory containing .http-forge/. */
+  private findForgeRoot(start: string): string | undefined {
+    let current = start;
+    for (let i = 0; i < 12; i++) {
+      if (fs.existsSync(path.join(current, '.http-forge'))) return current;
+      const parent = path.dirname(current);
+      if (parent === current) return undefined;
+      current = parent;
+    }
+    return undefined;
   }
 
   /**

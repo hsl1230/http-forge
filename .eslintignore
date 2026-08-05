@@ -1,0 +1,7 @@
+.claude/
+node_modules/
+out/
+coverage/
+__mocks__/
+*.config.js
+*.config.cjs

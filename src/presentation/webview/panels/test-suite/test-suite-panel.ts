@@ -112,10 +112,9 @@ export class TestSuitePanel {
         this._messenger = new WebviewMessenger(panel);
         
         // Get services from container
-        const container = getServiceContainer();
-        
-        // Create TestSuiteStore (Single Source of Truth)
-        this._suiteStore = new TestSuiteStore(container.collection);
+            const container = getServiceContainer();
+            const collectionService = container.collection;
+            this._suiteStore = new TestSuiteStore(collectionService);
         
         // Create and configure message router
         this._router = new WebviewMessageRouter();
@@ -338,13 +337,18 @@ export class TestSuitePanel {
                         if (suite) {
                             if (suite.isTemporary) {
                                 const container = getServiceContainer();
+                                const collectionService = container.collection;
                                 const testSuiteService = new TestSuiteService(
-                                    this._configService.getSuitesPath()
+                                    collectionService,
+                                    this._configService
                                 );
                                 await testSuiteService.saveTempSuite(suite, suite.name);
                             } else {
+                                const container = getServiceContainer();
+                                const collectionService = container.collection;
                                 const testSuiteService = new TestSuiteService(
-                                    this._configService.getSuitesPath()
+                                    collectionService,
+                                    this._configService
                                 );
                                 await testSuiteService.updateSuite(suite);
                             }

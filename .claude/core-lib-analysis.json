@@ -1,0 +1,1098 @@
+{
+  "exports": [
+    {
+      "file": "src/container.ts",
+      "exports": [
+        "StorageFormat",
+        "ForgeContainerOptions",
+        "ForgeContainer"
+      ]
+    },
+    {
+      "file": "src/di/core-bootstrap.ts",
+      "exports": [
+        "registerCoreServices"
+      ]
+    },
+    {
+      "file": "src/di/platform-adapters.ts",
+      "exports": [
+        "PlatformAdapters"
+      ]
+    },
+    {
+      "file": "src/di/service-container.ts",
+      "exports": [
+        "ServiceContainer",
+        "getServiceContainer"
+      ]
+    },
+    {
+      "file": "src/di/service-identifiers.ts",
+      "exports": [
+        "ServiceIdentifiers",
+        "ServiceIdentifier"
+      ]
+    },
+    {
+      "file": "src/infrastructure/ai/ai-provider.ts",
+      "exports": [
+        "IAiProvider"
+      ]
+    },
+    {
+      "file": "src/infrastructure/analysis/collection-enhancer.ts",
+      "exports": [
+        "EnhanceProgressCallback"
+      ]
+    },
+    {
+      "file": "src/infrastructure/analysis/env-suggester.ts",
+      "exports": [
+        "EnvSuggestion",
+        "detectEnvSuggestions",
+        "applyEnvSuggestionsToItems"
+      ]
+    },
+    {
+      "file": "src/infrastructure/auth/interfaces.ts",
+      "exports": [
+        "TokenInfo",
+        "TokenCacheKey",
+        "IOAuth2TokenManager"
+      ]
+    },
+    {
+      "file": "src/infrastructure/auth/oauth2-token-manager.ts",
+      "exports": [
+        "OAuth2TokenManager"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/collection-loader-factory.ts",
+      "exports": [
+        "CollectionLoaderFactory"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/collection-loader.ts",
+      "exports": [
+        "LoadOptions",
+        "CollectionLoader"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/collection-service.ts",
+      "exports": [
+        "CollectionService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/collection-store.ts",
+      "exports": [
+        "ICollectionStore",
+        "CollectionMetadata",
+        "FolderMetadata",
+        "RequestMetadata"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/folder-collection-loader.ts",
+      "exports": [
+        "FolderCollectionLoader"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/folder-collection-store.ts",
+      "exports": [
+        "FolderCollectionStore"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/folder-io.ts",
+      "exports": [
+        "SCRIPT_FILES",
+        "METADATA_FILES",
+        "BODY_FILE_MAP",
+        "SCHEMA_FILES",
+        "SCRIPTS_DIR",
+        "ScriptsData",
+        "readScriptsFromDir",
+        "readBodyFromDir",
+        "prepareBodyForSave",
+        "readSchemaFile",
+        "findItemById",
+        "deleteItemFromTree",
+        "sortItemsByOrder",
+        "searchForItemPath",
+        "searchForItemPathById",
+        "generateSlug"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/json-collection-loader.ts",
+      "exports": [
+        "JsonCollectionLoader"
+      ]
+    },
+    {
+      "file": "src/infrastructure/collection/parser-registry.ts",
+      "exports": [
+        "ParserRegistry"
+      ]
+    },
+    {
+      "file": "src/infrastructure/config/config-service.ts",
+      "exports": [
+        "ConfigService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/config/config.interface.ts",
+      "exports": [
+        "StorageConfig",
+        "RequestConfig",
+        "ScriptsConfig",
+        "ReportConfig",
+        "RunnerConfig",
+        "EnvironmentsConfig",
+        "RestClientExportConfig",
+        "McpCorsConfig",
+        "McpToolMode",
+        "McpConfig",
+        "ProxyConfig",
+        "SecretProviderEntry",
+        "SecretsConfig",
+        "HttpForgeConfig",
+        "IConfigService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/config/default-config.ts",
+      "exports": [
+        "DEFAULT_CONFIG",
+        "CONFIG_FILES",
+        "ROOT_DIRECTORIES"
+      ]
+    },
+    {
+      "file": "src/infrastructure/cookie/cookie-jar.ts",
+      "exports": [
+        "CookieJar"
+      ]
+    },
+    {
+      "file": "src/infrastructure/cookie/cookie-service.ts",
+      "exports": [
+        "IAsyncCookieServiceFull",
+        "CookieService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/cookie/cookie-utils.ts",
+      "exports": [
+        "CookieUtils"
+      ]
+    },
+    {
+      "file": "src/infrastructure/cookie/in-memory-cookie-jar.ts",
+      "exports": [
+        "InMemoryCookieJar"
+      ]
+    },
+    {
+      "file": "src/infrastructure/cookie/interfaces.ts",
+      "exports": [
+        "Cookie",
+        "ParsedCookie",
+        "ICookieReader",
+        "ICookieParser",
+        "ICookieWriter",
+        "ICookieService",
+        "IAsyncCookieService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/cookie/persistent-cookie-jar.ts",
+      "exports": [
+        "PersistentCookieJar"
+      ]
+    },
+    {
+      "file": "src/infrastructure/environment/environment-config-service.ts",
+      "exports": [
+        "EnvironmentConfigService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/environment/environment-file-loader.ts",
+      "exports": [
+        "EnvironmentFolderData",
+        "EnvironmentEntry",
+        "isSystemEnvironmentFile",
+        "loadEnvironmentsFromFolder"
+      ]
+    },
+    {
+      "file": "src/infrastructure/environment/environment-resolver.ts",
+      "exports": [
+        "Environment",
+        "EnvironmentStoreConfig",
+        "EnvironmentResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/environment/forge-env.ts",
+      "exports": [
+        "IForgeEnv",
+        "ForgeEnv"
+      ]
+    },
+    {
+      "file": "src/infrastructure/environment/variable-interpolator.ts",
+      "exports": [
+        "VariableResolverConfig",
+        "VariableResolver",
+        "VariableInterpolator",
+        "createVariableResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/execution/collection-request-executor-interfaces.ts",
+      "exports": [
+        "ConsoleOutputSource",
+        "ConsoleOutputCallback",
+        "ICollectionRequestExecutor"
+      ]
+    },
+    {
+      "file": "src/infrastructure/execution/collection-request-executor.ts",
+      "exports": [
+        "CollectionRequestExecutor"
+      ]
+    },
+    {
+      "file": "src/infrastructure/execution/request-executor.ts",
+      "exports": [
+        "ExecuteOptions",
+        "ExecuteResult",
+        "RequestExecutor"
+      ]
+    },
+    {
+      "file": "src/infrastructure/execution/request-preparer-interfaces.ts",
+      "exports": [
+        "IRequestPreparer"
+      ]
+    },
+    {
+      "file": "src/infrastructure/execution/request-preparer.ts",
+      "exports": [
+        "RequestPreparer"
+      ]
+    },
+    {
+      "file": "src/infrastructure/graphql/graphql-completion-provider.ts",
+      "exports": [
+        "ContextType",
+        "QueryContext",
+        "CompletionItem",
+        "parseQueryContext",
+        "getCompletions"
+      ]
+    },
+    {
+      "file": "src/infrastructure/graphql/graphql-schema-service.ts",
+      "exports": [
+        "GraphQLField",
+        "GraphQLArg",
+        "GraphQLEnumValue",
+        "GraphQLType",
+        "GraphQLDirective",
+        "GraphQLSchema",
+        "GraphQLOperation",
+        "IGraphQLSchemaService",
+        "GraphQLSchemaService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/history/history-interfaces.ts",
+      "exports": [
+        "HistoryEntry",
+        "FullResponse",
+        "RequestHistory",
+        "IHistoryReader",
+        "IHistoryWriter",
+        "IRequestHistory"
+      ]
+    },
+    {
+      "file": "src/infrastructure/history/request-history-service-interfaces.ts",
+      "exports": [
+        "IHistoryReader",
+        "IHistoryWriter",
+        "IResponseStorage",
+        "IRequestHistoryService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/history/request-history-service.ts",
+      "exports": [
+        "RequestHistoryService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/history/request-history.ts",
+      "exports": [
+        "RequestHistoryStore"
+      ]
+    },
+    {
+      "file": "src/infrastructure/http/fetch-http-client.ts",
+      "exports": [
+        "FetchHttpClient"
+      ]
+    },
+    {
+      "file": "src/infrastructure/http/http-request-service.ts",
+      "exports": [
+        "HttpRequestService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/http/interceptor-chain.ts",
+      "exports": [
+        "InterceptorContext",
+        "IRequestInterceptor",
+        "IResponseInterceptor",
+        "IErrorInterceptor",
+        "IInterceptorChain",
+        "InterceptorChain",
+        "LoggingRequestInterceptor",
+        "TimingResponseInterceptor",
+        "RetryErrorInterceptor"
+      ]
+    },
+    {
+      "file": "src/infrastructure/http/interfaces.ts",
+      "exports": [
+        "IHttpRequestService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/http/merge-request-settings.ts",
+      "exports": [
+        "mergeRequestSettings"
+      ]
+    },
+    {
+      "file": "src/infrastructure/http/native-http-client.ts",
+      "exports": [
+        "DEFAULT_REQUEST_SETTINGS",
+        "RequestSettingsSource",
+        "ProxySource",
+        "NodeHttpClient"
+      ]
+    },
+    {
+      "file": "src/infrastructure/http/request-preprocessor.ts",
+      "exports": [
+        "IRequestPreprocessor",
+        "RequestPreprocessor"
+      ]
+    },
+    {
+      "file": "src/infrastructure/http/url-builder.ts",
+      "exports": [
+        "IUrlBuilder",
+        "UrlBuilder"
+      ]
+    },
+    {
+      "file": "src/infrastructure/import-export/import-postman-environment.ts",
+      "exports": [
+        "parsePostmanEnvironment"
+      ]
+    },
+    {
+      "file": "src/infrastructure/import-export/rest-client-export.ts",
+      "exports": [
+        "writeEnvFile",
+        "writeScriptFile",
+        "getRestClientExportFolder",
+        "writeFolderItems"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/example-generator.ts",
+      "exports": [
+        "ExampleGenerator"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/history-analyzer.ts",
+      "exports": [
+        "HistoryAnalyzer"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/interfaces.ts",
+      "exports": [
+        "ISchemaInferenceService",
+        "IOpenApiExporter",
+        "IOpenApiImporter",
+        "ISchemaInferrer"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/openapi-exporter.ts",
+      "exports": [
+        "OpenApiExportOptions",
+        "OpenApiExporter"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/openapi-importer.ts",
+      "exports": [
+        "OpenApiImportOptions",
+        "OpenApiImporter"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/ref-resolver.ts",
+      "exports": [
+        "RefResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/schema-inference-service.ts",
+      "exports": [
+        "SchemaInferenceService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/schema-inferrer.ts",
+      "exports": [
+        "SchemaInferrer"
+      ]
+    },
+    {
+      "file": "src/infrastructure/openapi/script-analyzer.ts",
+      "exports": [
+        "ScriptAnalysisResult",
+        "ScriptAnalyzer"
+      ]
+    },
+    {
+      "file": "src/infrastructure/parsers/collection-parser.adapter.ts",
+      "exports": [
+        "HttpForgeCollectionParserAdapter",
+        "CollectionParserRegistry"
+      ]
+    },
+    {
+      "file": "src/infrastructure/parsers/curl-parser.ts",
+      "exports": [
+        "ParsedCurlRequest",
+        "parseCurlCommand"
+      ]
+    },
+    {
+      "file": "src/infrastructure/parsers/http-forge-parser.ts",
+      "exports": [
+        "HttpForgeParser"
+      ]
+    },
+    {
+      "file": "src/infrastructure/platform/data-file-parser.ts",
+      "exports": [
+        "IDataFileParser",
+        "DataFileParser"
+      ]
+    },
+    {
+      "file": "src/infrastructure/platform/node-file-system.ts",
+      "exports": [
+        "NodeFileSystem"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/async-drain.ts",
+      "exports": [
+        "SandboxTimers",
+        "DrainResult",
+        "TimerRegistry",
+        "createTimerRegistry"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/expect-chain.ts",
+      "exports": [
+        "ExpectChain",
+        "createExpectChain"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/interfaces.ts",
+      "exports": [
+        "ICookieJar",
+        "RequestContext",
+        "ResponseContext",
+        "CommonScriptContext",
+        "PreRequestScriptContext",
+        "PreRequestScriptResult",
+        "PostResponseScriptResult",
+        "TestScriptContext",
+        "IScriptExecutor",
+        "IRequestScriptSession"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/json-schema-validator.ts",
+      "exports": [
+        "validateJsonSchema"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/module-loader.ts",
+      "exports": [
+        "ModuleLoaderOptions",
+        "createMomentShim",
+        "createLodashShim",
+        "ModuleLoader",
+        "createModuleLoader"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/request-script-session.ts",
+      "exports": [
+        "SessionDependencies",
+        "RequestScriptSession"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/script-executor.ts",
+      "exports": [
+        "ScriptExecutor"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/script-factories.ts",
+      "exports": [
+        "ScriptResponse",
+        "ResponseAssertions",
+        "PostmanCookie",
+        "CookieList",
+        "createCookieList",
+        "createResponseObject"
+      ]
+    },
+    {
+      "file": "src/infrastructure/script/script-utils.ts",
+      "exports": [
+        "ConsoleMessage",
+        "concatenateScripts",
+        "hasChanged",
+        "formatConsoleOutput",
+        "createScriptConsole",
+        "createTestFunction",
+        "normalizeHeaders",
+        "parseResponseCookieDetails"
+      ]
+    },
+    {
+      "file": "src/infrastructure/secrets/aws-secret-resolver.ts",
+      "exports": [
+        "AwsSecretResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/secrets/azure-keyvault-resolver.ts",
+      "exports": [
+        "AzureKeyVaultResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/secrets/doppler-resolver.ts",
+      "exports": [
+        "DopplerResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/secrets/gcp-secret-resolver.ts",
+      "exports": [
+        "GcpSecretResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/secrets/hashicorp-vault-resolver.ts",
+      "exports": [
+        "HashiCorpVaultResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/secrets/onepassword-resolver.ts",
+      "exports": [
+        "OnePasswordResolver"
+      ]
+    },
+    {
+      "file": "src/infrastructure/secrets/secret-resolver-registry.ts",
+      "exports": [
+        "SecretResolverRegistry"
+      ]
+    },
+    {
+      "file": "src/infrastructure/security/sensitive-data-redactor.ts",
+      "exports": [
+        "redactHeaders",
+        "redactCookies",
+        "redactUrl",
+        "redactBody",
+        "redactHistoryEntry",
+        "redactFullResponse",
+        "redactFullResultDetails",
+        "SensitiveDataWarning",
+        "detectSensitiveData",
+        "SensitiveExtraction",
+        "buildExtractionPlan",
+        "applyExtractionPlan"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/html-report-generator.ts",
+      "exports": [
+        "HtmlReportOptions",
+        "HtmlReportGenerator"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/interfaces.ts",
+      "exports": [
+        "SuiteRequest",
+        "SuiteFlowNodeBase",
+        "SuiteRequestNode",
+        "SuiteBlockNode",
+        "SuiteElseIfBranch",
+        "SuiteIfNode",
+        "SuiteSwitchCase",
+        "SuiteSwitchNode",
+        "SuiteForNode",
+        "SuiteWhileNode",
+        "SuiteScriptNode",
+        "SuiteFlowNode",
+        "SuiteConfig",
+        "LegacySuiteFileData",
+        "TestSuite",
+        "RequestStatistics",
+        "RunSummary",
+        "ErrorSummary",
+        "RunStatistics",
+        "ITestSuiteService",
+        "IStatisticsService",
+        "DEFAULT_SUITE_CONFIG"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/junit-report-generator.ts",
+      "exports": [
+        "JUnitReportGenerator"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/markdown-summary-generator.ts",
+      "exports": [
+        "MarkdownSummaryGenerator"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/result-storage-service.ts",
+      "exports": [
+        "ResultStorageService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/result-storage.ts",
+      "exports": [
+        "HTTP_METHOD_MAP",
+        "HTTP_METHOD_REVERSE",
+        "ResultSummary",
+        "buildResultFileName",
+        "expandSummary",
+        "RequestStats",
+        "RunStats",
+        "RunConfig",
+        "RunManifest",
+        "FullResultDetails",
+        "IndexPage",
+        "RecentError",
+        "IResultStorageService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/statistics-service.ts",
+      "exports": [
+        "StatisticsService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/test-suite-service.ts",
+      "exports": [
+        "SuitesChangedCallback",
+        "TestSuiteService"
+      ]
+    },
+    {
+      "file": "src/infrastructure/test-suite/test-suite-store.ts",
+      "exports": [
+        "SuiteRequestEntry",
+        "ITestSuiteStore",
+        "TestSuiteStore"
+      ]
+    },
+    {
+      "file": "src/ports/executors/http-executor.interface.ts",
+      "exports": [
+        "IExecutionPlan",
+        "IHttpExecutor"
+      ]
+    },
+    {
+      "file": "src/ports/executors/script-executor.interface.ts",
+      "exports": [
+        "IScriptSession",
+        "IScriptResult",
+        "IScriptExecutor"
+      ]
+    },
+    {
+      "file": "src/ports/external/logger.interface.ts",
+      "exports": [
+        "LogLevel",
+        "ILogger"
+      ]
+    },
+    {
+      "file": "src/ports/parsers/collection-parser.interface.ts",
+      "exports": [
+        "ICollectionParser"
+      ]
+    },
+    {
+      "file": "src/runtime/mcp-collection-utils.ts",
+      "exports": [
+        "FlatRequest",
+        "encodeFolderName",
+        "decodeFolderName",
+        "decodeFolderPath",
+        "normalizeFolderInput",
+        "flattenRequests",
+        "enumerateFolders",
+        "countRequests"
+      ]
+    },
+    {
+      "file": "src/runtime/mcp-dispatcher.ts",
+      "exports": [
+        "McpDispatchServices",
+        "McpRunCallbacks",
+        "applyMcpBodyTruncation",
+        "CACHE_BUSTING_TOOLS"
+      ]
+    },
+    {
+      "file": "src/runtime/mcp-prompts.ts",
+      "exports": [
+        "McpPromptArg",
+        "McpPromptDef",
+        "MCP_PROMPTS",
+        "PromptResult"
+      ]
+    },
+    {
+      "file": "src/runtime/mcp-run-store.ts",
+      "exports": [
+        "McpRunRecord",
+        "McpRunStore"
+      ]
+    },
+    {
+      "file": "src/runtime/mcp-tool-builder.ts",
+      "exports": [
+        "McpTool",
+        "dedupeToolsByName",
+        "encodeCursor",
+        "decodeCursor",
+        "buildMcpToolList"
+      ]
+    },
+    {
+      "file": "src/runtime/mcp-tool-name.ts",
+      "exports": [
+        "mcpToolToken",
+        "mcpToolSegment",
+        "McpToolKind",
+        "buildRequestToolName",
+        "buildCollectionToolName",
+        "buildFolderToolName",
+        "buildSuiteToolName",
+        "ParsedMcpToolName",
+        "parseMcpToolName",
+        "resolveToken",
+        "resolveFolderToken",
+        "buildRequestToolDescription",
+        "buildCollectionToolDescription",
+        "buildFolderToolDescription",
+        "buildSuiteToolDescription"
+      ]
+    },
+    {
+      "file": "src/runtime/mcp-tool-schemas.ts",
+      "exports": [
+        "REQUEST_INPUT_SCHEMA",
+        "COLLECTION_INPUT_SCHEMA",
+        "FOLDER_INPUT_SCHEMA",
+        "SUITE_INPUT_SCHEMA",
+        "GENERIC_TOOL_NAMES",
+        "GenericToolName",
+        "buildGenericTools"
+      ]
+    },
+    {
+      "file": "src/runtime/node-adapters.ts",
+      "exports": [
+        "NodeFileWatcherFactory",
+        "NodeKeyValueStore",
+        "NodeNotificationService"
+      ]
+    },
+    {
+      "file": "src/runtime/node-bootstrap.ts",
+      "exports": [
+        "NodeBootstrapOptions",
+        "bootstrapNodeRuntime",
+        "createNodeContainer",
+        "createNodeContainerWithOptions"
+      ]
+    },
+    {
+      "file": "src/runtime/ref-resolver.ts",
+      "exports": [
+        "RefTier",
+        "RefKind",
+        "RefCandidate",
+        "ResolutionInfo",
+        "AmbiguousRefError",
+        "resolveCollectionRef",
+        "resolveFolderRef",
+        "resolveRequestRef"
+      ]
+    },
+    {
+      "file": "src/runtime/result-grouping.ts",
+      "exports": [
+        "ResultGroupType",
+        "ResultGroupingInput",
+        "ResultGrouping",
+        "resolveResultGrouping"
+      ]
+    },
+    {
+      "file": "src/runtime/runtime-contracts.ts",
+      "exports": [
+        "McpRuntimeOptions",
+        "McpRuntimeHandle",
+        "RunRequestOptions",
+        "RunCollectionOptions",
+        "RunSuiteOptions"
+      ]
+    },
+    {
+      "file": "src/types/collection.ts",
+      "exports": [
+        "CollectionRequestItem",
+        "CollectionFolderItem",
+        "CollectionItem",
+        "Collection",
+        "CreateRequestOptions",
+        "CreateFolderOptions",
+        "ICollectionReader",
+        "ICollectionWriter",
+        "IRequestManager",
+        "IFolderManager",
+        "ICollectionVariableManager",
+        "IOrderingManager",
+        "IScriptManager",
+        "ICollectionImportExport",
+        "ICollectionService",
+        "ICollectionLoader",
+        "ICollectionParser"
+      ]
+    },
+    {
+      "file": "src/types/console-service.ts",
+      "exports": [
+        "LogLevel",
+        "LogEntry",
+        "IConsoleService"
+      ]
+    },
+    {
+      "file": "src/types/environment-config.ts",
+      "exports": [
+        "EnvironmentConfig",
+        "SharedConfig",
+        "LocalConfig",
+        "ResolvedEnvironment",
+        "ImportedEnvironment",
+        "IEnvironmentImporter",
+        "IEnvironmentConfigReader",
+        "IEnvironmentConfigWriter",
+        "IEnvironmentSelector",
+        "IVariableResolver",
+        "IVariableManager",
+        "IEnvironmentConfigService",
+        "IEnvironmentStore",
+        "IVariableInterpolator"
+      ]
+    },
+    {
+      "file": "src/types/platform.ts",
+      "exports": [
+        "IDisposable",
+        "FileWatcherCallback",
+        "IFileWatcher",
+        "IFileWatcherFactory",
+        "IKeyValueStore",
+        "ISecretStore",
+        "INotificationService",
+        "IOutputChannel",
+        "IOutputChannelFactory",
+        "IExternalBrowserService",
+        "IApplicationInfo",
+        "IPlatformContext",
+        "IFileSystem",
+        "IHttpClient",
+        "ILogger"
+      ]
+    },
+    {
+      "file": "src/types/secret-resolver.ts",
+      "exports": [
+        "ISecretResolver",
+        "AwsSecretsConfig",
+        "AzureKeyVaultConfig",
+        "HashiCorpVaultConfig",
+        "OnePasswordConfig",
+        "GcpSecretsConfig",
+        "DopplerConfig",
+        "SecretProviderConfig",
+        "SecretsConfig"
+      ]
+    },
+    {
+      "file": "src/types/types.ts",
+      "exports": [
+        "UnifiedCollection",
+        "UnifiedFolder",
+        "OperationExample",
+        "OperationResponse",
+        "UnifiedRequest",
+        "CollectionScripts",
+        "CollectionAuth",
+        "BodyType",
+        "RawFormat",
+        "RequestBody",
+        "FormDataEntry",
+        "UrlEncodedEntry",
+        "GraphQLContent",
+        "RequestSettings",
+        "TlsSettings",
+        "TlsCertificateMapping",
+        "HttpRequest",
+        "HttpRequestOptions",
+        "HttpResponse",
+        "ExecutionRequest",
+        "ExecutionVariables",
+        "Environment",
+        "ScriptContext",
+        "ScriptInfo",
+        "ScriptResult",
+        "TestAssertion",
+        "RequestOverrides",
+        "ScriptLevel",
+        "ResolvedRequest",
+        "ForgeResponse",
+        "ForgeConfig",
+        "JSONSchema7",
+        "JsonValue",
+        "KeyValueEntry",
+        "PathParamEntry",
+        "EncodingDefinition",
+        "ContentDefinition",
+        "ResponseDefinition",
+        "ResponseSchemaDefinition",
+        "BodySchemaDefinition",
+        "BasicAuthConfig",
+        "ApiKeyConfig",
+        "OAuth2Config",
+        "RequestAuth",
+        "RequestScripts",
+        "CollectionRequest",
+        "RequestBodyEncoded",
+        "ResolvedBody",
+        "PreparedRequest",
+        "ExecutionResult"
+      ]
+    },
+    {
+      "file": "src/utils/dynamic-variables.ts",
+      "exports": [
+        "DYNAMIC_VARIABLES",
+        "isDynamicVariable",
+        "resolveDynamicVariable",
+        "resolveDynamicVariablesInString",
+        "augmentWithDynamicVars"
+      ]
+    },
+    {
+      "file": "src/utils/expression-evaluator.ts",
+      "exports": [
+        "isExpression",
+        "evaluateExpression"
+      ]
+    },
+    {
+      "file": "src/utils/filter-engine.ts",
+      "exports": [
+        "ParsedFilterChain",
+        "parseFilterChain",
+        "applyFilterChain"
+      ]
+    },
+    {
+      "file": "src/utils/helpers.ts",
+      "exports": [
+        "sanitizeName",
+        "generateId",
+        "generateUUID",
+        "mergeHeadersCaseInsensitive",
+        "deepClone",
+        "isPlainObject",
+        "safeJsonParse",
+        "formatBytes",
+        "formatDuration"
+      ]
+    },
+    {
+      "file": "src/utils/typed-value.ts",
+      "exports": [
+        "serializeTypedValue",
+        "deserializeTypedValue",
+        "deserializeTypedRecord"
+      ]
+    }
+  ],
+  "version": "0.6.35",
+  "path": "../http-forge.core"
+}
