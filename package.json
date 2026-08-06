@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge — The API Platform Built for AI Agents",
   "description": "Turn GitHub Copilot, Claude Code, and Cursor into expert API engineers. 60+ MCP tools. No extra API keys. No cloud account. Full Postman compatibility, OpenAPI 3.0, headless CLI, and TypeScript codegen — all local.",
-  "version": "0.16.35",
+  "version": "0.16.36",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -419,6 +419,12 @@
         "icon": "$(sparkle)"
       },
       {
+        "command": "httpForge.discoverApis",
+        "title": "HTTP Forge: Discover APIs",
+        "category": "HTTP Forge",
+        "icon": "$(search)"
+      },
+      {
         "command": "http-forge.importRequest",
         "title": "Import Request",
         "category": "HTTP Forge"
@@ -732,15 +738,16 @@
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^4.2.1",
-    "typescript": "^5.x",
-    "vitest": "^4.1.9",
     "jest": "^29.0.0",
+    "prettier": "^2.8.0",
     "ts-jest": "^29.0.0",
-    "prettier": "^2.8.0"
+    "typescript": "^5.x",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.6.36",
+    "@http-forge/core": "^0.6.36.beta.1",
     "cheerio": "^1.1.2",
+    "java-parser": "^3.0.1",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",
     "yaml": "^2.4.0"

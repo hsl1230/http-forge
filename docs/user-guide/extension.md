@@ -231,7 +231,9 @@ After sending a request, an AI toolbar appears above the response body:
 
 #### 💬 AI Assistant chat
 
-Click **💬 Chat** in the response toolbar to open a persistent, multi-turn chat panel scoped to the current request and response. Every message is sent to GitHub Copilot with an automatic context preamble containing:
+Click **💬 Chat** in the response toolbar to open a persistent, multi-turn chat panel scoped to the current request and response. The generated prompt is shown in an editor first so you can review or modify it before sending it to GitHub Copilot. Any relevant request or response context is attached directly to the Copilot session instead of relying on fragile `#file:` references.
+
+Every message is sent to GitHub Copilot with an automatic context preamble containing:
 
 - The request endpoint (`METHOD URL`)
 - Last response status code

@@ -218,11 +218,12 @@ The **Statistics** response-time table shows full `Collection > Folder > Request
 |---|---|
 | **Export HTML** | Opens the pre-generated HTML report in your browser. If the file is missing it is regenerated automatically from stored run data. |
 | **Export JUnit XML** | Generates a JUnit-compatible XML file (`<testsuites>`, `<properties>`, `<failure>`, `<skipped>`, `<system-out>`) compatible with GitHub Actions, GitLab CI, Jenkins, and other CI tools. |
-| **Fix Errors** | Opens GitHub Copilot Chat with a structured failure-analysis prompt for the current run. If `run-summary.md` exists for the run, HTTP Forge references that file directly; otherwise it falls back to an inline summary of failed requests. |
+| **Fix Errors** | Opens GitHub Copilot Chat with a structured failure-analysis prompt for the current run. The prompt is shown for review before the chat opens. If `run-summary.md` exists for the run, HTTP Forge attaches that file directly; otherwise it falls back to an inline summary of failed requests. |
 
 ### AI-assisted failure analysis
 
 - **Fix Errors** is available when the current run contains failed requests.
+- The generated prompt can be edited before opening Copilot Chat, and `run-summary.md` is attached directly when available.
 - HTTP Forge checks whether GitHub Copilot Chat is installed before opening the analysis flow.
 - The generated prompt asks Copilot to analyse failures from a business perspective, use MCP-backed Confluence/Jira context if available, and avoid suggesting weaker assertions.
 

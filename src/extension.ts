@@ -1,5 +1,5 @@
 import type { Collection, CollectionFolderItem, CollectionItem, CollectionRequestItem, CollectionService, ConfigService, CookieService, EnvironmentConfigService, HttpRequestService, OpenApiExportOptions, RequestHistoryService } from '@http-forge/core';
-import { encodeFolderName, exportCollectionToRestClient, generateId, OpenApiExporter, OpenApiImporter, SchemaInferenceService, TestSuite, TestSuiteService } from '@http-forge/core';
+import { encodeFolderName, exportCollectionToRestClient, generateId, OpenApiExporter, OpenApiImporter, SchemaInferenceService, TestSuite, TestSuiteService, ApiDiscoveryService, ExpressDiscoveryProvider, NestDiscoveryProvider, FastifyDiscoveryProvider, LambdaDiscoveryProvider, SpringDiscoveryProvider, FastApiDiscoveryProvider } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { enhanceCollectionWithAi } from './infrastructure/ai-collection-enhancer';
@@ -445,6 +445,12 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.generateCollectionFromCurl, async () => {
       await runGenerateCollectionFromCurl(context.extensionUri, collectionService, envConfigService);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.discoverApis, async () => {
+      await runDiscoverApis(workspaceFolder);
     })
   );
 
@@ -1970,6 +1976,76 @@ async function runGenerateCollectionFromCurl(
 
   // Open collection editor
   CollectionEditorPanel.show(extensionUri, collection.id);
+}
+
+/**
+ * `httpForge.discoverApis` — scan the workspace folder for backend endpoints
+ * (methods / paths / params / bodies / auth) using the core ApiDiscoveryService
+ * and surface them in an output channel. Core-only: no UI panel (Phase 1 scope).
+ */
+async function runDiscoverApis(workspaceFolder: string): Promise<void> {
+  const output = vscode.window.createOutputChannel('HTTP Forge · Discovered APIs');
+  output.show(true);
+
+  output.appendLine(`Scanning ${workspaceFolder} for API endpoints...`);
+  output.appendLine('');
+
+  const service = new ApiDiscoveryService({
+    providers: [
+      new ExpressDiscoveryProvider(),
+      new NestDiscoveryProvider(),
+      new FastifyDiscoveryProvider(),
+      new LambdaDiscoveryProvider(),
+      new SpringDiscoveryProvider(),
+      new FastApiDiscoveryProvider(),
+    ],
+  });
+
+  let result;
+  try {
+    result = await service.discover({ workspaceFolder });
+  } catch (error) {
+    output.appendLine(`Discovery failed: ${(error as Error).message}`);
+    return;
+  }
+
+  output.appendLine(
+    `Frameworks detected: ${result.stats.frameworksDetected.join(', ') || '(none)'}`
+  );
+  output.appendLine(`Endpoints found: ${result.stats.endpointCount}`);
+  output.appendLine(`Scan duration: ${result.stats.scanDurationMs} ms`);
+  output.appendLine('');
+
+  if (result.warnings.length > 0) {
+    output.appendLine('Warnings:');
+    for (const warning of result.warnings) {
+      output.appendLine(`  [${warning.code}] ${warning.message}`);
+    }
+    output.appendLine('');
+  }
+
+  if (result.endpoints.length === 0) {
+    output.appendLine('No endpoints discovered. Is this a backend project?');
+    return;
+  }
+
+  const rows = result.endpoints.map((ep) => {
+    const source = ep.source.filePath
+      ? `${ep.source.filePath}:${ep.source.line}`
+      : '(unknown)';
+    const paramSummary = (ep.params ?? [])
+      .map((p) => `:${p.name}`)
+      .join(' ');
+    return `  ${ep.method.padEnd(7)} ${ep.pathExpression.padEnd(40)} ` +
+      `${ep.confidence.padEnd(6)} ${ep.framework.padEnd(8)} ${source}${paramSummary ? `  ${paramSummary}` : ''}`;
+  });
+
+  output.appendLine(rows.join('\n'));
+  output.appendLine('');
+
+  vscode.window.showInformationMessage(
+    `HTTP Forge: discovered ${result.endpoints.length} endpoint(s) in ${result.stats.frameworksDetected.join(', ')}`
+  );
 }
 
 /**

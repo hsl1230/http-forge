@@ -133,6 +133,8 @@ export const COMMAND_IDS = {
     // AI commands
     suggestEnvVariables: 'httpForge.suggestEnvVariables',
     generateCollectionFromCurl: 'httpForge.generateCollectionFromCurl',
+    // API discovery
+    discoverApis: 'httpForge.discoverApis',
 };
 
 /**
