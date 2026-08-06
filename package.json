@@ -70,7 +70,8 @@
     "onView:httpForge.collections",
     "onView:httpForge.testSuites",
     "onView:httpForge.environments",
-    "onView:httpForge.requestHistory"
+    "onView:httpForge.requestHistory",
+    "onView:httpForge.discoveredApis"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -161,6 +162,11 @@
           "id": "httpForge.requestHistory",
           "name": "Request History (Git)",
           "icon": "$(git-commit)"
+        },
+        {
+          "id": "httpForge.discoveredApis",
+          "name": "Discovered APIs",
+          "icon": "$(globe)"
         }
       ]
     },

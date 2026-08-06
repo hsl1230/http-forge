@@ -12,6 +12,7 @@ import { McpToolRegistry } from './infrastructure/mcp/mcp-tool-registry';
 import { BootstrapResult, bootstrapServices } from './infrastructure/services/service-bootstrap';
 import { getServiceContainer, ServiceIdentifiers } from './infrastructure/services/service-container';
 import { CollectionsTreeProvider, CollectionTreeItem } from './presentation/components/tree-providers/collections-tree-provider';
+import { DiscoveredApisTreeProvider } from './presentation/components/tree-providers/discovered-apis-tree-provider';
 import { EnvironmentsTreeProvider, EnvironmentTreeItem } from './presentation/components/tree-providers/environments-tree-provider';
 import { GitCommitTreeItem, RequestGitHistoryProvider } from './presentation/components/tree-providers/request-git-history-provider';
 import { TestSuitesTreeProvider, TestSuiteTreeItem } from './presentation/components/tree-providers/test-suites-tree-provider';
@@ -35,6 +36,7 @@ let testSuiteService: TestSuiteService | undefined;
 let collectionsTreeProvider: CollectionsTreeProvider;
 let environmentsTreeProvider: EnvironmentsTreeProvider;
 let testSuitesTreeProvider: TestSuitesTreeProvider;
+let discoveredApisTreeProvider: DiscoveredApisTreeProvider;
 let requestGitHistoryProvider: RequestGitHistoryProvider;
 
 // Tree views
@@ -79,6 +81,7 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
   collectionsTreeProvider = new CollectionsTreeProvider(collectionService as CollectionService);
   environmentsTreeProvider = new EnvironmentsTreeProvider(envConfigService as EnvironmentConfigService);
   testSuitesTreeProvider = new TestSuitesTreeProvider(testSuiteService);
+  discoveredApisTreeProvider = new DiscoveredApisTreeProvider(workspaceFolder);
 
   // Auto-refresh tree and open panels when collection files change on disk
   (collectionService as CollectionService).onCollectionsChanged = () => {
@@ -108,6 +111,11 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
 
   const environmentsView = vscode.window.createTreeView('httpForge.environments', {
     treeDataProvider: environmentsTreeProvider
+  });
+
+  // Discovered APIs view (Phase 1 UI)
+  const discoveredApisView = vscode.window.createTreeView('httpForge.discoveredApis', {
+    treeDataProvider: discoveredApisTreeProvider
   });
 
   // Git history view
@@ -450,7 +458,7 @@ function registerCommands(context: vscode.ExtensionContext, workspaceFolder: str
 
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.discoverApis, async () => {
-      await runDiscoverApis(workspaceFolder);
+      await discoveredApisTreeProvider.scan();
     })
   );
 
@@ -1976,76 +1984,6 @@ async function runGenerateCollectionFromCurl(
 
   // Open collection editor
   CollectionEditorPanel.show(extensionUri, collection.id);
-}
-
-/**
- * `httpForge.discoverApis` — scan the workspace folder for backend endpoints
- * (methods / paths / params / bodies / auth) using the core ApiDiscoveryService
- * and surface them in an output channel. Core-only: no UI panel (Phase 1 scope).
- */
-async function runDiscoverApis(workspaceFolder: string): Promise<void> {
-  const output = vscode.window.createOutputChannel('HTTP Forge · Discovered APIs');
-  output.show(true);
-
-  output.appendLine(`Scanning ${workspaceFolder} for API endpoints...`);
-  output.appendLine('');
-
-  const service = new ApiDiscoveryService({
-    providers: [
-      new ExpressDiscoveryProvider(),
-      new NestDiscoveryProvider(),
-      new FastifyDiscoveryProvider(),
-      new LambdaDiscoveryProvider(),
-      new SpringDiscoveryProvider(),
-      new FastApiDiscoveryProvider(),
-    ],
-  });
-
-  let result;
-  try {
-    result = await service.discover({ workspaceFolder });
-  } catch (error) {
-    output.appendLine(`Discovery failed: ${(error as Error).message}`);
-    return;
-  }
-
-  output.appendLine(
-    `Frameworks detected: ${result.stats.frameworksDetected.join(', ') || '(none)'}`
-  );
-  output.appendLine(`Endpoints found: ${result.stats.endpointCount}`);
-  output.appendLine(`Scan duration: ${result.stats.scanDurationMs} ms`);
-  output.appendLine('');
-
-  if (result.warnings.length > 0) {
-    output.appendLine('Warnings:');
-    for (const warning of result.warnings) {
-      output.appendLine(`  [${warning.code}] ${warning.message}`);
-    }
-    output.appendLine('');
-  }
-
-  if (result.endpoints.length === 0) {
-    output.appendLine('No endpoints discovered. Is this a backend project?');
-    return;
-  }
-
-  const rows = result.endpoints.map((ep) => {
-    const source = ep.source.filePath
-      ? `${ep.source.filePath}:${ep.source.line}`
-      : '(unknown)';
-    const paramSummary = (ep.params ?? [])
-      .map((p) => `:${p.name}`)
-      .join(' ');
-    return `  ${ep.method.padEnd(7)} ${ep.pathExpression.padEnd(40)} ` +
-      `${ep.confidence.padEnd(6)} ${ep.framework.padEnd(8)} ${source}${paramSummary ? `  ${paramSummary}` : ''}`;
-  });
-
-  output.appendLine(rows.join('\n'));
-  output.appendLine('');
-
-  vscode.window.showInformationMessage(
-    `HTTP Forge: discovered ${result.endpoints.length} endpoint(s) in ${result.stats.frameworksDetected.join(', ')}`
-  );
 }
 
 /**
