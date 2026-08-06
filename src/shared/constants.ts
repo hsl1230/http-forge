@@ -119,6 +119,7 @@ export const COMMAND_IDS = {
     // OpenAPI commands
     exportOpenApi: 'httpForge.exportOpenApi',
     importOpenApi: 'httpForge.importOpenApi',
+    importHar: 'httpForge.importHar',
     inferResponseSchema: 'httpForge.inferResponseSchema',
     inferAllResponseSchemas: 'httpForge.inferAllResponseSchemas',
     // MCP Server commands

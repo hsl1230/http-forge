@@ -375,6 +375,11 @@
         "icon": "$(cloud-download)"
       },
       {
+        "command": "httpForge.importHar",
+        "title": "Import HAR Archive",
+        "icon": "$(cloud-download)"
+      },
+      {
         "command": "httpForge.inferResponseSchema",
         "title": "Infer Response Schema",
         "icon": "$(lightbulb)"
@@ -454,6 +459,9 @@
           "command": "httpForge.importOpenApi"
         },
         {
+          "command": "httpForge.importHar"
+        },
+        {
           "command": "httpForge.inferResponseSchema"
         },
         {
@@ -502,6 +510,11 @@
           "command": "httpForge.importOpenApi",
           "when": "view == httpForge.collections",
           "group": "navigation@4"
+        },
+        {
+          "command": "httpForge.importHar",
+          "when": "view == httpForge.collections",
+          "group": "navigation@5"
         },
         {
           "command": "httpForge.refreshEnvironments",

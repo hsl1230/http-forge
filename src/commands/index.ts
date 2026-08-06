@@ -12,6 +12,7 @@ import { registerConsoleCommands } from './consoleCommands';
 import { registerDiscoveryCommands } from './discoveryCommands';
 import { registerEnvironmentCommands } from './environmentCommands';
 import { registerGitHistoryCommands } from './gitHistoryCommands';
+import { registerHarCommands } from './harCommands';
 import { registerOpenApiCommands } from './openApiCommands';
 import { registerRequestCommands } from './requestCommands';
 import { registerTestSuiteCommands } from './testSuiteCommands';
@@ -27,6 +28,7 @@ export function registerAllCommands(ctx: CommandContext): void {
   registerTestSuiteCommands(ctx);
   registerConsoleCommands(ctx);
   registerOpenApiCommands(ctx);
+  registerHarCommands(ctx);
   registerGitHistoryCommands(ctx);
   registerAiCommands(ctx);
   registerDiscoveryCommands(ctx);
