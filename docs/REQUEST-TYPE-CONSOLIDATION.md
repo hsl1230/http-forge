@@ -1,5 +1,17 @@
 # Request Type Consolidation Solution
 
+> **Status / Current State**
+>
+> This document is **historical planning material** from an internal
+> refactoring (consolidating 10+ overlapping request types into 4 canonical
+> types with clear layer boundaries). That consolidation was completed; request
+> types now live in `@http-forge/core` (e.g. `CollectionRequestItem` in
+> `src/types/types.ts`) with the extension acting as a thin adapter. It is not
+> a description of the current feature set — the current platform (extension
+> **0.16.36**) also includes API **discovery**, the **API Architect**
+> (`httpForge.architect`), the **MCP server**, and `.http-forge/knowledge/`
+> context. See [`README.md`](../README.md).
+
 ## Executive Summary
 
 This document describes the solution for consolidating the fragmented request types in HTTP Forge. The goal is to reduce **10+ overlapping request types** to **4 canonical types** with clear layer boundaries, improving code clarity and maintainability.

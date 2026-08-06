@@ -1,5 +1,15 @@
 # Refactoring Skill Card
 
+> **Status / Current State**
+>
+> This document is **historical planning material** from the DDD/SOLID
+> migration of the extension codebase. The migration is complete and the skills
+> it describes (handler/command/DTO/tree-provider structure) are now the
+> enforced baseline (see the repository's `AGENTS.md`). It is not a description
+> of the current feature set — for the current platform (extension **0.16.36**:
+> API discovery, API Architect, MCP server, `.http-forge/knowledge/` context)
+> see [`README.md`](../README.md).
+
 Quick reference guide for refactoring code to DDD architecture.
 Use this alongside `.vscode/.copilot-instructions` and `docs/CUSTOM-INSTRUCTIONS.md`
 

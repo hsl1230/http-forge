@@ -1,5 +1,14 @@
 # Dead Code Inventory — Test Suite `main.js`
 
+> **Status / Current State**
+>
+> This document is a **dated snapshot** (2026-05-19) of dead code identified in
+> `resources/features/test-suite/modules/main.js`, captured during the suite
+> webview cleanup. Since then the platform has evolved (extension **0.16.36**,
+> suite requests now carry `postResponseScript` nodes and
+> `ai_generated`/`derived_from` metadata); the file it audits may have changed.
+> Treat this as a historical cleanup record rather than a live inventory.
+
 > **File**: `resources/features/test-suite/modules/main.js`  
 > **Date**: 2026-05-19  
 > **Status**: Identified, pending cleanup

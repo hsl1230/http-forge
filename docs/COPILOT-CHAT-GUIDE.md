@@ -1,5 +1,17 @@
 # HTTP Forge Copilot Chat Custom Instructions
 
+> **Status / Current State**
+>
+> This document is **historical development guidance** for the extension's
+> codebase (the DDD/SOLID refactoring era, ~v0.13–v0.15). The architecture
+> conventions it describes are still enforced today (see the repository's
+> `AGENTS.md`), but this file predates the platform's AI-native features.
+> To use HTTP Forge's **user-facing** AI capabilities — the built-in MCP server
+> (60+ tools), the **Discovered APIs** tree view (`HTTP Forge: Discover APIs`),
+> the **API Architect** command (`HTTP Forge: Design an API from Intent (AI)`),
+> and `.http-forge/knowledge/**/*.md` business context — see `README.md`,
+> `docs/user-guide/extension.md`, and `docs/user-guide/mcp-server.md`.
+
 这个文件用于 GitHub Copilot Chat 的上下文，帮助 Copilot 理解项目的架构和最佳实践。
 
 ## 使用方法
@@ -372,11 +384,14 @@ Anti-pattern Checklist:
 
 | 文件 | 用途 |
 |------|------|
-| `ARCHITECTURE-ANALYSIS.md` | 完整的架构分析和设计文档 |
-| `docs/CUSTOM-INSTRUCTIONS.md` | 详细的开发指南和实例 |
+| `ARCHITECTURE-ANALYSIS.md` | 完整的架构分析和设计文档（历史） |
+| `docs/CUSTOM-INSTRUCTIONS.md` | 详细的开发指南和实例（历史） |
 | `.vscode/.copilot-instructions` | Copilot 的快速参考 |
 | `.vscode/http-forge.code-snippets` | 代码片段模板 |
 | `docs/PHASE-3-IMPLEMENTATION.md` | 原始实现计划 |
+| `README.md` | 当前平台总览（含 Discovered APIs / Architect / MCP） |
+| `docs/user-guide/mcp-server.md` | MCP server 60+ 工具使用指南 |
+| `docs/configuration.md` | `.http-forge/http-forge.config.json` 与 `.http-forge/knowledge/` |
 
 ---
 

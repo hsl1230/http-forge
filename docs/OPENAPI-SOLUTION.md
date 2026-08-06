@@ -3,6 +3,15 @@
 > **Status:** ✅ Implemented (all 6 phases complete)  
 > **Date:** 2026-02-25 (proposed) → 2026-02-26 (completed)  
 > **Scope:** Import OpenAPI 3.0 specs → Collections, Export Collections → OpenAPI 3.0 specs, User-editable response schemas, Schema inference from execution history & post-response scripts
+>
+> **Current State (v0.16.36):** The OpenAPI importer/exporter/schema-inference
+> machinery described here is now shared core (`@http-forge/core`) and is also
+> the backbone of the **API Architect** flow — `httpForge.architect` /
+> `design_api_from_intent` design an OpenAPI 3.0 spec from a plain-English
+> intent, import it as a collection, and round-trip it back out
+> (`collectionName.openapi.json` under `.http-forge/`). API discovery
+> (`Discovered APIs` tree view) and MCP contract-testing tools build on the same
+> spec features. See [`README.md`](../README.md) and `docs/user-guide/import-export.md`.
 
 ---
 

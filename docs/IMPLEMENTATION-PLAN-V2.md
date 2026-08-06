@@ -1,5 +1,16 @@
 # HTTP Forge V2 Implementation Plan
 
+> **Status / Current State（历史规划文档）**
+>
+> 本文档是 **V2 架构的历史实现计划**：统一配置文件
+> `.http-forge/http-forge.config.json`、文件夹结构存储、Code Flows。其核心决策
+> 均已落地（配置系统、`format: "folder"` 存储、`.flow.js` 编程式测试），当前版本
+> **0.16.36** 已远超此规划——新增了本文档未覆盖的 **Discovered APIs** 树视图（六种
+> 框架发现）、**API Architect**（`httpForge.architect`，从意图设计 API）、
+> `.http-forge/knowledge/**/*.md` 业务上下文、以及带 60+ 工具的 **MCP server**。
+> 本文档仅作历史参考；当前配置说明见 `docs/configuration.md`，总览见
+> [`README.md`](../README.md)。
+
 ## 概述
 
 本文档定义了 HTTP Forge 的新架构方案，包括：

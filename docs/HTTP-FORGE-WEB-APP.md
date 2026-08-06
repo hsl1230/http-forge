@@ -1,10 +1,30 @@
-Key Challenges
-Types diverged — Extension uses CollectionRequest/ExecutionRequest/UIRequest system; core uses UnifiedRequest/HttpRequest/HttpResponse
-Interface names differ — Extension's IHttpRequestService vs core's IHttpClient; Extension's VariableResolver vs core's VariableInterpolator
-Extension has richer interfaces — Extension's ICollectionService has CRUD; core's ICollectionLoader is read-only
-Extension has VS Code wrappers — CookieService (globalState persistence), EnvironmentConfigService (file watcher), ConfigService (vscode.workspace)# HTTP Forge Web App — Full Solution Design
+# HTTP Forge Web App — Full Solution Design
+
+> **Status / Current State**
+>
+> This document is **historical design/planning material**: a proposal to build
+> a standalone web-based HTTP Forge app on top of `@http-forge/core`. No such
+> standalone web app was shipped. The platform today (extension **0.16.36**)
+> runs as the VS Code extension, the `@http-forge/cli`, and the headless
+> `@http-forge/core` engine, all sharing one workspace model; AI integration is
+> served by the built-in **MCP server** (60+ tools) rather than a browser app.
+> The reusable-engine goal this doc outlines *was* achieved — see
+> `docs/user-guide/extension.md`, `docs/user-guide/mcp-server.md`, and
+> [`README.md`](../README.md) for the current surface.
 
 > **Goal:** Create a standalone web-based HTTP Forge app that reuses the existing `@http-forge/core` engine and the VS Code extension's webview UI. The app runs as a local Node.js server, opens in the user's browser, and can optionally be deployed as a shared team server.
+
+---
+
+## Key Challenges
+
+> The notes below are the original design rationale (historical). Types have
+> since diverged further as the core package became the single source of truth.
+
+- Types diverged — Extension uses CollectionRequest/ExecutionRequest/UIRequest system; core uses UnifiedRequest/HttpRequest/HttpResponse
+- Interface names differ — Extension's IHttpRequestService vs core's IHttpClient; Extension's VariableResolver vs core's VariableInterpolator
+- Extension has richer interfaces — Extension's ICollectionService has CRUD; core's ICollectionLoader is read-only
+- Extension has VS Code wrappers — CookieService (globalState persistence), EnvironmentConfigService (file watcher), ConfigService (vscode.workspace)
 
 ---
 

@@ -1,5 +1,15 @@
 # HTTP Forge - Request Tester Requirements Document
 
+> **Status / Current State**
+>
+> Historical requirements document (v2.0, December 31, 2024), **marked
+> Implemented**. The Request Tester described here is shipping in HTTP Forge
+> **0.16.36**, though the product has expanded well beyond it: the **Discovered
+> APIs** tree view, the **API Architect** command (`httpForge.architect`),
+> `.http-forge/knowledge/**/*.md` business context, and the **MCP server**
+> (60+ tools) are all current features not covered by these requirements. See
+> [`README.md`](../README.md) for the full current surface.
+
 ## Document Information
 
 | Field | Value |
@@ -17,7 +27,7 @@ HTTP Forge is a Postman-like API testing tool for Visual Studio Code. It enables
 
 Key features include:
 - **Pre-request & Post-response Scripts**: JavaScript-based automation before/after requests
-- **Test Assertions**: Built-in testing framework with `forge.test()` and `forge.expect()` API
+- **Test Assertions**: Built-in testing framework with `pm.test()` / `ctx.test()` and `pm.expect()` / `ctx.expect()` (formerly `forge.test()` / `forge.expect()`)
 - **Console Capture**: Script console output display for debugging
 - **Cookie Management**: Automatic cookie handling across requests
 - **History Tracking**: Request history with optional grouping
