@@ -1,25 +1,30 @@
-import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry, PreRequestScriptContext, RequestAuth } from '@http-forge/core';
+import type { CollectionRequest, ExecutionRequest, ICookieJar, PathParamEntry, RequestAuth } from '@http-forge/core';
 /**
  * Suite Run Handler
  * 
  * Handles test suite run execution.
  * Supports multi-collection requests and statistics.
  * Uses ResultStorageService for memory-efficient result storage.
+ * 
+ * Run orchestration (iteration loop, storage, messaging) lives here; the flow
+ * node-graph interpreter lives in {@link FlowRunExecutor}.
  */
 
 import type { ITestSuiteStore, SuiteRequestEntry } from '@http-forge/core';
-import { CollectionRequestExecutor, type ConsoleOutputSource, deserializeTypedRecord, deserializeTypedValue, evaluateExpression, IConfigService, type IDataFileParser, IEnvironmentConfigService, type IHttpRequestService, InMemoryCookieJar, IRequestPreparer, IResultStorageService, type IScriptExecutor, resolveResultGrouping, ResultStorageService, StatisticsService } from '@http-forge/core';
+import { CollectionRequestExecutor, type ConsoleOutputSource, IConfigService, type IDataFileParser, IEnvironmentConfigService, type IHttpRequestService, InMemoryCookieJar, IRequestPreparer, IResultStorageService, type IScriptExecutor, resolveResultGrouping, ResultStorageService, StatisticsService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { ExecutionResult } from '../../../../../shared/types';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { resolveInheritedAuth } from '../../../shared/auth-resolution';
 import { SuiteRunConfiguration } from '../interfaces';
+import { FlowRunExecutor } from './flow-run-executor';
+import type { FlowRunRuntime } from './flow-run-executor';
 
 /**
  * Handler for suite run operations
  */
-export class SuiteRunHandler implements IMessageHandler {
+export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
     private static readonly SUPPORTED_COMMANDS = ['startRun', 'stopRun', 'getResultDetails'];
 
     private isRunning: boolean = false;
@@ -28,21 +33,58 @@ export class SuiteRunHandler implements IMessageHandler {
     private resultStorageService: IResultStorageService | null = null;
     private _lastReportPath: string | undefined = undefined;
     private currentEstimatedTotalRequests = 0;
+    readonly flowExecutor: FlowRunExecutor;
 
     constructor(
-        private readonly environmentConfigService: IEnvironmentConfigService | undefined,
+        public readonly environmentConfigService: IEnvironmentConfigService | undefined,
         private readonly httpService: IHttpRequestService | undefined,
-        private readonly scriptExecutor: IScriptExecutor | undefined,
+        public readonly scriptExecutor: IScriptExecutor | undefined,
         private readonly requestPreparer: IRequestPreparer | undefined,
         private readonly dataFileParser: IDataFileParser | undefined,
-        private readonly suiteStore: ITestSuiteStore,
+        public readonly suiteStore: ITestSuiteStore,
         private readonly configService?: IConfigService
     ) {
         this.statisticsService = new StatisticsService();
+        this.flowExecutor = new FlowRunExecutor(this);
     }
 
     getSupportedCommands(): string[] {
         return SuiteRunHandler.SUPPORTED_COMMANDS;
+    }
+
+    /** Flow run runtime contract: whether the current run has been aborted. */
+    isAborted(): boolean {
+        return this.abortController?.signal.aborted ?? false;
+    }
+
+    /** Flow run runtime contract: current estimated total request count. */
+    getCurrentEstimatedTotal(): number {
+        return this.currentEstimatedTotalRequests;
+    }
+
+    /**
+     * Flow run runtime contract: lower the estimated total when a branch ran
+     * fewer requests than planned (progress accuracy).
+     */
+    adjustEstimatedTotal(plannedCount: number, actualCount: number, completedCount: number): void {
+        const reduction = Math.max(0, plannedCount - actualCount);
+        const nextTotal = Math.max(completedCount, this.currentEstimatedTotalRequests - reduction);
+        this.currentEstimatedTotalRequests = nextTotal;
+    }
+
+    /** Flow run runtime contract: log info to the Test Suite output channel. */
+    logInfo(message: string): void {
+        getServiceContainer().console.info(message, 'Test Suite');
+    }
+
+    /** Flow run runtime contract: log a warning to the Test Suite output channel. */
+    logWarn(message: string): void {
+        getServiceContainer().console.warn(message, 'Test Suite');
+    }
+
+    /** Flow run runtime contract: surface a warning to the user. */
+    showWarning(message: string): void {
+        vscode.window.showWarningMessage(message);
     }
 
     async handle(command: string, message: any, messenger: IWebviewMessenger): Promise<boolean> {
@@ -102,7 +144,7 @@ export class SuiteRunHandler implements IMessageHandler {
 
         const totalRequestsPerIteration = isFlatRequestSuite
             ? flatRequests.length
-            : this.estimateEnabledRequestNodes(topLevelNodes, config);
+            : this.flowExecutor.estimateEnabledRequestNodes(topLevelNodes, config);
 
         if (totalRequestsPerIteration === 0) {
             vscode.window.showErrorMessage('No executable requests found in this suite.');
@@ -252,7 +294,7 @@ export class SuiteRunHandler implements IMessageHandler {
                         }
                     }
                 } else {
-                    const flowResult = await this.executeFlowNodes(
+                    const flowResult = await this.flowExecutor.executeFlowNodes(
                         suite,
                         topLevelNodes,
                         iterationVariables,
@@ -403,7 +445,7 @@ export class SuiteRunHandler implements IMessageHandler {
     /**
      * Execute a single request
      */
-    private async executeRequest(
+    public async executeRequest(
         entry: SuiteRequestEntry,
         variables: Record<string, string>,
         cookieJar: ICookieJar,
@@ -479,531 +521,7 @@ export class SuiteRunHandler implements IMessageHandler {
         return `${collectionId}::${folderPath}::${requestId}`;
     }
 
-    private getChildNodes(node: any): any[] {
-        for (const key of ['nodes', 'then', 'body', 'else', 'elseNodes', 'default', 'defaultNodes']) {
-            if (Array.isArray(node?.[key])) {
-                return node[key];
-            }
-        }
-        return [];
-    }
-
-    private createFlowExpressionContext(node: any, variables: Record<string, string>, environmentId: string, iteration: number) {
-        const decodedVars = deserializeTypedRecord(variables);
-        const variablesApi = {
-            get: (key: string) => deserializeTypedValue(variables[key]),
-            set: (key: string, value: unknown) => {
-                if (typeof key === 'string' && key.trim()) {
-                    variables[key] = value == null ? '' : String(value);
-                }
-            },
-            unset: (key: string) => {
-                if (typeof key === 'string' && key.trim()) {
-                    delete variables[key];
-                }
-            },
-            has: (key: string) => Object.prototype.hasOwnProperty.call(variables, key),
-            toObject: () => ({ ...decodedVars })
-        };
-
-        const environmentApi = {
-            get: (key: string) => deserializeTypedValue(this.environmentConfigService?.getResolvedEnvironment(environmentId)?.variables?.[key]),
-            set: (key: string, value: unknown) => {
-                if (this.environmentConfigService && typeof key === 'string' && key.trim()) {
-                    this.environmentConfigService.setEnvironmentVariable(key, value == null ? '' : String(value), environmentId);
-                }
-            }
-        };
-
-        const globalsApi = {
-            get: (key: string) => deserializeTypedValue(this.environmentConfigService?.getGlobalVariables()?.[key]),
-            set: (key: string, value: unknown) => {
-                if (this.environmentConfigService && typeof key === 'string' && key.trim()) {
-                    this.environmentConfigService.setGlobalVariable(key, value == null ? '' : String(value));
-                }
-            }
-        };
-
-        return {
-            vars: decodedVars,
-            iteration,
-            node,
-            pm: {
-                variables: variablesApi,
-                environment: environmentApi,
-                globals: globalsApi
-            }
-        };
-    }
-
-    private evaluateFlowCondition(expression: unknown, node: any, variables: Record<string, string>, environmentId: string, iteration: number): boolean {
-        if (typeof expression !== 'string' || !expression.trim()) {
-            return true;
-        }
-        const value = evaluateExpression(expression, this.createFlowExpressionContext(node, variables, environmentId, iteration));
-        if (node?.type === 'for' || node?.type === 'while' || node?.type === 'if') {
-            getServiceContainer().console.info(
-                `[SuiteRunHandler] evaluateFlowCondition type=${node?.type} name=${node?.name || 'unnamed'} expr="${expression}" value=${String(value)} i=${String(deserializeTypedValue(variables?.i))}`,
-                'Test Suite'
-            );
-        }
-        return Boolean(value);
-    }
-
-    private estimateEnabledRequestNodes(nodes: any[], config: SuiteRunConfiguration): number {
-        let count = 0;
-        for (const node of nodes || []) {
-            if (!node || typeof node !== 'object' || node.enabled === false) {
-                continue;
-            }
-            if (node.type === 'request' && node.request) {
-                count++;
-                continue;
-            }
-
-            if (node.type === 'if') {
-                const thenNodes = Array.isArray(node.then) ? node.then : this.getChildNodes(node);
-                const branchCounts: number[] = [this.estimateEnabledRequestNodes(thenNodes, config)];
-                if (Array.isArray(node.elseif)) {
-                    for (const branch of node.elseif) {
-                        branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(branch), config));
-                    }
-                }
-                const elseNodes = Array.isArray(node.else) ? node.else : [];
-                branchCounts.push(this.estimateEnabledRequestNodes(elseNodes, config));
-                count += Math.max(...branchCounts, 0);
-                continue;
-            }
-
-            if (node.type === 'switch') {
-                const branchCounts: number[] = [];
-                if (Array.isArray(node.cases)) {
-                    for (const caseNode of node.cases) {
-                        branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(caseNode), config));
-                    }
-                }
-                const defaultNodes = Array.isArray(node.default) ? node.default : [];
-                branchCounts.push(this.estimateEnabledRequestNodes(defaultNodes, config));
-                count += Math.max(...branchCounts, 0);
-                continue;
-            }
-
-            if (node.type === 'for' || node.type === 'while') {
-                const perLoop = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
-                count += perLoop * this.estimateLoopIterations(node);
-                continue;
-            }
-
-            count += this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
-        }
-        return count;
-    }
-
-    private estimateLoopIterations(node: any): number {
-        const configured = Number(node?.maxIterations);
-        if (Number.isFinite(configured) && configured > 0) {
-            return Math.max(1, Math.min(10_000, Math.floor(configured)));
-        }
-        return 1;
-    }
-
-    private adjustEstimatedTotal(plannedCount: number, actualCount: number, completedCount: number): void {
-        const reduction = Math.max(0, plannedCount - actualCount);
-        const nextTotal = Math.max(completedCount, this.currentEstimatedTotalRequests - reduction);
-        this.currentEstimatedTotalRequests = nextTotal;
-    }
-
-    private normalizeFlowScript(script: unknown): string | undefined {
-        if (typeof script === 'string') {
-            return script;
-        }
-        if (Array.isArray(script)) {
-            return script.filter((part): part is string => typeof part === 'string').join('\n');
-        }
-        return undefined;
-    }
-
-    private resolveFlowScriptSource(suite: any, node: any): string | undefined {
-        const inlineScript = this.normalizeFlowScript(node?.script);
-        if (inlineScript) {
-            return inlineScript;
-        }
-        if (typeof node?.scriptRef === 'string' && node.scriptRef.trim()) {
-            return this.normalizeFlowScript(suite?.scripts?.[node.scriptRef]);
-        }
-        return undefined;
-    }
-
-    private async runFlowScript(
-        suite: any,
-        node: any,
-        source: unknown,
-        variables: Record<string, string>,
-        environmentId: string,
-        iteration: number,
-        iterationCount: number
-    ): Promise<Record<string, string>> {
-        if (!this.scriptExecutor) {
-            return variables;
-        }
-
-        const script = typeof source === 'string' ? source : this.resolveFlowScriptSource(suite, node);
-        if (!script?.trim()) {
-            return variables;
-        }
-
-        const context: PreRequestScriptContext = {
-            request: {
-                url: 'http://flow.local/node',
-                method: 'GET',
-                headers: {},
-                query: {},
-                params: {}
-            },
-            variables: { ...variables },
-            environmentVariables: this.environmentConfigService?.getResolvedEnvironment(environmentId)?.variables || {},
-            globals: this.environmentConfigService?.getGlobalVariables() || {},
-            environmentName: environmentId,
-            info: {
-                eventName: 'prerequest',
-                requestName: node?.name || node?.type || 'flow-node',
-                requestId: String(node?.id || node?.name || node?.type || 'flow-node'),
-                collectionName: suite?.name,
-                iteration,
-                iterationCount
-            },
-            onEnvironmentChange: (action, key, value) => {
-                if (!this.environmentConfigService) return;
-                if (action === 'set' && key && value !== undefined) {
-                    this.environmentConfigService.setEnvironmentVariable(key, value, environmentId);
-                } else if (action === 'unset' && key) {
-                    this.environmentConfigService.deleteEnvironmentVariable(key, environmentId);
-                } else if (action === 'clear') {
-                    this.environmentConfigService.clearEnvironmentVariables(environmentId);
-                }
-            },
-            onGlobalsChange: (action, key, value) => {
-                if (!this.environmentConfigService) return;
-                if (action === 'set' && key && value !== undefined) {
-                    this.environmentConfigService.setGlobalVariable(key, value);
-                } else if (action === 'unset' && key) {
-                    this.environmentConfigService.deleteGlobalVariable(key);
-                } else if (action === 'clear') {
-                    this.environmentConfigService.clearGlobalVariables();
-                }
-            }
-        };
-
-        const session = this.scriptExecutor.createRequestSession(context);
-        try {
-            const result = await session.executePreRequest(script);
-            if (!result.success) {
-                throw new Error(result.error || 'Flow script execution failed');
-            }
-
-            if ((result as any).localVariables && typeof (result as any).localVariables === 'object') {
-                // Replace with the latest local snapshot so unset/clear operations
-                // are not reintroduced by older carried variables.
-                return { ...(result as any).localVariables };
-            }
-
-            const mergedVariables = {
-                ...(result.modifiedVariables || {}),
-                ...(result.modifiedEnvironmentVariables || {})
-            };
-
-            return {
-                ...variables,
-                ...mergedVariables
-            };
-        } finally {
-            session.dispose?.();
-        }
-    }
-
-    private async executeFlowNodes(
-        suite: any,
-        nodes: any[],
-        variables: Record<string, string>,
-        cookieJar: ICookieJar,
-        environmentId: string,
-        iteration: number,
-        iterationCount: number,
-        totalRequests: number,
-        completedCount: number,
-        messenger: IWebviewMessenger,
-        config: SuiteRunConfiguration,
-        activeBlockLabel?: string,
-        blockDepth: number = 0
-    ): Promise<{ variables: Record<string, string>; completedCount: number }> {
-        let currentVariables = { ...variables };
-        let currentCompleted = completedCount;
-
-        for (const node of nodes || []) {
-            if (this.abortController?.signal.aborted) {
-                break;
-            }
-            const result = await this.executeFlowNode(
-                suite,
-                node,
-                currentVariables,
-                cookieJar,
-                environmentId,
-                iteration,
-                iterationCount,
-                totalRequests,
-                currentCompleted,
-                messenger,
-                config,
-                activeBlockLabel,
-                blockDepth
-            );
-            currentVariables = result.variables;
-            currentCompleted = result.completedCount;
-        }
-
-        return { variables: currentVariables, completedCount: currentCompleted };
-    }
-
-    private async executeFlowNode(
-        suite: any,
-        node: any,
-        variables: Record<string, string>,
-        cookieJar: ICookieJar,
-        environmentId: string,
-        iteration: number,
-        iterationCount: number,
-        totalRequests: number,
-        completedCount: number,
-        messenger: IWebviewMessenger,
-        config: SuiteRunConfiguration,
-        activeBlockLabel?: string,
-        blockDepth: number = 0
-    ): Promise<{ variables: Record<string, string>; completedCount: number }> {
-        if (!node || typeof node !== 'object' || node.enabled === false) {
-            return { variables, completedCount };
-        }
-
-        if (!this.evaluateFlowCondition(node.condition, node, variables, environmentId, iteration)) {
-            return { variables, completedCount };
-        }
-
-        if (node.type === 'request' && node.request) {
-            const entry = this.suiteStore.resolveRequestEntry(node.request);
-            if (!entry) {
-                getServiceContainer().console.warn(
-                    `[SuiteRunHandler] flow request unresolved name=${node.request?.name} collectionId=${node.request?.collectionId} requestId=${node.request?.requestId}`,
-                    'Test Suite'
-                );
-                vscode.window.showWarningMessage(`Could not resolve request "${node.request?.name}" — check that its collection is loaded.`);
-                return { variables, completedCount };
-            }
-
-            getServiceContainer().console.info(
-                `[SuiteRunHandler] executing flow request name=${entry.suiteRequest?.name || entry.request?.name} iteration=${iteration}`,
-                'Test Suite'
-            );
-
-            const result = await this.executeRequest(
-                entry,
-                variables,
-                cookieJar,
-                environmentId,
-                (entry as any).folderAuthChain,
-                (entry as any).collectionAuth,
-                iteration,
-                iterationCount
-            );
-
-            const requestGrouping = resolveResultGrouping({
-                collectionName: (entry as any).resolvedCollectionName || entry.suiteRequest.collectionName || '',
-                folderPath: entry.suiteRequest.folderPath || (entry as any).resolvedFolderPath || (entry.request as any)?.folderPath || '',
-                blockLabel: activeBlockLabel || undefined
-            });
-            const requestGroupPath = requestGrouping.groupPath || undefined;
-
-            return this.handleRequestExecutionResult(
-                entry,
-                result,
-                iteration,
-                totalRequests,
-                completedCount,
-                messenger,
-                config.stopOnError,
-                config.delay,
-                variables,
-                requestGroupPath,
-                activeBlockLabel ? 'block' : 'folder'
-            );
-        }
-
-        if (node.type === 'block') {
-            const label = typeof node.name === 'string' ? node.name.trim() : '';
-            // Any explicit block node in the suite is a user-defined grouping scope.
-            // Requests directly under that block should group by its label.
-            const nextBlockLabel = label || activeBlockLabel;
-            return this.executeFlowNodes(
-                suite,
-                this.getChildNodes(node),
-                variables,
-                cookieJar,
-                environmentId,
-                iteration,
-                iterationCount,
-                totalRequests,
-                completedCount,
-                messenger,
-                config,
-                nextBlockLabel,
-                blockDepth + 1
-            );
-        }
-
-        if (node.type === 'script') {
-            return {
-                variables: await this.runFlowScript(suite, node, undefined, variables, environmentId, iteration, iterationCount),
-                completedCount
-            };
-        }
-
-        if (node.type === 'if') {
-            const thenNodes = Array.isArray(node.then) ? node.then : this.getChildNodes(node);
-            const elseNodes = Array.isArray(node.else) ? node.else : [];
-            const branchCounts: number[] = [this.estimateEnabledRequestNodes(thenNodes, config)];
-            if (Array.isArray(node.elseif)) {
-                for (const branch of node.elseif) {
-                    branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(branch), config));
-                }
-            }
-            branchCounts.push(this.estimateEnabledRequestNodes(elseNodes, config));
-            const plannedCount = Math.max(...branchCounts, 0);
-
-            const ifExpr = typeof node.if === 'string' ? node.if : node.condition;
-            if (this.evaluateFlowCondition(ifExpr, node, variables, environmentId, iteration)) {
-                const actualCount = this.estimateEnabledRequestNodes(thenNodes, config);
-                this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
-                return this.executeFlowNodes(suite, thenNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
-            }
-            if (Array.isArray(node.elseif)) {
-                for (const branch of node.elseif) {
-                    if (this.evaluateFlowCondition(branch?.condition, branch, variables, environmentId, iteration)) {
-                        const selectedNodes = this.getChildNodes(branch);
-                        const actualCount = this.estimateEnabledRequestNodes(selectedNodes, config);
-                        this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
-                        return this.executeFlowNodes(suite, selectedNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
-                    }
-                }
-            }
-            const actualCount = this.estimateEnabledRequestNodes(elseNodes, config);
-            this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
-            return this.executeFlowNodes(suite, elseNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
-        }
-
-        if (node.type === 'switch') {
-            const defaultNodes = Array.isArray(node.default) ? node.default : [];
-            const branchCounts: number[] = [];
-            if (Array.isArray(node.cases)) {
-                for (const caseNode of node.cases) {
-                    branchCounts.push(this.estimateEnabledRequestNodes(this.getChildNodes(caseNode), config));
-                }
-            }
-            branchCounts.push(this.estimateEnabledRequestNodes(defaultNodes, config));
-            const plannedCount = Math.max(...branchCounts, 0);
-
-            const switchValue = evaluateExpression(String(node.expression ?? ''), this.createFlowExpressionContext(node, variables, environmentId, iteration));
-            if (Array.isArray(node.cases)) {
-                for (const caseNode of node.cases) {
-                    const caseMatches = Object.prototype.hasOwnProperty.call(caseNode ?? {}, 'equals')
-                        ? caseNode.equals === switchValue
-                        : this.evaluateFlowCondition(caseNode?.condition, caseNode, variables, environmentId, iteration);
-                    if (caseMatches) {
-                        const selectedNodes = this.getChildNodes(caseNode);
-                        const actualCount = this.estimateEnabledRequestNodes(selectedNodes, config);
-                        this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
-                        return this.executeFlowNodes(suite, selectedNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
-                    }
-                }
-            }
-            const actualCount = this.estimateEnabledRequestNodes(defaultNodes, config);
-            this.adjustEstimatedTotal(plannedCount, actualCount, completedCount);
-            return this.executeFlowNodes(suite, defaultNodes, variables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
-        }
-
-        if (node.type === 'while') {
-            let currentVariables = { ...variables };
-            let currentCompleted = completedCount;
-            const maxIterations = Math.max(1, Math.min(10_000, Number(node.maxIterations ?? 100)));
-            const perLoopEstimate = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
-            const plannedIterations = this.estimateLoopIterations(node);
-            const plannedCount = perLoopEstimate * plannedIterations;
-            let executedLoops = 0;
-            let count = 0;
-            while (this.evaluateFlowCondition(typeof node.while === 'string' ? node.while : node.condition, node, currentVariables, environmentId, iteration)) {
-                count++;
-                if (count > maxIterations || this.abortController?.signal.aborted) {
-                    break;
-                }
-                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
-                currentVariables = result.variables;
-                currentCompleted = result.completedCount;
-                executedLoops++;
-            }
-            const actualCount = perLoopEstimate * executedLoops;
-            this.adjustEstimatedTotal(plannedCount, actualCount, currentCompleted);
-            return { variables: currentVariables, completedCount: currentCompleted };
-        }
-
-        if (node.type === 'for') {
-            let currentVariables = { ...variables };
-            let currentCompleted = completedCount;
-            const maxIterations = Math.max(1, Math.min(10_000, Number(node.maxIterations ?? 100)));
-            const perLoopEstimate = this.estimateEnabledRequestNodes(this.getChildNodes(node), config);
-            const plannedIterations = this.estimateLoopIterations(node);
-            const plannedCount = perLoopEstimate * plannedIterations;
-            currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.init), currentVariables, environmentId, iteration, iterationCount);
-            getServiceContainer().console.info(
-                `[SuiteRunHandler] for-init name=${node?.name || 'For'} i=${String(deserializeTypedValue(currentVariables?.i))} maxIterations=${maxIterations}`,
-                'Test Suite'
-            );
-            const conditionExpr = typeof node.loopCondition === 'string' && node.loopCondition.trim()
-                ? node.loopCondition
-                : typeof node.condition === 'string' && node.condition.trim()
-                    ? node.condition
-                    : 'true';
-            let count = 0;
-            let executedLoops = 0;
-            while (this.evaluateFlowCondition(conditionExpr, node, currentVariables, environmentId, iteration)) {
-                count++;
-                getServiceContainer().console.info(
-                    `[SuiteRunHandler] for-loop-enter name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`,
-                    'Test Suite'
-                );
-                if (count > maxIterations || this.abortController?.signal.aborted) {
-                    break;
-                }
-                const result = await this.executeFlowNodes(suite, this.getChildNodes(node), currentVariables, cookieJar, environmentId, iteration, iterationCount, this.currentEstimatedTotalRequests, currentCompleted, messenger, config, activeBlockLabel, blockDepth);
-                currentVariables = result.variables;
-                currentCompleted = result.completedCount;
-                executedLoops++;
-                currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.update), currentVariables, environmentId, iteration, iterationCount);
-                getServiceContainer().console.info(
-                    `[SuiteRunHandler] for-loop-update name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`,
-                    'Test Suite'
-                );
-            }
-            getServiceContainer().console.info(
-                `[SuiteRunHandler] for-loop-exit name=${node?.name || 'For'} completedLoops=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`,
-                'Test Suite'
-            );
-            const actualCount = perLoopEstimate * executedLoops;
-            this.adjustEstimatedTotal(plannedCount, actualCount, currentCompleted);
-            return { variables: currentVariables, completedCount: currentCompleted };
-        }
-
-        return this.executeFlowNodes(suite, this.getChildNodes(node), variables, cookieJar, environmentId, iteration, iterationCount, totalRequests, completedCount, messenger, config, activeBlockLabel, blockDepth);
-    }
-
-    private async handleRequestExecutionResult(
+    public async handleRequestExecutionResult(
         entry: SuiteRequestEntry,
         result: ExecutionResult,
         iteration: number,
