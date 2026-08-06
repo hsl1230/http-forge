@@ -103,6 +103,9 @@ Build requests, inspect responses, and iterate fast — all without leaving VS C
 ### 🤖 AI-assisted API testing
 Ask GitHub Copilot to generate tests, heal broken assertions, analyse coverage against your OpenAPI spec, and run the entire suite autonomously. HTTP Forge is the only VS Code API tool with a native MCP server.
 
+### 🏗️ Design an API from an intent
+Tell HTTP Forge "I need a shopping cart" and it designs the whole API — endpoints, DTOs, auth — as an OpenAPI spec, imports it as a collection, and generates the test suite, runnable flow, workflow chains, and docs in one reviewable package. Run it from the Command Palette (**HTTP Forge: Design an API from Intent (AI)**), from the CLI (`http-forge architect`), or via the `design_api_from_intent` MCP tool.
+
 ### 🔄 Postman migration
 Import your Postman v2.1 collection — all `pm.*` scripts, environments, and globals work unchanged. No rewriting, no learning curve.
 
@@ -125,6 +128,7 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Heal broken assertions after API changes  
 ✅ Open GitHub Copilot Chat with suite failure context to analyse failed requests faster  
 ✅ Generate negative/edge-case test scenarios  
+✅ Design a full API from a plain-English intent — endpoints, DTOs, auth, tests, flow, and docs in one reviewable package  
 ✅ Full agent mode — AI drives the entire test lifecycle autonomously  
 ✅ Auto-generated `.http-forge/AGENTS.md` enables execution-only MCP mode for AI agents with workspace file access, reducing tool-list token overhead  
 

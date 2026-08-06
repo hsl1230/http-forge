@@ -136,6 +136,8 @@ export const COMMAND_IDS = {
     generateCollectionFromCurl: 'httpForge.generateCollectionFromCurl',
     // API discovery
     discoverApis: 'httpForge.discoverApis',
+    // API Architect (Phase 4 / Layer 8)
+    architect: 'httpForge.architect',
 };
 
 /**

@@ -436,6 +436,12 @@
         "icon": "$(search)"
       },
       {
+        "command": "httpForge.architect",
+        "title": "HTTP Forge: Design an API from Intent (AI)",
+        "category": "HTTP Forge",
+        "icon": "$(sparkle)"
+      },
+      {
         "command": "http-forge.importRequest",
         "title": "Import Request",
         "category": "HTTP Forge"
