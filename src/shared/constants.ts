@@ -129,6 +129,7 @@ export const COMMAND_IDS = {
     runPerformanceTest: 'httpForge.runPerformanceTest',
     // Git history commands
     showRequestGitHistory: 'httpForge.showRequestGitHistory',
+    showGitHistoryForSelectedRequest: 'httpForge.showGitHistoryForSelectedRequest',
     viewRequestGitDiff: 'httpForge.viewRequestGitDiff',
     revertRequestToCommit: 'httpForge.revertRequestToCommit',
     // AI commands

@@ -12,7 +12,7 @@ import { COMMAND_IDS } from '../shared/constants';
 import type { CommandContext } from './command-context';
 
 export function registerGitHistoryCommands(ctx: CommandContext): void {
-  const { context, workspaceFolder, requestGitHistoryProvider, collectionsTreeProvider } = ctx;
+  const { context, workspaceFolder, requestGitHistoryProvider, collectionsTreeProvider, collectionsView } = ctx;
 
   // Show git history for a request in the sidebar tree
   context.subscriptions.push(
@@ -28,6 +28,30 @@ export function registerGitHistoryCommands(ctx: CommandContext): void {
 
       await requestGitHistoryProvider.showHistoryFor(String(item.label), () => getGitLog(filePath));
       // Reveal the history view
+      await vscode.commands.executeCommand('httpForge.requestHistory.focus');
+    })
+  );
+
+  // Show git history for the currently selected request in the Collections view.
+  // Exposed as a welcome/button action on the empty Request History view.
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.showGitHistoryForSelectedRequest, async () => {
+      const selection = collectionsView?.selection?.[0];
+      if (!selection?.requestId || !selection?.collectionId) {
+        vscode.window.showInformationMessage(
+          'HTTP Forge: Select a request in the Collections view first, then run "Show Git History".'
+        );
+        return;
+      }
+
+      const { resolveRequestJsonPath, getGitLog } = await import('../infrastructure/git/request-git-history');
+      const filePath = resolveRequestJsonPath(workspaceFolder, selection.collectionId, selection.requestId);
+      if (!filePath) {
+        vscode.window.showErrorMessage(`HTTP Forge: Could not locate request.json for "${selection.label}".`);
+        return;
+      }
+
+      await requestGitHistoryProvider.showHistoryFor(String(selection.label), () => getGitLog(filePath));
       await vscode.commands.executeCommand('httpForge.requestHistory.focus');
     })
   );
