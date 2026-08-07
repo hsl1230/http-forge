@@ -5,6 +5,47 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.31 - 2026-07-22
+
+### Added
+
+- **Dynamic HTML report filename** — suite run reports are now named `report-<env>-<yyyy-MM-dd>-HH-mm.html` (spaces in env name replaced with `_`) instead of the generic `report.html`, making it easy to identify which environment and time a report belongs to.
+- **Export HTML report — auto-regenerate if missing** — clicking **Export HTML** in the Results tab now checks whether the report file still exists on disk. If it has been deleted or never generated, it regenerates automatically from the persisted run data before opening.
+- **Export JUnit XML** — the **Export JSON** button in the Results tab is now **Export JUnit XML**. It uses the existing `JUnitReportGenerator` from `@http-forge/core` (reads persisted run artifacts) and saves a standards-compliant `junit.xml` with `<testsuites>`, `<testsuite>` (including a `<properties>` block with environment, run ID, config), `<testcase>`, `<failure>`, `<error>`, `<skipped>`, and `<system-out>` elements.
+- **Statistics tab → Export Report generates HTML** — clicking **Export Report** in the Statistics tab now generates a self-contained HTML file with summary cards, per-request response-time table (min/avg/P95/P99/max), and error summary, instead of exporting raw JSON.
+- **Fix Errors with GitHub Copilot Chat** — the Test Suite panel can now open Copilot Chat with a structured failure-analysis prompt built from the current run. The generated prompt is shown for review and edits before the chat opens. When `run-summary.md` is available it is attached directly; otherwise HTTP Forge falls back to an inline summary of failed requests.
+- **Performance test command** — new **Run Performance Test** context menu item on each request in the Collections tree. Opens a pre-built temporary Test Suite with the request wrapped in a `for` loop node (100 iterations using `hf.variables`) so users can prepend login/auth steps before the loop if needed. The iteration count and loop condition are editable in the flow editor.
+- **Cross-collection drag-and-drop** — requests and folders can now be dragged between collections. Dropping on a different collection shows a **Move / Copy** quick-pick: Move removes the item from the source collection; Copy duplicates it (preserving all request fields and nested folder structure) while keeping the original.
+- **Consistent Move/Copy for same-collection drag-and-drop** — the same **Move / Copy** quick-pick now appears for drops within the same collection, making the behavior identical whether dragging inside or across collections.
+- **`@http-forge/core` upgraded to 0.6.30** — picks up dynamic report filenames, JUnit `<properties>` block, `createTempSuiteFromRequest`, and all proxy improvements.
+
+### Changed
+
+- **Folder-run documentation clarified** — docs now explain how folder names containing `/` are displayed and referenced in user-facing paths, using ` / ` between folder levels (for example `agl-page-composition / TRAY/EPG / AVS5-5304 - TRAY/EPG`).
+
+## 0.16.30 - 2026-07-22
+
+### Added
+
+- **HTTP/HTTPS proxy support** — requests are now routed through a configured proxy with no extra npm packages. Set `proxy.http` and/or `proxy.https` in `.http-forge/http-forge.config.json` to enable. HTTPS proxying uses a native CONNECT tunnel (TCP → proxy → TLS upgrade). HTTP proxying rewrites the request path to an absolute URI as required by HTTP/1.1 proxies.
+- **Proxy authentication** — embed credentials directly in the proxy URL (`http://user:pass@proxy.corp.com:8080`); a `Proxy-Authorization: Basic ...` header is added automatically on CONNECT.
+- **Proxy bypass list** — `proxy.bypass` accepts an array of host patterns (exact: `api.local`, wildcard: `*.corp.example.com`, catch-all: `*`) that skip the proxy and connect directly.
+- **Live proxy reload** — changing `proxy` in `http-forge.config.json` and saving takes effect immediately for the next request with no VS Code restart required.
+
+## 0.16.28 - 2026-07-21
+
+### Added
+
+- **Configurable HTML report body embedding** — new `runner.report` config section with `maxBodyChars` (default 100 000) and `embedBodies` (`"all"`, `"failed"`, `"none"`; default `"failed"`). Large response bodies are truncated in the report to prevent multi-GB HTML files that hang the extension host. Full bodies remain in the on-disk result files.
+
+### Changed
+
+- **`@http-forge/core` upgraded to 0.6.28** — picks up live-reload TLS certificates, HTML report body truncation, Postman import hardening, file-watcher rewrite, and the request-body method restriction removal.
+
+### Fixed
+
+- **Request body now allowed for all HTTP methods** — the body editor is no longer disabled for GET, HEAD, DELETE, OPTIONS, or TRACE requests. Previously only POST, PUT, and PATCH could include a body, which blocked legitimate use cases like Elasticsearch `GET _search` with a JSON body. The editor remains fully editable regardless of the selected method, matching Postman behavior and RFC 9110 which does not forbid request bodies on any method.
+
 ## 0.16.26 - 2026-07-17
 
 ### Added

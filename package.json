@@ -2,12 +2,13 @@
   "name": "http-forge",
   "displayName": "HTTP Forge — The API Platform Built for AI Agents",
   "description": "Turn GitHub Copilot, Claude Code, and Cursor into expert API engineers. 60+ MCP tools. No extra API keys. No cloud account. Full Postman compatibility, OpenAPI 3.0, headless CLI, and TypeScript codegen — all local.",
-  "version": "0.16.26",
+  "version": "0.16.36",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.99.3"
+    "vscode": "^1.99.3",
+    "node": ">=20.0.0"
   },
   "repository": {
     "type": "git",
@@ -64,7 +65,14 @@
     "vault",
     "key vault"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:httpForge.collections",
+    "onView:httpForge.testSuites",
+    "onView:httpForge.environments",
+    "onView:httpForge.requestHistory",
+    "onView:httpForge.discoveredApis"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
@@ -74,6 +82,11 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically start the MCP Server when the extension activates"
+        },
+        "httpForge.ai.model": {
+          "type": "string",
+          "default": "",
+          "description": "Preferred GitHub Copilot chat model for AI-powered features (e.g. gpt-4o). Leave empty to let the extension pick the best available model."
         }
       }
     },
@@ -149,13 +162,19 @@
           "id": "httpForge.requestHistory",
           "name": "Request History (Git)",
           "icon": "$(git-commit)"
+        },
+        {
+          "id": "httpForge.discoveredApis",
+          "name": "Discovered APIs",
+          "icon": "$(globe)"
         }
       ]
     },
     "commands": [
       {
         "command": "httpForge.newRequest",
-        "title": "HTTP Forge: New Request",
+        "title": "New Request",
+        "category": "HTTP Forge",
         "icon": "$(add)"
       },
       {
@@ -196,6 +215,11 @@
       {
         "command": "httpForge.runCollection",
         "title": "Run Collection",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "httpForge.runPerformanceTest",
+        "title": "Run Performance Test",
         "icon": "$(run-all)"
       },
       {
@@ -285,7 +309,7 @@
       },
       {
         "command": "httpForge.closeAllRequestPanels",
-        "title": "HTTP Forge: Close All Request Panels",
+        "title": "Close All Request Panels",
         "category": "HTTP Forge"
       },
       {
@@ -306,30 +330,36 @@
       {
         "command": "httpForge.renameTestSuite",
         "title": "Rename Test Suite",
+        "category": "HTTP Forge",
         "icon": "$(edit)"
       },
       {
         "command": "httpForge.runTestSuite",
         "title": "Run Test Suite",
+        "category": "HTTP Forge",
         "icon": "$(run-all)"
       },
       {
         "command": "httpForge.duplicateTestSuite",
         "title": "Duplicate Test Suite",
+        "category": "HTTP Forge",
         "icon": "$(copy)"
       },
       {
         "command": "httpForge.refreshTestSuites",
         "title": "Refresh Test Suites",
+        "category": "HTTP Forge",
         "icon": "$(refresh)"
       },
       {
         "command": "httpForge.showConsole",
-        "title": "HTTP Forge: Show Console"
+        "category": "HTTP Forge",
+        "title": "Show Console"
       },
       {
         "command": "httpForge.clearConsole",
-        "title": "HTTP Forge: Clear Console"
+        "category": "HTTP Forge",
+        "title": "Clear Console"
       },
       {
         "command": "httpForge.moveItemUp",
@@ -339,67 +369,109 @@
       {
         "command": "httpForge.moveItemDown",
         "title": "Move Down",
+        "category": "HTTP Forge",
         "icon": "$(arrow-down)"
       },
       {
         "command": "httpForge.exportOpenApi",
         "title": "Export as OpenAPI",
+        "category": "HTTP Forge",
         "icon": "$(export)"
       },
       {
         "command": "httpForge.importOpenApi",
         "title": "Import OpenAPI Spec",
+        "category": "HTTP Forge",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "httpForge.importHar",
+        "title": "Import HAR Archive",
+        "category": "HTTP Forge",
         "icon": "$(cloud-download)"
       },
       {
         "command": "httpForge.inferResponseSchema",
         "title": "Infer Response Schema",
+        "category": "HTTP Forge",
         "icon": "$(lightbulb)"
       },
       {
         "command": "httpForge.inferAllResponseSchemas",
         "title": "Infer All Response Schemas",
+        "category": "HTTP Forge",
         "icon": "$(lightbulb-autofix)"
       },
       {
         "command": "httpForge.mcpStartServer",
-        "title": "HTTP Forge: Start MCP Server",
+        "title": "Start MCP Server",
+        "category": "HTTP Forge",
         "icon": "$(radio-tower)"
       },
       {
         "command": "httpForge.mcpStopServer",
-        "title": "HTTP Forge: Stop MCP Server",
+        "title": "Stop MCP Server",
+        "category": "HTTP Forge",
         "icon": "$(stop)"
       },
       {
         "command": "httpForge.mcpToggleServer",
-        "title": "HTTP Forge: Toggle MCP Server",
+        "title": "Toggle MCP Server",
+        "category": "HTTP Forge",
         "icon": "$(radio-tower)"
       },
       {
         "command": "httpForge.showRequestGitHistory",
-        "title": "HTTP Forge: Show Request Git History",
+        "title": "Show Git History",
+        "category": "HTTP Forge",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "httpForge.showGitHistoryForSelectedRequest",
+        "title": "Show Git History for Selected Request",
+        "category": "HTTP Forge",
         "icon": "$(git-commit)"
       },
       {
         "command": "httpForge.viewRequestGitDiff",
-        "title": "HTTP Forge: View Request Diff at Commit",
+        "title": "View Request Diff at Commit",
+        "category": "HTTP Forge",
         "icon": "$(diff)"
       },
       {
         "command": "httpForge.revertRequestToCommit",
-        "title": "HTTP Forge: Revert Request to Commit",
+        "title": "Revert Request to Commit",
+        "category": "HTTP Forge",
         "icon": "$(discard)"
       },
       {
         "command": "httpForge.suggestEnvVariables",
         "title": "Suggest Env Variables (AI)",
+        "category": "HTTP Forge",
         "icon": "$(sparkle)"
       },
       {
         "command": "httpForge.generateCollectionFromCurl",
-        "title": "HTTP Forge: Generate Collection from curl (AI)",
+        "title": "Generate Collection from curl (AI)",
+        "category": "HTTP Forge",
         "icon": "$(sparkle)"
+      },
+      {
+        "command": "httpForge.discoverApis",
+        "title": "Discover APIs",
+        "category": "HTTP Forge",
+        "icon": "$(search)"
+      },
+      {
+        "command": "httpForge.architect",
+        "title": "Design an API from Intent (AI)",
+        "category": "HTTP Forge",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "http-forge.importRequest",
+        "title": "Import Request",
+        "category": "HTTP Forge"
       }
     ],
     "menus": {
@@ -418,6 +490,9 @@
         },
         {
           "command": "httpForge.importOpenApi"
+        },
+        {
+          "command": "httpForge.importHar"
         },
         {
           "command": "httpForge.inferResponseSchema"
@@ -470,6 +545,11 @@
           "group": "navigation@4"
         },
         {
+          "command": "httpForge.importHar",
+          "when": "view == httpForge.collections",
+          "group": "navigation@5"
+        },
+        {
           "command": "httpForge.refreshEnvironments",
           "when": "view == httpForge.environments",
           "group": "navigation@1"
@@ -493,6 +573,21 @@
           "command": "httpForge.newTestSuite",
           "when": "view == httpForge.testSuites",
           "group": "navigation@2"
+        },
+        {
+          "command": "httpForge.discoverApis",
+          "when": "view == httpForge.discoveredApis",
+          "group": "navigation@1"
+        }
+      ],
+      "view/welcome": [
+        {
+          "view": "httpForge.discoveredApis",
+          "contents": "No endpoints discovered yet. Scan the workspace to detect backend endpoints from Express, Nest, Fastify, Lambda, Spring, or FastAPI source code.\n[Scan Workspace](command:httpForge.discoverApis)"
+        },
+        {
+          "view": "httpForge.requestHistory",
+          "contents": "Shows the git commit history of a request's request.json file. Select a request in the Collections view and run \"Show Git History\", or use the button below with a request selected.\n[Show History for Selected Request](command:httpForge.showGitHistoryForSelectedRequest)"
         }
       ],
       "view/item/context": [
@@ -500,6 +595,11 @@
           "command": "httpForge.openRequestInNewPanel",
           "when": "view == httpForge.collections && viewItem == request",
           "group": "1_open@1"
+        },
+        {
+          "command": "httpForge.runPerformanceTest",
+          "when": "view == httpForge.collections && viewItem == request",
+          "group": "2_run@1"
         },
         {
           "command": "httpForge.newRequest",
@@ -681,6 +781,11 @@
     "watch": "npm run esbuild-base -- --watch",
     "compile:tsc": "tsc -p ./",
     "watch:tsc": "tsc -watch -p ./",
+    "type-check": "tsc -p ./ --noEmit",
+    "lint": "npx eslint@8 src --cache --no-error-on-unmatched-pattern",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "test": "jest --colors",
+    "test:watch": "jest --watch",
     "package": "npm run clean && npm run build:prod && vsce package",
     "package:dev": "npm run clean && npm run build:dev && vsce package"
   },
@@ -693,17 +798,23 @@
     "@types/tv4": "^1.2.33",
     "@types/vscode": "^1.99.3",
     "@types/xml2js": "^0.4.14",
-    "@typescript-eslint/eslint-plugin": "^7.x",
-    "@typescript-eslint/parser": "^7.x",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
     "canvas": "^3.2.1",
     "esbuild": "^0.28.1",
-    "eslint": "^8.x",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "jest": "^29.0.0",
+    "prettier": "^2.8.0",
+    "ts-jest": "^29.0.0",
     "typescript": "^5.x",
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "0.6.27",
+    "@http-forge/core": "^0.6.36-beta.2",
     "cheerio": "^1.1.2",
+    "java-parser": "^3.0.1",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",
     "yaml": "^2.4.0"

@@ -1,5 +1,16 @@
 # HTTP Forge - Postman Parity Implementation Summary
 
+> **Status / Current State**
+>
+> This document is **historical release-summary material** (the `## ✅ RECENT`
+> entries date to the v0.10–v0.13 era). It accurately records completed work, but
+> the extension is now at **0.16.36** and has since added features not covered
+> here: the **Discovered APIs** tree view (six framework providers), the **API
+> Architect** command (`httpForge.architect`), the AI **context layer**
+> (`.http-forge/knowledge/**/*.md`), and the **MCP server** with 60+ tools.
+> Keep this file as a historical record; see [`README.md`](../README.md) and
+> the current `CHANGELOG.md` for the up-to-date feature set.
+
 ## ✅ RECENT: Complete SOLID Refactoring of Webview Panels (v0.13.0)
 
 ### Overview

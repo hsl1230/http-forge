@@ -119,19 +119,26 @@ export const COMMAND_IDS = {
     // OpenAPI commands
     exportOpenApi: 'httpForge.exportOpenApi',
     importOpenApi: 'httpForge.importOpenApi',
+    importHar: 'httpForge.importHar',
     inferResponseSchema: 'httpForge.inferResponseSchema',
     inferAllResponseSchemas: 'httpForge.inferAllResponseSchemas',
     // MCP Server commands
     mcpStartServer: 'httpForge.mcpStartServer',
     mcpStopServer: 'httpForge.mcpStopServer',
     mcpToggleServer: 'httpForge.mcpToggleServer',
+    runPerformanceTest: 'httpForge.runPerformanceTest',
     // Git history commands
     showRequestGitHistory: 'httpForge.showRequestGitHistory',
+    showGitHistoryForSelectedRequest: 'httpForge.showGitHistoryForSelectedRequest',
     viewRequestGitDiff: 'httpForge.viewRequestGitDiff',
     revertRequestToCommit: 'httpForge.revertRequestToCommit',
     // AI commands
     suggestEnvVariables: 'httpForge.suggestEnvVariables',
     generateCollectionFromCurl: 'httpForge.generateCollectionFromCurl',
+    // API discovery
+    discoverApis: 'httpForge.discoverApis',
+    // API Architect (Phase 4 / Layer 8)
+    architect: 'httpForge.architect',
 };
 
 /**

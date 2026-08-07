@@ -63,8 +63,30 @@ You do not need to create a suite first to run grouped requests.
 - **Run Folder**: right-click a folder and select **Run Folder**.
 
 Both actions open the suite runner backed by a temporary suite. The temporary suite is not saved unless you choose to save it.
-2 
+
 **Run Folder is recursive** and includes nested subfolders.
+
+> Folder path note: when a folder name itself contains `/`, HTTP Forge still treats it as a single folder name. In user-facing displays, separate folder levels with ` / `, for example `agl-page-composition / TRAY/EPG / AVS5-5304 - TRAY/EPG`.
+
+## Performance testing a single request
+
+Right-click any request in the **Collections** tree and select **Run Performance Test**.
+
+HTTP Forge creates a temporary suite pre-built for load testing:
+
+```
+[ + add login/auth step here (optional) ]
+┌─ for hf.variables.get("__i") < 100 ────────────────┐
+│   POST /api/orders                                 │
+└────────────────────────────────────────────────────┘
+```
+
+- The request runs **100 times** inside a `for` loop node.
+- You can prepend a login request **above** the loop before running, so each loop iteration reuses the authenticated session.
+- The loop count (`100`) and condition are editable in the flow node editor.
+- Statistics (P50/P95/P99, pass rate, error breakdown) appear in the **Statistics** tab after the run.
+
+Save the suite to reuse or share the performance test scenario.
 
 ### Save a collection/folder run as a suite
 1. Make any edits you want in the temporary suite.
@@ -189,6 +211,42 @@ This keeps estimation simple and predictable up front while improving accuracy i
 Results are grouped by iteration, then by collection and folder path.
 
 The **Statistics** response-time table shows full `Collection > Folder > Request` labels and a **Calls** count.
+
+### Export options (Results tab)
+
+| Button | Output |
+|---|---|
+| **Export HTML** | Opens the pre-generated HTML report in your browser. If the file is missing it is regenerated automatically from stored run data. |
+| **Export JUnit XML** | Generates a JUnit-compatible XML file (`<testsuites>`, `<properties>`, `<failure>`, `<skipped>`, `<system-out>`) compatible with GitHub Actions, GitLab CI, Jenkins, and other CI tools. |
+| **Fix Errors** | Opens GitHub Copilot Chat with a structured failure-analysis prompt for the current run. The prompt is shown for review before the chat opens. If `run-summary.md` exists for the run, HTTP Forge attaches that file directly; otherwise it falls back to an inline summary of failed requests. |
+
+### AI-assisted failure analysis
+
+- **Fix Errors** is available when the current run contains failed requests.
+- The generated prompt can be edited before opening Copilot Chat, and `run-summary.md` is attached directly when available.
+- HTTP Forge checks whether GitHub Copilot Chat is installed before opening the analysis flow.
+- The generated prompt asks Copilot to analyse failures from a business perspective, use MCP-backed Confluence/Jira context if available, and avoid suggesting weaker assertions.
+
+### Export options (Statistics tab)
+
+Clicking **Export Report** generates a self-contained HTML statistics report with:
+- Summary cards (total requests, passed, failed, pass rate, avg/total duration)
+- Per-request response-time table (min / avg / P95 / P99 / max / pass rate)
+- Error summary table
+
+### HTML report filename
+
+Report files are named `report-<env>-<yyyy-MM-dd>-HH-mm.html` so they are self-describing:
+
+```
+results/
+  my-suite/
+    run-20260722-143500-001/
+      report-production-2026-07-22-14-35.html
+      junit.xml
+      manifest.json
+      ...
+```
 
 ## CLI runs and on-disk results
 Runs started from `@http-forge/cli` (or any direct execution host) persist results to:

@@ -1,5 +1,19 @@
 # http-forge 功能增强实施方案
 
+> **Status / Current State（历史规划文档）**
+>
+> 本文档是 **2026-01-12 的历史功能规划材料**（文档版本 2.1），描述了当时计划中的
+> Test Suite、性能统计、REST Client 兼容和导入/导出生态。其中大部分已实现：
+> Test Suite（含跨 Collection、迭代、P50/P95/P99 统计、HTML 报告）、Postman
+> 双向导入/导出、以及 "Export as REST Client" 命令均已在当前版本（**0.16.36**）
+> 落地；**k6/JMeter 导出并未实现**。
+>
+> 当前平台在此规划之上已大幅演进，新增了本文档未覆盖的能力，请以
+> [`README.md`](../README.md) 为准：**Discovered APIs** 树视图（六种框架发现）、
+> **API Architect**（`httpForge.architect`，从意图设计 API）、
+> `.http-forge/knowledge/**/*.md` 业务上下文、以及带 60+ 工具的 **MCP server**。
+> 本文档仅作历史参考。
+
 ## 一、现状评估
 
 ### 已完成功能 ✅

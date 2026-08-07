@@ -1,5 +1,17 @@
 # HTTP Forge - Request Tester Design Document
 
+> **Status / Current State**
+>
+> This design document describes the shipping **Request Tester** webview in
+> HTTP Forge **0.16.36** (the design is current; module internals have evolved
+> under the SOLID handler architecture). It does **not** cover the platform's
+> newer AI surface: Copilot-powered suggestion handlers in the request tester
+> (`suggest assertions`, `fix assertions`, etc.) that attach
+> `.http-forge/knowledge/**/*.md` business context, the **Discovered APIs** tree
+> view, the **API Architect** command (`httpForge.architect`), or the **MCP
+> server** (60+ tools). See [`README.md`](../README.md), `docs/user-guide/extension.md`,
+> and `docs/user-guide/mcp-server.md` for those.
+
 ## Overview
 
 The HTTP Forge Request Tester is a Postman-like HTTP API testing tool for Visual Studio Code. It allows developers to test API endpoints with full support for collections, environments, and scripting.
@@ -22,7 +34,7 @@ The HTTP Forge Request Tester is a Postman-like HTTP API testing tool for Visual
 
 ### Panel Location
 
-- **Activity Bar**: HTTP Forge icon (🔨) shows Collections and Environments views
+- **Activity Bar**: HTTP Forge icon (🔨) shows Collections, Test Suites, Environments, Request History, and **Discovered APIs** views
 - **Request Tester**: Opens as a new webview panel when you open a request
 
 ### Webview Module Architecture

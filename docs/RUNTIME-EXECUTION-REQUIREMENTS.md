@@ -1,12 +1,23 @@
 # Runtime Execution Requirements
 
+> **Status / Current State**
+>
+> This document is a **historical requirements spec** (2026-06-17) that has
+> since been **implemented**. Its target capabilities are now shipping: the
+> MCP server runs standalone via `@http-forge/core` (`mcp-runtime.ts`) and from
+> the CLI (`http-forge mcp`), direct request/collection/suite execution is
+> exposed through the CLI (`run`, `discover`, `generate-suite`, `architect`,
+> etc.), and the extension's MCP executor runs in-process. See
+> `docs/user-guide/cli-standalone.md`, `docs/user-guide/mcp-server.md`, and
+> [`README.md`](../README.md) for the current runtime surface.
+
 ## Document Information
 
 | Field | Value |
 |---|---|
 | Version | 1.0 |
 | Last Updated | 2026-06-17 |
-| Status | Approved for implementation |
+| Status | ✅ Implemented (see banner above) |
 | Audience | HTTP Forge maintainers, contributors, integrators |
 
 ---

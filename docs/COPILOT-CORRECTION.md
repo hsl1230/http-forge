@@ -1,5 +1,14 @@
 # Copilot Code Correction Guide
 
+> **Status / Current State**
+>
+> This document is **historical development material** from the DDD/SOLID
+> migration — a cheat-sheet of anti-patterns Copilot should be corrected on. The
+> migration is complete and these conventions are the enforced baseline (see the
+> repository's `AGENTS.md`). It is not a description of the current feature set;
+> for the current platform (extension **0.16.36**: API discovery, API Architect,
+> MCP server, `.http-forge/knowledge/` context) see [`README.md`](../README.md).
+
 Quick reference for common mistakes I might make during refactoring.
 If I generate code with any of these patterns, use this guide to correct me.
 

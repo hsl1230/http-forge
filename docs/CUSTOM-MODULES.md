@@ -1,5 +1,14 @@
 # 自定义模块加载指南
 
+> **Status / Current State**
+>
+> This document is **current** — the script sandbox loads custom npm modules
+> installed in the workspace (`scripts.modulePaths` in
+> `.http-forge/http-forge.config.json`, see `docs/configuration.md`). It is a
+> scripting feature of the current platform (extension **0.16.36**); the same
+> script engine powers the **MCP server**'s request execution. Related docs:
+> `docs/user-guide/scripts-assertions.md` and [`README.md`](../README.md).
+
 ## 概述
 
 HTTP Forge 的脚本沙箱现在支持加载自定义npm模块！用户可以通过简单的 `npm install` 来扩展沙箱功能。

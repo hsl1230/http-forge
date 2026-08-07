@@ -56,7 +56,11 @@ You do not need to copy every default into your project config. A minimal
   "runner": {
     "resultsRetentionDays": 7,
     "indexPageSize": 1000,
-    "recentErrorsLimit": 20
+    "recentErrorsLimit": 20,
+    "report": {
+      "maxBodyChars": 100000,
+      "embedBodies": "failed"
+    }
   },
   "environments": {
     "default": "dev"
@@ -91,6 +95,67 @@ You do not need to copy every default into your project config. A minimal
   }
 }
 ```
+
+## Proxy support
+
+HTTP Forge routes all requests through the configured proxy using a native CONNECT tunnel — no extra npm packages required.
+
+### Basic proxy
+
+```json
+{
+  "proxy": {
+    "http": "http://proxy.corp.com:8080",
+    "https": "http://proxy.corp.com:8080"
+  }
+}
+```
+
+### Authenticated proxy
+
+Embed credentials directly in the proxy URL:
+
+```json
+{
+  "proxy": {
+    "http": "http://user:pass@proxy.corp.com:8080",
+    "https": "http://user:pass@proxy.corp.com:8080"
+  }
+}
+```
+
+### Bypass list
+
+```json
+{
+  "proxy": {
+    "https": "http://proxy.corp.com:8080",
+    "bypass": ["localhost", "127.0.0.1", "*.internal.corp.com"]
+  }
+}
+```
+
+Bypass patterns support:
+- Exact host: `api.local`
+- Wildcard subdomain: `*.corp.example.com`
+- Wildcard all: `*`
+
+### Disabling proxy
+
+Set `proxy` to `null` (default) to disable:
+
+```json
+{
+  "proxy": null
+}
+```
+
+### How it works
+
+- **HTTPS targets**: HTTP Forge opens a TCP connection to the proxy and sends a `CONNECT` tunnel request, then upgrades to TLS. The proxy only sees the target host/port, not the request content.
+- **HTTP targets**: requests are sent to the proxy host with an absolute URI path as required by HTTP/1.1.
+- **Proxy auth**: `Proxy-Authorization: Basic ...` is added automatically when credentials appear in the proxy URL.
+- **Live reload**: saving `.http-forge/http-forge.config.json` with updated proxy settings takes effect immediately for the next request — no VS Code restart needed.
 
 ## TLS and certificate support
 
@@ -166,6 +231,8 @@ Supported TLS fields:
 | runner | `resultsRetentionDays` | `7` | Result retention in days |
 | runner | `indexPageSize` | `1000` | Result index page size |
 | runner | `recentErrorsLimit` | `20` | Number of recent errors tracked |
+| runner.report | `maxBodyChars` | `100000` | Max characters per request/response body embedded in HTML reports. Larger bodies are truncated; full bodies remain in on-disk result files |
+| runner.report | `embedBodies` | `"failed"` | Which request bodies to embed in HTML reports: `"all"`, `"failed"`, or `"none"` |
 | environments | `default` | `"dev"` | Default environment name |
 | restClientExport | `path` | `"collections-rest-client"` | REST Client export path |
 | restClientExport | `mergeGlobals` | `true` | Merge globals on export |
@@ -178,7 +245,9 @@ Supported TLS fields:
 | mcp | `drilldownThreshold` | `100` | Auto-switch threshold |
 | mcp | `toolPageSize` | `200` | Max tools per page |
 | mcp | `cors.allowedOrigins` | localhost origins | MCP CORS allowlist |
-| proxy | - | `null` | Optional proxy config |
+| proxy | `http` | - | HTTP proxy URL (e.g. `http://proxy.corp.com:8080`) |
+| proxy | `https` | - | HTTPS proxy URL. Falls back to `proxy.http` if omitted |
+| proxy | `bypass` | `[]` | Host patterns to skip proxy (exact or wildcard, e.g. `*.internal.com`) |
 | secrets | `providers` | built-in aliases | Cloud secret provider aliases/config |
 
 ## Directory structure

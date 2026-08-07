@@ -1,5 +1,14 @@
 # Refactoring Prompt Templates
 
+> **Status / Current State**
+>
+> This document is **historical planning material** — the DDD refactoring prompt
+> templates it provides were used to complete the codebase migration, which is
+> finished (the resulting conventions are enforced today; see the repository's
+> `AGENTS.md`). It is not a description of the current feature set. For the
+> current platform (extension **0.16.36**: API discovery, API Architect, MCP
+> server, `.http-forge/knowledge/` context) see [`README.md`](../README.md).
+
 Copy and paste these templates directly into Copilot Chat when requesting refactoring work.
 Remember to fill in the `[PLACEHOLDERS]` with your specific details.
 

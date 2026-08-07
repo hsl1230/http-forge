@@ -1281,22 +1281,11 @@ function createFormManager({ elements, state, escapeHtml, updateUrlPreview, sync
             return;
         }
         
-        const upperMethod = method?.toUpperCase();
-        const methodsWithBody = ['POST', 'PUT', 'PATCH'];
-        const supportsBody = methodsWithBody.includes(upperMethod);
-        
-        editor.updateOptions({ readOnly: !supportsBody });
+        editor.updateOptions({ readOnly: false });
         
         const bodyEditorContainer = document.getElementById('body-editor');
         if (bodyEditorContainer) {
-            bodyEditorContainer.classList.toggle('disabled', !supportsBody);
-        }
-        
-        if (!supportsBody) {
-            const message = `// Request body is not supported for ${upperMethod} requests.\n// Only POST, PUT, and PATCH methods can include a request body.`;
-            safeSetEditorValue(editor, message);
-            state.body = '';
-            return;
+            bodyEditorContainer.classList.remove('disabled');
         }
         
         if (bodyFields && bodyFields.length > 0) {

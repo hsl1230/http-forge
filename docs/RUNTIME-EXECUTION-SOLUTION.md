@@ -1,12 +1,21 @@
 # Runtime Execution Solution
 
+> **Status / Current State**
+>
+> This document is a **historical implementation blueprint** (2026-06-17) that
+> has since been **implemented**. The shared-runtime architecture it describes
+> is now shipping: one execution path serves the VS Code extension's in-process
+> MCP executor, the standalone MCP server in `@http-forge/core`
+> (`mcp-runtime.ts`), and the CLI. See `docs/user-guide/cli-standalone.md`,
+> `docs/user-guide/mcp-server.md`, and [`README.md`](../README.md).
+
 ## Document Information
 
 | Field | Value |
 |---|---|
 | Version | 1.0 |
 | Last Updated | 2026-06-17 |
-| Status | Implementation blueprint |
+| Status | ✅ Implemented (see banner above) |
 | Depends On | RUNTIME-EXECUTION-REQUIREMENTS.md |
 
 ---

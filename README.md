@@ -103,6 +103,12 @@ Build requests, inspect responses, and iterate fast — all without leaving VS C
 ### 🤖 AI-assisted API testing
 Ask GitHub Copilot to generate tests, heal broken assertions, analyse coverage against your OpenAPI spec, and run the entire suite autonomously. HTTP Forge is the only VS Code API tool with a native MCP server.
 
+### 🏗️ Design an API from an intent
+Tell HTTP Forge "I need a shopping cart" and it designs the whole API — endpoints, DTOs, auth — as an OpenAPI spec, imports it as a collection, and generates the test suite, runnable flow, workflow chains, and docs in one reviewable package. Run it from the Command Palette (**HTTP Forge: Design an API from Intent (AI)**), from the CLI (`http-forge architect`), or via the `design_api_from_intent` MCP tool.
+
+### 🔍 Discover your backend & keep tests in sync
+The **Discovered APIs** tree view (`HTTP Forge: Discover APIs`) scans the workspace folder with six framework providers — Express, Nest, Fastify, AWS Lambda, Spring, and FastAPI — and lists every endpoint grouped by framework, with method, path, confidence, and source provenance. The MCP tools turn that discovery into a working loop: `create_request_from_endpoint` scaffolds requests, `generate_test_suite` emits a runnable suite, `suggest_workflow`/`generate_workflow` detect AUTH/CRUD chains, and `check_drift`/`propose_update` detect when source changes have made a generated suite stale and propose a regeneration that preserves your hand edits.
+
 ### 🔄 Postman migration
 Import your Postman v2.1 collection — all `pm.*` scripts, environments, and globals work unchanged. No rewriting, no learning curve.
 
@@ -119,15 +125,21 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 
 ## 🤖 AI & MCP
 ✅ Built-in MCP server — 60+ tools for GitHub Copilot, Claude, Cursor, Continue  
+✅ Discovered APIs tree view — scan the workspace with all six framework providers (Express, Nest, Fastify, Lambda, Spring, FastAPI) and browse endpoints by framework with provenance  
+✅ Design a full API from a plain-English intent — endpoints, DTOs, auth, tests, flow, and docs in one reviewable package (`HTTP Forge: Design an API from Intent (AI)`)  
+✅ Workspace business context — drop Confluence exports, Jira summaries, or ADRs into `.http-forge/knowledge/**/*.md` and every AI analysis (assertions, env suggestions, coverage, collection enhancement) is grounded in them  
 ✅ Auto-generate request bodies and test scripts from natural language  
 ✅ Scan collections for hardcoded values → replace with `{{ENV_VAR}}`  
 ✅ Analyse test coverage against OpenAPI specs  
 ✅ Heal broken assertions after API changes  
+✅ Open GitHub Copilot Chat with suite failure context to analyse failed requests faster  
 ✅ Generate negative/edge-case test scenarios  
 ✅ Full agent mode — AI drives the entire test lifecycle autonomously  
+✅ Auto-generated `.http-forge/AGENTS.md` enables execution-only MCP mode for AI agents with workspace file access, reducing tool-list token overhead  
 
 ### 🔧 Request Builder
 ✅ All HTTP methods — GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS  
+✅ Request bodies supported for all methods, including DELETE, GET, HEAD, and OPTIONS  
 ✅ Query params, headers, path variables with enable/disable toggles  
 ✅ JSON, form-data, raw text, binary, GraphQL body types  
 ✅ OAuth 2.0 (all 4 grant types + PKCE), Bearer, Basic, API Key  
@@ -137,8 +149,10 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 
 ### 📁 Collections
 ✅ Git-friendly folder structure — one file per request  
+✅ Discovered APIs tree view — endpoints from the workspace's backend (Express/Nest/Fastify/Lambda/Spring/FastAPI) grouped by framework, with confidence + source tooltips  
 ✅ Import Postman v2.1, export OpenAPI 3.0  
 ✅ Drag & drop, duplicate, file-watching auto-reload  
+✅ Run collections or folders directly from the tree, including folders whose names contain `/`  
 ✅ Cross-collection test suites with iterations  
 ✅ Visual flow editor for suites — request, script, if/else, for, while, switch, block nodes  
 ✅ Fast node authoring — adding non-request nodes opens the editor immediately  
@@ -213,6 +227,10 @@ Your OpenAPI contract is not just for import or export — it can also be reused
 - [Secret Providers](docs/user-guide/secret-providers.md)
 - [TypeScript Codegen](docs/user-guide/codegen.md)
 - [Playwright Integration](docs/user-guide/playwright.md)
+- [Configuration](docs/configuration.md)
+- [Script API & Postman Compatibility](docs/postman-compatibility.md)
+- [OpenAPI Round-Trip & API Design](docs/OPENAPI-SOLUTION.md)
+- [Copilot Chat Guide](docs/COPILOT-CHAT-GUIDE.md)
 
 ---
 

@@ -231,7 +231,9 @@ After sending a request, an AI toolbar appears above the response body:
 
 #### 💬 AI Assistant chat
 
-Click **💬 Chat** in the response toolbar to open a persistent, multi-turn chat panel scoped to the current request and response. Every message is sent to GitHub Copilot with an automatic context preamble containing:
+Click **💬 Chat** in the response toolbar to open a persistent, multi-turn chat panel scoped to the current request and response. The generated prompt is shown in an editor first so you can review or modify it before sending it to GitHub Copilot. Any relevant request or response context is attached directly to the Copilot session instead of relying on fragile `#file:` references.
+
+Every message is sent to GitHub Copilot with an automatic context preamble containing:
 
 - The request endpoint (`METHOD URL`)
 - Last response status code
@@ -247,6 +249,30 @@ After a response, HTTP Forge automatically suggests `pm.test()` snippets when no
 ### AI via MCP (agent mode)
 
 When the MCP server is running, AI agents (Claude, Copilot in agent mode) can trigger collection enhancement and env var scanning autonomously via `ai_suggest_env_vars` and `ai_enhance_collection`. See [MCP Server](mcp-server.md#agentic-ai-tools--env-scanning-and-collection-enhancement).
+
+## 12) Discover APIs
+
+HTTP Forge can scan a backend project **from source code** (no OpenAPI involved) and surface its endpoints in a **Discovered APIs** tree view.
+
+Supported frameworks: Express, NestJS, Fastify, Lambda, Spring (Java), and FastAPI (Python).
+
+**Run a scan:**
+1. Open the workspace folder containing the backend project.
+2. Run the **HTTP Forge: Discover APIs** command from the command palette.
+3. The **Discovered APIs** view (in the HTTP Forge activity bar) lists endpoints grouped by framework.
+
+Each endpoint row shows `METHOD path`, the confidence, and the source file:line. Hover for full details (framework, confidence, params).
+
+**What you can do next:**
+- From the CLI, turn the discovered endpoints into a runnable test suite:
+  ```bash
+  http-forge generate-suite --path ./backend --collection "My API"
+  http-forge generate-workflow --path ./backend --collection "My API"
+  ```
+- Check whether the project has drifted since a prior scan:
+  ```bash
+  http-forge drift --path ./backend
+  ```
 
 ## Tips
 - Keep history/results out of version control.

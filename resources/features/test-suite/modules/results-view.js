@@ -112,22 +112,95 @@ export function populateModalWithDetails(result) {
     
     // Request details
     if (elements.requestUrl) elements.requestUrl.textContent = result.url || '';
-    if (elements.requestMethod) elements.requestMethod.textContent = result.method || '';
-    if (elements.requestDuration) elements.requestDuration.textContent = `${result.duration}ms`;
+    if (elements.requestMethodDuration) {
+        const methodText = result.method || '';
+        const durationText = result.duration != null ? `${result.duration}ms` : '';
+        elements.requestMethodDuration.textContent = [methodText, durationText].filter(Boolean).join(' • ');
+    }
     
     if (elements.requestHeadersTable) {
         elements.requestHeadersTable.innerHTML = Object.entries(requestHeaders)
             .map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(String(value))}</td></tr>`)
             .join('') || '<tr><td colspan="2">No headers</td></tr>';
     }
-    
+
+    const normalizedRequestBody = normalizeRequestBody(requestBody);
+    const hasRequestBody = normalizedRequestBody && normalizedRequestBody.type !== 'none';
+    const bodyLabel = normalizedRequestBody?.type ? `Request Body (${normalizedRequestBody.type} ${normalizedRequestBody.format ? ' / ' + normalizedRequestBody.format : ''})` : 'Request Body';
+
+    if (elements.requestBodyTab) {
+        elements.requestBodyTab.classList.toggle('hidden', !hasRequestBody);
+    }
+    if (elements.requestBodyPanel) {
+        elements.requestBodyPanel.classList.toggle('hidden', !hasRequestBody);
+    }
+    if (!hasRequestBody) {
+        elements.requestHeadersTab?.classList.add('active');
+        elements.requestBodyTab?.classList.remove('active');
+        elements.requestHeadersPanel?.classList.add('active');
+        elements.requestBodyPanel?.classList.remove('active');
+    }
+
+    if (elements.requestBodyHeading) {
+        elements.requestBodyHeading.textContent = bodyLabel;
+    }
+
     if (elements.requestBodyContent) {
-        if (requestBody) {
-            elements.requestBodyContent.textContent = typeof requestBody === 'object' 
-                ? JSON.stringify(requestBody, null, 2) 
-                : String(requestBody);
+        if (hasRequestBody) {
+            const content = normalizedRequestBody?.content ?? '';
+            elements.requestBodyContent.textContent = formatRequestBodyContent(content, normalizedRequestBody?.type);
         } else {
             elements.requestBodyContent.textContent = 'No body';
+        }
+    }
+
+    // Test results
+    populateTestResults(result.assertions || []);
+
+    /**
+     * Normalize request body shape into type and content.
+     */
+    function normalizeRequestBody(body) {
+        if (body == null) return null;
+        if (typeof body === 'string') {
+            return { type: 'raw', content: body };
+        }
+        if (typeof body === 'object') {
+            if ('type' in body) {
+                const type = body.type || 'raw';
+                const content = body.content != null ? body.content : '';
+                return { type, content };
+            }
+            return { type: 'raw', content: body };
+        }
+        return { type: 'raw', content: String(body) };
+    }
+
+    /**
+     * Format request body content for display.
+     */
+    function formatRequestBodyContent(content, type) {
+        if (content == null) return '';
+        if (typeof content === 'string') {
+            if (type === 'raw' || type === 'graphql' || type === 'x-www-form-urlencoded' || type === 'binary') {
+                try {
+                    const parsed = JSON.parse(content);
+                    return JSON.stringify(parsed, null, 2);
+                } catch {
+                    return content;
+                }
+            }
+            try {
+                const parsed = JSON.parse(content);
+                return JSON.stringify(parsed, null, 2);
+            } catch {
+                return content;
+            }
+        }
+        try {
+            return JSON.stringify(content, null, 2);
+        } catch {
+            return String(content);
         }
     }
     
@@ -259,15 +332,15 @@ export function closeModal() {
 // ============================================
 
 /**
- * Export JSON report
+ * Export JUnit XML report
  */
-export function exportJsonReport() {
+export function exportJunitReport() {
     // Expand compact results to readable format for export
     const expandedResults = state.results.map(r => expandSummary(r));
-    
+
     vscode.postMessage({
         type: 'exportReport',
-        format: 'json',
+        format: 'junit',
         data: {
             suite: state.suite,
             results: expandedResults,
@@ -277,32 +350,66 @@ export function exportJsonReport() {
 }
 
 /**
- * Export HTML report
+ * Export HTML report — regenerates from stored run data if the file is missing.
  */
 export function exportHtmlReport() {
-    if (!state.reportPath) {
-        // No report generated yet (run hasn't completed or failed before finalization)
-        vscode.postMessage({ type: 'exportReport', format: 'html', reportPath: null });
-        return;
-    }
     vscode.postMessage({
         type: 'exportReport',
         format: 'html',
-        reportPath: state.reportPath
+        reportPath: state.reportPath || null,
+        suiteId: state.suiteId || null,
+        runId: state.currentRunId || null
     });
 }
 
 /**
- * Export statistics report
+ * Export statistics as an HTML report
  */
 export function exportStatisticsReport() {
     vscode.postMessage({
         type: 'exportReport',
-        format: 'statistics',
+        format: 'statistics-html',
         data: {
             suite: state.suite,
             statistics: state.statistics
         }
+    });
+}
+
+/**
+ * Fix Errors — opens Copilot Chat with failed requests + suite file context
+ * so Copilot can analyse root causes from a business perspective.
+ */
+export function fixErrors() {
+    const allResults = state.results || [];
+    if (!allResults.length) {
+        vscode.postMessage({ type: 'fixErrors', noResults: true });
+        return;
+    }
+    const failedResults = allResults.filter(r => !(r.p ?? r.passed));
+    if (!failedResults.length) {
+        vscode.postMessage({ type: 'fixErrors', allPassed: true });
+        return;
+    }
+    vscode.postMessage({
+        type: 'fixErrors',
+        suiteId: state.suiteId || null,
+        runId: state.currentRunId || null,
+        suiteName: state.suite?.name || 'Test Suite',
+        environment: state.selectedEnvironment || null,
+        failedResults: failedResults.map(r => ({
+            name: r.n || r.name || '',
+            method: r.m !== undefined
+                ? (['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS','TRACE','CONNECT'][r.m] || String(r.m))
+                : (r.method || ''),
+            // URL is not stored in compact summaries; reconstruct from available fields
+            url: r.url || r.u || '',
+            status: r.s ?? r.status ?? 0,
+            collectionName: r.cn || r.collectionName || '',
+            folderPath: r.fp || r.folderPath || '',
+            error: r.e || r.error || null,
+            assertionsFailed: r.af ?? 0
+        }))
     });
 }
 

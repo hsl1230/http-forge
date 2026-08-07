@@ -38,7 +38,11 @@
   "runner": {
     "resultsRetentionDays": 7,
     "indexPageSize": 1000,
-    "recentErrorsLimit": 20
+    "recentErrorsLimit": 20,
+    "report": {
+      "maxBodyChars": 100000,
+      "embedBodies": "failed"
+    }
   },
   "environments": {
     "default": "dev"
@@ -54,7 +58,12 @@
       "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
     }
   },
-  "proxy": null,
+  "proxy": {
+    "enabled": true,
+    "http": "http://proxy.corp.com:8080",
+    "https": "http://proxy.corp.com:8080",
+    "bypass": ["localhost", "127.0.0.1", "*.internal.corp.com"]
+  },
   "secrets": {
     "providers": {
       "aws": {

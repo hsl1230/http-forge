@@ -1,5 +1,16 @@
 # Suite Request Customization — Detailed Implementation Plan
 
+> **Status / Current State**
+>
+> This document is **historical planning material** for making suite requests
+> self-contained snapshots. The suite model has since evolved in
+> `@http-forge/core`: suites store request nodes (`SuiteRequestNode`) that can
+> carry per-request `postResponseScript` and are tagged `ai_generated` /
+> `derived_from` when produced by API discovery or the **API Architect** flow
+> (`httpForge.architect`). See `docs/user-guide/test-suites.md` for the current
+> suite capabilities and [`README.md`](../README.md) for the platform overview
+> (extension **0.16.36**).
+
 ## Overview
 
 Allow users to open and edit individual requests within a test suite **without modifying the source collection**. Each suite becomes a self-contained test scenario where request data is a **full snapshot** (deep copy) from the collection at add-time.

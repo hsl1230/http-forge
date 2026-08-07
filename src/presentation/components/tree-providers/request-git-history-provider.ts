@@ -40,9 +40,9 @@ export class GitCommitTreeItem extends vscode.TreeItem {
 // ── Tree provider ─────────────────────────────────────────────────────────────
 
 export class RequestGitHistoryProvider
-    implements vscode.TreeDataProvider<GitCommitTreeItem>
+    implements vscode.TreeDataProvider<vscode.TreeItem>
 {
-    private _onDidChangeTreeData = new vscode.EventEmitter<void | GitCommitTreeItem | null | undefined>();
+    private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined | null>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     private commits: GitCommitEntry[] = [];
@@ -57,7 +57,7 @@ export class RequestGitHistoryProvider
         this.requestLabel = requestLabel;
         this.loadingError = null;
         this.commits = [];
-        this._onDidChangeTreeData.fire();
+        this._onDidChangeTreeData.fire(undefined);
 
         try {
             this.commits = await loader();
@@ -68,7 +68,7 @@ export class RequestGitHistoryProvider
             this.loadingError = `Failed to load history: ${(err as Error).message}`;
         }
 
-        this._onDidChangeTreeData.fire();
+        this._onDidChangeTreeData.fire(undefined);
     }
 
     /** Clear the history panel (e.g. when no request is selected). */
@@ -76,21 +76,27 @@ export class RequestGitHistoryProvider
         this.commits = [];
         this.requestLabel = '';
         this.loadingError = null;
-        this._onDidChangeTreeData.fire();
+        this._onDidChangeTreeData.fire(undefined);
     }
 
-    getTreeItem(element: GitCommitTreeItem): vscode.TreeItem {
+    getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
         return element;
     }
 
-    getChildren(): GitCommitTreeItem[] {
+    getChildren(): vscode.TreeItem[] {
         if (this.loadingError !== null) {
-            const item = new vscode.TreeItem(this.loadingError);
-            item.iconPath = new vscode.ThemeIcon('warning');
-            // We can't return a mixed list easily, so return the error commit-like item
-            // by wrapping in a fake entry
-            return [];
+            const errorItem = new vscode.TreeItem(this.loadingError, vscode.TreeItemCollapsibleState.None);
+            errorItem.iconPath = new vscode.ThemeIcon('warning');
+            return [errorItem];
         }
+
+        if (this.requestLabel && this.commits.length === 0) {
+            const emptyItem = new vscode.TreeItem(`No git history found for "${this.requestLabel}".`, vscode.TreeItemCollapsibleState.None);
+            emptyItem.iconPath = new vscode.ThemeIcon('info');
+            emptyItem.contextValue = 'gitHistoryPlaceholder';
+            return [emptyItem];
+        }
+
         return this.commits.map((c) => new GitCommitTreeItem(c));
     }
 }

@@ -1,5 +1,14 @@
 # Refactoring System Setup Complete ✅
 
+> **Status / Current State**
+>
+> This document is **historical planning material** — a setup record for the
+> refactoring prompt/skill/hook system. The DDD migration it supported is
+> finished and its conventions are the enforced baseline (see the repository's
+> `AGENTS.md`). It is not a description of the current feature set; for the
+> current platform (extension **0.16.36**: API discovery, API Architect, MCP
+> server, `.http-forge/knowledge/` context) see [`README.md`](../README.md).
+
 All prompts, skills, and hooks for code refactoring are now in place.
 
 ---

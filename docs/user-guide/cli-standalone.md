@@ -240,7 +240,7 @@ Common options:
 > http-forge run-request --workspace . --collection my-api --folder Auth --request "Get User"
 > ```
 
-> **Run Folder.** `run-folder` requires `--collection` **and** `--folder` (a slash-separated folder path; each segment may be an id, slug, or name, e.g. `"Auth/Login"`). It runs every request under that folder — including nested subfolders — using the exact same engine, grouping, and reports as `run-collection`. Pass `--no-recursive` (or `--recursive false`) to run only the requests directly in that folder. All other `run-collection` options apply.
+> **Run Folder.** `run-folder` requires `--collection` **and** `--folder` (a slash-separated folder path; each segment may be an id, slug, or name, e.g. `"Auth/Login"`). It runs every request under that folder — including nested subfolders — using the exact same engine, grouping, and reports as `run-collection`. Pass `--no-recursive` (or `--recursive false`) to run only the requests directly in that folder. If a folder name itself contains `/`, use the display form with spaces around the separator between folder levels, for example `"agl-page-composition / TRAY/EPG / AVS5-5304 - TRAY/EPG"`. All other `run-collection` options apply.
 
 > **Results are always saved.** Collection and suite runs always persist their manifest, per-iteration results, and result index to `storage.results` (`.http-forge/.cache/results/<suiteId>/<runId>/`) — you do **not** need `--include report` for this. Because of that, CLI runs automatically show up in the VS Code **History** tab and can be loaded into the Results/Statistics tabs. `--include report` only additionally generates the self-contained `report.html`.
 

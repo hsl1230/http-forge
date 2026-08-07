@@ -23,8 +23,9 @@ import {
 import {
     closeModal,
     exportHtmlReport,
-    exportJsonReport,
+    exportJunitReport,
     exportStatisticsReport,
+    fixErrors,
     formatAndDisplayBody,
     handleResultDetails,
     handleResultDetailsError,
@@ -109,8 +110,9 @@ function initialize() {
         tabContents: document.querySelectorAll('.tab-content'),
         // Results
         resultsList: document.getElementById('results-list'),
-        exportJsonBtn: document.getElementById('export-json-btn'),
+        exportJunitBtn: document.getElementById('export-junit-btn'),
         exportHtmlBtn: document.getElementById('export-html-btn'),
+        fixErrorsBtn: document.getElementById('fix-errors-btn'),
         // Statistics (Response Time table and Error Summary only)
         statsTableBody: document.getElementById('stats-table-body'),
         errorSummary: document.getElementById('error-summary'),
@@ -134,10 +136,16 @@ function initialize() {
         responseBodyEditor: document.getElementById('response-body-editor'),
         responseHeadersTable: document.getElementById('response-headers-table'),
         requestUrl: document.getElementById('request-url'),
-        requestMethod: document.getElementById('request-method'),
-        requestDuration: document.getElementById('request-duration'),
+        requestMethodDuration: document.getElementById('request-method-duration'),
+        requestHeadersTab: document.getElementById('request-headers-tab'),
+        requestBodyTab: document.getElementById('request-body-tab'),
+        requestHeadersPanel: document.getElementById('request-headers-panel'),
+        requestBodyPanel: document.getElementById('request-body-panel'),
+        requestBodyHeading: document.getElementById('request-body-heading'),
         requestHeadersTable: document.getElementById('request-headers-table'),
         requestBodyContent: document.getElementById('request-body-content'),
+        requestSubtabs: document.querySelectorAll('.request-subtab'),
+        requestSubpanels: document.querySelectorAll('.request-subpanel'),
         testSummary: document.getElementById('test-summary'),
         testList: document.getElementById('test-list'),
         bodyFormatSelect: document.getElementById('body-format-select'),
@@ -240,8 +248,9 @@ function setupEventListeners() {
     elements.clearDataBtn?.addEventListener('click', clearDataFile);
 
     // Export buttons
-    elements.exportJsonBtn?.addEventListener('click', exportJsonReport);
+    elements.exportJunitBtn?.addEventListener('click', exportJunitReport);
     elements.exportHtmlBtn?.addEventListener('click', exportHtmlReport);
+    elements.fixErrorsBtn?.addEventListener('click', fixErrors);
     elements.exportReportBtn?.addEventListener('click', exportStatisticsReport);
 
     // Tab switching
@@ -276,6 +285,17 @@ function setupEventListeners() {
             const panelId = tab.dataset.panel;
             elements.modalTabs.forEach(t => t.classList.remove('active'));
             elements.modalPanels?.forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(panelId)?.classList.add('active');
+        });
+    });
+
+    // Request subtab switching
+    elements.requestSubtabs?.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const panelId = tab.dataset.panel;
+            elements.requestSubtabs?.forEach(t => t.classList.remove('active'));
+            elements.requestSubpanels?.forEach(p => p.classList.remove('active'));
             tab.classList.add('active');
             document.getElementById(panelId)?.classList.add('active');
         });

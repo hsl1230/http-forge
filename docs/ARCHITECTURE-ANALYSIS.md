@@ -1,5 +1,18 @@
 # HTTP Forge VS Code Extension - Architecture Analysis & DDD Refactoring Plan
 
+> **Status / Current State**
+>
+> This document is **historical planning material** from the DDD/SOLID
+> refactoring effort. The refactoring it proposes has since been carried out and
+> is now enforced project-wide (see the repository's `AGENTS.md` coding
+> conventions); the anti-patterns it calls out (`getServiceContainer()`,
+> circular panel↔handler dependencies) are no longer present in the codebase.
+> Note that this analysis predates the current platform and should not be read
+> as an inventory of today's features — API **discovery**, the **API Architect**
+> (`httpForge.architect`), the **MCP server**, and `.http-forge/knowledge/`
+> business context did not exist when it was written. See
+> [`README.md`](../README.md) for the current architecture overview.
+
 ## Executive Summary
 
 The http-forge extension is a **VS Code-to-@http-forge/core adapter layer**. It orchestrates core services and exposes them through VS Code UI (tree providers, webview panels). While it has good foundational patterns (message routing, DI), it suffers from:

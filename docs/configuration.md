@@ -71,7 +71,11 @@ If the file is missing, HTTP Forge uses defaults:
       "allowedOrigins": ["http://localhost", "http://127.0.0.1"]
     }
   },
-  "proxy": null
+  "proxy": {
+    "http": "http://proxy.corp.com:8080",
+    "https": "http://proxy.corp.com:8080",
+    "bypass": ["localhost", "*.internal.corp.com"]
+  }
 }
 ```
 
@@ -102,13 +106,19 @@ If the file is missing, HTTP Forge uses defaults:
 |  | `drilldownThreshold` | `100` | In `"auto"` mode, switch to drill-down once the per-request tool count would exceed this. (min 10, max 500) |
 |  | `toolPageSize` | `200` | Max tools per `tools/list` page. `0` = no pagination. (min 10, max 1000) |
 |  | `cors.allowedOrigins` | `["http://localhost","http://127.0.0.1"]` | Origins the MCP server accepts cross-origin requests from. |
-| **proxy** | - | `null` | Proxy URL (set to a URL string to enable proxy) |
+| **proxy** | `http` | `null` | HTTP proxy URL, e.g. `"http://proxy.corp.com:8080"` |
+|  | `https` | `null` | HTTPS proxy URL. Falls back to `proxy.http` if omitted |
+|  | `bypass` | `[]` | Host patterns to skip the proxy (exact or `*.wildcard.com`) |
 
 ## Directory structure
 ```
 your-workspace/
 ├── .http-forge/
 │   ├── http-forge.config.json
+│   ├── AGENTS.md                ← auto-generated developer/AI-agent context
+│   ├── knowledge/               ← business context for AI features (*.md)
+│   │   ├── domain.md            ← e.g. Confluence exports, Jira summaries, ADRs
+│   │   └── ...
 │   └── .cache/
 │       ├── histories/
 │       └── results/
@@ -118,6 +128,15 @@ your-workspace/
 │   ├── flows/
 │   └── suites/
 ```
+
+## Workspace knowledge (`.http-forge/knowledge/`)
+
+Every markdown file under `.http-forge/knowledge/` (plus the workspace `README.md`
+and `AGENTS.md`) is gathered and attached to AI-driven features as business
+context: Copilot-powered test suggestions, assertion generation, environment
+variable suggestions, coverage analysis, and collection enhancement. Drop domain
+documentation there — Confluence exports, Jira summaries, ADRs, RFCs — and the
+AI analysis is grounded in your team's actual business rules instead of guessing.
 
 ## Environment files (folder layout)
 ```
@@ -218,57 +237,13 @@ The `mcp` section controls what the MCP server exposes to AI agents. All fields 
 }
 ```
 
-> **Note:** MCP port is project config (`mcp.port` in `.http-forge/http-forge.config.json`, default `3100`). Auto-start remains a VS Code setting (`httpForge.mcpServer.autoStart`).
-
-## MCP server project settings
-
-The `mcp` section controls what the MCP server exposes to AI agents. All fields are optional — by default everything is exposed.
-
-**Hide sensitive collections from AI:**
-```json
-{
-  "mcp": {
-    "excludedCollections": ["internal-admin", "seed-data"],
-    "excludedSuites": ["load-test"]
-  }
-}
-```
-
-**Add a tool name prefix (useful when multiple projects share the same AI agent):**
-```json
-{
-  "mcp": {
-    "toolPrefix": "myapp_"
-  }
-}
-```
-
-**Raise the request cap for large suites:**
-```json
-{
-  "mcp": {
-    "maxRequestsPerCall": 500
-  }
-}
-```
-
-**Large workspaces — always use the generic drill-down toolset:**
-```json
-{
-  "mcp": {
-    "toolMode": "drilldown"
-  }
-}
-```
-
-**Tune the auto-switch threshold (default 100):**
-```json
-{
-  "mcp": {
-    "toolMode": "auto",
-    "drilldownThreshold": 50
-  }
-}
-```
-
 > **Note:** MCP port is project config (`mcp.port` in `.http-forge/http-forge.config.json`, default `3100`). Auto-start remains a VS Code setting (`httpForge.mcpServer.autoStart`). See the MCP Server user guide for details.
+
+## VS Code extension settings
+
+These live in VS Code Settings (JSON), not in `.http-forge/http-forge.config.json`:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `httpForge.mcpServer.autoStart` | `false` | Automatically start the MCP server when the workspace opens |
+| `httpForge.ai.model` | *(empty)* | Preferred GitHub Copilot chat model for AI-powered features (e.g. `gpt-4o`). Leave empty to let the extension pick the best available model. |

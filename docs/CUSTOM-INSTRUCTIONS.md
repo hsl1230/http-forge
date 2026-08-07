@@ -1,5 +1,15 @@
 # HTTP Forge 自定义开发指南
 
+> **Status / Current State（历史开发指南）**
+>
+> 本文档是面向扩展代码库开发的 **DDD/SOLID 深度开发指南**，与当时的
+> `.vscode/.copilot-instructions` 配套。其架构原则（分层、依赖注入、禁止
+> `getServiceContainer()` 等）至今仍然有效并写入仓库 `AGENTS.md` 强制执行，但本文
+> 档描述的目录结构（`src/services/` 等）已随重构演化。它**不覆盖当前平台的 AI 功能**：
+> **Discovered APIs** 树视图、**API Architect**（`httpForge.architect`）、带 60+ 工具
+> 的 **MCP server**、以及 `.http-forge/knowledge/**/*.md` 业务上下文。当前平台总览
+> 见 [`README.md`](../README.md)。
+
 这份文档是对 `.vscode/.copilot-instructions` 的深度扩展，包含详细的示例、反面教材和最佳实践。
 
 ---

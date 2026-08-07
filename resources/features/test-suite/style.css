@@ -1968,16 +1968,56 @@ body {
     display: flex;
     gap: 12px;
     padding: 4px 0;
+    align-items: center;
 }
 
 .request-info-row .label {
     font-weight: 600;
-    min-width: 80px;
+    min-width: 140px;
     color: var(--vscode-descriptionForeground);
 }
 
 .request-info-row .value {
     word-break: break-all;
+}
+
+.request-subtabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.request-subtab {
+    background: none;
+    border: 1px solid transparent;
+    padding: 8px 12px;
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.request-subtab:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.request-subtab.active {
+    color: var(--vscode-foreground);
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-sideBar-background);
+}
+
+.request-subpanel {
+    display: none;
+}
+
+.request-subpanel.active {
+    display: block;
+}
+
+.request-subpanel.hidden {
+    display: none !important;
 }
 
 .modal-panel h4 {

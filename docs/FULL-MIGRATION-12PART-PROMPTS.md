@@ -1,5 +1,15 @@
 # Full Migration: 12-Part Generation Strategy
 
+> **Status / Current State**
+>
+> This document is **historical planning material** — the 12 Copilot prompt
+> batches it defines were used to complete the full DDD migration of the
+> extension codebase. The migration is finished and the resulting architecture
+> is the enforced baseline (see the repository's `AGENTS.md`). It is not a
+> description of the current feature set. For the current platform (extension
+> **0.16.36**: API discovery, API Architect, MCP server, `.http-forge/knowledge/`
+> context) see [`README.md`](../README.md).
+
 This document contains **12 separate Copilot prompts** to generate all 85 refactored files in sequence.
 
 Run each prompt in Copilot Chat one after another. After each generation, run validation.

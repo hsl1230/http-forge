@@ -1,5 +1,17 @@
 # Phase 3: Code Flows - Detailed Implementation Solution
 
+> **Status / Current State**
+>
+> This document is **historical planning material** for Phase 3 (Code Flows /
+> extraction of `@http-forge/core`). That phase was completed: core is now the
+> single execution engine shared by the extension, the CLI, and the MCP server,
+> and `.flow.js` artifacts are a shipping, runnable format (also emitted by the
+> **API Architect** and `generate_test_suite`). The current platform (extension
+> **0.16.36**) adds API **discovery**, the **API Architect** command
+> (`httpForge.architect`), and the **MCP server** with 60+ tools — none of which
+> existed when this was written. See [`README.md`](../README.md) and
+> `docs/user-guide/flows.md`.
+
 ## 1. Overview
 
 Phase 3 introduces **programmatic API testing** through a modular, multi-package architecture. This design supports:

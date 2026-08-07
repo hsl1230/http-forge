@@ -3,7 +3,7 @@
 The Request Tester is the main UI for building and executing requests from the extension.
 
 ## Request line
-- **Method**: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD
+- **Method**: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, TRACE
 - **Path/URL**: Absolute URL or relative path resolved against environment variables (supports Express.js route patterns like `:id`)
 - **Send**: Executes the request
 - **Save**: Saves updates back to the collection

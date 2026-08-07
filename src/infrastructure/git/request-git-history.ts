@@ -26,14 +26,22 @@ export interface GitCommitEntry {
 }
 
 /** Find the request.json file for a given collectionId + requestId inside the workspace. */
-export function resolveRequestJsonPath(workspaceFolder: string, collectionId: string, requestId: string): string | null {
-    // Collections are stored as directories: collections/<collectionId>/
-    // Requests are stored in subdirectories: collections/<collectionId>/**/<requestId>/request.json
-    const collectionsDir = path.join(workspaceFolder, 'collections');
-    if (!fs.existsSync(collectionsDir)) return null;
+export function resolveRequestJsonPath(workspaceFolder: string, collectionId: string, requestId: string, collectionsDirOverride?: string): string | null {
+    const candidates = [
+        collectionsDirOverride,
+        path.join(workspaceFolder, '.http-forge', 'assets', 'collections'),
+        path.join(workspaceFolder, 'collections'),
+        path.join(workspaceFolder, 'http-forge-assets', 'collections'),
+    ].filter(Boolean) as string[];
 
-    const target = findRequestJson(collectionsDir, requestId);
-    return target;
+    for (const collectionsDir of candidates) {
+        if (!fs.existsSync(collectionsDir)) continue;
+
+        const target = findRequestJson(collectionsDir, requestId);
+        if (target) return target;
+    }
+
+    return null;
 }
 
 function findRequestJson(dir: string, requestId: string): string | null {
@@ -48,15 +56,28 @@ function findRequestJson(dir: string, requestId: string): string | null {
         let stat: fs.Stats;
         try { stat = fs.statSync(full); } catch { continue; }
         if (stat.isDirectory()) {
-            if (entry === requestId) {
-                const candidate = path.join(full, 'request.json');
-                if (fs.existsSync(candidate)) return candidate;
+            const candidate = path.join(full, 'request.json');
+            if (fs.existsSync(candidate)) {
+                if (entry === requestId) return candidate;
+                const metadataId = readRequestIdFromRequestJson(candidate);
+                if (metadataId === requestId) return candidate;
             }
+
             const found = findRequestJson(full, requestId);
             if (found) return found;
         }
     }
     return null;
+}
+
+function readRequestIdFromRequestJson(requestJsonPath: string): string | null {
+    try {
+        const content = fs.readFileSync(requestJsonPath, 'utf-8');
+        const metadata = JSON.parse(content) as { id?: string };
+        return typeof metadata.id === 'string' ? metadata.id : null;
+    } catch {
+        return null;
+    }
 }
 
 /** Return the git repository root for the given path, or null if not in a repo. */

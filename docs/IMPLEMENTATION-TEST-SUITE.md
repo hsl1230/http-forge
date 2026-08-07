@@ -1,5 +1,14 @@
 # Test Suite 实现方案
 
+> **Status / Current State（历史规划文档）**
+>
+> 本文档是 **Test Suite 的历史实现方案**（基于旧 `webview-panels/` 目录结构，
+> 已被 SOLID 重构取代）。Test Suite 功能本身已完整落地：跨 Collection 引用、迭代、
+> P50/P95/P99 统计、JSON/HTML 报告、可视化 flow 编辑器，并新增了 `ai_generated` /
+> `derived_from` 元数据与 `postResponseScript` 节点（由 API discovery / Architect /
+> drift 流程生成）。当前版本 **0.16.36**，详见 `docs/user-guide/test-suites.md`
+> 与 `docs/user-guide/flows.md`；总览见 [`README.md`](../README.md)。
+
 ## 一、现状分析
 
 ### 1.1 现有 Collection Runner 架构

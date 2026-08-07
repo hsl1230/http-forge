@@ -1,5 +1,15 @@
 # Full-Scale Refactoring Roadmap
 
+> **Status / Current State**
+>
+> This document is **historical planning material** for the full DDD migration
+> of the extension codebase (28 handlers, ~85 files). The migration has since
+> been completed and the target architecture is now the enforced baseline (see
+> the repository's `AGENTS.md`). It does not reflect the current platform's
+> feature surface — API **discovery**, the **API Architect** (`httpForge.architect`),
+> the **MCP server**, and `.http-forge/knowledge/` business context came later.
+> See [`README.md`](../README.md) for the current state.
+
 Complete plan for refactoring the entire HTTP Forge codebase to DDD architecture in one comprehensive migration.
 
 ---
