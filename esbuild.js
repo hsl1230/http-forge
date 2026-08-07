@@ -27,7 +27,7 @@ async function main() {
     // package.json.  the cloud secret SDKs are resolved at runtime from
     // the user's project (scripts.modulePaths) rather than bundled.
     external: [
-      'vscode', 'lodash', 'moment', 'tv4', 'ajv',
+      'vscode', 'moment', 'tv4', 'ajv',
       '@aws-sdk/client-secrets-manager', '@azure/keyvault-secrets',
       '@azure/identity', '@google-cloud/secret-manager',
     ],

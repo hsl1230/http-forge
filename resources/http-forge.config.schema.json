@@ -212,6 +212,38 @@
         }
       }
     },
+      "discovery": {
+        "type": "object",
+        "description": "Source-code discovery configuration (framework hints, custom seed loader, component analysis).",
+        "properties": {
+          "customSeedLoaderModulePath": {
+            "type": "string",
+            "description": "Absolute or workspace-relative path to a custom seed loader module. When set, hybrid seed loading is enabled.",
+            "default": ""
+          },
+          "frameworks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["auto", "express", "fastify", "nestjs", "lambda"]
+            },
+            "description": "Framework detection hints (e.g. ['express'] or ['auto']).",
+            "default": ["auto"]
+          },
+          "contextProperties": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of request/response context properties to inspect during component analysis (e.g. ['locals']).",
+            "default": ["locals"]
+          },
+          "skipComponentAnalysis": {
+            "type": "boolean",
+            "description": "When true, skip component dependency analysis during discovery (faster, less detail).",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
     "proxy": {
       "type": ["object", "null"],
       "description": "Proxy configuration (null to disable). Requests are tunnelled through the proxy using native Node.js http/https — no extra packages required.",

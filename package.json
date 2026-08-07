@@ -173,7 +173,8 @@
     "commands": [
       {
         "command": "httpForge.newRequest",
-        "title": "HTTP Forge: New Request",
+        "title": "New Request",
+        "category": "HTTP Forge",
         "icon": "$(add)"
       },
       {
@@ -308,7 +309,7 @@
       },
       {
         "command": "httpForge.closeAllRequestPanels",
-        "title": "HTTP Forge: Close All Request Panels",
+        "title": "Close All Request Panels",
         "category": "HTTP Forge"
       },
       {
@@ -329,30 +330,36 @@
       {
         "command": "httpForge.renameTestSuite",
         "title": "Rename Test Suite",
+        "category": "HTTP Forge",
         "icon": "$(edit)"
       },
       {
         "command": "httpForge.runTestSuite",
         "title": "Run Test Suite",
+        "category": "HTTP Forge",
         "icon": "$(run-all)"
       },
       {
         "command": "httpForge.duplicateTestSuite",
         "title": "Duplicate Test Suite",
+        "category": "HTTP Forge",
         "icon": "$(copy)"
       },
       {
         "command": "httpForge.refreshTestSuites",
         "title": "Refresh Test Suites",
+        "category": "HTTP Forge",
         "icon": "$(refresh)"
       },
       {
         "command": "httpForge.showConsole",
-        "title": "HTTP Forge: Show Console"
+        "category": "HTTP Forge",
+        "title": "Show Console"
       },
       {
         "command": "httpForge.clearConsole",
-        "title": "HTTP Forge: Clear Console"
+        "category": "HTTP Forge",
+        "title": "Clear Console"
       },
       {
         "command": "httpForge.moveItemUp",
@@ -362,82 +369,96 @@
       {
         "command": "httpForge.moveItemDown",
         "title": "Move Down",
+        "category": "HTTP Forge",
         "icon": "$(arrow-down)"
       },
       {
         "command": "httpForge.exportOpenApi",
         "title": "Export as OpenAPI",
+        "category": "HTTP Forge",
         "icon": "$(export)"
       },
       {
         "command": "httpForge.importOpenApi",
         "title": "Import OpenAPI Spec",
+        "category": "HTTP Forge",
         "icon": "$(cloud-download)"
       },
       {
         "command": "httpForge.importHar",
         "title": "Import HAR Archive",
+        "category": "HTTP Forge",
         "icon": "$(cloud-download)"
       },
       {
         "command": "httpForge.inferResponseSchema",
         "title": "Infer Response Schema",
+        "category": "HTTP Forge",
         "icon": "$(lightbulb)"
       },
       {
         "command": "httpForge.inferAllResponseSchemas",
         "title": "Infer All Response Schemas",
+        "category": "HTTP Forge",
         "icon": "$(lightbulb-autofix)"
       },
       {
         "command": "httpForge.mcpStartServer",
-        "title": "HTTP Forge: Start MCP Server",
+        "title": "Start MCP Server",
+        "category": "HTTP Forge",
         "icon": "$(radio-tower)"
       },
       {
         "command": "httpForge.mcpStopServer",
-        "title": "HTTP Forge: Stop MCP Server",
+        "title": "Stop MCP Server",
+        "category": "HTTP Forge",
         "icon": "$(stop)"
       },
       {
         "command": "httpForge.mcpToggleServer",
-        "title": "HTTP Forge: Toggle MCP Server",
+        "title": "Toggle MCP Server",
+        "category": "HTTP Forge",
         "icon": "$(radio-tower)"
       },
       {
         "command": "httpForge.showRequestGitHistory",
-        "title": "HTTP Forge: Show Request Git History",
+        "title": "Show Request Git History",
+        "category": "HTTP Forge",
         "icon": "$(git-commit)"
       },
       {
         "command": "httpForge.viewRequestGitDiff",
-        "title": "HTTP Forge: View Request Diff at Commit",
+        "title": "View Request Diff at Commit",
+        "category": "HTTP Forge",
         "icon": "$(diff)"
       },
       {
         "command": "httpForge.revertRequestToCommit",
-        "title": "HTTP Forge: Revert Request to Commit",
+        "title": "Revert Request to Commit",
+        "category": "HTTP Forge",
         "icon": "$(discard)"
       },
       {
         "command": "httpForge.suggestEnvVariables",
         "title": "Suggest Env Variables (AI)",
+        "category": "HTTP Forge",
         "icon": "$(sparkle)"
       },
       {
         "command": "httpForge.generateCollectionFromCurl",
-        "title": "HTTP Forge: Generate Collection from curl (AI)",
+        "title": "Generate Collection from curl (AI)",
+        "category": "HTTP Forge",
         "icon": "$(sparkle)"
       },
       {
         "command": "httpForge.discoverApis",
-        "title": "HTTP Forge: Discover APIs",
+        "title": "Discover APIs",
         "category": "HTTP Forge",
         "icon": "$(search)"
       },
       {
         "command": "httpForge.architect",
-        "title": "HTTP Forge: Design an API from Intent (AI)",
+        "title": "Design an API from Intent (AI)",
         "category": "HTTP Forge",
         "icon": "$(sparkle)"
       },
@@ -546,6 +567,17 @@
           "command": "httpForge.newTestSuite",
           "when": "view == httpForge.testSuites",
           "group": "navigation@2"
+        },
+        {
+          "command": "httpForge.discoverApis",
+          "when": "view == httpForge.discoveredApis",
+          "group": "navigation@1"
+        }
+      ],
+      "view/welcome": [
+        {
+          "view": "httpForge.discoveredApis",
+          "contents": "No endpoints discovered yet. Scan the workspace to detect backend endpoints from Express, Nest, Fastify, Lambda, Spring, or FastAPI source code.\n[Scan Workspace](command:httpForge.discoverApis)"
         }
       ],
       "view/item/context": [
@@ -770,7 +802,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.6.36-beta.1",
+    "@http-forge/core": "^0.6.36-beta.2",
     "cheerio": "^1.1.2",
     "java-parser": "^3.0.1",
     "uuid": "^13.0.0",

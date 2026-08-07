@@ -6,17 +6,18 @@
  * framework, with method/path/provenance. A refresh action re-scans.
  */
 
-import * as vscode from 'vscode';
 import {
-  ApiDiscoveryService,
-  DiscoveredApi,
-  ExpressDiscoveryProvider,
-  FastApiDiscoveryProvider,
-  FastifyDiscoveryProvider,
-  LambdaDiscoveryProvider,
-  NestDiscoveryProvider,
-  SpringDiscoveryProvider,
+    ApiDiscoveryService,
+    DiscoveredApi,
+    DiscoveryConfig,
+    ExpressDiscoveryProvider,
+    FastApiDiscoveryProvider,
+    FastifyDiscoveryProvider,
+    LambdaDiscoveryProvider,
+    NestDiscoveryProvider,
+    SpringDiscoveryProvider,
 } from '@http-forge/core';
+import * as vscode from 'vscode';
 
 /**
  * Tree item for a discovered endpoint.
@@ -73,7 +74,10 @@ export class DiscoveredApisTreeProvider implements vscode.TreeDataProvider<vscod
     private endpoints: DiscoveredApi[] = [];
     private scanning = false;
 
-    constructor(private readonly workspaceFolder: string) {}
+    constructor(
+        private readonly workspaceFolder: string,
+        private readonly discoveryConfig?: DiscoveryConfig,
+    ) {}
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
@@ -93,7 +97,10 @@ export class DiscoveredApisTreeProvider implements vscode.TreeDataProvider<vscod
                     new FastApiDiscoveryProvider(),
                 ],
             });
-            const result = await service.discover({ workspaceFolder: this.workspaceFolder });
+            const result = await service.discover({
+                workspaceFolder: this.workspaceFolder,
+                ...this.discoveryConfig,
+            });
             this.endpoints = result.endpoints;
         } finally {
             this.scanning = false;
@@ -121,7 +128,7 @@ export class DiscoveredApisTreeProvider implements vscode.TreeDataProvider<vscod
             const groups = [...byFramework.entries()]
                 .map(([framework, eps]) => new FrameworkGroupItem(framework, eps, false));
             if (groups.length === 0) {
-                return [new vscode.TreeItem('No endpoints discovered. Run the refresh action.', vscode.TreeItemCollapsibleState.None)];
+                return [];
             }
             return groups;
         }

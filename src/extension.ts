@@ -17,13 +17,13 @@ import type { CommandContext } from './commands/command-context';
 import { runImportRequestCommand } from './commands/importRequest';
 import { McpServerController } from './infrastructure/mcp/mcp-server-controller';
 import { bootstrapServices } from './infrastructure/services/service-bootstrap';
-import { CollectionsTreeProvider, CollectionTreeItem } from './presentation/components/tree-providers/collections-tree-provider';
+import { CollectionTreeItem, CollectionsTreeProvider } from './presentation/components/tree-providers/collections-tree-provider';
 import { DiscoveredApisTreeProvider } from './presentation/components/tree-providers/discovered-apis-tree-provider';
 import { EnvironmentsTreeProvider } from './presentation/components/tree-providers/environments-tree-provider';
 import { RequestGitHistoryProvider } from './presentation/components/tree-providers/request-git-history-provider';
 import { TestSuitesTreeProvider } from './presentation/components/tree-providers/test-suites-tree-provider';
 import { RequestTesterPanelManager } from './presentation/webview/panels/request-tester/request-tester-panel-manager';
-import { EXTENSION_ID } from './shared/constants';
+import { COMMAND_IDS, EXTENSION_ID } from './shared/constants';
 
 /**
  * Extension activation
@@ -64,7 +64,7 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
   const collectionsTreeProvider = new CollectionsTreeProvider(collectionService as CollectionService);
   const environmentsTreeProvider = new EnvironmentsTreeProvider(envConfigService as EnvironmentConfigService);
   const testSuitesTreeProvider = new TestSuitesTreeProvider(testSuiteService);
-  const discoveredApisTreeProvider = new DiscoveredApisTreeProvider(workspaceFolder);
+  const discoveredApisTreeProvider = new DiscoveredApisTreeProvider(workspaceFolder, configService.getDiscoveryConfig());
 
   // Auto-refresh tree and open panels when collection files change on disk
   (collectionService as CollectionService).onCollectionsChanged = () => {
@@ -105,6 +105,17 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
   const requestGitHistoryProvider = new RequestGitHistoryProvider();
   const requestHistoryView = vscode.window.createTreeView('httpForge.requestHistory', {
     treeDataProvider: requestGitHistoryProvider,
+  });
+
+  const selectionListener = collectionsView.onDidChangeSelection(async (event) => {
+    const item = event.selection[0] as CollectionTreeItem | undefined;
+
+    if (!item || item.itemType !== 'request' || !item.collectionId || !item.requestId) {
+      requestGitHistoryProvider.clear();
+      return;
+    }
+
+    await vscode.commands.executeCommand(COMMAND_IDS.showRequestGitHistory, item);
   });
 
   // Register all commands
@@ -161,7 +172,8 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
     collectionsView,
     testSuitesView,
     environmentsView,
-    requestHistoryView
+    requestHistoryView,
+    selectionListener
   );
 
   // MCP server lifecycle (lazy start via commands/status bar)
