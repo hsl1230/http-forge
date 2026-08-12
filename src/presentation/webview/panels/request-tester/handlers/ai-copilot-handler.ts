@@ -46,7 +46,8 @@ export class AiCopilotHandler {
       responseBlock +
       `\nPlease:\n` +
       `1. Read the request files above — they contain the endpoint description, existing scripts (extend or improve, don't replace), and response schema.\n` +
-      `2. Understand the business context from the description and any Confluence/Jira MCP tools if available.\n` +
+      `2. Understand the business context from the description, the collection/suite in this workspace, and the backend source code (attach it if needed). ` +
+      `If a Confluence/Jira MCP server is configured, it may add extra context — otherwise skip it.\n` +
       `3. Generate a ${phase} pm.js script that is idiomatic, concise, and handles the business rules.\n` +
       `4. Use pm.* Postman sandbox APIs only. Return raw JavaScript (no markdown fences, no explanation).\n\n` +
       `💡 Drag your backend service/controller files here for even richer context.`
@@ -86,7 +87,7 @@ export class AiCopilotHandler {
       `\nPlease:\n` +
       `1. Read the request files above — the \`responseSchema\` field is the authoritative contract. If present, generate assertions that verify EVERY constraint (required fields, types, formats, enums, ranges).\n` +
       `2. If no schema is present, infer the contract from the response body structure.\n` +
-      `3. Also check business rules from Confluence/Jira MCP tools if available.\n` +
+      `3. Also check business rules from the workspace collections/suites and backend source. If a Confluence/Jira MCP server is configured, use it as extra context — otherwise skip it.\n` +
       `4. Generate exhaustive pm.test() assertions: field presence, types, formats, value constraints, array items.\n` +
       `5. Check existing post-response script in the request files — avoid duplicating existing assertions.\n\n` +
       `Return pm.test() snippets ready to paste into the post-response script.`
@@ -210,8 +211,9 @@ export class AiCopilotHandler {
       `existing assertions (don't duplicate), response schema (contract), and call history (patterns).\n` +
       `2. **Gather additional business context** (priority order):\n` +
       `   a. Source files above — **highest priority, treat as ground truth**\n` +
-      `   b. Confluence pages / Jira tickets via MCP tools — search by endpoint URL or feature name\n` +
-      `   c. The response body above — fallback only\n` +
+      `   b. The response body above — fallback only\n` +
+      `   c. Optional: a Confluence/Jira MCP server, if one is configured AND the team keeps ` +
+      `      knowledge pages there — search by endpoint URL or feature name\n` +
       `   If code and docs conflict, follow the code and note the discrepancy.\n` +
       `3. Identify **business invariants** that must hold (e.g. "total = sum of line items", "token expires in 24h").\n` +
       `4. Generate **pm.test() assertions** that verify those invariants. Avoid generic status/field-exists checks.\n` +

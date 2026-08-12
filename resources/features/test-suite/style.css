@@ -152,6 +152,7 @@ body {
    Header Center - Suite Description
    ============================================ */
 .header-center {
+    display: inline-grid;
     flex: 1;
     min-width: 0;
     margin: 0 16px;
