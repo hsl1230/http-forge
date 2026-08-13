@@ -137,6 +137,10 @@ export const COMMAND_IDS = {
     generateCollectionFromCurl: 'httpForge.generateCollectionFromCurl',
     // API discovery
     discoverApis: 'httpForge.discoverApis',
+    // Discovered APIs actions (discover → generate → keep in sync)
+    discoverRequestFromEndpoint: 'httpForge.discoverRequestFromEndpoint',
+    generateSuiteFromDiscovered: 'httpForge.generateSuiteFromDiscovered',
+    checkDiscoveryDrift: 'httpForge.checkDiscoveryDrift',
     // API Architect (Phase 4 / Layer 8)
     architect: 'httpForge.architect',
 };

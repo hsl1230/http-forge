@@ -463,6 +463,24 @@
         "icon": "$(search)"
       },
       {
+        "command": "httpForge.discoverRequestFromEndpoint",
+        "title": "Discover Request from Endpoint",
+        "category": "HTTP Forge",
+        "icon": "$(add)"
+      },
+      {
+        "command": "httpForge.generateSuiteFromDiscovered",
+        "title": "Generate Test Suite from Discovered Endpoints",
+        "category": "HTTP Forge",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "httpForge.checkDiscoveryDrift",
+        "title": "Check Discovery Drift",
+        "category": "HTTP Forge",
+        "icon": "$(repo-sync)"
+      },
+      {
         "command": "httpForge.architect",
         "title": "Design an API from Intent (AI)",
         "category": "HTTP Forge",
@@ -755,6 +773,26 @@
           "command": "httpForge.revertRequestToCommit",
           "when": "view == httpForge.requestHistory && viewItem == gitCommit",
           "group": "2_revert@1"
+        },
+        {
+          "command": "httpForge.discoverRequestFromEndpoint",
+          "when": "view == httpForge.discoveredApis && viewItem == discoveredEndpoint",
+          "group": "1_create@1"
+        },
+        {
+          "command": "httpForge.generateSuiteFromDiscovered",
+          "when": "view == httpForge.discoveredApis && viewItem == discoveredFramework",
+          "group": "2_generate@1"
+        },
+        {
+          "command": "httpForge.generateSuiteFromDiscovered",
+          "when": "view == httpForge.discoveredApis",
+          "group": "2_generate@2"
+        },
+        {
+          "command": "httpForge.checkDiscoveryDrift",
+          "when": "view == httpForge.discoveredApis",
+          "group": "3_maintain@1"
         }
       ]
     },

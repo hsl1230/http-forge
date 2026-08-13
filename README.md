@@ -107,7 +107,13 @@ Ask GitHub Copilot to generate tests, heal broken assertions, analyse coverage a
 Tell HTTP Forge "I need a shopping cart" and it designs the whole API — endpoints, DTOs, auth — as an OpenAPI spec, imports it as a collection, and generates the test suite, runnable flow, workflow chains, and docs in one reviewable package. Run it from the Command Palette (**HTTP Forge: Design an API from Intent (AI)**), from the CLI (`http-forge architect`), or via the `design_api_from_intent` MCP tool.
 
 ### 🔍 Discover your backend & keep tests in sync
-The **Discovered APIs** tree view (`HTTP Forge: Discover APIs`) scans the workspace folder with six framework providers — Express, Nest, Fastify, AWS Lambda, Spring, and FastAPI — and lists every endpoint grouped by framework, with method, path, confidence, and source provenance. The MCP tools turn that discovery into a working loop: `create_request_from_endpoint` scaffolds requests, `generate_test_suite` emits a runnable suite, `suggest_workflow`/`generate_workflow` detect AUTH/CRUD chains, and `check_drift`/`propose_update` detect when source changes have made a generated suite stale and propose a regeneration that preserves your hand edits.
+The **Discovered APIs** tree view (`HTTP Forge: Discover APIs`) scans the workspace folder with six framework providers — Express, Nest, Fastify, AWS Lambda, Spring, and FastAPI — and lists every endpoint grouped by framework, with method, path, confidence, and source provenance. Right-click an endpoint (or a framework group) to make it actionable without leaving the editor:
+
+- **Discover Request from Endpoint** — scaffold a working HTTP Forge request from a discovered endpoint into any collection (auth header + path/query params + request body schema included).
+- **Generate Test Suite from Discovered Endpoints** — create requests and a runnable suite (one node per endpoint asserting the discovered status) for a framework group or the whole scan.
+- **Check Discovery Drift** — compare the project's freshness against the last scan; when source has changed, offer to regenerate the derived suite.
+
+The same loop is available to agents via MCP: `create_request_from_endpoint`, `generate_test_suite`, `suggest_workflow`/`generate_workflow` for AUTH/CRUD chains, and `check_drift`/`propose_update` to detect when source changes have made a generated suite stale while preserving your hand edits.
 
 ### 🔄 Postman migration
 Import your Postman v2.1 collection — all `pm.*` scripts, environments, and globals work unchanged. No rewriting, no learning curve.

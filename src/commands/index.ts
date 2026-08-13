@@ -10,6 +10,7 @@ import { registerAiCommands } from './aiCommands';
 import { registerArchitectCommands } from './architectCommands';
 import { registerCollectionCommands } from './collectionCommands';
 import { registerConsoleCommands } from './consoleCommands';
+import { registerDiscoveryActionCommands } from './discoveryActionsCommands';
 import { registerDiscoveryCommands } from './discoveryCommands';
 import { registerEnvironmentCommands } from './environmentCommands';
 import { registerGitHistoryCommands } from './gitHistoryCommands';
@@ -33,5 +34,6 @@ export function registerAllCommands(ctx: CommandContext): void {
   registerGitHistoryCommands(ctx);
   registerAiCommands(ctx);
   registerDiscoveryCommands(ctx);
+  registerDiscoveryActionCommands(ctx);
   registerArchitectCommands(ctx);
 }
