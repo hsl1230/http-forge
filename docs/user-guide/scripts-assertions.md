@@ -45,6 +45,15 @@ Scopes:
 Methods:
 - `get`, `set`, `unset`, `clear`, `has`, `toObject`, `replaceIn`
 
+### Initial values vs current values (script-set variables)
+
+`pm.environment.set()` writes a **current value**: it shadows (never replaces) the file value and **survives VS Code restarts**. The file stays clean; the override lives in workspace session state. This matches Postman.
+
+- See which variables are script-overridden in the Environment editor — overridden rows show the current value with a blue marker and a ↩ button. Reverting drops the override so the file value applies again. Overridden rows are read-only and are never written back to the file on save.
+- Drop **all** overrides for one environment at once: the **↩ Reset current values** button in the Environment editor, or the Command Palette → **HTTP Forge: Reset Environment Current Values** (Postman's "Reset All").
+- From scripts: `pm.environment.unset('key')` removes one override; `pm.environment.clear()` removes all for the environment.
+- `pm.globals.set()` is memory-only and does not survive restarts.
+
 ### Storing non-string values
 
 All variable scopes support automatic serialization of non-string values (arrays, objects, numbers, booleans):

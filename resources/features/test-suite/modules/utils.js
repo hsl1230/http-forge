@@ -85,7 +85,10 @@ export function expandSummary(s) {
 }
 
 /**
- * Escape HTML special characters
+ * Escape HTML special characters, including quotes so the result is safe
+ * inside double-quoted attributes (`value="..."`, `title="..."`).
+ * Without quote escaping, values like `hf.variables.get("__i") < 100`
+ * terminate the attribute early and render truncated.
  * @param {string} text
  * @returns {string}
  */
@@ -93,7 +96,7 @@ export function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**

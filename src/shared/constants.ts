@@ -87,6 +87,7 @@ export const COMMAND_IDS = {
     selectEnvironment: 'httpForge.selectEnvironment',
     editEnvironment: 'httpForge.editEnvironment',
     editEnvironments: 'httpForge.editEnvironments',
+    resetEnvironmentOverrides: 'httpForge.resetEnvironmentOverrides',
     refreshCollections: 'httpForge.refreshCollections',
     refreshEnvironments: 'httpForge.refreshEnvironments',
     importCollection: 'httpForge.importCollection',

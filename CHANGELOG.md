@@ -9,9 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Environment current-values UI** — script-set variables (`pm.environment.set()`) are now visible and manageable without writing scripts: the Environment editor marks overridden rows with the live current value, a ↩ revert button per row, and a **Reset current values** toolbar button (Postman's "Reset All"). New `HTTP Forge: Reset Environment Current Values` palette command with environment picker + confirm. Overridden rows are read-only and excluded from file saves so session tokens never leak into committed files. Also fixed quote-escaping in the editor's inputs (values containing `"` no longer truncate).
 - **Refresh AI Agent Guide** — new `HTTP Forge: Refresh AI Agent Guide` command-palette command (`httpForge.refreshAgentsMd`) for the versioned `.http-forge/AGENTS.md` guide. Shows the current/latest guide versions, confirms before replacing, and backs the existing file up to `AGENTS.md.bak`. A one-time warning at activation offers the same refresh when the guide predates the template.
-
-## 0.16.38 - 2026-09-22
 
 ### Fixed
 

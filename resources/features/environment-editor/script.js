@@ -13,7 +13,9 @@ let state = {
     selectedEnvironment: null,
     hasChanges: false,
     // Map of envName -> string[] of secret variable key names
-    secretVariablesByEnv: {}
+    secretVariablesByEnv: {},
+    // Map of envName -> { key: value } of script-set session overrides ("Current Values")
+    sessionOverridesByEnv: {}
 };
 
 // DOM Elements
@@ -25,6 +27,7 @@ const elements = {
     addLocalVarBtn: document.getElementById('add-local-var-btn'),
     duplicateEnvBtn: document.getElementById('duplicate-env-btn'),
     deleteEnvBtn: document.getElementById('delete-env-btn'),
+    resetOverridesBtn: document.getElementById('reset-overrides-btn'),
     globalVariables: document.getElementById('global-variables'),
     globalLocalVariables: document.getElementById('global-local-variables'),
     addGlobalVarBtn: document.getElementById('add-global-var-btn'),
@@ -50,6 +53,12 @@ elements.duplicateEnvBtn.addEventListener('click', () => {
 elements.deleteEnvBtn.addEventListener('click', () => {
     if (state.selectedEnvironment) {
         vscode.postMessage({ type: 'deleteEnvironment', environmentName: state.selectedEnvironment });
+    }
+});
+
+elements.resetOverridesBtn.addEventListener('click', () => {
+    if (state.selectedEnvironment) {
+        vscode.postMessage({ type: 'resetEnvironmentOverrides', environmentName: state.selectedEnvironment });
     }
 });
 
@@ -85,24 +94,33 @@ elements.saveBtn.addEventListener('click', saveAllChanges);
  * Add a variable/header row to a container.
  * @param {boolean} isSecret - true when the value lives in SecretStorage (shown masked)
  * @param {boolean} showLockBtn - true only for env-scoped shared variable rows
+ * @param {boolean} showRevertBtn - true when the row shows a script-set session
+ *   override ("Current Value") that differs from the file value. Reverting
+ *   drops the override; the row is excluded from file saves either way.
  */
-function addVariableRow(container, key, value, canRemove = true, isLocal = false, isSecret = false, showLockBtn = false) {
+function addVariableRow(container, key, value, canRemove = true, isLocal = false, isSecret = false, showLockBtn = false, showRevertBtn = false) {
     const row = document.createElement('div');
-    row.className = 'variable-row' + (isSecret ? ' secret-row' : '');
+    row.className = 'variable-row' + (isSecret ? ' secret-row' : '') + (showRevertBtn ? ' overridden-row' : '');
     row.dataset.isLocal = isLocal;
     row.dataset.isSecret = isSecret;
+    row.dataset.isOverridden = showRevertBtn;
 
     const lockBtn = showLockBtn
         ? `<button class="icon-btn lock-btn ${isSecret ? 'locked' : ''}" title="${isSecret ? 'Stored in OS keychain — click to move back to plaintext' : 'Click to store in OS keychain (SecretStorage)'}">🔒</button>`
         : '';
+    const revertBtn = showRevertBtn
+        ? `<button class="icon-btn revert-btn" title="Set by script (current value) — click to revert to the file value">↩</button>`
+        : '';
+    const valueTitle = showRevertBtn ? ' title="Set by script (current value) — revert first to edit the file value"' : '';
     const valueInput = isSecret
         ? `<input type="password" class="value secret-value" placeholder="Stored in keychain" value="${escapeHtml(value)}">`
-        : `<input type="text" class="value" placeholder="${isLocal ? 'Local value (not committed)' : 'Value'}" value="${escapeHtml(value)}">`;
+        : `<input type="text" class="value" placeholder="${isLocal ? 'Local value (not committed)' : 'Value'}" value="${escapeHtml(value)}"${valueTitle}${showRevertBtn ? ' readonly' : ''}>`;
 
     row.innerHTML = `
         <input type="text" class="key" placeholder="Variable name" value="${escapeHtml(key)}">
         ${valueInput}
         ${lockBtn}
+        ${revertBtn}
         ${canRemove ? '<button class="icon-btn remove-btn" title="Remove">×</button>' : ''}
     `;
 
@@ -114,6 +132,19 @@ function addVariableRow(container, key, value, canRemove = true, isLocal = false
     const removeBtn = row.querySelector('.remove-btn');
     if (removeBtn) {
         removeBtn.addEventListener('click', () => {
+            if (row.dataset.isOverridden === 'true') {
+                // Overridden rows: × reverts the session override (the file
+                // key must survive) — same as the ↩ button
+                const currentKey = row.querySelector('.key').value.trim();
+                if (currentKey && state.selectedEnvironment) {
+                    vscode.postMessage({
+                        type: 'revertEnvironmentVariable',
+                        environmentName: state.selectedEnvironment,
+                        key: currentKey
+                    });
+                }
+                return;
+            }
             if (row.dataset.isSecret === 'true') {
                 // Secret rows: delete from keychain immediately; DOM removal happens via secretDeleted response
                 const currentKey = row.querySelector('.key').value.trim();
@@ -131,6 +162,20 @@ function addVariableRow(container, key, value, canRemove = true, isLocal = false
                 row.remove();
                 markAsChanged();
             }
+        });
+    }
+
+    // Revert toggle (session override → file value)
+    const revertBtnEl = row.querySelector('.revert-btn');
+    if (revertBtnEl) {
+        revertBtnEl.addEventListener('click', () => {
+            const currentKey = row.querySelector('.key').value.trim();
+            if (!currentKey || !state.selectedEnvironment) return;
+            vscode.postMessage({
+                type: 'revertEnvironmentVariable',
+                environmentName: state.selectedEnvironment,
+                key: currentKey
+            });
         });
     }
 
@@ -224,13 +269,26 @@ function renderEnvironmentDetails() {
 
     const secretKeys = state.secretVariablesByEnv[state.selectedEnvironment] || [];
 
-    // Render shared variables (plaintext)
+    // Session overrides ("Current Values" from pm.environment.set) for this env
+    const overrides = state.sessionOverridesByEnv[state.selectedEnvironment] || {};
+
+    // Render shared variables (plaintext) — overridden rows show the current
+    // value with a revert button instead of the file value
     elements.envVariables.innerHTML = '';
+    const renderedKeys = new Set();
     if (env.variables) {
         Object.entries(env.variables).forEach(([key, value]) => {
-            addVariableRow(elements.envVariables, key, value, true, false, false, true);
+            const overridden = Object.prototype.hasOwnProperty.call(overrides, key);
+            addVariableRow(elements.envVariables, key, overridden ? overrides[key] : value, true, false, false, true, overridden);
+            renderedKeys.add(key);
         });
     }
+    // Overrides for keys with no file entry (script-added) render as session-only rows
+    Object.entries(overrides).forEach(([key, value]) => {
+        if (!renderedKeys.has(key) && !secretKeys.includes(key)) {
+            addVariableRow(elements.envVariables, key, value, true, false, false, false, true);
+        }
+    });
     // Render secret variable placeholders (value comes from keychain)
     secretKeys.forEach(key => {
         addVariableRow(elements.envVariables, key, '', true, false, true, true);
@@ -328,12 +386,16 @@ function collectEnvironments() {
     const result = {};
     Object.entries(state.sharedConfig.environments).forEach(([name, env]) => {
         if (name === state.selectedEnvironment) {
-            // Collect only non-secret rows — secret rows are saved separately via SecretStorage
+            // Collect only non-secret, non-overridden rows — secret rows are saved
+            // separately via SecretStorage, and overridden rows show session
+            // ("Current") values that must never leak into the committed file
             const secretKeys = state.secretVariablesByEnv[name] || [];
-            const allVars = getVariablesFromContainer(elements.envVariables);
             const plainVars = {};
-            Object.entries(allVars).forEach(([k, v]) => {
-                if (!secretKeys.includes(k)) plainVars[k] = v;
+            elements.envVariables.querySelectorAll('.variable-row').forEach(row => {
+                if (row.dataset.isSecret === 'true' || row.dataset.isOverridden === 'true') return;
+                const key = row.querySelector('.key').value.trim();
+                const value = row.querySelector('.value').value;
+                if (key && !secretKeys.includes(key)) plainVars[key] = value;
             });
             result[name] = {
                 description: env.description,
@@ -374,13 +436,13 @@ function collectLocalEnvironments() {
 }
 
 /**
- * Escape HTML
+ * Escape HTML, including quotes so values are safe inside `value="..."` attributes
  */
 function escapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
     div.textContent = str;
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -394,6 +456,7 @@ window.addEventListener('message', event => {
             state.sharedConfig = message.data.sharedConfig;
             state.localConfig = message.data.localConfig;
             state.secretVariablesByEnv = message.data.secretVariablesByEnv || {};
+            state.sessionOverridesByEnv = message.data.sessionOverridesByEnv || {};
 
             renderGlobalVariables();
             renderDefaultHeaders();
