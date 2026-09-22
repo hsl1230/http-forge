@@ -6,6 +6,7 @@
  * extension.ts free of registration detail.
  */
 
+import { registerAgentsMdCommands } from './agentsMdCommands';
 import { registerAiCommands } from './aiCommands';
 import { registerArchitectCommands } from './architectCommands';
 import { registerCollectionCommands } from './collectionCommands';
@@ -36,4 +37,5 @@ export function registerAllCommands(ctx: CommandContext): void {
   registerDiscoveryCommands(ctx);
   registerDiscoveryActionCommands(ctx);
   registerArchitectCommands(ctx);
+  registerAgentsMdCommands(ctx);
 }

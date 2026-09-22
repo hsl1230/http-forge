@@ -137,6 +137,8 @@ export const COMMAND_IDS = {
     generateCollectionFromCurl: 'httpForge.generateCollectionFromCurl',
     // API discovery
     discoverApis: 'httpForge.discoverApis',
+    // AI agent guide
+    refreshAgentsMd: 'httpForge.refreshAgentsMd',
     // Discovered APIs actions (discover → generate → keep in sync)
     discoverRequestFromEndpoint: 'httpForge.discoverRequestFromEndpoint',
     generateSuiteFromDiscovered: 'httpForge.generateSuiteFromDiscovered',

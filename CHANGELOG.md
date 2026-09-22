@@ -5,6 +5,12 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.39 - 2026-09-22
+
+### Added
+
+- **Refresh AI Agent Guide** — new `HTTP Forge: Refresh AI Agent Guide` command-palette command (`httpForge.refreshAgentsMd`) for the versioned `.http-forge/AGENTS.md` guide. Shows the current/latest guide versions, confirms before replacing, and backs the existing file up to `AGENTS.md.bak`. A one-time warning at activation offers the same refresh when the guide predates the template.
+
 ## 0.16.38 - 2026-09-22
 
 ### Fixed
