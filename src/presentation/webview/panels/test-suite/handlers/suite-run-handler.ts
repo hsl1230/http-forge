@@ -117,6 +117,10 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
             return;
         }
 
+        // Ensure the latest env/global files are loaded before the suite run starts.
+        // This avoids stale in-memory globals (for example values in _global.local.json).
+        (this.environmentConfigService as any)?.reload?.();
+
         const suite = this.suiteStore.getSuite();
         if (!suite) {
             vscode.window.showErrorMessage('No suite loaded');
@@ -205,10 +209,10 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
 
             // cookieJar is created above the try block so it can be flushed in finally
 
-            // Load environment variables
+            // Load environment variables using the effective environment id.
             let envVariables: Record<string, string> = {};
-            if (config.environmentId && this.environmentConfigService) {
-                const resolved = this.environmentConfigService.getResolvedEnvironment(config.environmentId);
+            if (this.environmentConfigService) {
+                const resolved = this.environmentConfigService.getResolvedEnvironment(environmentId);
                 if (resolved) {
                     envVariables = resolved.variables || {};
                 }

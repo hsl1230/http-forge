@@ -49,6 +49,13 @@ HTTP Forge is a family of components that share the same workspace model and wor
 
 Typical flow: design and validate in the extension, automate with CLI/MCP, and generate typed clients for Playwright when needed.
 
+### What's new in this release
+
+- Source-driven API discovery across Express, NestJS, Fastify, Lambda, Spring, and FastAPI from code, without requiring an OpenAPI spec.
+- AI-assisted API design from plain-language intent with generated OpenAPI, collection, suite, flow, and docs in one reviewable package.
+- Drift-aware suite regeneration that detects source changes, proposes updates, and preserves user-edited assertions when the merge is safe.
+- MCP + Copilot workflows grounded in workspace knowledge, discovered endpoints, and recent run results for faster root-cause analysis.
+
 > Deep architecture details: [Architecture diagram](resources/architecture.png) • [User Guide](docs/user-guide/index.md)
 
 ## Why developers switch

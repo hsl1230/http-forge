@@ -5,6 +5,13 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.37 - 2026-08-12
+
+### Changed
+
+- **Documentation refreshed for the current platform** — the main README now highlights the latest source-driven discovery flow, workflow generation, drift-aware regeneration, and AI-led API design capabilities already shipped in the extension.
+- **Feature positioning aligned with the HTTP Forge family** — docs now better explain how the VS Code extension, CLI, core runtime, and AI/MCP surfaces work together for daily API work and CI automation.
+
 ## 0.16.31 - 2026-07-22
 
 ### Added

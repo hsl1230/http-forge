@@ -366,7 +366,7 @@ export class FlowRunExecutor {
             const plannedCount = perLoopEstimate * plannedIterations;
             currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.init), currentVariables, environmentId, iteration, iterationCount);
             this.runtime.logInfo(
-                `[FlowRunExecutor] for-init name=${node?.name || 'For'} i=${String(deserializeTypedValue(currentVariables?.i))} maxIterations=${maxIterations}`
+                `[FlowRunExecutor] for-init name=${node?.name || 'For'} i=${String(deserializeTypedValue((currentVariables as any)['__i'] ?? (currentVariables as any)['i']))} maxIterations=${maxIterations}`
             );
             const conditionExpr = typeof node.loopCondition === 'string' && node.loopCondition.trim()
                 ? node.loopCondition
@@ -378,7 +378,7 @@ export class FlowRunExecutor {
             while (this.evaluateFlowCondition(conditionExpr, node, currentVariables, environmentId, iteration)) {
                 count++;
                 this.runtime.logInfo(
-                    `[FlowRunExecutor] for-loop-enter name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`
+                    `[FlowRunExecutor] for-loop-enter name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue((currentVariables as any)['__i'] ?? (currentVariables as any)['i']))}`
                 );
                 if (count > maxIterations || this.runtime.isAborted()) {
                     break;
@@ -389,11 +389,11 @@ export class FlowRunExecutor {
                 executedLoops++;
                 currentVariables = await this.runFlowScript(suite, node, this.normalizeFlowScript(node.update), currentVariables, environmentId, iteration, iterationCount);
                 this.runtime.logInfo(
-                    `[FlowRunExecutor] for-loop-update name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`
+                    `[FlowRunExecutor] for-loop-update name=${node?.name || 'For'} loopIndex=${count} i=${String(deserializeTypedValue((currentVariables as any)['__i'] ?? (currentVariables as any)['i']))}`
                 );
             }
             this.runtime.logInfo(
-                `[FlowRunExecutor] for-loop-exit name=${node?.name || 'For'} completedLoops=${count} i=${String(deserializeTypedValue(currentVariables?.i))}`
+                `[FlowRunExecutor] for-loop-exit name=${node?.name || 'For'} completedLoops=${count} i=${String(deserializeTypedValue((currentVariables as any)['__i'] ?? (currentVariables as any)['i']))}`
             );
             const actualCount = perLoopEstimate * executedLoops;
             this.runtime.adjustEstimatedTotal(plannedCount, actualCount, currentCompleted);
@@ -448,15 +448,19 @@ export class FlowRunExecutor {
             }
         };
 
+        const pmApi = {
+            variables: variablesApi,
+            environment: environmentApi,
+            globals: globalsApi
+        };
+
         return {
             vars: decodedVars,
             iteration,
             node,
-            pm: {
-                variables: variablesApi,
-                environment: environmentApi,
-                globals: globalsApi
-            }
+            pm: pmApi,
+            ctx: pmApi,
+            hf: pmApi
         };
     }
 
@@ -466,8 +470,9 @@ export class FlowRunExecutor {
         }
         const value = evaluateExpression(expression, this.createFlowExpressionContext(node, variables, environmentId, iteration));
         if (node?.type === 'for' || node?.type === 'while' || node?.type === 'if') {
+            const loopVar = (variables as Record<string, unknown>)['__i'] ?? (variables as Record<string, unknown>)['i'];
             this.runtime.logInfo(
-                `[FlowRunExecutor] evaluateFlowCondition type=${node?.type} name=${node?.name || 'unnamed'} expr="${expression}" value=${String(value)} i=${String(deserializeTypedValue(variables?.i))}`
+                `[FlowRunExecutor] evaluateFlowCondition type=${node?.type} name=${node?.name || 'unnamed'} expr="${expression}" value=${String(value)} i=${String(deserializeTypedValue(loopVar))}`
             );
         }
         return Boolean(value);
