@@ -7,10 +7,14 @@ HTTP Forge scripts are Postman‑compatible and run in two phases.
 - **Post‑response**: validate response, assert expectations
 
 ## Aliases
-You can use any alias:
-- `ctx` (recommended)
-- `pm`
-- `agl`
+HTTP Forge exposes three interchangeable aliases in **both** script nodes (`pre-request` / `post-response`) **and** flow condition expressions (`if` / `switch` / `for` / `while`):
+- `pm` — Postman-compatible namespace
+- `ctx` — HTTP Forge idiomatic alias
+- `hf` — HTTP Forge shorthand
+
+All three resolve to the same runtime API (`variables`, `environment`, `globals`, `collectionVariables`, `request`, `response`, `cookies`, `test`, `expect`, etc.). Use whichever fits the style of the file you are editing.
+
+> `agl` was the legacy shorthand for `hf`; it remains accepted for backward compatibility but new code should use `hf`.
 
 ## Request API (pre‑request)
 - `ctx.request.url`

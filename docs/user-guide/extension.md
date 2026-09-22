@@ -123,9 +123,17 @@ Scripts run in two phases:
 - Pre‑request: modify request, set variables
 - Post‑response: validate response, assert expectations
 
-You can use any alias: `ctx`, `pm`, or `agl`.
+You can use any of the three interchangeable aliases — `pm`, `ctx`, or `hf` — in both Request Tester scripts and Test Suite flow conditions (`if`/`switch`/`for`/`while`):
 
-Common APIs:
+```javascript
+pm.variables.get('token')
+ctx.variables.get('token')
+hf.variables.get('token') // all equivalent
+```
+
+> `agl` is the legacy name for `hf` and remains accepted for backward compatibility.
+
+Common APIs (shown with `ctx`, same under `pm`/`hf`):
 - `ctx.request`, `ctx.response`
 - `ctx.variables`, `ctx.environment`, `ctx.collectionVariables`, `ctx.globals`
 - `ctx.test()`, `ctx.expect()`

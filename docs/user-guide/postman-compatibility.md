@@ -3,10 +3,12 @@
 This guide documents the Postman‑compatible script API available in HTTP Forge. It reflects the current implementation.
 
 ## Aliases
-The same API is available through these aliases:
-- `ctx`
-- `pm`
-- `agl`
+The same API is available through three interchangeable aliases in both script bodies and flow condition expressions (`if`/`switch`/`for`/`while`):
+- `pm` — Postman-compatible
+- `ctx` — HTTP Forge idiomatic
+- `hf` — HTTP Forge shorthand
+
+> `agl` was the previous shorthand for `hf` and is still accepted for backward compatibility, but new code should use `hf`. The Test Suite flow executor (`FlowRunExecutor`) and core `SuiteExecutor` both resolve `pm`/`ctx`/`hf` to the same runtime API.
 
 ## Pre‑request: request API
 | Postman | HTTP Forge | Notes |

@@ -81,12 +81,21 @@ HTTP Forge creates a temporary suite pre-built for load testing:
 └────────────────────────────────────────────────────┘
 ```
 
-- The request runs **100 times** inside a `for` loop node.
+- The request runs **100 times** inside a `for` loop node:
+
+  - **Init:** `hf.variables.set("__i", 0)`
+  - **Condition:** `hf.variables.get("__i") < 100` (editable – any of `pm`/`ctx`/`hf` works: `pm.variables.get("__i") < 100` and `ctx.variables.get("__i") < 100` are equivalent)
+  - **Update:** `hf.variables.set("__i", hf.variables.get("__i") + 1)`
+  - **Max iterations:** `100` (safety cap; also editable)
+
+  Internally `__i` is the loop counter – the double underscore avoids collisions with user variables named `i`. The executor logs `for-init`, `for-loop-enter`, `for-loop-update`, and `for-loop-exit` with the current `__i` value; if you change the condition to use `pm` or `ctx`, the same `__i` slot is used.
 - You can prepend a login request **above** the loop before running, so each loop iteration reuses the authenticated session.
-- The loop count (`100`) and condition are editable in the flow node editor.
-- Statistics (P50/P95/P99, pass rate, error breakdown) appear in the **Statistics** tab after the run.
+- The loop count, condition, `init`/`update` scripts, and `maxIterations` are all editable in the flow node editor – for example change `< 100` to `< 1000` for a larger load.
+- Statistics (P50/P95/P99, pass rate, error breakdown) appear in the **Statistics** tab after the run. The run summary is `100 requests × 1 iterations = 100 total`; suite-level `iterations` remain `1` because the repetition is owned by the `for` node.
 
 Save the suite to reuse or share the performance test scenario.
+
+> **Troubleshooting:** if a `for` loop exits immediately with `0 passed, 0 failed` and the Test Suite output shows `for-loop-exit completedLoops=0`, check that the condition uses a supported alias (`pm`/`ctx`/`hf`) and reads `__i` (not `i`). Versions before 0.16.38 evaluated `hf.*` in `for` conditions as `undefined` – upgrade to 0.16.38+ or switch the condition to `pm.variables.get("__i") < N` as a workaround.
 
 ### Save a collection/folder run as a suite
 1. Make any edits you want in the temporary suite.
