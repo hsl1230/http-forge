@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge — The API Platform Built for AI Agents",
   "description": "Turn GitHub Copilot, Claude Code, and Cursor into expert API engineers. 60+ MCP tools. No extra API keys. No cloud account. Full Postman compatibility, OpenAPI 3.0, headless CLI, and TypeScript codegen — all local.",
-  "version": "0.16.36",
+  "version": "0.16.40",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -263,6 +263,12 @@
         "icon": "$(edit)"
       },
       {
+        "command": "httpForge.resetEnvironmentOverrides",
+        "title": "Reset Environment Current Values",
+        "category": "HTTP Forge",
+        "icon": "$(discard)"
+      },
+      {
         "command": "httpForge.deleteEnvironment",
         "title": "Delete Environment",
         "icon": "$(trash)"
@@ -463,10 +469,34 @@
         "icon": "$(search)"
       },
       {
+        "command": "httpForge.discoverRequestFromEndpoint",
+        "title": "Discover Request from Endpoint",
+        "category": "HTTP Forge",
+        "icon": "$(add)"
+      },
+      {
+        "command": "httpForge.generateSuiteFromDiscovered",
+        "title": "Generate Test Suite from Discovered Endpoints",
+        "category": "HTTP Forge",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "httpForge.checkDiscoveryDrift",
+        "title": "Check Discovery Drift",
+        "category": "HTTP Forge",
+        "icon": "$(repo-sync)"
+      },
+      {
         "command": "httpForge.architect",
         "title": "Design an API from Intent (AI)",
         "category": "HTTP Forge",
         "icon": "$(sparkle)"
+      },
+      {
+        "command": "httpForge.refreshAgentsMd",
+        "title": "Refresh AI Agent Guide",
+        "category": "HTTP Forge",
+        "icon": "$(repo-sync)"
       },
       {
         "command": "http-forge.importRequest",
@@ -755,6 +785,26 @@
           "command": "httpForge.revertRequestToCommit",
           "when": "view == httpForge.requestHistory && viewItem == gitCommit",
           "group": "2_revert@1"
+        },
+        {
+          "command": "httpForge.discoverRequestFromEndpoint",
+          "when": "view == httpForge.discoveredApis && viewItem == discoveredEndpoint",
+          "group": "1_create@1"
+        },
+        {
+          "command": "httpForge.generateSuiteFromDiscovered",
+          "when": "view == httpForge.discoveredApis && viewItem == discoveredFramework",
+          "group": "2_generate@1"
+        },
+        {
+          "command": "httpForge.generateSuiteFromDiscovered",
+          "when": "view == httpForge.discoveredApis",
+          "group": "2_generate@2"
+        },
+        {
+          "command": "httpForge.checkDiscoveryDrift",
+          "when": "view == httpForge.discoveredApis",
+          "group": "3_maintain@1"
         }
       ]
     },
@@ -801,7 +851,7 @@
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
     "canvas": "^3.2.1",
-    "esbuild": "^0.28.1",
+    "esbuild": "0.28.2",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^4.2.1",
@@ -812,11 +862,15 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.6.36-beta.2",
+    "@http-forge/core": "^0.6.39",
     "cheerio": "^1.1.2",
-    "java-parser": "^3.0.1",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",
     "yaml": "^2.4.0"
+  },
+  "overrides": {
+    "lodash": "4.18.1",
+    "lodash-es": "4.18.1",
+    "esbuild": "0.28.2"
   }
 }

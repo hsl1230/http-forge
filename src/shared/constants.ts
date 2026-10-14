@@ -87,6 +87,7 @@ export const COMMAND_IDS = {
     selectEnvironment: 'httpForge.selectEnvironment',
     editEnvironment: 'httpForge.editEnvironment',
     editEnvironments: 'httpForge.editEnvironments',
+    resetEnvironmentOverrides: 'httpForge.resetEnvironmentOverrides',
     refreshCollections: 'httpForge.refreshCollections',
     refreshEnvironments: 'httpForge.refreshEnvironments',
     importCollection: 'httpForge.importCollection',
@@ -137,6 +138,12 @@ export const COMMAND_IDS = {
     generateCollectionFromCurl: 'httpForge.generateCollectionFromCurl',
     // API discovery
     discoverApis: 'httpForge.discoverApis',
+    // AI agent guide
+    refreshAgentsMd: 'httpForge.refreshAgentsMd',
+    // Discovered APIs actions (discover → generate → keep in sync)
+    discoverRequestFromEndpoint: 'httpForge.discoverRequestFromEndpoint',
+    generateSuiteFromDiscovered: 'httpForge.generateSuiteFromDiscovered',
+    checkDiscoveryDrift: 'httpForge.checkDiscoveryDrift',
     // API Architect (Phase 4 / Layer 8)
     architect: 'httpForge.architect',
 };

@@ -144,6 +144,40 @@ export function registerEnvironmentCommands(ctx: CommandContext): void {
     })
   );
 
+  // Reset Environment Current Values (drop pm.environment.set() session overrides)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.resetEnvironmentOverrides, async (item?: EnvironmentTreeItem) => {
+      const names = envConfigService.getEnvironmentNames();
+      if (names.length === 0) {
+        vscode.window.showWarningMessage('No environments found.');
+        return;
+      }
+      // Invoked from the tree: reset that environment after confirm.
+      // Invoked from the palette: offer the active environment first.
+      const active = envConfigService.getSelectedEnvironment();
+      const ordered = [...names].sort((a, b) =>
+        a === (item?.environmentId ?? active) ? -1 : b === (item?.environmentId ?? active) ? 1 : 0
+      );
+      const picked = item?.environmentId ?? await vscode.window.showQuickPick(ordered, {
+        placeHolder: 'Select environment to reset script-set values for'
+      });
+      if (!picked || !names.includes(picked)) {
+        return;
+      }
+      const confirm = await vscode.window.showWarningMessage(
+        `Reset script-set values for environment "${picked}"? File values will apply again.`,
+        { modal: true },
+        'Reset'
+      );
+      if (confirm !== 'Reset') {
+        return;
+      }
+      await envConfigService.resetEnvironmentOverrides(picked);
+      environmentsTreeProvider.refresh();
+      vscode.window.showInformationMessage(`Reset script-set values for environment "${picked}".`);
+    })
+  );
+
   // Import Postman environment (view title button)
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.importPostmanEnvironment, async () => {

@@ -13,6 +13,7 @@ import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { createEmptyApi } from './api/empty-api';
 import { registerAllCommands } from './commands';
+import { notifyIfAgentsMdStale } from './commands/agentsMdCommands';
 import type { CommandContext } from './commands/command-context';
 import { runImportRequestCommand } from './commands/importRequest';
 import { McpServerController } from './infrastructure/mcp/mcp-server-controller';
@@ -139,6 +140,9 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
     requestGitHistoryProvider,
     collectionsView
   } satisfies CommandContext);
+
+  // One-time notice when the versioned AI agent guide is stale (opt-in refresh)
+  void notifyIfAgentsMdStale({ workspaceFolder, context }).catch(() => {});
 
   // Register OAuth2 callback URI handler
   const oauth2TokenManager = services.container.oauth2TokenManager;

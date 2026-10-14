@@ -5,6 +5,29 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.39 - 2026-09-22
+
+### Added
+
+- **Environment current-values UI** — script-set variables (`pm.environment.set()`) are now visible and manageable without writing scripts: the Environment editor marks overridden rows with the live current value, a ↩ revert button per row, and a **Reset current values** toolbar button (Postman's "Reset All"). New `HTTP Forge: Reset Environment Current Values` palette command with environment picker + confirm. Overridden rows are read-only and excluded from file saves so session tokens never leak into committed files. Also fixed quote-escaping in the editor's inputs (values containing `"` no longer truncate).
+- **Refresh AI Agent Guide** — new `HTTP Forge: Refresh AI Agent Guide` command-palette command (`httpForge.refreshAgentsMd`) for the versioned `.http-forge/AGENTS.md` guide. Shows the current/latest guide versions, confirms before replacing, and backs the existing file up to `AGENTS.md.bak`. A one-time warning at activation offers the same refresh when the guide predates the template.
+
+### Fixed
+
+- **Run Performance Test now executes 100 iterations** — `TestSuiteService.createTempSuiteFromRequest` wraps the request in a `for` node (`hf.variables.set("__i",0)` / `hf.variables.get("__i") < 100` / `hf.variables.set("__i", hf.variables.get("__i")+1)`, `maxIterations: 100`). The extension's `FlowRunExecutor` previously only exposed `pm` in condition expressions, so `hf.variables.get("__i") < 100` evaluated to `undefined` and the suite completed with `0 passed, 0 failed, for-loop-exit completedLoops=0`. The executor now exposes `pm`/`ctx`/`hf` identically (parity with core `SuiteExecutor`); loop logging now reports `__i` (with `i` fallback) for accurate diagnostics.
+- **Suite-run environment refresh** — `SuiteRunHandler.startRun` now reloads the latest env/global files before a run and resolves variables from the effective `environmentId`, avoiding stale globals when `environments/_global.local.json` changed since the last load.
+
+### Changed
+
+- **Flow alias parity documented** — `docs/user-guide/scripts-assertions.md`, `docs/user-guide/extension.md`, `docs/user-guide/postman-compatibility.md`, and `docs/user-guide/test-suites.md` now state that `pm`/`ctx`/`hf` are interchangeable in both script bodies and `if`/`switch`/`for`/`while` condition expressions (`agl` remains aliased for backward compatibility). Performance-test docs now detail `init`/`condition`/`update`/`maxIterations` and a troubleshooting note for pre-0.16.38 `hf` conditions.
+
+## 0.16.37 - 2026-08-12
+
+### Changed
+
+- **Documentation refreshed for the current platform** — the main README now highlights the latest source-driven discovery flow, workflow generation, drift-aware regeneration, and AI-led API design capabilities already shipped in the extension.
+- **Feature positioning aligned with the HTTP Forge family** — docs now better explain how the VS Code extension, CLI, core runtime, and AI/MCP surfaces work together for daily API work and CI automation.
+
 ## 0.16.31 - 2026-07-22
 
 ### Added

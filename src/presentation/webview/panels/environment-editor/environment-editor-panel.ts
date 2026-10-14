@@ -16,6 +16,7 @@ import { IWebviewMessenger, WebviewMessageRouter, WebviewMessenger } from '../..
 import {
     ConfigHandler,
     EnvironmentCrudHandler,
+    EnvironmentOverridesHandler,
     FileHandler,
     SecretHandler
 } from './handlers';
@@ -60,14 +61,16 @@ export class EnvironmentEditorPanel implements IWebviewMessenger {
         const environmentCrudHandler = new EnvironmentCrudHandler(configService, this.readyHandler);
         const fileHandler = new FileHandler(configService);
         const secretHandler = new SecretHandler(configService, this.readyHandler);
-        
+        const overridesHandler = new EnvironmentOverridesHandler(configService, this.readyHandler);
+
         // Register handlers with router
         this.router.registerHandlers([
             this.readyHandler,
             configHandler,
             environmentCrudHandler,
             fileHandler,
-            secretHandler
+            secretHandler,
+            overridesHandler
         ]);
 
         this.panel.webview.html = this.getHtmlContent();

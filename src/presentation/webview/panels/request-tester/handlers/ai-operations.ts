@@ -61,12 +61,19 @@ export class AiOperations {
    * Appends a friendly opening so the session starts naturally.
    */
   buildCopilotQuery(prompt: string): string {
-    // Trim to a reasonable length so the chat panel doesn't overflow
+    // Trim to a reasonable length so the chat panel doesn't overflow.
+    // Note: the code, HTTP Forge collections, and test suites are already in the
+    // workspace — they are the primary source of truth. Third-party doc MCP
+    // servers (Confluence/Jira) are optional extras, not required.
     const mcpFallback =
       `\n\n---\n` +
-      `> **No MCP/Confluence/Jira tools available?** Ask the user to either:\n` +
-      `> - Configure an MCP server (Confluence/Jira) in VS Code Copilot settings\n` +
-      `> - Or paste the relevant Confluence page, Jira ticket, or API spec content here\n` +
+      `> **No MCP/Confluence/Jira tools available?** That's OK — the source code, HTTP Forge ` +
+      `> collections, and test suites in this workspace are the primary source of truth. ` +
+      `> You can do a complete analysis from those alone.\n` +
+      `>\n` +
+      `> **Optional:** If the team keeps business knowledge on Confluence/Jira, an MCP server ` +
+      `> for those would help surface acceptance criteria and API specs. If one is configured, ` +
+      `> you may consult it as extra context; otherwise skip it.\n` +
       `>\n` +
       `> **No backend code?** Ask the user to attach the relevant service/controller/domain model files.`;
     return (prompt + mcpFallback).slice(0, 3500);

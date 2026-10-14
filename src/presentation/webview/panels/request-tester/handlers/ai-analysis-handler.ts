@@ -122,7 +122,8 @@ export class AiAnalysisHandler {
       bodyBlock + responseBlock +
       `\n\nPlease:\n` +
       `1. Read the request files above — existing doc.md gives you the starting point, the description field gives the business intent.\n` +
-      `2. Also check Confluence/Jira via MCP tools for official API documentation.\n` +
+      `2. Base the docs on the endpoint, its response schema, the collection/suite in this workspace, and the backend source. ` +
+      `Optional: if a Confluence/Jira MCP server is configured, you may consult it for official API documentation — otherwise skip it.\n` +
       `3. Generate complete markdown docs: description, parameters, request body, response schema, example, auth.\n` +
       `4. Return ONLY markdown. Use ## headings.`
     );

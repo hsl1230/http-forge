@@ -13,8 +13,17 @@
     "skipLibCheck": true,
     "sourceMap": true,
     "declaration": true,
-    "types": ["node", "vscode"]
+    "types": ["node", "vscode"],
+    "ignoreDeprecations": "5.0"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "out", "coverage", ".vscode-test", ".claude"]
+  "exclude": [
+    "node_modules",
+    "out",
+    "coverage",
+    ".vscode-test",
+    ".claude",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ]
 }

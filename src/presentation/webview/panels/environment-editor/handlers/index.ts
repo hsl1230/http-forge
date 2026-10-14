@@ -12,6 +12,7 @@
 
 export { ConfigHandler } from './config-handler';
 export { EnvironmentCrudHandler } from './environment-handler';
+export { EnvironmentOverridesHandler } from './overrides-handler';
 export { FileHandler } from './file-handler';
 export { SecretHandler } from './secret-handler';
 

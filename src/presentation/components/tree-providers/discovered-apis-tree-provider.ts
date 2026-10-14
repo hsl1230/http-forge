@@ -8,6 +8,7 @@
 
 import {
     ApiDiscoveryService,
+    computeProjectFreshness,
     DiscoveredApi,
     DiscoveryConfig,
     ExpressDiscoveryProvider,
@@ -73,11 +74,22 @@ export class DiscoveredApisTreeProvider implements vscode.TreeDataProvider<vscod
 
     private endpoints: DiscoveredApi[] = [];
     private scanning = false;
+    private lastScan: { gitHash?: string; maxSourceMtime: number; scannedAt: string } | undefined;
 
     constructor(
         private readonly workspaceFolder: string,
         private readonly discoveryConfig?: DiscoveryConfig,
     ) {}
+
+    /** All endpoints from the most recent scan (for actions like generate suite / drift). */
+    getEndpoints(): DiscoveredApi[] {
+        return this.endpoints;
+    }
+
+    /** Freshness fingerprint of the most recent scan (git hash + max mtime). */
+    getLastScanFreshness(): { gitHash?: string; maxSourceMtime: number; scannedAt: string } | undefined {
+        return this.lastScan;
+    }
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
@@ -102,6 +114,13 @@ export class DiscoveredApisTreeProvider implements vscode.TreeDataProvider<vscod
                 ...this.discoveryConfig,
             });
             this.endpoints = result.endpoints;
+            // Persist the scan fingerprint so drift detection can compare later.
+            const freshness = computeProjectFreshness(this.workspaceFolder);
+            this.lastScan = {
+                gitHash: freshness.gitHash,
+                maxSourceMtime: freshness.maxSourceMtime,
+                scannedAt: new Date().toISOString(),
+            };
         } finally {
             this.scanning = false;
             this.refresh();

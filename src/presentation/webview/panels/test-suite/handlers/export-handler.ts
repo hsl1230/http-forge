@@ -153,8 +153,10 @@ export class ExportHandler implements IMessageHandler {
                 `I have HTTP Forge run failures. ${contextSummary}`,
                 ``,
                 `Please analyse each failure from a business perspective following the "How to Analyse"`,
-                `instructions in the file. Use MCP tools (Confluence/Jira) if available.`,
-                `If no MCP tools are configured, ask me to configure one or paste the relevant docs here.`,
+                `instructions in the file. Use the workspace collections, test suites, and the attached`,
+                `run-summary.md as the primary source of truth.`,
+                `Optional: if a Confluence/Jira MCP server is configured (and the team keeps knowledge`,
+                `pages there), you may consult it for acceptance criteria and API specs — otherwise skip it.`,
                 `Also ask me to attach the backend service/controller code for the failing endpoints.`,
             ].join('\n').slice(0, 2000);
         } else {
@@ -220,8 +222,9 @@ export class ExportHandler implements IMessageHandler {
                     failureList.slice(0, 1500),
                     ``,
                     `Please analyse each failure from a business perspective.`,
-                    `Use Confluence/Jira MCP tools to find requirements. If no MCP tools are configured,`,
-                    `ask me to configure one or paste the relevant documentation here.`,
+                    `Use the workspace collections, test suites, and the failure details above as the primary source of truth.`,
+                    `Optional: if a Confluence/Jira MCP server is configured (and the team keeps knowledge`,
+                    `pages there), you may consult it for requirements — otherwise skip it.`,
                     `Ask me to attach the backend service/controller code for the failing endpoints.`,
                     `Do NOT suggest disabling or weakening assertions.`,
                 ].join('\n').slice(0, 3000);
