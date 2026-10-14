@@ -145,18 +145,23 @@ export class McpServerController {
       this.server = new McpServerService(registry, executor, mcpPort, configService, workspaceFolder);
 
       // Invalidate the cached tool list whenever collections or suites change on disk
+      // Gate in execution-only (small fixed tool list, no discovery invalidation needed)
+      const toolMode = configService.getMcpConfig().toolMode;
+      const shouldInvalidate = toolMode !== 'execution-only';
       const colSvc = collectionService;
       const prevOnCollections = colSvc.onCollectionsChanged;
       colSvc.onCollectionsChanged = () => {
         prevOnCollections?.();
-        registry.invalidateCache();
+        if (shouldInvalidate) registry.invalidateCache();
       };
-      const suiteSvc = testSuiteService;
-      const prevOnSuites = suiteSvc.onSuitesChanged;
-      suiteSvc.onSuitesChanged = () => {
-        prevOnSuites?.();
-        registry.invalidateCache();
-      };
+      if (shouldInvalidate) {
+        const suiteSvc = testSuiteService;
+        const prevOnSuites = suiteSvc.onSuitesChanged;
+        suiteSvc.onSuitesChanged = () => {
+          prevOnSuites?.();
+          registry.invalidateCache();
+        };
+      }
     }
     return this.server;
   }

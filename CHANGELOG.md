@@ -5,6 +5,17 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.41 - 2026-10-14
+
+### Changed
+
+- **Upgraded `@http-forge/core` to `^0.6.40`** — collections now load lazily: the tree/activation reads metadata only, while bodies, scripts, schemas, and `doc.md` load on demand when a request is opened, executed, or inspected. Large workspaces should activate and refresh noticeably faster with no behavior change; saves and metadata-only updates can no longer clobber heavy files.
+
+### Fixed
+
+- **Request Tester panel compile error** — the on-demand AI handler now implements `IMessageHandler` with narrow service types instead of an invalid cast, so the extension typechecks cleanly again.
+- **Collection env scan hydration** — the AI environment-variable scan now receives the collection service, so request bodies and docs are included in the scan input.
+
 ## 0.16.39 - 2026-09-22
 
 ### Added

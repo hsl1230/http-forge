@@ -107,6 +107,7 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<Collecti
     readonly dragMimeTypes = [COLLECTION_ITEM_MIME_TYPE];
     readonly dropMimeTypes = [COLLECTION_ITEM_MIME_TYPE];
     private dragDropController: CollectionsDragAndDropController;
+    private _refreshDebounce?: NodeJS.Timeout;
 
     constructor(private collectionService: CollectionService) {
         this.dragDropController = new CollectionsDragAndDropController(
@@ -115,7 +116,19 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<Collecti
         );
     }
 
-    refresh(): void {
+    refresh(debounceMs = 80): void {
+        if (this._refreshDebounce) clearTimeout(this._refreshDebounce);
+        this._refreshDebounce = setTimeout(() => {
+            this._refreshDebounce = undefined;
+            this._onDidChangeTreeData.fire();
+        }, debounceMs);
+    }
+
+    refreshImmediate(): void {
+        if (this._refreshDebounce) {
+            clearTimeout(this._refreshDebounce);
+            this._refreshDebounce = undefined;
+        }
         this._onDidChangeTreeData.fire();
     }
 
