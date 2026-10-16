@@ -146,6 +146,8 @@ export const COMMAND_IDS = {
     checkDiscoveryDrift: 'httpForge.checkDiscoveryDrift',
     // API Architect (Phase 4 / Layer 8)
     architect: 'httpForge.architect',
+    // QA Check (discover → generate → run → report)
+    qaCheck: 'httpForge.qaCheck',
 };
 
 /**

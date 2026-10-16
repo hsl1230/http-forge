@@ -122,6 +122,9 @@ The **Discovered APIs** tree view (`HTTP Forge: Discover APIs`) scans the worksp
 
 The same loop is available to agents via MCP: `create_request_from_endpoint`, `generate_test_suite`, `suggest_workflow`/`generate_workflow` for AUTH/CRUD chains, and `check_drift`/`propose_update` to detect when source changes have made a generated suite stale while preserving your hand edits.
 
+### ✅ QA-gate your backend in one shot
+Run **HTTP Forge: QA Check API (Discover, Generate, Run, Report)** from the Command Palette: pick a collection, point at a backend project and a running server (or dry-run the plan first), optionally add Copilot-written assertion suggestions, then review the per-endpoint report with one-click JSON save. Reruns reuse existing requests — nothing is duplicated unless the source changed. Same gate for agents via the `qa_api` MCP tool, and for CI via `http-forge qa` (exit codes `0` pass, `1` failures, `2` infra error, `3` drift).
+
 ### 🔄 Postman migration
 Import your Postman v2.1 collection — all `pm.*` scripts, environments, and globals work unchanged. No rewriting, no learning curve.
 

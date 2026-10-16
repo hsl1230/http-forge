@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.16.41 - 2026-10-14
 
+### Added
+
+- **QA Check API command** — new `HTTP Forge: QA Check API (Discover, Generate, Run, Report)` palette command: pick a collection, point at a backend project and a running server (or dry-run the plan), optionally add Copilot-written assertion suggestions, then review the per-endpoint report in the HTTP Forge QA output channel with one-click JSON report save. Reruns reuse existing requests; nothing is duplicated.
+
 ### Changed
 
 - **Upgraded `@http-forge/core` to `^0.6.40`** — collections now load lazily: the tree/activation reads metadata only, while bodies, scripts, schemas, and `doc.md` load on demand when a request is opened, executed, or inspected. Large workspaces should activate and refresh noticeably faster with no behavior change; saves and metadata-only updates can no longer clobber heavy files.

@@ -242,6 +242,12 @@ In `flat` mode every request becomes its own tool. With thousands of requests ac
 | `duplicate_suite` | `suite`, `newName` | Copy a suite under a new name |
 | `delete_suite` | `suite`, `confirm: true` | Delete a suite |
 
+#### Source-code discovery & QA gate
+
+| Tool | Key arguments | What it does |
+|---|---|---|
+| `qa_api` | `collection`, `projectPath`, `baseUrl` (unless `dryRun`), optional `environment`, `variables`, `framework`, `dryRun`, `aiAssertions`, `failOnDrift` | One-shot quality gate: discover endpoints from backend source, generate/reuse requests, run the QA suite, report per-endpoint results. Idempotent across reruns. Excluded from `execution-only` mode |
+
 Collection and suite **names are advertised as JSON-schema `enum`s**, so the AI chooses from real values instead of guessing. The typical flow mirrors how you'd think about it: the agent calls `list_collections` → picks one → `list_requests` to find the exact request → `run_request`. The override arguments (`environment`, `variables`, `headers`, `iterations`, `include`, …) are identical to flat mode.
 
 ### Enabling it
