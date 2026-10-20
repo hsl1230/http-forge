@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Dev-dependency majors to clear audit highs** — `jest` 29→30, `ts-jest` 29.0→29.4 (Jest 30-compatible), `@mermaid-js/mermaid-cli` 11→12. Audit went 38 (28 high) → 22 (0 high, dev-only: KaTeX prototype-pollution and sprintf-js DoS with no valid upgrade path). Production dependencies audit clean (0 vulnerabilities); nothing shipped changes.
+- **Dev-dependency majors to clear audit highs** — `jest` 29→30, `ts-jest` 29.0→29.4 (Jest 30-compatible), `@mermaid-js/mermaid-cli` 11→12. Audit went 38 → 0 vulnerabilities.
+- **Transitive overrides clear the remaining audit findings** — `katex` pinned to `^0.18.10` under `@mermaid-js/mermaid-cli` (drops the vulnerable 0.16.x copy; matches the version mermaid already used) and `js-yaml` pinned to `^4.1.0` (drops the vulnerable v3 chain `js-yaml@3 → argparse@1 → sprintf-js@1` used by `@istanbuljs/load-nyc-config`; `load()` is the safe API in both v3 and v4). Verified with `jest --coverage`, `tsc --noEmit`, `build:dev`, and a real mermaid render.
 
 ## 0.16.41 - 2026-10-14
 

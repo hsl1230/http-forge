@@ -170,6 +170,16 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "httpForge.discoveredApis",
+        "contents": "No endpoints discovered yet. Scan the workspace to detect backend endpoints from Express, Nest, Fastify, Lambda, Spring, or FastAPI source code.\n[Scan Workspace](command:httpForge.discoverApis)"
+      },
+      {
+        "view": "httpForge.requestHistory",
+        "contents": "Shows the git commit history of a request's request.json file. Select a request in the Collections view and run \"Show Git History\", or use the button below with a request selected.\n[Show History for Selected Request](command:httpForge.showGitHistoryForSelectedRequest)"
+      }
+    ],
     "commands": [
       {
         "command": "httpForge.newRequest",
@@ -616,16 +626,6 @@
           "group": "navigation@1"
         }
       ],
-      "view/welcome": [
-        {
-          "view": "httpForge.discoveredApis",
-          "contents": "No endpoints discovered yet. Scan the workspace to detect backend endpoints from Express, Nest, Fastify, Lambda, Spring, or FastAPI source code.\n[Scan Workspace](command:httpForge.discoverApis)"
-        },
-        {
-          "view": "httpForge.requestHistory",
-          "contents": "Shows the git commit history of a request's request.json file. Select a request in the Collections view and run \"Show Git History\", or use the button below with a request selected.\n[Show History for Selected Request](command:httpForge.showGitHistoryForSelectedRequest)"
-        }
-      ],
       "view/item/context": [
         {
           "command": "httpForge.openRequestInNewPanel",
@@ -875,6 +875,10 @@
     "yaml": "^2.4.0"
   },
   "overrides": {
+    "@mermaid-js/mermaid-cli": {
+      "katex": "^0.18.10"
+    },
+    "js-yaml": "^4.1.0",
     "lodash": "4.18.1",
     "lodash-es": "4.18.1",
     "esbuild": "0.28.2"
