@@ -5,6 +5,16 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.42 - 2026-10-15
+
+### Fixed
+
+- **Legacy jest suite green for the first time** — `importRequest.test.ts` never ran (missing `@jest/globals` import, then an ESM-only `uuid` that CJS ts-jest cannot require). It now imports test functions explicitly like its sibling, and `jest.config.js` maps `uuid` to a deterministic `__mocks__/uuid.js` stub covering both the top-level and the nested copy under `@http-forge/core`. Both suites pass (3 tests).
+
+### Changed
+
+- **Dev-dependency majors to clear audit highs** — `jest` 29→30, `ts-jest` 29.0→29.4 (Jest 30-compatible), `@mermaid-js/mermaid-cli` 11→12. Audit went 38 (28 high) → 22 (0 high, dev-only: KaTeX prototype-pollution and sprintf-js DoS with no valid upgrade path). Production dependencies audit clean (0 vulnerabilities); nothing shipped changes.
+
 ## 0.16.41 - 2026-10-14
 
 ### Added
