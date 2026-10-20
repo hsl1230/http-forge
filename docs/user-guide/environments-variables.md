@@ -105,7 +105,7 @@ For team environments and CI/CD pipelines, reference secrets stored in external 
 | Azure Key Vault | `{{secret:azure/my-secret-name}}` |
 | Google Secret Manager | `{{secret:gcp/my-secret-name}}` |
 | HashiCorp Vault | `{{secret:vault/myapp/prod#field}}` |
-| 1Password | `{{secret:op/item-name/field}}` |
+| 1Password | `{{secret:op/<vault>/<item>/<field>}}` (or `{{secret:op/<item>/<field>}}` when a default vault is configured) |
 | Doppler | `{{secret:doppler/API_KEY}}` |
 
 All six aliases work zero-config when the matching credentials/env vars are present. For setup, per-provider configuration, SDK installation, and CLI/CI usage, see the **[Secret Providers guide](secret-providers.md)**.

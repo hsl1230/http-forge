@@ -1,4 +1,4 @@
-import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PathParamEntry, type PreparedRequest, type RequestAuth, type RequestScripts } from '@http-forge/core';
+import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PathParamEntry, type PreparedRequest, type RequestAuth, type RequestScripts, getSecretValues } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { trackRequestAndPromptReview } from '../../../../../shared/review-prompt';
@@ -388,7 +388,8 @@ export class RequestExecutionHandler implements IMessageHandler {
           cookies: response.cookies,
           body: response.body,
           time: response.time
-        }
+        },
+        getSecretValues(sentRequest)
       );
     }
 
