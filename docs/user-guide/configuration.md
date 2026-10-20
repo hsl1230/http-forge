@@ -248,7 +248,7 @@ Supported TLS fields:
 | proxy | `http` | - | HTTP proxy URL (e.g. `http://proxy.corp.com:8080`) |
 | proxy | `https` | - | HTTPS proxy URL. Falls back to `proxy.http` if omitted |
 | proxy | `bypass` | `[]` | Host patterns to skip proxy (exact or wildcard, e.g. `*.internal.com`) |
-| secrets | `providers` | built-in aliases | Cloud secret provider aliases/config |
+| secrets | `providers` | built-in aliases | Secret provider aliases/config (built-in providers, Doppler `serviceToken`, or a `custom` module) |
 
 ## Directory structure
 
@@ -270,7 +270,9 @@ your-workspace/
 ## Secrets
 Workspace-level `http-forge.secrets.json` is no longer used.
 
-Use `secrets.providers` inside `.http-forge/http-forge.config.json` instead.
+Use `secrets.providers` inside `.http-forge/http-forge.config.json` instead. Besides the built-in
+providers, `"provider": "custom"` loads a resolver module from `scripts.modulePaths`; see
+[Custom providers](secret-providers.md#custom-providers).
 
 Store secrets in environment-local files under your environments folder (for example `dev.local.json` or `_global.local.json`) and keep them gitignored.
 

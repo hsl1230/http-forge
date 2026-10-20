@@ -314,7 +314,7 @@
     },
     "secrets": {
       "type": "object",
-      "description": "Cloud secret provider aliases used by {{secret:alias/path}} tokens. Credentials are read from the provider's ambient credential chain and are never stored here.",
+      "description": "Secret provider aliases used by {{secret:alias/path}} tokens. Built-in providers use ambient credential chains; custom providers load a workspace module. Prefer environment variables over storing credentials here.",
       "properties": {
         "providers": {
           "type": "object",
@@ -325,7 +325,7 @@
             "properties": {
               "provider": {
                 "type": "string",
-                "enum": ["aws", "azure", "gcp", "vault", "1password", "doppler"],
+                "enum": ["aws", "azure", "gcp", "vault", "1password", "doppler", "custom"],
                 "description": "Secret provider implementation."
               },
               "region": {
@@ -360,6 +360,15 @@
               "serviceToken": {
                 "type": "string",
                 "description": "Doppler service token (doppler). Prefer the DOPPLER_TOKEN environment variable over storing a token here."
+              },
+              "module": {
+                "type": "string",
+                "description": "Custom resolver module path or package name (custom). Resolved from the first scripts.modulePaths entry that contains a package.json. The module must export a resolver factory function, a createResolver function, or an object with resolve(path)."
+              },
+              "options": {
+                "type": "object",
+                "description": "Non-sensitive options passed to the custom resolver factory (custom).",
+                "additionalProperties": true
               }
             },
             "additionalProperties": false

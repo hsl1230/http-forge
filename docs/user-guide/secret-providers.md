@@ -24,9 +24,12 @@ This works identically in the **VS Code extension** and the **`@http-forge/cli`*
 | `op` | 1Password | `{{secret:op/<item>/<field>}}` | `op` CLI session or `OP_SERVICE_ACCOUNT_TOKEN` | none (CLI) / optional `@1password/sdk` |
 | `doppler` | Doppler | `{{secret:doppler/<NAME>}}` | `DOPPLER_TOKEN` service token | none (built-in `https`) |
 
-All six aliases are **pre-registered out of the box** — you can use `{{secret:aws/...}}` etc.
-with zero configuration as long as the matching credentials/environment variables are present.
-See [Zero-config defaults](#zero-config-defaults).
+All six built-in aliases are **pre-registered out of the box** — you can use
+`{{secret:aws/...}}` etc. with zero configuration as long as the matching
+credentials/environment variables are present. See [Zero-config defaults](#zero-config-defaults).
+
+Not on the list? Register a workspace resolver module with the
+[custom provider](#custom-providers) type.
 
 > **First time using a provider?** The credentials column shows the mechanism; the
 > [authentication walkthroughs](#authenticating-http-forge) give the actual sign-in commands,
@@ -73,14 +76,17 @@ each resolver uses that provider's normal authentication mechanism:
 - **Vault, Doppler** — a token read from the process environment (`VAULT_TOKEN`,
   `DOPPLER_TOKEN`).
 - **1Password** — a signed-in `op` CLI session or an `OP_SERVICE_ACCOUNT_TOKEN`.
+- **Custom** — whatever your module uses. Keep credentials in `process.env` or the provider's
+  own SDK/CLI session, not in the `options` block.
 
-The `secrets.providers` block holds routing information (region, vault URL, project ID) and,
-for Doppler, an optional `serviceToken` override. Prefer `DOPPLER_TOKEN` so the token stays
-out of config.
+The `secrets.providers` block holds routing information (region, vault URL, project ID, custom
+options) and, for Doppler, an optional `serviceToken` override. Prefer `DOPPLER_TOKEN` so the
+token stays out of config.
 
 Provider SDKs are separate from authentication: AWS, Azure, and GCP need their SDK installed
 (see [Installing the provider SDKs](#installing-the-provider-sdks)), while Vault and Doppler
-use built-in Node APIs. 1Password uses the `op` CLI or the optional `@1password/sdk`.
+use built-in Node APIs. 1Password uses the `op` CLI or the optional `@1password/sdk`. Custom
+providers may use any package installed in `scripts.modulePaths`.
 
 ### VS Code: the extension host has its own environment
 
@@ -443,10 +449,129 @@ variable (see each provider below), following this precedence:
 
 ---
 
+## Custom providers
+
+If your secret store is not one of the built-ins, register a workspace module under the
+`custom` provider type. The module is loaded from the first `scripts.modulePaths` entry that
+contains a `package.json` — the same location used for optional SDKs and custom script modules.
+No extension or CLI rebuild is needed.
+
+### Module contract
+
+The module can export any of:
+
+- a resolver factory function,
+- an object with a `createResolver` function,
+- a resolver object with a `resolve(path)` method.
+
+A factory receives `{ alias, options }` and returns an object with `providerName` and an async
+`resolve(path)` method. `providerName` is used for diagnostics; if omitted, the alias is used.
+Return a string on success, `undefined` when the secret does not exist, and throw on
+authentication or transport errors. The path after the alias — including any `#field` suffix —
+is passed to `resolve(path)` unchanged, so the module decides how to parse it.
+
+```js
+// .http-forge/assets/lib/corp-secrets.js
+module.exports = function createResolver({ options }) {
+    const baseUrl = process.env.CORP_SECRETS_URL;
+    const token = process.env.CORP_SECRETS_TOKEN;
+
+    if (!baseUrl || !token) {
+        throw new Error('Set CORP_SECRETS_URL and CORP_SECRETS_TOKEN in the HTTP Forge process.');
+    }
+
+    const mount = options.mount ?? 'kv';
+
+    return {
+        providerName: 'corp',
+        async resolve(path) {
+            const hash = path.lastIndexOf('#');
+            const secretPath = hash >= 0 ? path.slice(0, hash) : path;
+            const field = hash >= 0 ? path.slice(hash + 1) : undefined;
+
+            const response = await fetch(`${baseUrl}/v1/${mount}/${secretPath}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: AbortSignal.timeout(10000),
+            });
+
+            if (response.status === 404) return undefined;
+            if (!response.ok) throw new Error(`Corp secrets returned HTTP ${response.status}`);
+
+            const body = await response.json();
+            return field ? body.data?.[field] : body.data?.value;
+        },
+    };
+};
+```
+
+TypeScript modules can import `CustomSecretProviderContext`, `CustomSecretResolver`, and
+`CustomSecretResolverFactory` from `@http-forge/core`.
+
+### Configuration
+
+Add the alias to `.http-forge/http-forge.config.json`. `module` may be a relative file in the
+module path or an installed package name; `options` is optional and should contain only
+non-sensitive routing data. The module must be loadable by Node's `require` (compile TypeScript
+before using it).
+
+```jsonc
+{
+  "scripts": { "modulePaths": ["./.http-forge/assets/lib"] },
+  "secrets": {
+    "providers": {
+      "corp": {
+        "provider": "custom",
+        "module": "./corp-secrets.js",
+        "options": { "mount": "kv" }
+      }
+    }
+  }
+}
+```
+
+Use it anywhere a secret token is allowed:
+
+```http
+Authorization: Bearer {{secret:corp/myapp/prod#apiKey}}
+```
+
+For a team, publish the resolver as an npm package and install it in
+`.http-forge/assets/lib`:
+
+```jsonc
+{
+  "scripts": { "modulePaths": ["./.http-forge/assets/lib"] },
+  "secrets": {
+    "providers": {
+      "corp": {
+        "provider": "custom",
+        "module": "@acme/http-forge-secret-provider"
+      }
+    }
+  }
+}
+```
+
+### Custom provider rules
+
+- **Trusted code only.** The module runs with the same Node privileges as HTTP Forge. Only load
+  workspace code you trust; there is no sandbox.
+- **Keep credentials out of config.** Use `process.env` or the provider's own SDK/CLI session.
+- **Do not log resolved values.** Core redacts values that pass through history/results, but
+  `console.log` inside the module is outside that path.
+- **Synchronous factory.** The factory must return the resolver synchronously. `resolve(path)`
+  can be async.
+- **Reload after module changes.** The registry rebuilds when `secrets` or `modulePaths` change;
+  after editing the module file itself, reload the VS Code window or restart the CLI.
+- **Failures are non-fatal.** A load or resolve failure logs a warning and leaves the token
+  unresolved; the request is not aborted.
+
+---
+
 ## Zero-config defaults
 
-Even with **no `secrets` block**, all six aliases are pre-registered with minimal settings, so
-they work as soon as the matching credentials/env vars are present:
+Even with **no `secrets` block**, all six built-in aliases are pre-registered with minimal
+settings, so they work as soon as the matching credentials/env vars are present:
 
 | Alias | Reads from |
 |---|---|
@@ -458,6 +583,8 @@ they work as soon as the matching credentials/env vars are present:
 | `doppler` | `DOPPLER_TOKEN` |
 
 Add a `secrets` block only when you need to pin a region/URL/project or register extra aliases.
+Custom provider aliases are never pre-registered; define them explicitly as shown in
+[Custom providers](#custom-providers).
 
 ---
 
@@ -499,6 +626,10 @@ VAULT_ADDR=https://vault.corp.com VAULT_TOKEN=$VAULT_TOKEN \
 
 # Doppler — no SDK needed
 DOPPLER_TOKEN=$DOPPLER_TOKEN npx @http-forge/cli run-suite smoke --env prod
+
+# Custom provider — module installed under scripts.modulePaths
+CORP_SECRETS_URL=https://secrets.corp.example CORP_SECRETS_TOKEN=$CORP_SECRETS_TOKEN \
+  npx @http-forge/cli run-suite smoke --env prod
 ```
 
 ---
@@ -538,6 +669,9 @@ provider's own credentials to the environment:
   prefer `DOPPLER_TOKEN` so the token stays out of the config file.
 - A failed or unconfigured token is left unresolved (and logged) rather than silently sending
   an empty value.
+- Custom providers are trusted workspace code loaded from `scripts.modulePaths`. They run with
+  the same Node privileges as HTTP Forge and their own console output is not covered by HTTP
+  Forge redaction; review the module and never log resolved values.
 
 See [Security & Sensitive Data](security.md) for the full redaction model.
 
@@ -556,5 +690,8 @@ See [Security & Sensitive Data](security.md) for the full redaction model.
 | Doppler: "no service token found" | Set `DOPPLER_TOKEN` or add `serviceToken` to the alias config. |
 | Works in a terminal but the extension reports missing credentials | The extension host has a different environment and `PATH`. Quit VS Code, then run `code .` from the authenticated shell, or set the variable at the OS level. |
 | 1Password works in a terminal but the extension says it is not signed in | The extension host cannot see the shell session or `op` on its `PATH`. Use the desktop app integration or launch VS Code from the signed-in shell. |
+| Custom: "could not load module" | Ensure the first `scripts.modulePaths` entry contains a `package.json`, the module file exists relative to that directory (or the package is installed there), and the path in `module` matches. |
+| Custom: "must export a resolver factory…" | Export a factory function, an object with `createResolver`, or an object with `resolve(path)`. |
+| Custom: token still uses old behavior after editing the module | The module file itself changed, not the config. Reload the VS Code window or restart the CLI. |
 
 See also [Troubleshooting & FAQs](troubleshooting.md).
