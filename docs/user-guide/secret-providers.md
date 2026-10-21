@@ -139,19 +139,43 @@ aws secretsmanager get-secret-value \
   --output text
 ```
 
-For an organization using IAM Identity Center, configure and use an SSO profile instead:
+For an organization using IAM Identity Center (the AWS access portal), configure and use an
+SSO profile instead:
 
 ```bash
-aws configure sso
+aws configure sso --profile my-profile
+# At the prompts:
+#   SSO start URL: https://<org>.awsapps.com/start
+#   SSO region:    the IAM Identity Center region (not necessarily the secret region)
+#   Account:       the account ID shown in the access portal
+#   Role:          a role that can read the secret
+#   Client region: the region that contains the secret
+#   Profile name:  my-profile
+
 aws sso login --profile my-profile
 export AWS_PROFILE=my-profile
+export AWS_REGION=us-east-1   # the region that contains the secret
 
 aws sts get-caller-identity --profile my-profile
+aws secretsmanager get-secret-value \
+  --profile my-profile \
+  --region us-east-1 \
+  --secret-id myapp/prod \
+  --query SecretString \
+  --output text
 ```
 
 - The SDK also reads `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`,
   `AWS_PROFILE`, and `AWS_REGION` / `AWS_DEFAULT_REGION`.
-- For `aws sso login`, make sure `AWS_PROFILE` is visible to the VS Code extension host.
+- The account ID is stored in the SSO profile (`sso_account_id`); HTTP Forge does not need it
+  separately.
+- For `aws sso login`, make sure `AWS_PROFILE` and `AWS_REGION` are visible to the VS Code
+  extension host. Quit VS Code and relaunch it from the authenticated shell, or set them at
+  the OS/user-session level.
+- SSO tokens expire. If the resolver reports expired credentials, run `aws sso login
+  --profile <profile>` again and retry.
+- If the secret is in a different account, configure a cross-account role in the profile (or
+  use an assumed role that has access) rather than copying credentials into HTTP Forge.
 - On EC2, ECS, or Lambda, use the instance/task/execution role; there is nothing to sign in to
   locally.
 - If the secret uses a customer-managed KMS key, the identity also needs `kms:Decrypt`.
