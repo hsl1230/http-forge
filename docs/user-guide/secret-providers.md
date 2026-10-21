@@ -21,7 +21,7 @@ This works identically in the **VS Code extension** and the **`@http-forge/cli`*
 | `azure` | Azure Key Vault | `{{secret:azure/<name>[/<version>]}}` | `DefaultAzureCredential` (env, managed identity, CLI) | `@azure/keyvault-secrets`, `@azure/identity` |
 | `gcp` | Google Secret Manager | `{{secret:gcp/<name>[/versions/<n>]}}` | Application Default Credentials | `@google-cloud/secret-manager` |
 | `vault` | HashiCorp Vault (KV v2) | `{{secret:vault/<path>[#field]}}` | `VAULT_TOKEN` + `VAULT_ADDR` | none (built-in `fetch`) |
-| `op` | 1Password | `{{secret:op/<item>/<field>}}` | `op` CLI session or `OP_SERVICE_ACCOUNT_TOKEN` | none (CLI) / optional `@1password/sdk` |
+| `op` | 1Password | `{{secret:op/<item>/<field>}}` | `OP_SERVICE_ACCOUNT_TOKEN`, configured desktop `account`, or `op` CLI session | optional `@1password/sdk` (0.5+ for desktop account) |
 | `doppler` | Doppler | `{{secret:doppler/<NAME>}}` | `DOPPLER_TOKEN` service token | none (built-in `https`) |
 
 All six built-in aliases are **pre-registered out of the box** — you can use
@@ -61,7 +61,8 @@ flowchart LR
 
 **No credentials are ever stored in HTTP Forge config.** Each provider uses its own
 ambient credential chain (env vars, cloud identity, CLI session). The `secrets` block only
-holds non-sensitive routing info such as region, vault URL, or project ID.
+holds non-sensitive routing info such as region, vault URL, project ID, or a 1Password desktop
+account name.
 
 ---
 
@@ -75,18 +76,22 @@ each resolver uses that provider's normal authentication mechanism:
   created by `aws configure`, `az login`, or `gcloud auth application-default login`.
 - **Vault, Doppler** — a token read from the process environment (`VAULT_TOKEN`,
   `DOPPLER_TOKEN`).
-- **1Password** — a signed-in `op` CLI session or an `OP_SERVICE_ACCOUNT_TOKEN`.
+- **1Password** — an `OP_SERVICE_ACCOUNT_TOKEN` (service account via the SDK), a configured
+  desktop `account` (personal account via the SDK), or a signed-in `op` CLI session. SSO
+  (for example TCI PingFed) is handled by the 1Password desktop app; HTTP Forge never handles
+  the identity-provider login itself.
 - **Custom** — whatever your module uses. Keep credentials in `process.env` or the provider's
   own SDK/CLI session, not in the `options` block.
 
-The `secrets.providers` block holds routing information (region, vault URL, project ID, custom
-options) and, for Doppler, an optional `serviceToken` override. Prefer `DOPPLER_TOKEN` so the
-token stays out of config.
+The `secrets.providers` block holds routing information (region, vault URL, project ID, the
+1Password desktop account name, custom options) and, for Doppler, an optional `serviceToken`
+override. Prefer `DOPPLER_TOKEN` so the token stays out of config.
 
 Provider SDKs are separate from authentication: AWS, Azure, and GCP need their SDK installed
 (see [Installing the provider SDKs](#installing-the-provider-sdks)), while Vault and Doppler
-use built-in Node APIs. 1Password uses the `op` CLI or the optional `@1password/sdk`. Custom
-providers may use any package installed in `scripts.modulePaths`.
+use built-in Node APIs. 1Password uses the `op` CLI or the optional `@1password/sdk`; the SDK
+is required for service-account tokens and for the desktop `account` path. Custom providers may
+use any package installed in `scripts.modulePaths`.
 
 ### VS Code: the extension host has its own environment
 
@@ -117,7 +122,7 @@ launch VS Code from that shell or fix the GUI session's `PATH`.
 | Azure Key Vault | `az login` | `DefaultAzureCredential` + `AZURE_KEYVAULT_URL` | `Key Vault Secrets User` role, or secret `Get` access policy |
 | Google Secret Manager | `gcloud auth application-default login` | Application Default Credentials + `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` / `GCP_PROJECT` | `roles/secretmanager.secretAccessor` |
 | HashiCorp Vault | `vault login ...`, then export `VAULT_TOKEN` | `VAULT_TOKEN` + `VAULT_ADDR` + `VAULT_NAMESPACE` | `read` on the KV v2 data path |
-| 1Password | `op signin`, or set `OP_SERVICE_ACCOUNT_TOKEN` | `op` CLI session or service-account token | read access to the vault/item |
+| 1Password | `op signin`, set `OP_SERVICE_ACCOUNT_TOKEN`, or configure `account` | `op` CLI session, service-account token, or desktop-app account | read access to the vault/item |
 | Doppler | create a service token, then export `DOPPLER_TOKEN` | `DOPPLER_TOKEN` or `serviceToken` | service token scoped to the project/config |
 
 ### AWS Secrets Manager sign-in
@@ -245,21 +250,343 @@ op whoami
 op item get "My App" --vault "Private" --fields label=password --reveal
 ```
 
+If your organization uses a custom sign-in address, such as
+`https://teluscomms.1password.ca/signin`, add the account using the host name only — no
+`https://` and no `/signin` path:
+
+```bash
+op account add --address teluscomms.1password.ca --email you@example.com
+eval $(op signin --account teluscomms)
+op whoami
+```
+
+Replace `teluscomms` with the shorthand shown by `op account list` if it differs. The sign-in
+URL is for the browser only; it is not an HTTP Forge config value.
+
+If you use the desktop app integration, sign in to the 1Password app at that same address and
+enable **Settings → Developer → Integrate with 1Password CLI**. Then `op` uses the app's
+signed-in account without a separate CLI session.
+
+If your organization uses SSO — for example, **TCI PingFed** — 1Password performs the SSO
+login; HTTP Forge never sees your PingFed credentials. For SSO-only accounts, both personal
+paths rely on the 1Password desktop app:
+
+- **SDK path:** sign in to the 1Password desktop app with your identity provider, then
+  configure `account` (preferably the account UUID). The SDK `DesktopAuth` asks the app for
+  access. The `op` CLI and its integration setting are not needed for this path.
+- **CLI path:** sign in to the desktop app, enable **Settings → Developer → Integrate with
+  1Password CLI**, then run `op whoami` (and `op signin` if prompted to approve the CLI in the
+  app). SSO-only accounts cannot use manual `op account add` sign-in because it requires an
+  account password and Secret Key.
+
+For unattended or CI use, create a service account instead — service accounts authenticate
+with `OP_SERVICE_ACCOUNT_TOKEN` and are independent of SSO.
+
+HTTP Forge does not store the sign-in address in `http-forge.config.json`. The address lives
+in one of three places: the 1Password desktop app account (SSO), the CLI account added with
+`op account add` (manual sign-in), or the service-account token (already scoped to the
+account). If multiple accounts are configured, set `OP_ACCOUNT` to the shorthand shown by
+`op account list` in the environment that launches VS Code or the CLI; HTTP Forge passes the
+environment through to `op`.
+
+HTTP Forge chooses the authentication path in this order:
+
+1. `OP_SERVICE_ACCOUNT_TOKEN` → `@1password/sdk` service-account auth.
+2. A configured `account` → `@1password/sdk` `DesktopAuth` (personal account through the
+   desktop app).
+3. Otherwise → the signed-in `op` CLI session.
+
 - `op signin` is idempotent and uses Touch ID, Windows Hello, or system authentication when
   the desktop app integration is enabled.
 - HTTP Forge runs `op` as a child process with the extension host environment. If you use
   `eval $(op signin)` in a shell, launch VS Code from that shell; otherwise use the desktop
   integration so the CLI can authenticate without an exported session token.
-- For a service account (recommended for CI):
-  ```bash
-  export OP_SERVICE_ACCOUNT_TOKEN="ops_..."
-  ```
-  Create a service account with read access to the vault(s) HTTP Forge needs, then create a
-  token. With `@1password/sdk` installed in `scripts.modulePaths`, HTTP Forge uses the SDK;
-  without it, it falls back to the `op` CLI, which also accepts `OP_SERVICE_ACCOUNT_TOKEN`.
+- For a personal account, use the SDK desktop-app path (`account`) or the signed-in `op` CLI
+  session; see [Personal account access](#personal-account-access).
+- For a service account (recommended for CI), set `OP_SERVICE_ACCOUNT_TOKEN`; see the
+  [Service account runbook](#service-account-runbook) for the full no-app, no-CLI setup.
 - `vault` in config is a default vault, not a credential. With it set, use
   `{{secret:op/<item>/<field>}}`; without it, use `{{secret:op/<vault>/<item>/<field>}}`.
 - The item and field must be readable by the signed-in user or service account.
+
+#### Personal account access
+
+If the vault is shared with your personal 1Password account, HTTP Forge supports two paths.
+For SSO-only accounts — for example, TCI PingFed with 1Password Unlock with SSO — both paths
+rely on the 1Password desktop app because 1Password performs the identity-provider login.
+
+**Desktop-app path (no CLI)**
+
+Set `account` in the 1Password provider config. HTTP Forge uses `@1password/sdk`'s
+`DesktopAuth` with the signed-in desktop app. This requires `@1password/sdk` 0.5.0 or newer
+and the 1Password desktop app on the extension host. This is the recommended path for SSO.
+
+```json
+{ "op": { "provider": "1password", "vault": "Private", "account": "my-account" } }
+```
+
+Use the account UUID (preferred for SSO) or the account name shown at the top left of the
+desktop app. Sign in to (and unlock) the app before making requests; for SSO, complete the
+TCI PingFed login in the app. The CLI and its integration setting are not used on this path.
+Do not set `OP_SERVICE_ACCOUNT_TOKEN` for personal access; the service-account token takes
+precedence when both are configured.
+
+**CLI path**
+
+Omit `account` and use the signed-in `op` CLI session. This is also the fallback when the SDK
+package is not installed. The CLI path requires 1Password CLI v2 on the extension host's
+`PATH`.
+
+1. Sign in to the 1Password desktop app with the personal account and enable
+   **Settings → Developer → Integrate with 1Password CLI**. For an account with an account
+   password and Secret Key, you can instead use `op account add` + `op signin` manually.
+   SSO-only accounts cannot use manual sign-in because `op account add` requires those
+   credentials.
+2. If more than one account is signed in, select the personal account by shorthand:
+   ```bash
+   export OP_ACCOUNT="my-account"
+   op whoami
+   ```
+   Use the shorthand shown by `op account list`.
+3. Launch VS Code from that shell so the extension host inherits `OP_ACCOUNT` and the CLI
+   session:
+   ```bash
+   code /path/to/workspace
+   ```
+4. Verify the exact value the resolver will read:
+   ```bash
+   op read "op://<vault>/<item>/<field>"
+   ```
+   Then use `{{secret:op/<vault>/<item>/<field>}}` in HTTP Forge.
+
+If the CLI cannot see the personal account, run `op whoami` and `op account list` in the
+same shell that launches VS Code. The extension host does not inherit exports from an
+integrated terminal.
+
+When `account` is set but the SDK package is missing, HTTP Forge falls back to `op read` with
+the same value in `OP_ACCOUNT`. If your CLI identifies the account by a different shorthand,
+install the SDK or omit `account` and set `OP_ACCOUNT` explicitly.
+
+For SSO (TCI PingFed), the CLI path requires the desktop app integration. If the desktop app
+cannot be installed, personal SSO is not available; use a service account with read access to
+a shared vault instead.
+
+If the SDK reports that it cannot authenticate the desktop account, make sure the desktop app
+is signed in and unlocked through SSO, set `account` to the account UUID, and verify the SDK
+is 0.5.0 or newer. If the CLI cannot find the SSO account, enable **Settings → Developer →
+Integrate with 1Password CLI** in the app; manually added CLI accounts cannot use SSO-only
+sign-in.
+
+#### Service account runbook
+
+A service account is the no-app, no-CLI option: the token authenticates `@1password/sdk`,
+and HTTP Forge reads the token from the environment. The 1Password web app is used only to
+create the service account and save the token.
+
+**Prerequisites**
+
+- Permission to create service accounts (owner/admin, or a delegated permission). If
+  **Developer** is missing from the web app, ask your 1Password administrator.
+- A shared vault the service account can read. Service accounts cannot access Personal,
+  Private, Employee, or the default Shared vault.
+- The account's sign-in address, for example `teluscomms.1password.ca`.
+
+**1. Sign in to the account**
+
+1. Open `https://<account>.1password.ca/signin` — for the Telus account, use
+   `https://teluscomms.1password.ca/signin`.
+2. Enter your organization email address.
+3. If prompted, choose **Sign in with SSO** / **Continue with TCI PingFed**, then complete the
+   PingFed login and MFA.
+4. If an account switcher appears, select the organization account. If you are already signed
+   into a different 1Password account, sign out or use a private browser window first.
+
+You do not need the 1Password desktop app or the `op` CLI for this web setup.
+
+**2. Prepare a shared vault and item**
+
+1. Create or use a shared vault, for example `HTTP Forge`.
+2. Add the item HTTP Forge should read, for example an API credential with a `password`
+   field.
+3. Confirm the field is visible in the web app.
+
+**3. Create the service account**
+
+1. In the web app, open **Developer** → **Directory**.
+2. Under **Infrastructure Secrets Management**, choose **Other** / **Service Accounts**, then
+   **Create a Service Account**. Some accounts show this as
+   **Developer** → **Access Tokens** → **Service Account**.
+3. Give it a name, for example `http-forge-local`.
+4. Grant **Read Items** on the shared vault. Do not grant **Write Items** or **Share Items**
+   unless the integration needs them.
+5. Leave **Can create vaults** off and skip 1Password Environments. HTTP Forge's `op`
+   provider resolves item secret references, not Environments.
+6. Create the service account.
+7. When the token appears, choose **Save in 1Password** and save it to a vault. The token is
+   shown only once. Do not paste it into chat, email, source control, or
+   `http-forge.config.json`.
+
+Service-account vault access and permissions are immutable. If you need access to another
+vault later, create a new service account. You can rotate the token without changing access.
+
+Some accounts expose the same wizard path as 1Password.com:
+
+```text
+https://<account>.1password.ca/developer-tools/infrastructure-secrets/serviceaccount/
+```
+
+If that path does not work, use the sidebar navigation above.
+
+**4. Export the token and launch VS Code**
+
+In the shell that starts VS Code or the CLI:
+
+```bash
+export OP_SERVICE_ACCOUNT_TOKEN="ops_..."
+code /path/to/workspace
+```
+
+The VS Code extension host does not see variables exported in an integrated terminal. Fully
+quit VS Code, export the token in the launching shell, then reopen. On Windows PowerShell:
+
+```powershell
+$env:OP_SERVICE_ACCOUNT_TOKEN = "ops_..."
+code .
+```
+
+Or set it as a user environment variable and restart VS Code.
+
+**5. Verify the token and host**
+
+The token is `ops_` followed by a base64url payload. The payload contains `signInAddress`,
+which is how the SDK knows which 1Password host to use. Print only that field:
+
+```bash
+node - <<'NODE'
+const token = process.env.OP_SERVICE_ACCOUNT_TOKEN;
+if (!token) throw new Error('OP_SERVICE_ACCOUNT_TOKEN is not set');
+
+const data = JSON.parse(
+  Buffer.from(token.replace(/^ops_/, ''), 'base64url').toString('utf8')
+);
+console.log(data.signInAddress);
+NODE
+```
+
+Expected for the Telus account:
+
+```text
+teluscomms.1password.ca
+```
+
+Do not print the whole token: it contains key material, not just an opaque API key.
+
+To verify that the token can see the expected vaults, run this from the directory where the
+SDK is installed:
+
+```bash
+cd /path/to/workspace/.http-forge/assets/lib
+node - <<'NODE'
+const { createClient } = require('@1password/sdk');
+
+(async () => {
+  if (!process.env.OP_SERVICE_ACCOUNT_TOKEN) {
+    throw new Error('OP_SERVICE_ACCOUNT_TOKEN is not set');
+  }
+
+  const client = await createClient({
+    auth: process.env.OP_SERVICE_ACCOUNT_TOKEN,
+    integrationName: 'HTTP Forge verification',
+    integrationVersion: '1.0.0',
+  });
+
+  console.log((await client.vaults.list()).map((vault) => vault.title));
+})();
+NODE
+```
+
+A successful `client.secrets.resolve(...)` for a known item is the real end-to-end check.
+
+**6. Use it in HTTP Forge**
+
+Configure the provider alias:
+
+```json
+{ "op": { "provider": "1password" } }
+```
+
+With a default vault:
+
+```json
+{ "op": { "provider": "1password", "vault": "HTTP Forge" } }
+```
+
+Then reference the secret:
+
+```http
+# No default vault
+Authorization: Bearer {{secret:op/HTTP Forge/My API/password}}
+
+# Default vault configured as "HTTP Forge"
+Authorization: Bearer {{secret:op/My API/password}}
+```
+
+**How the token is read**
+
+1. `SecretResolverRegistry` finds a `{{secret:op/...}}` token, extracts the `op` alias, and
+   selects the configured 1Password resolver.
+2. `OnePasswordResolver` selects a credential in this order: `OP_SERVICE_ACCOUNT_TOKEN` from
+   the process environment, a configured `account` (personal account), then the `op` CLI.
+3. For either SDK path, HTTP Forge loads `@1password/sdk` from the first
+   `scripts.modulePaths` entry that contains a `package.json` (in this workspace,
+   `.http-forge/assets/lib`).
+4. With a service-account token, the resolver calls:
+
+   ```ts
+   createClient({
+     auth: process.env.OP_SERVICE_ACCOUNT_TOKEN,
+     integrationName: 'HTTP Forge',
+     integrationVersion: '1.0.0',
+   });
+   ```
+
+   There is no host argument. The SDK maps the string `auth` value to
+   `serviceAccountToken`.
+
+   With a configured desktop account, it calls `new sdk.DesktopAuth(account)` as the `auth`
+   value. This requires the 1Password desktop app and SDK 0.5.0 or newer.
+5. For a service-account token, the SDK passes the configuration to `@1password/sdk-core`, a
+   Rust/WASM library. The core verifies the `ops_` prefix, base64url-decodes the payload,
+   deserializes `ServiceAccountCredentials`, and reads `signInAddress`. For a desktop
+   account, the SDK connects to the local 1Password app and uses its signed-in session
+   instead.
+6. The core authenticates, decrypts the vault keys, and resolves the requested `op://...`
+   reference.
+7. `client.secrets.resolve()` returns the plaintext value to HTTP Forge, which injects it
+   into the request. Resolved values are redacted from history and diagnostics.
+
+The SDK client is cached per credential (token or account). If the token or account changes,
+the resolver detects the new value and creates a new client. If the SDK module is missing,
+the resolver falls back to `op`; if a service-account token is present but invalid, the SDK
+error is returned instead of silently falling back. If a configured desktop account cannot
+authenticate through the app, the SDK error is returned; omit `account` to use the CLI
+session instead.
+
+**Troubleshooting**
+
+| Symptom | Fix |
+|---|---|
+| **Developer** / **Service Accounts** is missing | Your role lacks permission, or the feature is disabled. Ask a 1Password administrator. |
+| The service account wizard shows no usable vault | Service accounts cannot use Personal, Private, Employee, or the default Shared vault. Create a new shared vault and grant access there. |
+| `service account token base64 decoding failed` | The token was truncated or copied with extra characters. Copy it again; if it still fails, rotate it. |
+| `invalid sign-in address` | The token is corrupt or the account's sign-in address changed. Rotate the token in the same account. |
+| `MODULE_NOT_FOUND: @1password/sdk` | Install the SDK in the selected module path: `cd .http-forge/assets/lib && npm install @1password/sdk`. |
+| The extension still says the 1Password CLI is missing | The extension host did not inherit `OP_SERVICE_ACCOUNT_TOKEN`. Quit VS Code, export the token in the launching shell, and reopen. |
+| Vault or item not found | The service account lacks vault access, or the item/field name is wrong. Service-account access is immutable; create a new service account for a new vault. |
+
+See [1Password Service Accounts](https://developer.1password.com/docs/service-accounts/) and
+the [SDK service-account tutorial](https://developer.1password.com/docs/sdks/setup-tutorial/)
+for the vendor-side details.
 
 ### Doppler sign-in
 
@@ -297,7 +624,7 @@ The SDKs are declared as `optionalDependencies`, so install only the ones you us
 npm install @aws-sdk/client-secrets-manager      # AWS
 npm install @azure/keyvault-secrets @azure/identity   # Azure
 npm install @google-cloud/secret-manager         # GCP
-npm install @1password/sdk                       # 1Password Service Account
+npm install @1password/sdk                       # 1Password service account / desktop account
 ```
 
 ### In the VS Code extension
@@ -428,10 +755,14 @@ variable (see each provider below), following this precedence:
 { "op": { "provider": "1password", "vault": "Private" } }
 ```
 
-- **Credentials:** the `op` CLI signed-in session (`op signin`), or a Service Account via
-  `OP_SERVICE_ACCOUNT_TOKEN` (CI). With a service-account token and `@1password/sdk` installed,
-  the SDK path is used; otherwise it shells out to `op`. See
-  [1Password sign-in](#1password-sign-in).
+- **Credentials:** a service account via `OP_SERVICE_ACCOUNT_TOKEN` (CI), a personal account
+  via `account` and the SDK desktop integration, or the `op` CLI signed-in session. The
+  resolver tries them in that order. See [1Password sign-in](#1password-sign-in) and the
+  [Service account runbook](#service-account-runbook).
+- **`account`** is the desktop-app account name (or account UUID) for the SDK `DesktopAuth`
+  path. It requires `@1password/sdk` 0.5.0+ and the desktop app. If the SDK package is
+  missing, the same value is passed to the CLI as `OP_ACCOUNT`. Omit it to use the CLI
+  session directly.
 - **`vault`** sets a default vault so tokens can omit it: with it → `{{secret:op/<item>/<field>}}`; without it → `{{secret:op/<vault>/<item>/<field>}}`.
 
 ### Doppler
@@ -579,7 +910,7 @@ settings, so they work as soon as the matching credentials/env vars are present:
 | `azure` | `AZURE_KEYVAULT_URL` + `DefaultAzureCredential` |
 | `gcp` | `GOOGLE_CLOUD_PROJECT` + Application Default Credentials |
 | `vault` | `VAULT_ADDR` + `VAULT_TOKEN` |
-| `op` | `op` CLI session or `OP_SERVICE_ACCOUNT_TOKEN` |
+| `op` | `op` CLI session or `OP_SERVICE_ACCOUNT_TOKEN`; a configured `account` uses the desktop app |
 | `doppler` | `DOPPLER_TOKEN` |
 
 Add a `secrets` block only when you need to pin a region/URL/project or register extra aliases.
@@ -689,7 +1020,8 @@ See [Security & Sensitive Data](security.md) for the full redaction model.
 | 1Password: "requires `op` CLI" | Install the 1Password CLI and run `op signin`, or set `OP_SERVICE_ACCOUNT_TOKEN`. |
 | Doppler: "no service token found" | Set `DOPPLER_TOKEN` or add `serviceToken` to the alias config. |
 | Works in a terminal but the extension reports missing credentials | The extension host has a different environment and `PATH`. Quit VS Code, then run `code .` from the authenticated shell, or set the variable at the OS level. |
-| 1Password works in a terminal but the extension says it is not signed in | The extension host cannot see the shell session or `op` on its `PATH`. Use the desktop app integration or launch VS Code from the signed-in shell. |
+| 1Password works in a terminal but the extension says it is not signed in | The extension host cannot see the shell session or `op` on its `PATH`. Use the desktop app integration or launch VS Code from the signed-in shell. For multiple accounts, set `OP_ACCOUNT`. |
+| 1Password uses a custom sign-in domain (e.g. `.1password.ca`) | Add the account with `op account add --address <name>.1password.ca`, or use the desktop app integration. Do not put the browser `https://…/signin` URL in `http-forge.config.json`. |
 | Custom: "could not load module" | Ensure the first `scripts.modulePaths` entry contains a `package.json`, the module file exists relative to that directory (or the package is installed there), and the path in `module` matches. |
 | Custom: "must export a resolver factory…" | Export a factory function, an object with `createResolver`, or an object with `resolve(path)`. |
 | Custom: token still uses old behavior after editing the module | The module file itself changed, not the config. Reload the VS Code window or restart the CLI. |

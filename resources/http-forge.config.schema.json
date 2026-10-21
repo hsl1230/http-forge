@@ -357,6 +357,10 @@
                 "type": "string",
                 "description": "Default 1Password vault name (1password). When set, tokens may omit the vault segment."
               },
+              "account": {
+                "type": "string",
+                "description": "1Password desktop-app account name (1password). Used with @1password/sdk DesktopAuth when OP_SERVICE_ACCOUNT_TOKEN is not set. Requires the desktop app and SDK 0.5.0+. Omit to use the op CLI session."
+              },
               "serviceToken": {
                 "type": "string",
                 "description": "Doppler service token (doppler). Prefer the DOPPLER_TOKEN environment variable over storing a token here."
