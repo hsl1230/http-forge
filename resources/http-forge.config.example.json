@@ -2,9 +2,9 @@
   "version": "1.0",
   "storage": {
     "format": "folder",
-    "root": "./http-forge",
-    "history": "./.http-forge-cache/histories",
-    "results": "./.http-forge-cache/results"
+    "root": "./assets",
+    "history": "./.cache/histories",
+    "results": "./.cache/results"
   },
   "request": {
     "timeout": 30000,
@@ -31,7 +31,7 @@
     ]
   },
   "scripts": {
-    "modulePaths": ["./src", "./lib"],
+    "modulePaths": ["./assets/src", "./assets/lib"],
     "scope": "shared",
     "timeout": 5000
   },
@@ -68,6 +68,7 @@
     "providers": {
       "aws": {
         "provider": "aws",
+        "profile": "my-profile",
         "region": "us-east-1"
       },
       "azure": {

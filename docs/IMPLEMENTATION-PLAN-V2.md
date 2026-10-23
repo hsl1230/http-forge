@@ -621,7 +621,7 @@ package.json (删除 contributes.configuration)
 - [x] `.http-forge/http-forge.config.json` 能被正确读取
 - [x] 所有原有功能正常工作
 - [x] VS Code Settings 中不再有 httpForge 配置项
-- [x] 创建了 `http-forge.config.example.json` 示例配置
+- [x] 创建了 `resources/http-forge.config.example.json` 示例配置
 - [x] 创建了 JSON Schema 提供 IntelliSense
 
 ### Phase 2 验收 ✅

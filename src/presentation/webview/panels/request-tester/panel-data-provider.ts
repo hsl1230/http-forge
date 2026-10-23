@@ -8,12 +8,69 @@
  * - Dependency Inversion: Implements IPanelContextProvider for handlers
  */
 
-import { CollectionItem, CollectionRequestItem, ICollectionService, IEnvironmentConfigService, type CollectionRequest, type KeyValueEntry, type PathParamEntry } from '@http-forge/core';
+import { CollectionItem, CollectionRequestItem, ICollectionService, IEnvironmentConfigService, type CollectionRequest } from '@http-forge/core';
 import { ensureRequestDefaults, RequestContext } from '../../../../shared/utils';
 import { CookieHandler } from './handlers/cookie-handler';
 import { EnvironmentSelectionHandler } from './handlers/environment-handler';
 import { VariableHandler } from './handlers/variable-handler';
 import { HistoryStoragePath, HistoryUIEntry, IPanelContextProvider } from './interfaces';
+
+/**
+ * Merge saved request values into the latest generated request.
+ *
+ * The saved request is the source of truth for editable key/value lists. A
+ * saved list is authoritative even when it is empty, so an entry the user
+ * removed is not restored from a stale generated request on reload.
+ */
+export function mergeCollectionRequests(base: CollectionRequest, saved: CollectionRequest): CollectionRequest {
+  const mergeBody = (baseBody: CollectionRequest['body'], savedBody: CollectionRequest['body']) => {
+    if (!savedBody) return baseBody ?? null;
+    if (!baseBody) return savedBody;
+    if (baseBody.type === savedBody.type && baseBody.type === 'raw') {
+      const baseContent = baseBody.content;
+      const savedContent = savedBody.content;
+      if (baseBody.format === 'json' && typeof baseContent === 'object' && typeof savedContent === 'object') {
+        return {
+          ...baseBody,
+          content: { ...baseContent, ...savedContent }
+        };
+      }
+    }
+    return savedBody;
+  };
+
+  return {
+    ...base,
+    id: saved.id || base.id,
+    name: saved.name || base.name,
+    method: saved.method || base.method,
+    url: saved.url || base.url,
+    // Saved key/value lists are authoritative, including empty lists. Merging
+    // base entries into them would resurrect items the user removed.
+    headers: saved.headers ?? base.headers,
+    query: saved.query ?? base.query,
+    params: saved.params ?? base.params,
+    body: mergeBody(base.body, saved.body),
+    auth: saved.auth ?? base.auth,
+    settings: saved.settings ?? base.settings,
+    scripts: {
+      preRequest: saved.scripts?.preRequest || base.scripts?.preRequest || '',
+      postResponse: saved.scripts?.postResponse || base.scripts?.postResponse || ''
+    },
+    // Saved takes precedence for all fields — preserves the user's manual
+    // edits. Users can delete the saved request to pick up fresh base values.
+    deprecated: saved.deprecated ?? base.deprecated,
+    description: saved.description ?? base.description,
+    operationId: saved.operationId ?? base.operationId,
+    summary: saved.summary ?? base.summary,
+    tags: saved.tags ?? base.tags,
+    examples: saved.examples ?? base.examples,
+    responses: saved.responses ?? base.responses,
+    security: saved.security ?? base.security,
+    responseSchema: saved.responseSchema ?? base.responseSchema,
+    bodySchema: saved.bodySchema ?? base.bodySchema
+  };
+}
 
 /**
  * Provides data for the panel initialization and updates
@@ -101,77 +158,6 @@ export class PanelDataProvider implements IPanelContextProvider {
   }
 
   /**
-   * Merge saved request values into the latest generated request
-   */
-  private mergeCollectionRequests(base: CollectionRequest, saved: CollectionRequest): CollectionRequest {
-    const mergeKeyed = (
-      baseItems: KeyValueEntry[] = [],
-      savedItems: KeyValueEntry[] = []
-    ) => {
-      const map = new Map<string, KeyValueEntry>();
-      // Base first, then saved overwrites — saved (user's manual edits) wins
-      baseItems.forEach(item => map.set(item.key, { ...item }));
-      savedItems.forEach(item => map.set(item.key, { ...item }));
-      return Array.from(map.values());
-    };
-
-    const mergeParams = (
-      baseParams?: Record<string, string | PathParamEntry>,
-      savedParams?: Record<string, string | PathParamEntry>
-    ): Record<string, string | PathParamEntry> | undefined => {
-      if (!baseParams && !savedParams) return undefined;
-      // Base first, then saved overwrites — saved wins
-      return { ...(baseParams || {}), ...(savedParams || {}) };
-    };
-
-    const mergeBody = (baseBody: CollectionRequest['body'], savedBody: CollectionRequest['body']) => {
-      if (!savedBody) return baseBody ?? null;
-      if (!baseBody) return savedBody;
-      if (baseBody.type === savedBody.type && baseBody.type === 'raw') {
-        const baseContent = baseBody.content;
-        const savedContent = savedBody.content;
-        if (baseBody.format === 'json' && typeof baseContent === 'object' && typeof savedContent === 'object') {
-          return {
-            ...baseBody,
-            content: { ...baseContent, ...savedContent }
-          };
-        }
-      }
-      return savedBody;
-    };
-
-    return {
-      ...base,
-      id: saved.id || base.id,
-      name: saved.name || base.name,
-      method: saved.method || base.method,
-      url: saved.url || base.url,
-      headers: mergeKeyed(base.headers, saved.headers),
-      query: mergeKeyed(base.query, saved.query),
-      params: mergeParams(base.params, saved.params),
-      body: mergeBody(base.body, saved.body),
-      auth: saved.auth ?? base.auth,
-      settings: saved.settings ?? base.settings,
-      scripts: {
-        preRequest: saved.scripts?.preRequest || base.scripts?.preRequest || '',
-        postResponse: saved.scripts?.postResponse || base.scripts?.postResponse || ''
-      },
-      // Saved takes precedence for all fields — preserves the user's manual
-      // edits. Users can delete the saved request to pick up fresh base values.
-      deprecated: saved.deprecated ?? base.deprecated,
-      description: saved.description ?? base.description,
-      operationId: saved.operationId ?? base.operationId,
-      summary: saved.summary ?? base.summary,
-      tags: saved.tags ?? base.tags,
-      examples: saved.examples ?? base.examples,
-      responses: saved.responses ?? base.responses,
-      security: saved.security ?? base.security,
-      responseSchema: saved.responseSchema ?? base.responseSchema,
-      bodySchema: saved.bodySchema ?? base.bodySchema
-    };
-  }
-
-  /**
    * Fallback search for a request by name or URL
    */
   private findRequestBySignature(collectionId: string, request: CollectionRequest): CollectionRequestItem | undefined {
@@ -235,7 +221,7 @@ export class PanelDataProvider implements IPanelContextProvider {
 
       if (savedItem && savedItem.type === 'request') {
         const savedRequest = ensureRequestDefaults(savedItem);
-        this.currentContext.request = this.mergeCollectionRequests(this.currentContext.request, savedRequest);
+        this.currentContext.request = mergeCollectionRequests(this.currentContext.request, savedRequest);
       }
     }
 

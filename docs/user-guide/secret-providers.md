@@ -17,7 +17,7 @@ This works identically in the **VS Code extension** and the **`@http-forge/cli`*
 
 | Alias (default) | Provider | Token syntax | Authentication source | SDK required |
 |---|---|---|---|---|
-| `aws` | AWS Secrets Manager | `{{secret:aws/<secretId>[#jsonField]}}` | SDK default chain (env, `~/.aws`, IAM role, ECS) | `@aws-sdk/client-secrets-manager` |
+| `aws` | AWS Secrets Manager | `{{secret:aws/<secretId>[#jsonField]}}` | SDK chain (configured `profile`, env, `~/.aws`, IAM role, ECS) | `@aws-sdk/client-secrets-manager` |
 | `azure` | Azure Key Vault | `{{secret:azure/<name>[/<version>]}}` | `DefaultAzureCredential` (env, managed identity, CLI) | `@azure/keyvault-secrets`, `@azure/identity` |
 | `gcp` | Google Secret Manager | `{{secret:gcp/<name>[/versions/<n>]}}` | Application Default Credentials | `@google-cloud/secret-manager` |
 | `vault` | HashiCorp Vault (KV v2) | `{{secret:vault/<path>[#field]}}` | `VAULT_TOKEN` + `VAULT_ADDR` | none (built-in `fetch`) |
@@ -89,9 +89,10 @@ override. Prefer `DOPPLER_TOKEN` so the token stays out of config.
 
 Provider SDKs are separate from authentication: AWS, Azure, and GCP need their SDK installed
 (see [Installing the provider SDKs](#installing-the-provider-sdks)), while Vault and Doppler
-use built-in Node APIs. 1Password uses the `op` CLI or the optional `@1password/sdk`; the SDK
-is required for service-account tokens and for the desktop `account` path. Custom providers may
-use any package installed in `scripts.modulePaths`.
+use built-in Node APIs. 1Password uses the `op` CLI or the optional `@1password/sdk`. The
+SDK is used for service-account tokens and for the desktop `account` path; if the SDK is
+missing, the resolver falls back to the CLI where possible. Custom providers may use any
+package installed in `scripts.modulePaths`.
 
 ### VS Code: the extension host has its own environment
 
@@ -118,29 +119,43 @@ launch VS Code from that shell or fix the GUI session's `PATH`.
 
 | Provider | Local sign-in | What HTTP Forge reads | Minimum permission |
 |---|---|---|---|
-| AWS Secrets Manager | `aws configure`, or `aws configure sso` + `aws sso login --profile <profile>` | SDK credential chain + `AWS_REGION` / `AWS_DEFAULT_REGION` | `secretsmanager:GetSecretValue`; `kms:Decrypt` for a customer-managed key |
+| AWS Secrets Manager | `aws configure`, or `aws configure sso` + `aws sso login --profile <profile>` | SDK credential chain + `profile`/`region` config or env | `secretsmanager:GetSecretValue`; `kms:Decrypt` for a customer-managed key |
 | Azure Key Vault | `az login` | `DefaultAzureCredential` + `AZURE_KEYVAULT_URL` | `Key Vault Secrets User` role, or secret `Get` access policy |
-| Google Secret Manager | `gcloud auth application-default login` | Application Default Credentials + `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` / `GCP_PROJECT` | `roles/secretmanager.secretAccessor` |
+| Google Secret Manager | `gcloud auth application-default login` | Application Default Credentials + `projectId` or `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` / `GCP_PROJECT` | `roles/secretmanager.secretAccessor` |
 | HashiCorp Vault | `vault login ...`, then export `VAULT_TOKEN` | `VAULT_TOKEN` + `VAULT_ADDR` + `VAULT_NAMESPACE` | `read` on the KV v2 data path |
 | 1Password | `op signin`, set `OP_SERVICE_ACCOUNT_TOKEN`, or configure `account` | `op` CLI session, service-account token, or desktop-app account | read access to the vault/item |
 | Doppler | create a service token, then export `DOPPLER_TOKEN` | `DOPPLER_TOKEN` or `serviceToken` | service token scoped to the project/config |
 
 ### AWS Secrets Manager sign-in
 
-```bash
-# Interactive access key
-aws configure
-# Enter AWS Access Key ID, AWS Secret Access Key, default region, and output format.
+AWS uses the SDK's default credential chain, so there is no HTTP Forge-specific login. Sign
+in with the AWS CLI, or run in an AWS role. Pick one of the paths below.
 
-# Verify with the same credential chain the SDK uses
-aws secretsmanager get-secret-value \
-  --secret-id myapp/prod \
-  --query SecretString \
-  --output text
+#### 1. Install the AWS SDK
+
+HTTP Forge does not bundle the SDK. Install `@aws-sdk/client-secrets-manager` where HTTP
+Forge resolves packages; see [Installing the provider SDKs](#installing-the-provider-sdks).
+For the VS Code extension, that is normally:
+
+```bash
+cd .http-forge/assets/lib
+npm install @aws-sdk/client-secrets-manager
 ```
 
-For an organization using IAM Identity Center (the AWS access portal), configure and use an
-SSO profile instead:
+Add that directory to `scripts.modulePaths` if your configuration does not already point
+there.
+
+#### 2. Sign in
+
+**Local access key**
+
+```bash
+aws configure
+# Enter AWS Access Key ID, AWS Secret Access Key, default region, and output format.
+aws sts get-caller-identity
+```
+
+**IAM Identity Center (AWS access portal)**
 
 ```bash
 aws configure sso --profile my-profile
@@ -153,116 +168,356 @@ aws configure sso --profile my-profile
 #   Profile name:  my-profile
 
 aws sso login --profile my-profile
-export AWS_PROFILE=my-profile
-export AWS_REGION=us-east-1   # the region that contains the secret
-
 aws sts get-caller-identity --profile my-profile
+```
+
+- The account ID is stored in the SSO profile (`sso_account_id`); HTTP Forge does not need it
+  separately.
+- SSO tokens expire. Run `aws sso login --profile <profile>` again when they do.
+- If the secret is in a different account, configure a cross-account role in the profile
+  rather than copying credentials into HTTP Forge.
+
+**AWS-hosted workloads**
+
+On EC2, ECS, or Lambda, use the instance, task, or execution role. There is no local sign-in.
+
+#### 3. Configure the profile and region
+
+Add an `aws` entry under `secrets.providers` in `http-forge.config.json`:
+
+```json
+{
+  "aws": {
+    "provider": "aws",
+    "profile": "my-profile",
+    "region": "us-east-1"
+  }
+}
+```
+
+- `profile` selects a named or SSO profile from `~/.aws/config` and
+  `~/.aws/credentials`. The SDK uses it for both credentials and profile settings, so
+  `AWS_PROFILE` does **not** need to be visible to the extension host.
+- `region` is optional. It falls back to `AWS_DEFAULT_REGION`, then `AWS_REGION`; if neither
+  is set, the SDK uses the profile's region.
+- If `profile` is omitted, `AWS_PROFILE` still selects the profile. The SDK also reads
+  `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN`.
+- `aws sso login --profile my-profile` still writes its token cache under `~/.aws/sso/cache`.
+  Run it as the same OS user that runs VS Code; no environment export is needed.
+
+#### 4. Grant access
+
+- `secretsmanager:GetSecretValue` on the secret.
+- `kms:Decrypt` if the secret uses a customer-managed KMS key.
+
+#### 5. Verify and use
+
+```bash
 aws secretsmanager get-secret-value \
-  --profile my-profile \
-  --region us-east-1 \
   --secret-id myapp/prod \
   --query SecretString \
   --output text
 ```
 
-- The SDK also reads `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`,
-  `AWS_PROFILE`, and `AWS_REGION` / `AWS_DEFAULT_REGION`.
-- The account ID is stored in the SSO profile (`sso_account_id`); HTTP Forge does not need it
-  separately.
-- For `aws sso login`, make sure `AWS_PROFILE` and `AWS_REGION` are visible to the VS Code
-  extension host. Quit VS Code and relaunch it from the authenticated shell, or set them at
-  the OS/user-session level.
-- SSO tokens expire. If the resolver reports expired credentials, run `aws sso login
-  --profile <profile>` again and retry.
-- If the secret is in a different account, configure a cross-account role in the profile (or
-  use an assumed role that has access) rather than copying credentials into HTTP Forge.
-- On EC2, ECS, or Lambda, use the instance/task/execution role; there is nothing to sign in to
-  locally.
-- If the secret uses a customer-managed KMS key, the identity also needs `kms:Decrypt`.
+For an SSO profile, add `--profile my-profile --region us-east-1`.
+
+```http
+{{secret:aws/myapp/prod}}
+{{secret:aws/myapp/prod#db_password}}
+```
+
+- Append `#field` to read one field from a JSON secret.
 - In CI, prefer OIDC role assumption over long-lived access keys (see [CI/CD](#cicd)).
 
 ### Azure Key Vault sign-in
 
+Azure uses `DefaultAzureCredential`, so there is no HTTP Forge-specific login. Sign in with
+the Azure CLI, a service principal, or a managed identity.
+
+#### 1. Install the Azure SDKs
+
+HTTP Forge does not bundle the SDKs. Install both packages where HTTP Forge resolves
+packages; see [Installing the provider SDKs](#installing-the-provider-sdks). For the VS Code
+extension, that is normally:
+
 ```bash
-# Interactive; add --tenant when your account spans multiple tenants
+cd .http-forge/assets/lib
+npm install @azure/keyvault-secrets @azure/identity
+```
+
+Add that directory to `scripts.modulePaths` if your configuration does not already point
+there.
+
+#### 2. Sign in
+
+```bash
+# Add --tenant when your account spans multiple tenants
 az login
 # az login --tenant <tenant-id>
 
 # Select the subscription that owns the vault
 az account set --subscription "<subscription-id-or-name>"
+az account show
+```
 
-# Verify
+- `DefaultAzureCredential` checks environment credentials, managed identity, and the Azure
+  CLI session, so no `AZURE_*` variables are needed for interactive use.
+- The `az` CLI must be on the extension host's `PATH`.
+
+#### 3. Configure the vault URL
+
+```json
+{ "azure": { "provider": "azure", "vaultUrl": "https://my-vault.vault.azure.net" } }
+```
+
+- `vaultUrl` falls back to `AZURE_KEYVAULT_URL`.
+- Use the vault URL, not the secret URL: `https://<vault-name>.vault.azure.net`.
+
+#### 4. Grant access
+
+- Grant the identity the **Key Vault Secrets User** RBAC role on the vault, or use a vault
+  access policy with the secret `Get` permission.
+
+#### 5. Verify and use
+
+```bash
 az keyvault secret show \
   --vault-name my-vault \
   --name oauth-client-secret \
   --query value -o tsv
 ```
 
-- `DefaultAzureCredential` picks up the Azure CLI session, so no `AZURE_*` variables are
-  needed for interactive use. The `az` CLI must be on the extension host's `PATH`.
-- For a service principal in CI, expose the standard environment variables:
-  `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`.
+```http
+{{secret:azure/oauth-client-secret}}
+{{secret:azure/oauth-client-secret/1.0}}
+```
+
+The second form pins a secret version.
+
+#### Service principals, managed identity, and CI
+
+- For a service principal, expose `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and
+  `AZURE_CLIENT_SECRET` to the process that runs HTTP Forge.
 - For Azure-hosted workloads, use a managed identity instead of a secret.
-- Set `vaultUrl` or `AZURE_KEYVAULT_URL` to `https://<vault-name>.vault.azure.net`.
-- Grant the identity the **Key Vault Secrets User** RBAC role on the vault, or use a vault
-  access policy with the secret `Get` permission.
+- In CI, prefer workload identity federation or a managed identity over a long-lived client
+  secret.
 
 ### Google Secret Manager sign-in
 
+`gcloud auth application-default login` is the only **sign-in** step HTTP Forge itself
+needs, but it is not the only setup step. HTTP Forge uses Application Default Credentials
+(ADC). There is no region setting; the project ID selects the project that owns the secret.
+
+ADC and the `gcloud` CLI use separate credentials: `gcloud auth application-default login`
+does not authenticate `gcloud` commands such as `gcloud secrets versions access`.
+
+#### 1. Install the GCP SDK
+
+HTTP Forge does not bundle the SDK. Install `@google-cloud/secret-manager` where HTTP Forge
+resolves packages; see [Installing the provider SDKs](#installing-the-provider-sdks). For
+the VS Code extension, that is normally:
+
+```bash
+cd .http-forge/assets/lib
+npm install @google-cloud/secret-manager
+```
+
+Add that directory to `scripts.modulePaths` if your configuration does not already point
+there.
+
+#### 2. Sign in with ADC
+
 ```bash
 gcloud auth application-default login
-gcloud config set project my-project-123
+```
 
-# Verify
+This opens a browser. For a Google Workspace/SSO organization, complete the login through
+your identity provider. Use `application-default login`, not just `gcloud auth login`; the
+latter authenticates the CLI but does not create the credentials the SDK reads.
+
+#### 3. Configure the project ID
+
+HTTP Forge does **not** read `gcloud config set project`. Set `projectId` in
+`http-forge.config.json`:
+
+```json
+{
+  "secrets": {
+    "providers": {
+      "gcp": { "provider": "gcp", "projectId": "my-project-123" }
+    }
+  }
+}
+```
+
+Or export `GOOGLE_CLOUD_PROJECT` (fallback: `GCLOUD_PROJECT`, then `GCP_PROJECT`).
+`gcloud config set project my-project-123` only changes the `gcloud` CLI's active project;
+it is useful for the verification command below, but it does not configure HTTP Forge.
+
+#### 4. Grant access
+
+- Grant `roles/secretmanager.secretAccessor` on the secret or project.
+- Enable the Secret Manager API in that project.
+- If the secret uses a customer-managed encryption key (CMEK), the identity also needs the
+  appropriate Cloud KMS decrypt permission.
+- If the secret is in a different project, set `projectId` to the project that owns the
+  secret and grant access there.
+
+Verify the ADC path HTTP Forge uses. From `.http-forge/assets/lib` (or wherever the SDK is
+installed):
+
+```bash
+node - <<'NODE'
+const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
+const client = new SecretManagerServiceClient();
+client
+  .accessSecretVersion({
+    name: 'projects/my-project-123/secrets/oauth-client-secret/versions/latest'
+  })
+  .then(([response]) => {
+    const bytes = response.payload?.data?.length ?? 0;
+    console.log(`ADC read succeeded (${bytes} bytes)`);
+  })
+  .catch((error) => {
+    console.error(error.message);
+    process.exit(1);
+  });
+NODE
+```
+
+This checks the same ADC identity and SDK call HTTP Forge uses without printing the secret.
+
+The `gcloud secrets versions access` command uses the separate **gcloud CLI** login, not
+ADC. To use that command, also run:
+
+```bash
+gcloud auth login
+gcloud config set project my-project-123
 gcloud secrets versions access latest \
   --secret="oauth-client-secret" \
   --project="my-project-123"
 ```
 
-- Use `gcloud auth application-default login`, not just `gcloud auth login`. The latter
-  authenticates the CLI but does not create the Application Default Credentials the SDK reads.
-- For a service account, either point `GOOGLE_APPLICATION_CREDENTIALS` at the key file, or
-  impersonate the account:
-  ```bash
-  gcloud auth application-default login \
-    --impersonate-service-account="forge-reader@my-project-123.iam.gserviceaccount.com"
-  ```
-- Grant `roles/secretmanager.secretAccessor` on the secret or project.
-- `projectId` falls back to `GOOGLE_CLOUD_PROJECT` → `GCLOUD_PROJECT` → `GCP_PROJECT`.
-- In CI, prefer Workload Identity Federation over service-account key files.
+Add `| wc -c` if you do not want the secret printed to the terminal.
+
+#### 5. Use the secret
+
+```http
+{{secret:gcp/oauth-client-secret}}
+{{secret:gcp/oauth-client-secret/versions/3}}
+```
+
+#### VS Code, remote sessions, and containers
+
+ADC is read from the OS user profile of the extension host. If VS Code runs as the same OS
+user, no environment variable is needed. If you use `GOOGLE_APPLICATION_CREDENTIALS`, quit
+VS Code and relaunch it from the shell that exports the variable, or set it at the
+OS/user-session level. In a Remote-SSH, WSL, or dev-container session, run
+`gcloud auth application-default login` in that environment, not only on your local machine.
+
+#### Service accounts and CI
+
+For a service account, either point `GOOGLE_APPLICATION_CREDENTIALS` at the key file, or
+impersonate the account:
+
+```bash
+gcloud auth application-default login \
+  --impersonate-service-account="forge-reader@my-project-123.iam.gserviceaccount.com"
+```
+
+In CI, prefer Workload Identity Federation over service-account key files.
 
 ### HashiCorp Vault sign-in
+
+Vault uses a token, and no SDK is needed; the resolver uses the KV v2 HTTP API. HTTP Forge
+reads `VAULT_TOKEN` from the process environment; it does not read `~/.vault-token` or the
+Vault CLI token helper.
+
+#### 1. Set the server
 
 ```bash
 export VAULT_ADDR="https://vault.corp.com"
 # For HCP Vault Dedicated or Vault Enterprise namespaces:
 # export VAULT_NAMESPACE="admin"
+```
 
+#### 2. Sign in and export the token
+
+```bash
 # Interactive OIDC (or -method=userpass / -method=ldap)
 vault login -method=oidc
 
 # HTTP Forge reads VAULT_TOKEN, not ~/.vault-token
 export VAULT_TOKEN="$(vault print token)"
+```
 
-# Verify with the same token
+To put the token in the environment in one step without using the token helper:
+
+```bash
+export VAULT_TOKEN="$(vault login -token-only -method=userpass username=alice)"
+```
+
+Make sure the export is visible to the VS Code extension host. Quit VS Code and relaunch it
+from the authenticated shell, or set the variable at the OS/user-session level.
+
+#### 3. Configure the connection
+
+```json
+{
+  "vault": {
+    "provider": "vault",
+    "address": "https://vault.corp.com",
+    "mountPath": "secret",
+    "namespace": "admin"
+  }
+}
+```
+
+- `address` falls back to `VAULT_ADDR` (default `http://127.0.0.1:8200`).
+- `mountPath` defaults to `secret`.
+- `namespace` falls back to `VAULT_NAMESPACE`.
+- The token path is relative to `mountPath`; do not repeat the mount in the token. (`vault kv
+  get` still takes the mount as part of its path.)
+
+#### 4. Grant access
+
+- The token policy needs `read` on `<mount>/data/<path>` (for example,
+  `secret/data/myapp/prod`).
+- The resolver uses the KV v2 API.
+
+#### 5. Verify and use
+
+```bash
 vault kv get secret/myapp/prod
 ```
 
-- `vault login` normally caches the token in the CLI token helper (by default
-  `~/.vault-token`). **HTTP Forge does not read the helper or that file** — it only reads
-  `VAULT_TOKEN`. Export it after login, and make sure the export is visible to the VS Code
-  extension host.
-- To put the token in the environment in one step without using the token helper:
-  ```bash
-  export VAULT_TOKEN="$(vault login -token-only -method=userpass username=alice)"
-  ```
-- `address` falls back to `VAULT_ADDR`; `mountPath` defaults to `secret`; `namespace` falls
-  back to `VAULT_NAMESPACE`.
-- The token policy needs `read` on `<mount>/data/<path>` (for example, `secret/data/myapp/prod`).
+```http
+{{secret:vault/myapp/prod#db_password}}
+{{secret:vault/myapp/prod}}
+```
+
+- With no `#field`, HTTP Forge returns the `value` key if it exists, or the only key in the
+  secret.
 - In CI, inject a short-lived token from the CI secret store, or authenticate with AppRole
   before running the CLI.
 
 ### 1Password sign-in
+
+1Password has three credential paths. Pick the one that matches your setup:
+
+| Path | Use when | Requires |
+|---|---|---|
+| Service account | Unattended/CI, or no desktop app | `OP_SERVICE_ACCOUNT_TOKEN`; SDK preferred, `op` CLI fallback |
+| Desktop account | Personal account, including SSO | Desktop app + `account`; SDK 0.5+ for `DesktopAuth`, CLI fallback with `OP_ACCOUNT` |
+| CLI session | Interactive personal account | `op` on `PATH` and a signed-in session |
+
+The resolver tries them in this order: service account, configured `account`, CLI session.
+
+The service-account and desktop-account paths use `@1password/sdk`; install it where HTTP
+Forge resolves packages (see [Installing the provider SDKs](#installing-the-provider-sdks)).
+If the SDK is missing, the resolver falls back to `op` where possible.
+
+**CLI path**
 
 ```bash
 # Interactive: enable the desktop app integration first:
@@ -313,12 +568,7 @@ account). If multiple accounts are configured, set `OP_ACCOUNT` to the shorthand
 `op account list` in the environment that launches VS Code or the CLI; HTTP Forge passes the
 environment through to `op`.
 
-HTTP Forge chooses the authentication path in this order:
-
-1. `OP_SERVICE_ACCOUNT_TOKEN` → `@1password/sdk` service-account auth.
-2. A configured `account` → `@1password/sdk` `DesktopAuth` (personal account through the
-   desktop app).
-3. Otherwise → the signed-in `op` CLI session.
+The selected path determines the sign-in command and the environment HTTP Forge needs:
 
 - `op signin` is idempotent and uses Touch ID, Windows Hello, or system authentication when
   the desktop app integration is enabled.
@@ -328,7 +578,7 @@ HTTP Forge chooses the authentication path in this order:
 - For a personal account, use the SDK desktop-app path (`account`) or the signed-in `op` CLI
   session; see [Personal account access](#personal-account-access).
 - For a service account (recommended for CI), set `OP_SERVICE_ACCOUNT_TOKEN`; see the
-  [Service account runbook](#service-account-runbook) for the full no-app, no-CLI setup.
+  [Service account runbook](#service-account-runbook) for the full unattended setup.
 - `vault` in config is a default vault, not a credential. With it set, use
   `{{secret:op/<item>/<field>}}`; without it, use `{{secret:op/<vault>/<item>/<field>}}`.
 - The item and field must be readable by the signed-in user or service account.
@@ -403,9 +653,9 @@ sign-in.
 
 #### Service account runbook
 
-A service account is the no-app, no-CLI option: the token authenticates `@1password/sdk`,
-and HTTP Forge reads the token from the environment. The 1Password web app is used only to
-create the service account and save the token.
+A service account needs no desktop app and no interactive CLI sign-in: the token
+authenticates `@1password/sdk`, and HTTP Forge reads the token from the environment. The
+1Password web app is used only to create the service account and save the token.
 
 **Prerequisites**
 
@@ -614,22 +864,50 @@ for the vendor-side details.
 
 ### Doppler sign-in
 
-```bash
-# In Doppler: Project -> Access -> Service Tokens -> Generate
-# Scope the token to the config/environment HTTP Forge should read.
-export DOPPLER_TOKEN="dp.st...."
+Doppler uses a service token. There is no HTTP Forge-specific login, and HTTP Forge does
+**not** use `doppler login`; that only authenticates the Doppler CLI.
 
-# Verify
+#### 1. Create a service token
+
+In Doppler, open **Project → Access → Service Tokens → Generate**. Scope the token to the
+project and config/environment HTTP Forge should read.
+
+#### 2. Export the token
+
+```bash
+export DOPPLER_TOKEN="dp.st...."
+```
+
+Prefer the environment variable. `serviceToken` in the provider config is available for
+per-alias overrides but puts the token in `http-forge.config.json`.
+
+Make sure the export is visible to the VS Code extension host. Quit VS Code and relaunch it
+from the shell that exports the token, or set it at the OS/user-session level.
+
+#### 3. Configure the provider
+
+The project and config are baked into the service token, so no `project` or `config` fields
+are needed:
+
+```json
+{ "doppler": { "provider": "doppler" } }
+```
+
+#### 4. Verify and use
+
+```bash
 curl -sS -H "Authorization: Bearer $DOPPLER_TOKEN" \
   "https://api.doppler.com/v3/configs/config/secret?name=API_KEY"
 ```
 
-- HTTP Forge does **not** use `doppler login`. That authenticates the Doppler CLI; the resolver
-  calls the Doppler REST API with a service token.
-- The service token is scoped to a project and config, so the same token reads only that
-  environment. Prefer `DOPPLER_TOKEN`; `serviceToken` in the alias config is available for
-  per-alias overrides but puts the token in config.
+```http
+{{secret:doppler/API_KEY}}
+{{secret:doppler/api_key}}
+```
+
 - Secret names are upper-cased automatically: `{{secret:doppler/api_key}}` → `API_KEY`.
+- The service token is scoped to one project/config, so use a different token for another
+  environment.
 - In CI, store the service token as a masked secret and expose it as `DOPPLER_TOKEN`.
 
 ---
@@ -668,7 +946,9 @@ cd .http-forge/assets/lib
 npm install @aws-sdk/client-secrets-manager
 ```
 
-If an SDK is missing, the resolver throws a clear message telling you exactly which package to install.
+If a cloud SDK is missing, the resolver throws a clear message telling you exactly which
+package to install. `@1password/sdk` is optional; without it, the resolver falls back to
+`op` where possible.
 
 ---
 
@@ -724,13 +1004,15 @@ variable (see each provider below), following this precedence:
 ### AWS Secrets Manager
 
 ```json
-{ "aws": { "provider": "aws", "region": "us-east-1" } }
+{ "aws": { "provider": "aws", "profile": "my-profile", "region": "us-east-1" } }
 ```
 
-- **Credentials:** AWS SDK v3 default chain — env vars → `~/.aws/credentials` / `~/.aws/config`
-  profiles (including SSO) → IAM instance role → ECS task role. See
-  [AWS Secrets Manager sign-in](#aws-secrets-manager-sign-in).
-- **`region`** falls back to `AWS_DEFAULT_REGION` → `AWS_REGION`.
+- **Credentials:** AWS SDK v3 chain — configured `profile` → env vars →
+  `~/.aws/credentials` / `~/.aws/config` profiles (including SSO) → IAM instance role → ECS
+  task role. See [AWS Secrets Manager sign-in](#aws-secrets-manager-sign-in).
+- **`profile`** selects the named or SSO profile without requiring `AWS_PROFILE` in the
+  extension host environment. If omitted, `AWS_PROFILE` is used.
+- **`region`** falls back to `AWS_DEFAULT_REGION` → `AWS_REGION`, then the profile's region.
 - **Token:** `{{secret:aws/<secretId>}}` returns the raw `SecretString`.
 - **JSON field:** for a JSON secret, append `#field` → `{{secret:aws/myapp/prod#db_password}}`.
 

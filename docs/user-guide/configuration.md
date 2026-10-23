@@ -2,6 +2,9 @@
 
 HTTP Forge uses `.http-forge/http-forge.config.json` in the workspace root.
 
+For a complete, copyable example, see
+[`resources/http-forge.config.example.json`](../../resources/http-forge.config.example.json).
+
 ## File location
 
 ```
@@ -11,6 +14,79 @@ your-workspace/
 |-- http-forge.secrets.json   (legacy/deprecated, ignored)
 `-- ...
 ```
+
+## Path resolution
+
+Relative paths are not all resolved from the same directory. With the normal
+layout (`.http-forge/http-forge.config.json`), the config file directory is
+`<workspace>/.http-forge`.
+
+| Field | Base for relative paths |
+|---|---|
+| `storage.root` | Config file directory |
+| `storage.history` | Config file directory |
+| `storage.results` | Config file directory |
+| `scripts.modulePaths[]` | Config file directory |
+| `restClientExport.path` | Config file directory |
+| `request.tls.caPath`, `certPath`, `keyPath`, `pfxPath` | Workspace root |
+| `request.certificates[].caPath`, `certPath`, `keyPath`, `pfxPath` | Workspace root |
+| `discovery.customSeedLoaderModulePath` | Discovery project root |
+
+Absolute paths are used unchanged. When no config file exists, relative paths
+use the workspace root as their base; storage lookup also probes existing
+workspace layouts before falling back.
+
+For a config at `.http-forge/http-forge.config.json`:
+
+```json
+{
+  "storage": {
+    "root": "./assets",
+    "history": "./.cache/histories",
+    "results": "./.cache/results"
+  },
+  "scripts": {
+    "modulePaths": ["./modules", "../shared-modules"]
+  },
+  "restClientExport": {
+    "path": "./exports"
+  },
+  "request": {
+    "tls": {
+      "caPath": "./certs/ca.pem"
+    }
+  }
+}
+```
+
+Resolved paths:
+
+| Config value | Resolved location |
+|---|---|
+| `root: "./assets"` | `<workspace>/.http-forge/assets` |
+| `history: "./.cache/histories"` | `<workspace>/.http-forge/.cache/histories` |
+| `results: "./.cache/results"` | `<workspace>/.http-forge/.cache/results` |
+| `modulePaths: "./modules"` | `<workspace>/.http-forge/modules` |
+| `modulePaths: "../shared-modules"` | `<workspace>/shared-modules` |
+| `restClientExport.path: "./exports"` | `<workspace>/.http-forge/exports` |
+| `request.tls.caPath: "./certs/ca.pem"` | `<workspace>/certs/ca.pem` |
+
+`../` paths escape `.http-forge`; for example, `"root": "../api-tests"` resolves
+to `<workspace>/api-tests`.
+
+### Defaults and the `.http-forge` prefix
+
+The built-in defaults are written in workspace-relative form, such as
+`./.http-forge/assets`. When the config file is inside `.http-forge`, HTTP Forge
+strips the redundant `.http-forge/` prefix before joining, so the default
+resolves to `<workspace>/.http-forge/assets`, not
+`.http-forge/.http-forge/assets`. The same rule applies to `storage.history`,
+`storage.results`, and `scripts.modulePaths`.
+
+The `request.tls` and `request.certificates` paths are different: they are
+resolved against the workspace root, not the config directory. A value such as
+`./certs/ca.pem` therefore resolves to `<workspace>/certs/ca.pem` whether the
+config file is at the workspace root or inside `.http-forge`.
 
 ## Migration mapping
 
@@ -216,16 +292,16 @@ Supported TLS fields:
 |---|---|---|---|
 | version | - | `"1.0"` | Config schema version |
 | storage | `format` | `"folder"` | Storage format |
-| storage | `root` | `"./.http-forge/assets"` | Root for collections/environments/flows/suites |
-| storage | `history` | `"./.http-forge/.cache/histories"` | History location |
-| storage | `results` | `"./.http-forge/.cache/results"` | Suite results location |
+| storage | `root` | `"./.http-forge/assets"` | Root for collections/environments/flows/suites (relative to config file directory) |
+| storage | `history` | `"./.http-forge/.cache/histories"` | History location (relative to config file directory) |
+| storage | `results` | `"./.http-forge/.cache/results"` | Suite results location (relative to config file directory) |
 | request | `timeout` | `30000` | Request timeout in ms |
 | request | `followRedirects` | `true` | Follow redirects |
 | request | `maxRedirects` | `10` | Max redirect count |
 | request | `strictSSL` | `true` | Verify server TLS certificates |
-| request | `tls` | `{}` | Default TLS options |
-| request | `certificates` | `[]` | Host-based cert mappings |
-| scripts | `modulePaths` | `["./.http-forge/assets/src","./.http-forge/assets/lib"]` | Module lookup paths |
+| request | `tls` | `{}` | Default TLS options (cert paths relative to workspace root) |
+| request | `certificates` | `[]` | Host-based cert mappings (cert paths relative to workspace root) |
+| scripts | `modulePaths` | `["./.http-forge/assets/src","./.http-forge/assets/lib"]` | Module lookup paths (relative to config file directory) |
 | scripts | `scope` | `"shared"` | `shared` or `isolated` script scoping |
 | scripts | `timeout` | `5000` | Per-script execution budget (ms) |
 | runner | `resultsRetentionDays` | `7` | Result retention in days |
@@ -234,7 +310,7 @@ Supported TLS fields:
 | runner.report | `maxBodyChars` | `100000` | Max characters per request/response body embedded in HTML reports. Larger bodies are truncated; full bodies remain in on-disk result files |
 | runner.report | `embedBodies` | `"failed"` | Which request bodies to embed in HTML reports: `"all"`, `"failed"`, or `"none"` |
 | environments | `default` | `"dev"` | Default environment name |
-| restClientExport | `path` | `"collections-rest-client"` | REST Client export path |
+| restClientExport | `path` | `"collections-rest-client"` | REST Client export path (relative to config file directory; with the normal layout the default resolves to `.http-forge/collections-rest-client`) |
 | restClientExport | `mergeGlobals` | `true` | Merge globals on export |
 | mcp | `port` | `3100` | MCP server port |
 | mcp | `excludedCollections` | `[]` | Hide collections from MCP |
