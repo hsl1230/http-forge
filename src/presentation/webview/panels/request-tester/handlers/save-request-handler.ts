@@ -121,6 +121,7 @@ export class SaveRequestHandler implements IMessageHandler {
         params: request.params,
         auth: request.auth,
         settings: request.settings,
+        websocket: request.websocket ?? context?.request?.websocket,
         scripts: request.scripts,
         name: request.name || context?.request?.name,
         // Preserve OpenAPI metadata
@@ -169,6 +170,7 @@ export class SaveRequestHandler implements IMessageHandler {
           params: request.params,
           auth: request.auth,
           settings: request.settings,
+          websocket: request.websocket ?? context?.request?.websocket,
           scripts: request.scripts,
           // Preserve OpenAPI metadata
           deprecated: request.deprecated ?? context?.request?.deprecated,
@@ -208,6 +210,7 @@ export class SaveRequestHandler implements IMessageHandler {
           params: request.params,
           auth: request.auth,
           settings: request.settings,
+          websocket: request.websocket ?? context?.request?.websocket,
           scripts: request.scripts,
           // Preserve OpenAPI metadata
           deprecated: request.deprecated ?? context?.request?.deprecated,
@@ -252,6 +255,7 @@ export class SaveRequestHandler implements IMessageHandler {
       body: request.body ?? context.request?.body ?? null,
       auth: request.auth ?? context.request?.auth,
       settings: request.settings ?? context.request?.settings,
+      websocket: request.websocket ?? context.request?.websocket,
       scripts: request.scripts ?? context.request?.scripts,
       deprecated: request.deprecated ?? context.request?.deprecated,
       description: request.description ?? context.request?.description,

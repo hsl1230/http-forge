@@ -24,6 +24,7 @@
  * @param {Object} options.elements - DOM elements
  * @param {Function} options.updateUrlPreview - Function to update URL preview
  * @param {Function} options.markClean - Function to mark request as clean
+ * @param {Object} [options.websocketManager] - WebSocket UI/state manager
  * @returns {Object} Request loader interface
  */
 function createRequestLoader({
@@ -40,7 +41,8 @@ function createRequestLoader({
     elements,
     updateUrlPreview,
     markClean,
-    oauth2Manager
+    oauth2Manager,
+    websocketManager
 }) {
 
     /**
@@ -50,6 +52,12 @@ function createRequestLoader({
     function loadCollectionRequest(request) {
         // Set method using unified accessor
         setMethod(request.method || 'GET');
+
+        // WebSocket configuration is independent of the HTTP body/scripts tabs.
+        if (websocketManager) {
+            websocketManager.setConfig(request.websocket);
+            websocketManager.refreshMode();
+        }
 
         // Clear existing form
         formManager.clearForm();

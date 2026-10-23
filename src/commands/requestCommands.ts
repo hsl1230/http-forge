@@ -250,6 +250,7 @@ export function registerRequestCommands(ctx: CommandContext): void {
         settings: requestData.settings,
         scripts: requestData.scripts,
         auth: requestData.auth,
+        websocket: requestData.websocket,
         collectionId: requestData.collectionId,
         parentId,
         // Preserve OpenAPI metadata
@@ -316,6 +317,7 @@ export function registerRequestCommands(ctx: CommandContext): void {
           settings: requestData.settings,
           scripts: requestData.scripts,
           auth: requestData.auth,
+          websocket: requestData.websocket,
           // Preserve OpenAPI metadata
           deprecated: requestData.deprecated,
           description: requestData.description,

@@ -14,8 +14,8 @@
     },
     "method": {
       "type": "string",
-      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"],
-      "description": "HTTP method"
+      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "WS"],
+      "description": "HTTP method, or WS for a WebSocket request"
     },
     "url": {
       "type": "string",
@@ -68,6 +68,10 @@
     "settings": {
       "$ref": "#/definitions/settings",
       "description": "Request-specific settings"
+    },
+    "websocket": {
+      "$ref": "#/definitions/websocket",
+      "description": "WebSocket-specific configuration"
     }
   },
   "required": ["id", "name", "method", "url"],
@@ -291,6 +295,32 @@
         }
       },
       "required": ["type"]
+    },
+    "websocket": {
+      "type": "object",
+      "description": "WebSocket-specific request configuration. The request method must be WS.",
+      "properties": {
+        "subprotocols": {
+          "type": "array",
+          "description": "Sec-WebSocket-Protocol values, in preference order",
+          "items": { "type": "string" }
+        },
+        "messages": {
+          "type": "array",
+          "description": "Saved message drafts. The live frame log is not persisted.",
+          "items": {
+            "type": "object",
+            "required": ["id", "type", "data"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "type": { "type": "string", "enum": ["text", "binary"] },
+              "data": { "type": "string", "description": "Text payload, or base64 for binary" },
+              "enabled": { "type": "boolean", "default": true }
+            }
+          }
+        }
+      }
     },
     "settings": {
       "type": "object",

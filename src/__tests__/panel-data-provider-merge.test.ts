@@ -53,4 +53,17 @@ describe('mergeCollectionRequests', () => {
 
     expect(merged.params).toEqual({ id: '1' });
   });
+
+  it('preserves saved WebSocket drafts and subprotocols', () => {
+    const websocket = {
+      subprotocols: ['chat'],
+      messages: [{ id: 'm1', type: 'text' as const, data: 'hello' }]
+    };
+    const merged = mergeCollectionRequests(
+      request({ method: 'WS', url: 'wss://example.test/socket' }),
+      request({ method: 'WS', url: 'wss://example.test/socket', websocket })
+    );
+
+    expect(merged.websocket).toEqual(websocket);
+  });
 });

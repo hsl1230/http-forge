@@ -21,6 +21,7 @@ import type {
     RequestSettings,
     ResponseSchemaDefinition,
     TestAssertion,
+    WebSocketRequestConfig,
 } from '@http-forge/core';
 
 // ============================================
@@ -61,6 +62,7 @@ export interface UIRequest {
     // Configuration
     settings?: RequestSettings;
     scripts?: RequestScripts;
+    websocket?: WebSocketRequestConfig;
     
     // Authentication
     auth?: RequestAuth;

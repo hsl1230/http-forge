@@ -24,4 +24,5 @@ export * from './save-request-handler';
 export * from './schema-handler';
 export * from './suggest-assertions-handler';
 export * from './variable-handler';
+export { WebSocketHandler } from './websocket-handler';
 

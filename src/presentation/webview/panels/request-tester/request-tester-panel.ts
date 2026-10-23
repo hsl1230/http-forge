@@ -14,7 +14,8 @@ import {
   RequestPreviewHandler,
   SaveRequestHandler,
   SchemaHandler,
-  VariableHandler
+  VariableHandler,
+  WebSocketHandler
 } from './handlers';
 import type { IMessageHandler } from '../../shared-interfaces';
 import type { IPanelContextProvider } from './interfaces';
@@ -87,6 +88,7 @@ export class RequestTesterPanel implements vscode.Disposable {
   private readonly environmentHandler: EnvironmentSelectionHandler;
   private readonly cookieHandler: CookieHandler;
   private readonly variableHandler: VariableHandler;
+  private readonly webSocketHandler: WebSocketHandler;
 
   private constructor(
     private extensionUri: vscode.Uri,
@@ -151,6 +153,13 @@ export class RequestTesterPanel implements vscode.Disposable {
     );
 
     const saveRequestHandler = new SaveRequestHandler(this.dataProvider, collectionService, envConfigService);
+    this.webSocketHandler = new WebSocketHandler(
+      envConfigService,
+      container.requestPreparer,
+      container.webSocketClient,
+      this.dataProvider,
+      collectionService
+    );
     const suggestAssertionsHandler: IMessageHandler = new LazySuggestAssertionsHandler(this.dataProvider, collectionService, envConfigService);
 
     // Schema handler for body/response schema operations
@@ -181,7 +190,8 @@ export class RequestTesterPanel implements vscode.Disposable {
       schemaHandler,
       suggestAssertionsHandler,
       oauth2Handler,
-      graphqlHandler
+      graphqlHandler,
+      this.webSocketHandler
     ]);
   }
 
@@ -306,6 +316,7 @@ export class RequestTesterPanel implements vscode.Disposable {
       });
     }
 
+    this.webSocketHandler.dispose();
     this._onDidDispose.fire();
     this._onDidDispose.dispose();
     this.webviewReady = false;
@@ -419,6 +430,9 @@ export class RequestTesterPanel implements vscode.Disposable {
 
       // Handle webviewLoaded specially (initialization)
       if (cmd === 'webviewLoaded') {
+        // A reloaded webview has no live socket state; close the host-side
+        // connection before handing it a fresh snapshot.
+        this.webSocketHandler.dispose();
         this.webviewReady = true;
         await this.sendInitialData();
         return;

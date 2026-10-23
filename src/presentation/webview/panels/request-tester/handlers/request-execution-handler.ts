@@ -1,4 +1,4 @@
-import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PathParamEntry, type PreparedRequest, type RequestAuth, type RequestScripts, getSecretValues } from '@http-forge/core';
+import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PreparedRequest, type RequestAuth, getSecretValues } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 import { trackRequestAndPromptReview } from '../../../../../shared/review-prompt';
@@ -7,18 +7,8 @@ import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { resolveInheritedAuth } from '../../../shared/auth-resolution';
 import { HistoryUIEntry, IPanelContextProvider, UIRequest } from '../interfaces';
 import { EnvironmentSelectionHandler } from './environment-handler';
-
-/** Resolve PathParamEntry map to plain Record<string, string> for execution */
-function resolveParamsToStrings(
-  params?: Record<string, string | PathParamEntry>
-): Record<string, string> | undefined {
-  if (!params) return undefined;
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(params)) {
-    result[key] = typeof value === 'string' ? value : (value.value ?? '');
-  }
-  return result;
-}
+import { confirmProductionRequest } from './production-guard';
+import { findRequestInCollection, resolveParamsToStrings } from './request-context-utils';
 
 /**
  * Handles HTTP request execution
@@ -78,15 +68,8 @@ export class RequestExecutionHandler implements IMessageHandler {
       return;
     }
 
-    if (resolvedEnv.requiresConfirmation) {
-      const confirm = await vscode.window.showWarningMessage(
-        `You are about to send a request to PRODUCTION (${environment}). Are you sure?`,
-        { modal: true },
-        'Yes, Send Request'
-      );
-      if (confirm !== 'Yes, Send Request') {
-        return;
-      }
+    if (!(await confirmProductionRequest(environment, resolvedEnv))) {
+      return;
     }
 
     try {
@@ -123,7 +106,7 @@ export class RequestExecutionHandler implements IMessageHandler {
     const collection = collectionService.getCollection(context.collectionId!);
 
     // Find the request in the collection to get folder scripts chain
-    const requestData = this.findRequestInCollection(collection, context.requestId!);
+    const requestData = findRequestInCollection(collection, context.requestId!);
     const folderScriptsChain = requestData?.folderScriptsChain || [];
     const folderAuthChain = requestData?.folderAuthChain || [];
     const collectionScripts = collection?.scripts;
@@ -254,50 +237,6 @@ export class RequestExecutionHandler implements IMessageHandler {
         }
       }
     });
-  }
-
-  /**
-   * Find a request in a collection and return its folder scripts chain
-   */
-  private findRequestInCollection(
-    collection: any,
-    requestId: string
-  ): { request: any; folderScriptsChain: RequestScripts[]; folderAuthChain: RequestAuth[] } | undefined {
-    const items = collection?.items || [];
-    return this.searchItemsForRequest(items, requestId, []);
-  }
-
-  /**
-   * Recursively search for a request in collection items
-   */
-  private searchItemsForRequest(
-    items: any[],
-    requestId: string,
-    currentScripts: RequestScripts[],
-    currentAuth: RequestAuth[] = []
-  ): { request: any; folderScriptsChain: RequestScripts[]; folderAuthChain: RequestAuth[] } | undefined {
-    for (const item of items) {
-      if (item.type === 'folder' || item.items) {
-        // It's a folder - add its scripts to the chain
-        const newScripts = item.scripts
-          ? [...currentScripts, item.scripts]
-          : currentScripts;
-        const newAuth = item.auth
-          ? [...currentAuth, item.auth]
-          : currentAuth;
-
-        const found = this.searchItemsForRequest(item.items || [], requestId, newScripts, newAuth);
-        if (found) return found;
-      } else if (item.id === requestId) {
-        // Found the request
-        return {
-          request: item,
-          folderScriptsChain: currentScripts,
-          folderAuthChain: currentAuth
-        };
-      }
-    }
-    return undefined;
   }
 
   /**

@@ -28,6 +28,23 @@ function initElements() {
         tabButtons: document.querySelectorAll('.tab-bar .tab'),
         tabPanels: document.querySelectorAll('.tab-content .tab-panel'),
 
+        // WebSocket composer
+        messagesTabBtn: document.getElementById('messages-tab-btn'),
+        messagesTab: document.getElementById('messages-tab'),
+        wsStatusDot: document.getElementById('ws-status-dot'),
+        wsStatusText: document.getElementById('ws-status-text'),
+        wsProtocol: document.getElementById('ws-protocol'),
+        wsDisconnectBtn: document.getElementById('ws-disconnect-btn'),
+        wsSubprotocols: document.getElementById('ws-subprotocols'),
+        wsMessageType: document.getElementById('ws-message-type'),
+        wsMessageInput: document.getElementById('ws-message-input'),
+        wsSaveDraftBtn: document.getElementById('ws-save-draft'),
+        wsDraftList: document.getElementById('ws-draft-list'),
+        wsFramesTabBtn: document.getElementById('ws-frames-tab-btn'),
+        wsFrameCount: document.getElementById('ws-frame-count'),
+        wsClearFramesBtn: document.getElementById('ws-clear-frames'),
+        wsFramesBody: document.getElementById('ws-frames-body'),
+
         // Parameters
         pathParams: document.getElementById('path-params'),
         queryParams: document.getElementById('query-params'),
@@ -130,6 +147,7 @@ function initElements() {
         responsePlaceholder: document.getElementById('response-placeholder'),
         responseTabButtons: document.querySelectorAll('.response-tabs .tab'),
         responseTabPanels: document.querySelectorAll('.response-content .response-panel'),
+        responseFramesBody: document.getElementById('ws-frames-body'),
 
         // Test results (in response section)
         testResultsSummary: document.getElementById('test-results-summary'),

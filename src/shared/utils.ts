@@ -67,6 +67,7 @@ export function ensureRequestDefaults(item: Partial<CollectionRequest>): Collect
         },
         auth: item.auth,
         settings: item.settings,
+        websocket: item.websocket,
         // Preserve OpenAPI metadata
         deprecated: item.deprecated,
         description: item.description,

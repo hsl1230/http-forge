@@ -53,6 +53,7 @@ import { createRequestExecutor } from './request-executor.js';
 import { createResponseHandler } from './response-handler.js';
 import { getDefaultPostResponseScript, getDefaultPreRequestScript } from './script-runner.js';
 import { createTestResultsManager } from './test-results.js';
+import { createWebSocketManager } from './websocket-manager.js';
 
 // ========================================
 // VS Code API
@@ -195,6 +196,15 @@ class RequestTesterApp {
             onTypeChange: () => this.markDirty()
         });
 
+        // WebSocket Manager - owns composer state and the host frame bridge
+        this.websocketManager = createWebSocketManager({
+            vscode,
+            elements: this.elements,
+            getMethod: () => this.getMethod(),
+            getRequest: () => this.requestBuilder.buildRequest(),
+            markDirty: () => this.markDirty()
+        });
+
         // Request Saver - handles saving requests (after schemaEditorManager for live schema data)
         this.requestSaver = createRequestSaver({
             vscode,
@@ -204,7 +214,8 @@ class RequestTesterApp {
             queryParamsManager: this.queryParamsManager,
             bodyTypeManager: this.bodyTypeManager,
             getHeaders: () => this.getHeaders(),
-            getSchemaDataForSave: () => this.schemaEditorManager?.getSchemaDataForSave()
+            getSchemaDataForSave: () => this.schemaEditorManager?.getSchemaDataForSave(),
+            getWebSocketConfig: () => this.websocketManager.getConfig()
         });
 
         // OAuth2 Manager - handles OAuth2 UI and token management
@@ -293,7 +304,8 @@ class RequestTesterApp {
             elements: this.elements,
             state: this.state,
             getMethod: () => this.getMethod(),
-            getPath: () => this.getPath()
+            getPath: () => this.getPath(),
+            getWebSocketConfig: () => this.websocketManager.getConfig()
         });
 
         // Response Handler (displays backend script execution results)
@@ -364,7 +376,8 @@ class RequestTesterApp {
             elements: this.elements,
             updateUrlPreview: () => this.updateUrlPreview(),
             markClean: () => this.markClean(),
-            oauth2Manager: this.oauth2Manager
+            oauth2Manager: this.oauth2Manager,
+            websocketManager: this.websocketManager
         });
 
         // Schema Editor Manager
@@ -395,6 +408,10 @@ class RequestTesterApp {
             'requestCancelled': (msg) => this.handleRequestCancelled(),
             'scriptProgress': (msg) => this.handleScriptProgress(msg),
             'historyUpdated': (msg) => this.renderHistory(msg.history ?? msg.data?.history),
+            'wsState': (msg) => this.websocketManager.handleState(msg),
+            'wsFrame': (msg) => this.websocketManager.handleFrame(msg),
+            'wsClosed': (msg) => this.websocketManager.handleClosed(msg),
+            'wsError': (msg) => this.websocketManager.handleError(msg),
             'applyHistoryEntry': (msg) => this.requestLoader.applyHistoryEntry(
                 msg.entry || msg.data, 
                 msg.fullResponse,
@@ -482,7 +499,7 @@ class RequestTesterApp {
         // HTTP API Mode: Method select
         if (this.elements.methodSelect) {
             this.elements.methodSelect.addEventListener('change', () => {
-                this.markDirty();
+                this.websocketManager.onMethodChanged();
             });
         }
 
@@ -496,6 +513,9 @@ class RequestTesterApp {
 
         // Initialize AI script and body generation buttons
         this.initializeAiScriptButtons();
+
+        // WebSocket composer controls
+        this.websocketManager.initialize();
 
         // Initialize tabs
         this.initializeTabs();
@@ -843,6 +863,10 @@ class RequestTesterApp {
         // Set method and path using unified accessors
         const method = (reqData?.method || 'GET').toUpperCase();
         this.setMethod(method);
+
+        // Restore WebSocket composer state when opening a saved WS request.
+        this.websocketManager.setConfig(reqData?.websocket);
+        this.websocketManager.refreshMode();
 
         const path = reqData?.url || reqData?.endpointUri || reqData?.path || '/';
         this.setPath(path);
@@ -1985,6 +2009,10 @@ class RequestTesterApp {
     // ========================================
 
     async sendRequest() {
+        if (this.getMethod() === 'WS') {
+            this.websocketManager.sendComposer();
+            return;
+        }
         await this.requestExecutor.execute();
     }
 

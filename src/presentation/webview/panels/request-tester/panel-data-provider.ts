@@ -53,6 +53,7 @@ export function mergeCollectionRequests(base: CollectionRequest, saved: Collecti
     body: mergeBody(base.body, saved.body),
     auth: saved.auth ?? base.auth,
     settings: saved.settings ?? base.settings,
+    websocket: saved.websocket ?? base.websocket,
     scripts: {
       preRequest: saved.scripts?.preRequest || base.scripts?.preRequest || '',
       postResponse: saved.scripts?.postResponse || base.scripts?.postResponse || ''

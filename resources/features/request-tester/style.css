@@ -3948,3 +3948,227 @@ body.suite-edit-no-schema .schema-toggle {
     display: none !important;
 }
 
+
+/* ============================================================
+   WebSocket Request Tester
+   ============================================================ */
+.ws-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0 12px;
+}
+
+.ws-status-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.ws-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--vscode-descriptionForeground, #888);
+    flex: 0 0 auto;
+}
+
+.ws-status-dot.connecting {
+    background: var(--vscode-editorWarning-foreground, #cca700);
+    animation: ws-pulse 1s ease-in-out infinite;
+}
+
+.ws-status-dot.open {
+    background: var(--vscode-testing-iconPassed, #3fb950);
+}
+
+.ws-status-dot.closing {
+    background: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.ws-status-dot.closed {
+    background: var(--vscode-descriptionForeground, #888);
+}
+
+@keyframes ws-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+.ws-protocol {
+    color: var(--vscode-descriptionForeground, #888);
+    font-size: 11px;
+}
+
+.ws-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+
+.ws-field label {
+    min-width: 90px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground, #888);
+}
+
+.ws-field input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    background: var(--vscode-input-background, #2d2d2d);
+    color: var(--vscode-input-foreground, #ddd);
+    border: 1px solid var(--vscode-input-border, #444);
+    border-radius: 3px;
+}
+
+.ws-composer {
+    margin-top: 8px;
+    border: 1px solid var(--vscode-panel-border, #3c3c3c);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.ws-composer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    background: var(--vscode-editorGroupHeader-tabsBackground, #252526);
+}
+
+.ws-message-type {
+    background: var(--vscode-dropdown-background, #3c3c3c);
+    color: var(--vscode-dropdown-foreground, #ddd);
+    border: 1px solid var(--vscode-dropdown-border, #444);
+    border-radius: 3px;
+    padding: 4px 6px;
+}
+
+.ws-composer textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 90px;
+    resize: vertical;
+    padding: 8px;
+    border: 0;
+    outline: none;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12px;
+    background: var(--vscode-input-background, #2d2d2d);
+    color: var(--vscode-input-foreground, #ddd);
+}
+
+.ws-drafts {
+    margin-top: 18px;
+}
+
+.ws-drafts h3 {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+
+.ws-draft-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ws-draft-empty {
+    color: var(--vscode-descriptionForeground, #888);
+    font-size: 12px;
+    padding: 8px 0;
+}
+
+.ws-draft-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--vscode-panel-border, #3c3c3c);
+    border-radius: 4px;
+    background: var(--vscode-editor-background, #1e1e1e);
+}
+
+.ws-draft-preview {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12px;
+}
+
+.ws-frame-type {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    background: var(--vscode-badge-background, #4d4d4d);
+    color: var(--vscode-badge-foreground, #fff);
+}
+
+.ws-frame-type.binary {
+    background: var(--vscode-terminal-ansiMagenta, #bc3fbc);
+}
+
+.ws-frame-type.system {
+    background: var(--vscode-descriptionForeground, #888);
+}
+
+.ws-remove-btn {
+    color: var(--vscode-errorForeground, #f48771);
+}
+
+.ws-frames-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground, #888);
+}
+
+.ws-frames-scroll {
+    max-height: 320px;
+    overflow: auto;
+}
+
+.ws-frames-table td {
+    vertical-align: top;
+}
+
+.ws-frame-row.in .ws-frame-direction {
+    color: var(--vscode-testing-iconPassed, #3fb950);
+}
+
+.ws-frame-row.out .ws-frame-direction {
+    color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+.ws-frame-row.system .ws-frame-direction {
+    color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.ws-frame-direction,
+.ws-frame-time,
+.ws-frame-size {
+    white-space: nowrap;
+    font-size: 11px;
+}
+
+.ws-frame-payload {
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 11px;
+    word-break: break-all;
+    white-space: pre-wrap;
+}

@@ -39,6 +39,7 @@
                 <option value="DELETE">DELETE</option>
                 <option value="HEAD">HEAD</option>
                 <option value="OPTIONS">OPTIONS</option>
+                <option value="WS">WS</option>
             </select>
             <!-- Path Input - readOnly attribute set via JS -->
             <input type="text" id="request-path-input" class="request-path-input" 
@@ -91,6 +92,7 @@
                         <button class="tab active" data-tab="params" role="tab" aria-selected="true">Params</button>
                         <button class="tab" data-tab="auth" role="tab" aria-selected="false">Authorization</button>
                         <button class="tab" data-tab="headers" role="tab" aria-selected="false">Headers</button>
+                        <button class="tab hidden" id="messages-tab-btn" data-tab="messages" role="tab" aria-selected="false">Messages</button>
                         <button class="tab" data-tab="body" role="tab" aria-selected="false">Body</button>
                         <button class="tab" data-tab="scripts" role="tab" aria-selected="false">Scripts</button>
                         <button class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
@@ -257,6 +259,39 @@
                         <div id="headers-tab" class="tab-panel hidden">
                             <div id="headers-list" class="param-list"></div>
                             <button id="add-header" class="add-param-btn">+ Add Header</button>
+                        </div>
+
+                        <!-- WebSocket Messages Tab -->
+                        <div id="messages-tab" class="tab-panel hidden">
+                            <div class="ws-toolbar">
+                                <div class="ws-status-group">
+                                    <span id="ws-status-dot" class="ws-status-dot closed"></span>
+                                    <span id="ws-status-text">Disconnected</span>
+                                    <span id="ws-protocol" class="ws-protocol hidden"></span>
+                                </div>
+                                <button id="ws-disconnect-btn" class="secondary" disabled>Disconnect</button>
+                            </div>
+
+                            <div class="ws-field">
+                                <label for="ws-subprotocols">Subprotocols</label>
+                                <input id="ws-subprotocols" type="text" placeholder="Comma-separated, e.g. chat, json">
+                            </div>
+
+                            <div class="ws-composer">
+                                <div class="ws-composer-header">
+                                    <select id="ws-message-type" class="ws-message-type">
+                                        <option value="text">Text</option>
+                                        <option value="binary">Binary (base64)</option>
+                                    </select>
+                                    <button id="ws-save-draft" class="secondary">Save draft</button>
+                                </div>
+                                <textarea id="ws-message-input" rows="4" placeholder="Message payload. Binary payloads are base64 encoded."></textarea>
+                            </div>
+
+                            <div class="ws-drafts">
+                                <h3>Saved messages</h3>
+                                <div id="ws-draft-list" class="ws-draft-list"></div>
+                            </div>
                         </div>
 
                         <!-- Body Tab -->
@@ -558,6 +593,7 @@
                         <button class="tab" data-response-tab="cookies">Cookies</button>
                         <button class="tab" data-response-tab="sent-request">Sent Request</button>
                         <button class="tab" data-response-tab="tests">Tests <span id="test-count" class="tab-badge hidden"></span></button>
+                        <button class="tab hidden" id="ws-frames-tab-btn" data-response-tab="frames">Frames</button>
                         <button class="tab hidden" id="visualize-tab-btn" data-response-tab="visualize">Visualize</button>
                         <button id="ai-chat-toggle-btn" class="tab" title="Open AI assistant chat">💬 Chat</button>
 
@@ -638,6 +674,26 @@
                                         <div class="ai-vtab-actions hidden"></div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                        <div id="response-frames-tab" class="response-panel hidden">
+                            <div class="ws-frames-toolbar">
+                                <span id="ws-frame-count">0 frames</span>
+                                <button id="ws-clear-frames" class="tiny-btn">Clear</button>
+                            </div>
+                            <div class="ws-frames-scroll">
+                                <table class="kv-table ws-frames-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Dir</th>
+                                            <th>Type</th>
+                                            <th>Time</th>
+                                            <th>Size</th>
+                                            <th>Payload</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ws-frames-body"></tbody>
+                                </table>
                             </div>
                         </div>
                         <div id="response-headers-tab" class="response-panel hidden">
