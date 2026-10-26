@@ -42,6 +42,7 @@ function initElements() {
         wsBinaryEncoding: document.getElementById('ws-binary-encoding'),
         wsBeautifyBtn: document.getElementById('ws-beautify-btn'),
         wsMessageInput: document.getElementById('ws-message-input'),
+        wsMessageEditor: document.getElementById('ws-message-editor'),
         wsComposerHint: document.getElementById('ws-composer-hint'),
         wsSaveDraftBtn: document.getElementById('ws-save-draft'),
         wsNewDraftBtn: document.getElementById('ws-new-draft'),

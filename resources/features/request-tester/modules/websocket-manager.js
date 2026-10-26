@@ -30,6 +30,7 @@ const DEFAULT_SOCKETIO = {
 function createWebSocketManager({
     vscode,
     elements,
+    editorsManager,
     getRequestType,
     getWebSocketProtocol,
     getRequest,
@@ -261,7 +262,7 @@ function createWebSocketManager({
         return {
             type,
             format,
-            data: elements.wsMessageInput?.value || '',
+            data: getWsMessageValue() || '',
             encoding: type === 'binary' ? (elements.wsBinaryEncoding?.value === 'hex' ? 'hex' : 'base64') : undefined,
             event: socketio ? (elements.wsEventName?.value.trim() || 'message') : undefined,
             args: socketio ? parseArgsInput(elements.wsEventArgs?.value || '') : [],
@@ -293,6 +294,9 @@ function createWebSocketManager({
             : 'text';
         const isBinary = format === 'binary';
         elements.wsBinaryEncoding?.classList.toggle('hidden', !isBinary);
+        if (editorsManager && typeof editorsManager.setWsMessageLanguage === 'function') {
+            editorsManager.setWsMessageLanguage(format);
+        }
         if (elements.wsBeautifyBtn) {
             elements.wsBeautifyBtn.disabled = isBinary;
         }
@@ -320,7 +324,7 @@ function createWebSocketManager({
 
     function beautifyComposer() {
         const format = elements.wsMessageFormat?.value || 'text';
-        const value = elements.wsMessageInput?.value || '';
+        const value = getWsMessageValue() || '';
         if (!value.trim()) {
             return;
         }
@@ -335,9 +339,7 @@ function createWebSocketManager({
         } else if (format === 'xml' || format === 'html') {
             formatted = formatMarkup(value);
         }
-        if (elements.wsMessageInput) {
-            elements.wsMessageInput.value = formatted;
-        }
+        setWsMessageValue(formatted);
     }
 
     function formatMarkup(value) {
@@ -411,9 +413,7 @@ function createWebSocketManager({
         if (elements.wsBinaryEncoding) {
             elements.wsBinaryEncoding.value = message.encoding === 'hex' ? 'hex' : 'base64';
         }
-        if (elements.wsMessageInput) {
-            elements.wsMessageInput.value = message.data;
-        }
+        setWsMessageValue(message.data);
         if (elements.wsEventName) {
             elements.wsEventName.value = message.event || 'message';
         }
@@ -441,7 +441,7 @@ function createWebSocketManager({
         activeDraftId = null;
         if (elements.wsMessageFormat) elements.wsMessageFormat.value = 'text';
         if (elements.wsBinaryEncoding) elements.wsBinaryEncoding.value = 'base64';
-        if (elements.wsMessageInput) elements.wsMessageInput.value = '';
+        setWsMessageValue('');
         if (elements.wsEventName) elements.wsEventName.value = 'message';
         if (elements.wsEventArgs) elements.wsEventArgs.value = '';
         if (elements.wsAck) elements.wsAck.checked = false;
@@ -716,6 +716,25 @@ function createWebSocketManager({
             requestAnimationFrame(render);
         } else {
             setTimeout(render, 0);
+        }
+    }
+
+    function getWsMessageValue() {
+        if (editorsManager && typeof editorsManager.getWsMessageEditor === 'function') {
+            const editor = editorsManager.getWsMessageEditor();
+            if (editor) {
+                return editor.getValue();
+            }
+        }
+        return elements.wsMessageInput?.value || '';
+    }
+
+    function setWsMessageValue(value) {
+        const stringValue = value == null ? '' : String(value);
+        if (editorsManager && typeof editorsManager.setWsMessageValue === 'function') {
+            editorsManager.setWsMessageValue(stringValue);
+        } else if (elements.wsMessageInput) {
+            elements.wsMessageInput.value = stringValue;
         }
     }
 

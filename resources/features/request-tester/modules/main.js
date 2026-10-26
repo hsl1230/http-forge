@@ -184,6 +184,7 @@ class RequestTesterApp {
             state: this.state,
             onBodyChange: () => this.markDirty(),
             onScriptChange: () => this.markDirty(),
+            onWsMessageChange: () => this.markDirty(),
             getDefaultPreRequestScript,
             getDefaultPostResponseScript
         });
@@ -200,6 +201,7 @@ class RequestTesterApp {
         this.websocketManager = createWebSocketManager({
             vscode,
             elements: this.elements,
+            editorsManager: this.editorsManager,
             getRequestType: () => this.getRequestType(),
             getWebSocketProtocol: () => this.getWebSocketProtocol(),
             getRequest: () => this.requestBuilder.buildRequest(),

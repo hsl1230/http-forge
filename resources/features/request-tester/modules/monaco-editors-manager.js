@@ -55,11 +55,13 @@ function createMonacoEditorsManager({
     state,
     onBodyChange,
     onScriptChange,
+    onWsMessageChange,
     getDefaultPreRequestScript,
     getDefaultPostResponseScript
 }) {
     // Editor instances
     let requestBodyEditor = null;
+    let wsMessageEditor = null;
     let responseBodyEditor = null;
     let preRequestScriptEditor = null;
     let postResponseScriptEditor = null;
@@ -251,6 +253,26 @@ function createMonacoEditorsManager({
                 graphqlVariablesEditor.onDidChangeModelContent(() => applyMustacheDecorations(graphqlVariablesEditor));
                 graphqlVariablesEditor.onDidChangeModel(() => applyMustacheDecorations(graphqlVariablesEditor));
                 applyMustacheDecorations(graphqlVariablesEditor);
+            }
+
+            // WebSocket message composer editor
+            if (elements.wsMessageEditor) {
+                wsMessageEditor = monaco.editor.create(elements.wsMessageEditor, {
+                    ...DEFAULT_EDITOR_CONFIG,
+                    value: elements.wsMessageInput?.value || '',
+                    language: 'plaintext',
+                    lineNumbers: 'off',
+                    minimap: { enabled: false }
+                });
+
+                wsMessageEditor.onDidChangeModelContent(() => {
+                    if (elements.wsMessageInput) {
+                        elements.wsMessageInput.value = wsMessageEditor.getValue();
+                    }
+                    if (typeof onWsMessageChange === 'function') {
+                        onWsMessageChange();
+                    }
+                });
             }
 
             // Response body editor
@@ -515,6 +537,35 @@ function createMonacoEditorsManager({
         }
     }
 
+    function getWsMessageEditor() {
+        return wsMessageEditor;
+    }
+
+    function setWsMessageValue(value) {
+        if (wsMessageEditor) {
+            safeSetEditorValue(wsMessageEditor, value);
+        }
+        if (elements.wsMessageInput) {
+            elements.wsMessageInput.value = value == null ? '' : String(value);
+        }
+    }
+
+    function setWsMessageLanguage(format) {
+        if (!wsMessageEditor) return;
+        const languageMap = {
+            json: 'json',
+            xml: 'xml',
+            html: 'html',
+            text: 'plaintext',
+            binary: 'plaintext'
+        };
+        const language = languageMap[format] || 'plaintext';
+        const model = wsMessageEditor.getModel();
+        if (model && monaco?.editor?.setModelLanguage) {
+            monaco.editor.setModelLanguage(model, language);
+        }
+    }
+
     /**
      * Set GraphQL query value
      * @param {string} value - Query content
@@ -620,6 +671,7 @@ function createMonacoEditorsManager({
         getResponseBodyEditor,
         getPreRequestScriptEditor,
         getPostResponseScriptEditor,
+        getWsMessageEditor,
         getGraphqlQueryEditor,
         getGraphqlVariablesEditor,
 
@@ -630,6 +682,8 @@ function createMonacoEditorsManager({
         clearResponse,
         setPreRequestScript,
         setPostResponseScript,
+        setWsMessageValue,
+        setWsMessageLanguage,
         setGraphqlQuery,
         setGraphqlVariables,
         updateRawEditorLanguage,
