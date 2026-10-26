@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Headless Socket.IO runs** — Socket.IO requests now execute in the collection runner, suite executor, CLI, and MCP as well. Emits, arguments, acknowledgements, and inbound events are captured in the same JSON transcript (`pm.response.code === 101`), so mixed HTTP / WebSocket / Socket.IO collections can run end-to-end.
 - **Interactive WebSocket scripts** — the Request Tester now runs pre-request scripts before connecting and post-response scripts/tests after disconnect, reporting results in the script results panel.
 - **Socket.IO handshake options** — Socket.IO requests now support namespace, auth payload, and transport selection (WebSocket / polling) in both the Request Tester and headless runs. Raw WebSocket handshake cookies are captured into the collection cookie jar.
+- **Socket.IO client versions** — the Request Tester can target Socket.IO 2.x, 3.x, or 4.x servers (polling is used automatically for 2.x/3.x).
 - **Dedicated creation actions** — `HTTP Forge: New WebSocket Request` and `HTTP Forge: New Socket.IO Request`.
 
 ### Notes

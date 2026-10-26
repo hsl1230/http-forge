@@ -348,9 +348,14 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       url: prepared.url,
       headers: prepared.headers,
       path: socketIoConfig?.handshakePath || '/socket.io',
-      namespace: socketIoConfig?.namespace,
-      auth: socketIoConfig?.auth,
-      transports: socketIoConfig?.transports,
+      ...(socketIoConfig?.clientVersion && socketIoConfig.clientVersion !== '4'
+        ? { clientVersion: socketIoConfig.clientVersion }
+        : {}),
+      ...(socketIoConfig?.namespace ? { namespace: socketIoConfig.namespace } : {}),
+      ...(socketIoConfig?.auth ? { auth: socketIoConfig.auth } : {}),
+      ...(Array.isArray(socketIoConfig?.transports) && socketIoConfig.transports.length > 0
+        ? { transports: socketIoConfig.transports }
+        : {}),
       timeout: websocketSettings?.handshakeTimeout ?? request.settings?.timeout,
       reconnectionAttempts,
       reconnectionDelay: websocketSettings?.reconnectionInterval ?? 5000,
