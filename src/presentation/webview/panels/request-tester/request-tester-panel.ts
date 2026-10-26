@@ -17,7 +17,7 @@ import {
   VariableHandler,
   WebSocketHandler
 } from './handlers';
-import { SocketIoClientAdapter } from './handlers/socketio-client-adapter';
+import { SocketIoClientAdapter } from '@http-forge/core';
 import type { IMessageHandler } from '../../shared-interfaces';
 import type { IPanelContextProvider } from './interfaces';
 import type { ICollectionService, IEnvironmentConfigService } from '@http-forge/core';

@@ -4,6 +4,10 @@ import type {
   IDisposable,
   IEnvironmentConfigService,
   IRequestPreparer,
+  ISocketIoClient,
+  ISocketIoConnection,
+  SocketIoConnectOptions,
+  SocketIoEvent,
   IWebSocketClient,
   IWebSocketConnection,
   WebSocketConnectOptions,
@@ -14,12 +18,7 @@ import { resolveInheritedAuth } from '../../../shared/auth-resolution';
 import type { IPanelContextProvider, UIRequest } from '../interfaces';
 import { confirmProductionRequest } from './production-guard';
 import { findRequestInCollection, resolveParamsToStrings } from './request-context-utils';
-import type {
-  ISocketIoClient,
-  ISocketIoConnection,
-  SocketIoConnectOptions,
-  SocketIoEvent,
-} from './socketio-client-adapter';
+
 
 interface WebSocketSendMessage {
   type?: 'text' | 'binary';

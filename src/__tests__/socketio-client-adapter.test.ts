@@ -1,6 +1,6 @@
 import { describe, expect, jest, it } from '@jest/globals';
 import { io } from 'socket.io-client';
-import { SocketIoClientAdapter } from '../presentation/webview/panels/request-tester/handlers/socketio-client-adapter';
+import { SocketIoClientAdapter } from '@http-forge/core';
 
 jest.mock('socket.io-client', () => ({
   io: jest.fn(),
