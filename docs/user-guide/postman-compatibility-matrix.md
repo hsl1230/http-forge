@@ -119,7 +119,7 @@ Status legend:
 | Cloud workspaces and cloud-native team collaboration | Git-based workflow | Missing | HTTP Forge is repository-first and local/VS Code-centric. |
 | Monitors | N/A | Missing | Not provided as a hosted monitoring platform feature. |
 | Mock servers | N/A | Missing | Not provided as a Postman-style hosted mock service. |
-| WebSocket and Socket.IO Request Tester | Implemented | Supported | Raw WebSocket and Socket.IO share the Request Tester (saved messages, frame inspector, Socket.IO listeners/acks). Raw WebSocket requests also run headlessly in the collection runner, suite executor, CLI, and MCP with pre/post scripts and `pm.test` assertions on a JSON frame transcript. Socket.IO headless runs, interactive Request Tester scripts/tests, and persistent frame history are not yet supported. Known gaps: Socket.IO v2/v3 clients, polling transport, and a separate Socket.IO `auth` payload. |
+| WebSocket and Socket.IO Request Tester | Implemented | Supported | Raw WebSocket and Socket.IO share the Request Tester (saved messages, frame inspector, Socket.IO listeners/acks, namespace, auth payload, transport selection). Both flavors run headlessly in the collection runner, suite executor, CLI, and MCP with pre/post scripts and `pm.test` assertions on a JSON frame transcript. Interactive Request Tester pre-request and post-response scripts are supported; persistent frame history is supported. Known gaps: Socket.IO v2/v3 client libraries (v4 client connects to v2/v3 via polling), and Monaco highlighting in the message composer. |
 
 ## Additional advanced Postman APIs
 
