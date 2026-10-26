@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge — The API Platform Built for AI Agents",
   "description": "Turn GitHub Copilot, Claude Code, and Cursor into expert API engineers. 60+ MCP tools. No extra API keys. No cloud account. Full Postman compatibility, OpenAPI 3.0, headless CLI, and TypeScript codegen — all local.",
-  "version": "0.16.40",
+  "version": "0.17.0",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -170,12 +170,34 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "httpForge.discoveredApis",
+        "contents": "No endpoints discovered yet. Scan the workspace to detect backend endpoints from Express, Nest, Fastify, Lambda, Spring, or FastAPI source code.\n[Scan Workspace](command:httpForge.discoverApis)"
+      },
+      {
+        "view": "httpForge.requestHistory",
+        "contents": "Shows the git commit history of a request's request.json file. Select a request in the Collections view and run \"Show Git History\", or use the button below with a request selected.\n[Show History for Selected Request](command:httpForge.showGitHistoryForSelectedRequest)"
+      }
+    ],
     "commands": [
       {
         "command": "httpForge.newRequest",
-        "title": "New Request",
+        "title": "New HTTP Request",
         "category": "HTTP Forge",
         "icon": "$(add)"
+      },
+      {
+        "command": "httpForge.newWebSocketRequest",
+        "title": "New WebSocket Request",
+        "category": "HTTP Forge",
+        "icon": "$(radio-tower)"
+      },
+      {
+        "command": "httpForge.newSocketIoRequest",
+        "title": "New Socket.IO Request",
+        "category": "HTTP Forge",
+        "icon": "$(plug)"
       },
       {
         "command": "httpForge.openRequest",
@@ -493,6 +515,12 @@
         "icon": "$(sparkle)"
       },
       {
+        "command": "httpForge.qaCheck",
+        "title": "QA Check API (Discover, Generate, Run, Report)",
+        "category": "HTTP Forge",
+        "icon": "$(beaker)"
+      },
+      {
         "command": "httpForge.refreshAgentsMd",
         "title": "Refresh AI Agent Guide",
         "category": "HTTP Forge",
@@ -610,16 +638,6 @@
           "group": "navigation@1"
         }
       ],
-      "view/welcome": [
-        {
-          "view": "httpForge.discoveredApis",
-          "contents": "No endpoints discovered yet. Scan the workspace to detect backend endpoints from Express, Nest, Fastify, Lambda, Spring, or FastAPI source code.\n[Scan Workspace](command:httpForge.discoverApis)"
-        },
-        {
-          "view": "httpForge.requestHistory",
-          "contents": "Shows the git commit history of a request's request.json file. Select a request in the Collections view and run \"Show Git History\", or use the button below with a request selected.\n[Show History for Selected Request](command:httpForge.showGitHistoryForSelectedRequest)"
-        }
-      ],
       "view/item/context": [
         {
           "command": "httpForge.openRequestInNewPanel",
@@ -637,9 +655,19 @@
           "group": "1_add@1"
         },
         {
-          "command": "httpForge.newFolder",
+          "command": "httpForge.newWebSocketRequest",
           "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
           "group": "1_add@2"
+        },
+        {
+          "command": "httpForge.newSocketIoRequest",
+          "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
+          "group": "1_add@3"
+        },
+        {
+          "command": "httpForge.newFolder",
+          "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
+          "group": "1_add@4"
         },
         {
           "command": "httpForge.runCollection",
@@ -841,7 +869,7 @@
   },
   "devDependencies": {
     "@apidevtools/json-schema-ref-parser": "^11.0.0",
-    "@mermaid-js/mermaid-cli": "^11.16.0",
+    "@mermaid-js/mermaid-cli": "^12.0.0",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.21",
     "@types/node": "^20.x",
@@ -855,20 +883,25 @@
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^4.2.1",
-    "jest": "^29.0.0",
+    "jest": "^30.0.0",
     "prettier": "^2.8.0",
-    "ts-jest": "^29.0.0",
+    "ts-jest": "^29.4.0",
     "typescript": "^5.x",
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.6.39",
+    "@http-forge/core": "^0.7.0",
     "cheerio": "^1.1.2",
+    "socket.io-client": "^4.8.1",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",
     "yaml": "^2.4.0"
   },
   "overrides": {
+    "@mermaid-js/mermaid-cli": {
+      "katex": "^0.18.10"
+    },
+    "js-yaml": "^4.1.0",
     "lodash": "4.18.1",
     "lodash-es": "4.18.1",
     "esbuild": "0.28.2"

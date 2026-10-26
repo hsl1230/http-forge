@@ -14,9 +14,46 @@ import {
   RequestPreviewHandler,
   SaveRequestHandler,
   SchemaHandler,
-  SuggestAssertionsHandler,
-  VariableHandler
+  VariableHandler,
+  WebSocketHandler
 } from './handlers';
+import { SocketIoClientAdapter } from '@http-forge/core';
+import type { IMessageHandler } from '../../shared-interfaces';
+import type { IPanelContextProvider } from './interfaces';
+import type { ICollectionService, IEnvironmentConfigService } from '@http-forge/core';
+
+/**
+ * Lazy wrapper for the heavy AI handler (Copilot + 4 sub-handlers).
+ * Keeps the initial bundle small; loads the real handler on first AI command.
+ */
+class LazySuggestAssertionsHandler implements IMessageHandler {
+  private real?: IMessageHandler;
+  private loading?: Promise<IMessageHandler>;
+  constructor(
+    private contextProvider: IPanelContextProvider,
+    private collectionService?: ICollectionService,
+    private envConfigService?: IEnvironmentConfigService
+  ) {}
+  getSupportedCommands(): string[] {
+    return this.real?.getSupportedCommands() ?? [
+      'applyAssertions','aiSuggestAssertions','aiExplainResponse','aiFixTest','aiGenerateScript',
+      'aiGenerateDocs','aiGenerateBody','aiGenerateContractTests','aiExtractVariables',
+      'aiGenerateTypes','aiDetectHardcoded','aiCompareResponses','aiChat','openInCopilot','addExtractedVarsToEnv',
+    ];
+  }
+  async handle(command: string, message: any, messenger: any): Promise<boolean> {
+    if (!this.real) {
+      if (!this.loading) {
+        this.loading = import('./handlers/suggest-assertions-handler').then(m => {
+          this.real = new m.SuggestAssertionsHandler(this.contextProvider, this.collectionService, this.envConfigService);
+          return this.real;
+        });
+      }
+      await this.loading;
+    }
+    return this.real!.handle(command, message, messenger);
+  }
+}
 import { PanelDataProvider } from './panel-data-provider';
 
 /**
@@ -52,6 +89,7 @@ export class RequestTesterPanel implements vscode.Disposable {
   private readonly environmentHandler: EnvironmentSelectionHandler;
   private readonly cookieHandler: CookieHandler;
   private readonly variableHandler: VariableHandler;
+  private readonly webSocketHandler: WebSocketHandler;
 
   private constructor(
     private extensionUri: vscode.Uri,
@@ -116,7 +154,15 @@ export class RequestTesterPanel implements vscode.Disposable {
     );
 
     const saveRequestHandler = new SaveRequestHandler(this.dataProvider, collectionService, envConfigService);
-    const suggestAssertionsHandler = new SuggestAssertionsHandler(this.dataProvider, collectionService, envConfigService);
+    this.webSocketHandler = new WebSocketHandler(
+      envConfigService,
+      container.requestPreparer,
+      container.webSocketClient,
+      this.dataProvider,
+      collectionService,
+      new SocketIoClientAdapter()
+    );
+    const suggestAssertionsHandler: IMessageHandler = new LazySuggestAssertionsHandler(this.dataProvider, collectionService, envConfigService);
 
     // Schema handler for body/response schema operations
     const schemaInferenceService = container.resolve<any>(Symbol.for('SchemaInferenceService'));
@@ -146,7 +192,8 @@ export class RequestTesterPanel implements vscode.Disposable {
       schemaHandler,
       suggestAssertionsHandler,
       oauth2Handler,
-      graphqlHandler
+      graphqlHandler,
+      this.webSocketHandler
     ]);
   }
 
@@ -271,6 +318,7 @@ export class RequestTesterPanel implements vscode.Disposable {
       });
     }
 
+    this.webSocketHandler.dispose();
     this._onDidDispose.fire();
     this._onDidDispose.dispose();
     this.webviewReady = false;
@@ -384,6 +432,9 @@ export class RequestTesterPanel implements vscode.Disposable {
 
       // Handle webviewLoaded specially (initialization)
       if (cmd === 'webviewLoaded') {
+        // A reloaded webview has no live socket state; close the host-side
+        // connection before handing it a fresh snapshot.
+        this.webSocketHandler.dispose();
         this.webviewReady = true;
         await this.sendInitialData();
         return;

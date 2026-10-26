@@ -23,6 +23,7 @@
     "coverage",
     ".vscode-test",
     ".claude",
+    "src/__tests__/**",
     "src/**/*.test.ts",
     "src/**/*.spec.ts"
   ]

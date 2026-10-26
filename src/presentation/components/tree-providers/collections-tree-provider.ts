@@ -39,7 +39,9 @@ export class CollectionTreeItem extends vscode.TreeItem {
                 arguments: [this]
             };
         } else if (itemType === 'request' && requestData) {
-            this.description = (requestData as CollectionRequestItem).method;
+            this.description = (requestData as CollectionRequestItem).requestType === 'websocket'
+                ? ((requestData as CollectionRequestItem).websocket?.protocol === 'socketio' ? 'SIO' : 'WS')
+                : (requestData as CollectionRequestItem).method;
             // Request items: always open in edit mode (Request Tester panel)
             const requestContext: RequestContext = {
                 title: requestData.name || 'HTTP Request',
@@ -60,7 +62,10 @@ export class CollectionTreeItem extends vscode.TreeItem {
     private getTooltip(): string {
         if (this.itemType === 'request' && this.requestData) {
             const requestData = this.requestData as CollectionRequestItem;
-            return `${requestData.method} ${requestData.url || ''}`;
+            const label = requestData.requestType === 'websocket'
+                ? (requestData.websocket?.protocol === 'socketio' ? 'Socket.IO' : 'WebSocket')
+                : requestData.method;
+            return `${label} ${requestData.url || ''}`;
         }
         return this.label;
     }
@@ -78,6 +83,9 @@ export class CollectionTreeItem extends vscode.TreeItem {
 
     private getMethodIcon(): vscode.ThemeIcon {
         const requestData = this.requestData as CollectionRequestItem;
+        if (requestData?.requestType === 'websocket') {
+            return new vscode.ThemeIcon('radio-tower', new vscode.ThemeColor('charts.blue'));
+        }
         const method = requestData?.method?.toUpperCase() || 'GET';
         switch (method) {
             case 'GET':
@@ -107,6 +115,7 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<Collecti
     readonly dragMimeTypes = [COLLECTION_ITEM_MIME_TYPE];
     readonly dropMimeTypes = [COLLECTION_ITEM_MIME_TYPE];
     private dragDropController: CollectionsDragAndDropController;
+    private _refreshDebounce?: NodeJS.Timeout;
 
     constructor(private collectionService: CollectionService) {
         this.dragDropController = new CollectionsDragAndDropController(
@@ -115,7 +124,19 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<Collecti
         );
     }
 
-    refresh(): void {
+    refresh(debounceMs = 80): void {
+        if (this._refreshDebounce) clearTimeout(this._refreshDebounce);
+        this._refreshDebounce = setTimeout(() => {
+            this._refreshDebounce = undefined;
+            this._onDidChangeTreeData.fire();
+        }, debounceMs);
+    }
+
+    refreshImmediate(): void {
+        if (this._refreshDebounce) {
+            clearTimeout(this._refreshDebounce);
+            this._refreshDebounce = undefined;
+        }
         this._onDidChangeTreeData.fire();
     }
 

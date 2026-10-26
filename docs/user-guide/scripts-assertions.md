@@ -326,3 +326,19 @@ const resolved = hf.variables.replaceIn(templateStr);
 ```
 
 > **Double-resolution is safe**: If you call `replaceIn()` on a string that was already pre-resolved, it simply returns the string unchanged because there are no `{{}}` markers left to process.
+
+## WebSocket and Socket.IO scripts
+
+Headless WebSocket/Socket.IO runs expose a JSON transcript as the response body:
+
+```js
+pm.test('handshake ok', () => pm.expect(pm.response.code).to.equal(101));
+pm.test('received a frame', () => {
+  const transcript = pm.response.json();
+  pm.expect(transcript.protocol).to.equal('websocket'); // or 'socketio'
+  pm.expect(transcript.frames.length).to.be.greaterThan(0);
+  pm.expect(transcript.frames.some(f => f.direction === 'in')).to.be.true;
+});
+```
+
+The transcript contains `protocol`, `frames` (with `direction`, `type`, `data`, `encoding`, `event`, `args`, `ack`, `size`, `time`), and `close` (`code`, `reason`, `wasClean`).

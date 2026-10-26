@@ -30,7 +30,13 @@
 
         <!-- Request Line - Unified (single set of elements, readonly controlled via JS) -->
         <div class="request-line">
-            <!-- Method Select - disabled when readonly -->
+            <!-- Request Type - HTTP vs WebSocket; disables method select in WS mode -->
+            <select id="request-type-select" class="method-select request-type-select" title="Request type">
+                <option value="http">HTTP</option>
+                <option value="websocket">WebSocket</option>
+                <option value="socketio">Socket.IO</option>
+            </select>
+            <!-- Method Select - HTTP requests only, disabled when readonly -->
             <select id="method-select" class="method-select">
                 <option value="GET">GET</option>
                 <option value="POST">POST</option>
@@ -91,6 +97,7 @@
                         <button class="tab active" data-tab="params" role="tab" aria-selected="true">Params</button>
                         <button class="tab" data-tab="auth" role="tab" aria-selected="false">Authorization</button>
                         <button class="tab" data-tab="headers" role="tab" aria-selected="false">Headers</button>
+                        <button class="tab hidden" id="messages-tab-btn" data-tab="messages" role="tab" aria-selected="false">Messages</button>
                         <button class="tab" data-tab="body" role="tab" aria-selected="false">Body</button>
                         <button class="tab" data-tab="scripts" role="tab" aria-selected="false">Scripts</button>
                         <button class="tab" data-tab="settings" role="tab" aria-selected="false">Settings</button>
@@ -257,6 +264,84 @@
                         <div id="headers-tab" class="tab-panel hidden">
                             <div id="headers-list" class="param-list"></div>
                             <button id="add-header" class="add-param-btn">+ Add Header</button>
+                        </div>
+
+                        <!-- WebSocket / Socket.IO Messages Tab -->
+                        <div id="messages-tab" class="tab-panel hidden">
+                            <div class="ws-toolbar">
+                                <div class="ws-status-group">
+                                    <span id="ws-status-dot" class="ws-status-dot closed"></span>
+                                    <span id="ws-status-text">Disconnected</span>
+                                    <span id="ws-protocol" class="ws-protocol hidden"></span>
+                                </div>
+                                <div class="ws-toolbar-actions">
+                                    <button id="ws-disconnect-btn" class="secondary" disabled>Disconnect</button>
+                                </div>
+                            </div>
+
+                            <div id="ws-subprotocols-field" class="ws-field">
+                                <label for="ws-subprotocols">Subprotocols</label>
+                                <input id="ws-subprotocols" type="text" placeholder="Comma-separated, e.g. chat, json">
+                            </div>
+
+                            <div class="ws-composer">
+                                <div class="ws-composer-header">
+                                    <div class="ws-composer-options">
+                                        <label for="ws-message-format">Format</label>
+                                        <select id="ws-message-format" class="ws-message-type">
+                                            <option value="text">Text</option>
+                                            <option value="json">JSON</option>
+                                            <option value="xml">XML</option>
+                                            <option value="html">HTML</option>
+                                            <option value="binary">Binary</option>
+                                        </select>
+                                        <select id="ws-binary-encoding" class="ws-binary-encoding hidden" title="Binary encoding">
+                                            <option value="base64">Base64</option>
+                                            <option value="hex">Hexadecimal</option>
+                                        </select>
+                                        <button id="ws-beautify-btn" class="secondary tiny-btn" title="Format the message payload">Beautify</button>
+                                    </div>
+                                    <div class="ws-composer-actions">
+                                        <button id="ws-new-draft" class="secondary tiny-btn" title="Start a new message">New</button>
+                                        <button id="ws-save-draft" class="secondary tiny-btn">Save message</button>
+                                    </div>
+                                </div>
+
+                                <div id="ws-socketio-fields" class="ws-socketio-fields hidden">
+                                    <div class="ws-field inline">
+                                        <label for="ws-event-name">Event</label>
+                                        <input id="ws-event-name" type="text" placeholder="message">
+                                    </div>
+                                    <div class="ws-field inline">
+                                        <label for="ws-event-args">Additional args</label>
+                                        <input id="ws-event-args" type="text" placeholder="Comma-separated or JSON array">
+                                    </div>
+                                    <label class="setting-toggle ws-ack-toggle">
+                                        <input type="checkbox" id="ws-ack">
+                                        <span>Request acknowledgement</span>
+                                    </label>
+                                </div>
+
+                                <div id="ws-message-editor" class="ws-message-editor"></div>
+                                <textarea id="ws-message-input" class="hidden" rows="5" placeholder="Message payload"></textarea>
+                                <div id="ws-composer-hint" class="ws-composer-hint"></div>
+                            </div>
+
+                            <div id="ws-listeners-section" class="ws-listeners hidden">
+                                <div class="ws-listeners-header">
+                                    <h4>Event listeners</h4>
+                                    <button id="ws-add-listener" class="tiny-btn">+ Add event</button>
+                                </div>
+                                <div id="ws-listener-list" class="ws-listener-list"></div>
+                            </div>
+
+                            <div class="ws-drafts">
+                                <div class="ws-drafts-header">
+                                    <h3>Saved messages</h3>
+                                    <span id="ws-draft-count" class="ws-draft-count"></span>
+                                </div>
+                                <div id="ws-draft-list" class="ws-draft-list"></div>
+                            </div>
                         </div>
 
                         <!-- Body Tab -->
@@ -461,6 +546,79 @@
                                 </div>
 
                             </div>
+
+                            <div id="ws-settings-section" class="settings-section hidden">
+                                <h3>WebSocket Settings</h3>
+
+                                <div class="setting-group">
+                                    <label class="setting-label">Handshake Request Timeout (ms)</label>
+                                    <input type="number" id="ws-setting-handshake-timeout" class="setting-input" value="30000" min="0" step="1000">
+                                    <span class="setting-hint">Maximum time to wait for the WebSocket handshake (0 = use the request timeout)</span>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label class="setting-label">Response Wait After Sending (ms)</label>
+                                    <input type="number" id="ws-setting-response-timeout" class="setting-input" value="1000" min="0" step="100">
+                                    <span class="setting-hint">How long a collection or suite run collects inbound frames after sending saved messages (0 = close immediately)</span>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label class="setting-label">Reconnection Attempts</label>
+                                    <input type="number" id="ws-setting-reconnect-attempts" class="setting-input" value="5" min="0" max="100" step="1">
+                                    <span class="setting-hint">Automatic reconnect attempts after an unexpected close (0 = disabled)</span>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label class="setting-label">Reconnection Interval (ms)</label>
+                                    <input type="number" id="ws-setting-reconnect-interval" class="setting-input" value="5000" min="0" step="500">
+                                    <span class="setting-hint">Delay between reconnect attempts</span>
+                                </div>
+
+                                <div class="setting-group">
+                                    <label class="setting-label">Maximum Message Size (MB)</label>
+                                    <input type="number" id="ws-setting-max-message-size" class="setting-input" value="0" min="0" step="1">
+                                    <span class="setting-hint">Reject larger messages (0 = unlimited)</span>
+                                </div>
+
+                                <div id="ws-socketio-settings" class="ws-socketio-settings hidden">
+                                    <div class="setting-group">
+                                        <label class="setting-label">Socket.IO Client Version</label>
+                                        <select id="ws-setting-client-version" class="setting-input">
+                                            <option value="4">4.x</option>
+                                            <option value="3">3.x</option>
+                                            <option value="2">2.x</option>
+                                        </select>
+                                        <span class="setting-hint">Only Socket.IO 4.x is bundled with this extension</span>
+                                    </div>
+
+                                    <div class="setting-group">
+                                        <label class="setting-label">Handshake Path</label>
+                                        <input type="text" id="ws-setting-handshake-path" class="setting-input" value="/socket.io">
+                                        <span class="setting-hint">Socket.IO endpoint path</span>
+                                    </div>
+
+                                    <div class="setting-group">
+                                        <label class="setting-label">Namespace</label>
+                                        <input type="text" id="ws-setting-namespace" class="setting-input" value="/">
+                                        <span class="setting-hint">Socket.IO namespace (default /)</span>
+                                    </div>
+
+                                    <div class="setting-group">
+                                        <label class="setting-label">Transports</label>
+                                        <select id="ws-setting-transports" class="setting-input">
+                                            <option value="websocket">WebSocket only</option>
+                                            <option value="polling,websocket">Polling + WebSocket</option>
+                                        </select>
+                                        <span class="setting-hint">Socket.IO transports</span>
+                                    </div>
+
+                                    <div class="setting-group">
+                                        <label class="setting-label">Auth Payload (JSON)</label>
+                                        <textarea id="ws-setting-auth" class="setting-input" rows="3" placeholder='{"token":"..."}'></textarea>
+                                        <span class="setting-hint">Socket.IO handshake auth payload</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Scripts Tab -->
@@ -558,6 +716,7 @@
                         <button class="tab" data-response-tab="cookies">Cookies</button>
                         <button class="tab" data-response-tab="sent-request">Sent Request</button>
                         <button class="tab" data-response-tab="tests">Tests <span id="test-count" class="tab-badge hidden"></span></button>
+                        <button class="tab hidden" id="ws-frames-tab-btn" data-response-tab="frames">Frames</button>
                         <button class="tab hidden" id="visualize-tab-btn" data-response-tab="visualize">Visualize</button>
                         <button id="ai-chat-toggle-btn" class="tab" title="Open AI assistant chat">💬 Chat</button>
 
@@ -638,6 +797,56 @@
                                         <div class="ai-vtab-actions hidden"></div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                        <div id="response-frames-tab" class="response-panel hidden">
+                            <div class="ws-frames-toolbar">
+                                <div class="ws-frames-toolbar-left">
+                                    <span id="ws-frame-count">0 frames</span>
+                                    <input id="ws-frame-search" class="ws-frame-search" type="search" placeholder="Search frames…">
+                                    <select id="ws-frame-filter" class="ws-frame-filter" title="Filter frames">
+                                        <option value="all">All</option>
+                                        <option value="in">Received</option>
+                                        <option value="out">Sent</option>
+                                        <option value="system">System</option>
+                                    </select>
+                                    <select id="ws-frame-format" class="ws-frame-format" title="Display format">
+                                        <option value="auto">Auto format</option>
+                                        <option value="text">Text</option>
+                                        <option value="json">JSON</option>
+                                        <option value="xml">XML</option>
+                                        <option value="html">HTML</option>
+                                        <option value="binary">Binary</option>
+                                    </select>
+                                    <label class="ws-frame-toggle" title="Wrap long payloads">
+                                        <input type="checkbox" id="ws-frame-wrap">
+                                        <span>Wrap</span>
+                                    </label>
+                                    <label class="ws-frame-toggle" title="Show binary payloads as a hex dump">
+                                        <input type="checkbox" id="ws-frame-hexdump">
+                                        <span>Hexdump</span>
+                                    </label>
+                                </div>
+                                <div class="ws-frames-toolbar-right">
+                                    <span id="ws-frame-diff" class="ws-frame-diff hidden"></span>
+                                    <button id="ws-load-history" class="tiny-btn">Load history</button>
+                                    <button id="ws-clear-frames" class="tiny-btn">Clear</button>
+                                </div>
+                            </div>
+                            <div class="ws-frames-scroll" id="ws-frames-scroll">
+                                <table class="kv-table ws-frames-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Dir</th>
+                                            <th>Type / Event</th>
+                                            <th>Time</th>
+                                            <th>Size</th>
+                                            <th>Payload</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ws-frames-body"></tbody>
+                                </table>
                             </div>
                         </div>
                         <div id="response-headers-tab" class="response-panel hidden">

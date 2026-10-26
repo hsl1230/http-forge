@@ -17,6 +17,7 @@ import { registerEnvironmentCommands } from './environmentCommands';
 import { registerGitHistoryCommands } from './gitHistoryCommands';
 import { registerHarCommands } from './harCommands';
 import { registerOpenApiCommands } from './openApiCommands';
+import { registerQaCommands } from './qaCommands';
 import { registerRequestCommands } from './requestCommands';
 import { registerTestSuiteCommands } from './testSuiteCommands';
 import type { CommandContext } from './command-context';
@@ -37,5 +38,6 @@ export function registerAllCommands(ctx: CommandContext): void {
   registerDiscoveryCommands(ctx);
   registerDiscoveryActionCommands(ctx);
   registerArchitectCommands(ctx);
+  registerQaCommands(ctx);
   registerAgentsMdCommands(ctx);
 }

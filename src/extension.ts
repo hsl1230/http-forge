@@ -58,13 +58,22 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
   // Get typed services from container (Dependency Inversion - using interfaces)
   const { envConfigService, collectionService, httpService, cookieService, historyService, configService } = services;
 
-  // Initialize Test Suite service
-  const testSuiteService = new TestSuiteService(collectionService, configService, { watch: true, onSuitesChanged: () => testSuitesTreeProvider?.refresh() });
-
-  // Initialize tree providers
+  // Initialize tree providers — collections/environments are cheap; suites/discovery deferred
   const collectionsTreeProvider = new CollectionsTreeProvider(collectionService as CollectionService);
   const environmentsTreeProvider = new EnvironmentsTreeProvider(envConfigService as EnvironmentConfigService);
-  const testSuitesTreeProvider = new TestSuitesTreeProvider(testSuiteService);
+
+  // Gate TestSuite watcher in execution-only (small tool list, no discovery invalidation needed)
+  const mcpToolMode = (configService as ConfigService).getMcpConfig().toolMode;
+  const isExecutionOnly = mcpToolMode === 'execution-only';
+  let testSuitesTreeProvider!: TestSuitesTreeProvider;
+  const testSuiteService = new TestSuiteService(collectionService, configService, {
+    watch: !isExecutionOnly,
+    onSuitesChanged: () => testSuitesTreeProvider?.refresh(),
+  });
+  testSuitesTreeProvider = new TestSuitesTreeProvider(testSuiteService);
+
+  // DiscoveredApisTreeProvider is cheap (no scan until command), keep it even in execution-only
+  // for view availability — the heavy 6-provider scan is lazy.
   const discoveredApisTreeProvider = new DiscoveredApisTreeProvider(workspaceFolder, configService.getDiscoveryConfig());
 
   // Auto-refresh tree and open panels when collection files change on disk

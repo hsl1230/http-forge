@@ -384,7 +384,13 @@ Most Postman scripts work without any changes:
 
 Potential additions for extended Postman parity:
 - `pm.request.auth` — Dynamic authentication object access in scripts
-- WebSocket support for real-time API testing
+- gRPC support for real-time API testing
+
+WebSocket and Socket.IO Request Tester support is implemented; see the
+request-tester docs for connection settings, saved messages, and listeners.
+Raw WebSocket requests can also run headlessly in collections/suites with
+script assertions on the frame transcript; Socket.IO headless runs are not yet
+supported.
 
 ---
 

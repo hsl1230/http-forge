@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "HTTP Forge Request",
-  "description": "Metadata file for an HTTP request (request.json). Body content may be stored in separate body.* files.",
+  "description": "Metadata file for an HTTP or WebSocket request (request.json). Body content may be stored in separate body.* files.",
   "type": "object",
   "properties": {
     "id": {
@@ -12,10 +12,27 @@
       "type": "string",
       "description": "Display name of the request"
     },
+    "requestType": {
+      "type": "string",
+      "enum": [
+        "http",
+        "websocket"
+      ],
+      "description": "Request transport type. Defaults to http when omitted."
+    },
     "method": {
       "type": "string",
-      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"],
-      "description": "HTTP method"
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "HEAD",
+        "OPTIONS",
+        "TRACE"
+      ],
+      "description": "HTTP method. WebSocket requests use GET for the handshake."
     },
     "url": {
       "type": "string",
@@ -38,8 +55,12 @@
       "description": "URL path parameters (e.g., {id} in /users/{id}). Values can be plain strings or PathParamEntry objects.",
       "additionalProperties": {
         "oneOf": [
-          { "type": "string" },
-          { "$ref": "#/definitions/pathParamEntry" }
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/pathParamEntry"
+          }
         ]
       }
     },
@@ -68,22 +89,60 @@
     "settings": {
       "$ref": "#/definitions/settings",
       "description": "Request-specific settings"
+    },
+    "websocket": {
+      "$ref": "#/definitions/websocket",
+      "description": "WebSocket-specific configuration"
     }
   },
-  "required": ["id", "name", "method", "url"],
+  "required": [
+    "id",
+    "name",
+    "method",
+    "url"
+  ],
   "definitions": {
     "pathParamEntry": {
       "type": "object",
       "description": "Extended path parameter with optional type metadata",
       "properties": {
-        "value": { "type": "string", "description": "Parameter value" },
-        "type": { "type": "string", "enum": ["string", "integer", "number", "boolean"], "description": "Parameter type" },
-        "description": { "type": "string", "description": "Parameter description" },
-        "format": { "type": "string", "description": "Value format (e.g., uuid, int64)" },
-        "enum": { "type": "array", "items": { "type": "string" }, "description": "Allowed values" },
-        "deprecated": { "type": "boolean", "description": "Whether this parameter is deprecated" }
+        "value": {
+          "type": "string",
+          "description": "Parameter value"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean"
+          ],
+          "description": "Parameter type"
+        },
+        "description": {
+          "type": "string",
+          "description": "Parameter description"
+        },
+        "format": {
+          "type": "string",
+          "description": "Value format (e.g., uuid, int64)"
+        },
+        "enum": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allowed values"
+        },
+        "deprecated": {
+          "type": "boolean",
+          "description": "Whether this parameter is deprecated"
+        }
       },
-      "required": ["value"]
+      "required": [
+        "value"
+      ]
     },
     "queryParam": {
       "type": "object",
@@ -103,7 +162,13 @@
         },
         "type": {
           "type": "string",
-          "enum": ["string", "integer", "number", "boolean", "array"],
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "array"
+          ],
           "description": "Parameter type for OpenAPI generation"
         },
         "required": {
@@ -120,7 +185,9 @@
         },
         "enum": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Allowed values"
         },
         "deprecated": {
@@ -128,7 +195,10 @@
           "description": "Whether this parameter is deprecated"
         }
       },
-      "required": ["key", "value"]
+      "required": [
+        "key",
+        "value"
+      ]
     },
     "headerParam": {
       "type": "object",
@@ -148,7 +218,13 @@
         },
         "type": {
           "type": "string",
-          "enum": ["string", "integer", "number", "boolean", "array"],
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "array"
+          ],
           "description": "Header value type for OpenAPI generation"
         },
         "required": {
@@ -165,7 +241,9 @@
         },
         "enum": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Allowed values"
         },
         "deprecated": {
@@ -173,7 +251,10 @@
           "description": "Whether this header is deprecated"
         }
       },
-      "required": ["key", "value"]
+      "required": [
+        "key",
+        "value"
+      ]
     },
     "body": {
       "type": "object",
@@ -181,12 +262,25 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["none", "raw", "form-data", "x-www-form-urlencoded", "binary", "graphql"],
+          "enum": [
+            "none",
+            "raw",
+            "form-data",
+            "x-www-form-urlencoded",
+            "binary",
+            "graphql"
+          ],
           "description": "Body type"
         },
         "format": {
           "type": "string",
-          "enum": ["text", "json", "xml", "html", "javascript"],
+          "enum": [
+            "text",
+            "json",
+            "xml",
+            "html",
+            "javascript"
+          ],
           "description": "Format for raw body type"
         },
         "content": {
@@ -199,13 +293,22 @@
           "items": {
             "type": "object",
             "properties": {
-              "key": { "type": "string" },
-              "value": { "type": "string" },
-              "type": { 
-                "type": "string",
-                "enum": ["text", "file"]
+              "key": {
+                "type": "string"
               },
-              "enabled": { "type": "boolean" }
+              "value": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "file"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              }
             }
           }
         },
@@ -215,9 +318,15 @@
           "items": {
             "type": "object",
             "properties": {
-              "key": { "type": "string" },
-              "value": { "type": "string" },
-              "enabled": { "type": "boolean" }
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              }
             }
           }
         },
@@ -237,7 +346,14 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["none", "inherit", "basic", "bearer", "apikey", "oauth2"],
+          "enum": [
+            "none",
+            "inherit",
+            "basic",
+            "bearer",
+            "apikey",
+            "oauth2"
+          ],
           "description": "Authentication type"
         },
         "bearerToken": {
@@ -248,49 +364,343 @@
           "type": "object",
           "description": "Basic authentication credentials",
           "properties": {
-            "username": { "type": "string", "description": "Username" },
-            "password": { "type": "string", "description": "Password" }
+            "username": {
+              "type": "string",
+              "description": "Username"
+            },
+            "password": {
+              "type": "string",
+              "description": "Password"
+            }
           },
-          "required": ["username", "password"]
+          "required": [
+            "username",
+            "password"
+          ]
         },
         "apikey": {
           "type": "object",
           "description": "API Key configuration",
           "properties": {
-            "key": { "type": "string", "description": "API key name" },
-            "value": { "type": "string", "description": "API key value" },
-            "in": { "type": "string", "enum": ["header", "query"], "description": "Where to send the API key" }
+            "key": {
+              "type": "string",
+              "description": "API key name"
+            },
+            "value": {
+              "type": "string",
+              "description": "API key value"
+            },
+            "in": {
+              "type": "string",
+              "enum": [
+                "header",
+                "query"
+              ],
+              "description": "Where to send the API key"
+            }
           },
-          "required": ["key", "value", "in"]
+          "required": [
+            "key",
+            "value",
+            "in"
+          ]
         },
         "oauth2": {
           "type": "object",
           "description": "OAuth2 authentication configuration",
           "properties": {
-            "grantType": { "type": "string", "enum": ["client_credentials", "authorization_code", "password", "implicit"], "description": "OAuth2 grant type" },
-            "tokenUrl": { "type": "string", "description": "Token endpoint URL" },
-            "authUrl": { "type": "string", "description": "Authorization endpoint URL" },
-            "clientId": { "type": "string", "description": "Client ID" },
-            "clientSecret": { "type": "string", "description": "Client secret" },
-            "scope": { "type": "string", "description": "Requested scopes" },
-            "username": { "type": "string", "description": "Resource owner username (for password grant)" },
-            "password": { "type": "string", "description": "Resource owner password (for password grant)" },
-            "accessToken": { "type": "string", "description": "Access token value" },
-            "refreshToken": { "type": "string", "description": "Refresh token value" },
-            "tokenPrefix": { "type": "string", "description": "Prefix for the token (e.g., 'Bearer')" },
-            "tokenField": { "type": "string", "description": "Token response field name (default 'access_token')" },
-            "callbackUrl": { "type": "string", "description": "Custom callback URL (defaults to VS Code URI handler)" },
-            "usePkce": { "type": "boolean", "description": "Enable PKCE (authorization_code defaults to true)" },
-            "pkceMethod": { "type": "string", "enum": ["S256", "plain"], "description": "PKCE challenge method" },
-            "audience": { "type": "string", "description": "Auth0-style audience parameter" },
-            "resource": { "type": "string", "description": "Azure AD resource parameter" },
-            "extraParams": { "type": "object", "description": "Extra provider-specific parameters", "additionalProperties": { "type": "string" } },
-            "clientAuthentication": { "type": "string", "enum": ["body", "header"], "description": "How to send client credentials: in body (default) or as Basic Auth header" },
-            "state": { "type": "string", "description": "Custom state parameter for authorization_code/implicit flows" }
+            "grantType": {
+              "type": "string",
+              "enum": [
+                "client_credentials",
+                "authorization_code",
+                "password",
+                "implicit"
+              ],
+              "description": "OAuth2 grant type"
+            },
+            "tokenUrl": {
+              "type": "string",
+              "description": "Token endpoint URL"
+            },
+            "authUrl": {
+              "type": "string",
+              "description": "Authorization endpoint URL"
+            },
+            "clientId": {
+              "type": "string",
+              "description": "Client ID"
+            },
+            "clientSecret": {
+              "type": "string",
+              "description": "Client secret"
+            },
+            "scope": {
+              "type": "string",
+              "description": "Requested scopes"
+            },
+            "username": {
+              "type": "string",
+              "description": "Resource owner username (for password grant)"
+            },
+            "password": {
+              "type": "string",
+              "description": "Resource owner password (for password grant)"
+            },
+            "accessToken": {
+              "type": "string",
+              "description": "Access token value"
+            },
+            "refreshToken": {
+              "type": "string",
+              "description": "Refresh token value"
+            },
+            "tokenPrefix": {
+              "type": "string",
+              "description": "Prefix for the token (e.g., 'Bearer')"
+            },
+            "tokenField": {
+              "type": "string",
+              "description": "Token response field name (default 'access_token')"
+            },
+            "callbackUrl": {
+              "type": "string",
+              "description": "Custom callback URL (defaults to VS Code URI handler)"
+            },
+            "usePkce": {
+              "type": "boolean",
+              "description": "Enable PKCE (authorization_code defaults to true)"
+            },
+            "pkceMethod": {
+              "type": "string",
+              "enum": [
+                "S256",
+                "plain"
+              ],
+              "description": "PKCE challenge method"
+            },
+            "audience": {
+              "type": "string",
+              "description": "Auth0-style audience parameter"
+            },
+            "resource": {
+              "type": "string",
+              "description": "Azure AD resource parameter"
+            },
+            "extraParams": {
+              "type": "object",
+              "description": "Extra provider-specific parameters",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "clientAuthentication": {
+              "type": "string",
+              "enum": [
+                "body",
+                "header"
+              ],
+              "description": "How to send client credentials: in body (default) or as Basic Auth header"
+            },
+            "state": {
+              "type": "string",
+              "description": "Custom state parameter for authorization_code/implicit flows"
+            }
           }
         }
       },
-      "required": ["type"]
+      "required": [
+        "type"
+      ]
+    },
+    "websocket": {
+      "type": "object",
+      "description": "WebSocket or Socket.IO request configuration. Set requestType to websocket.",
+      "properties": {
+        "protocol": {
+          "type": "string",
+          "enum": [
+            "websocket",
+            "socketio"
+          ],
+          "default": "websocket",
+          "description": "Raw WebSocket or Socket.IO request flavor"
+        },
+        "subprotocols": {
+          "type": "array",
+          "description": "Sec-WebSocket-Protocol values, in preference order",
+          "items": {
+            "type": "string"
+          }
+        },
+        "settings": {
+          "type": "object",
+          "description": "WebSocket connection and reconnect settings",
+          "properties": {
+            "handshakeTimeout": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Handshake timeout in milliseconds"
+            },
+            "responseTimeout": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Time in milliseconds to collect inbound frames after sending saved messages during a collection/suite run (0 = close immediately, default 1000)"
+            },
+            "reconnectionAttempts": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Automatic reconnect attempts"
+            },
+            "reconnectionInterval": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Delay between reconnect attempts in milliseconds"
+            },
+            "maxMessageSizeMb": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Maximum accepted message size in MB (0 = unlimited)"
+            }
+          }
+        },
+        "socketio": {
+          "type": "object",
+          "description": "Socket.IO-specific configuration",
+          "properties": {
+            "clientVersion": {
+              "type": "string",
+              "description": "Socket.IO client version"
+            },
+            "handshakePath": {
+              "type": "string",
+              "description": "Socket.IO handshake path (default /socket.io)"
+            },
+            "listeners": {
+              "type": "array",
+              "description": "Events displayed in the response pane",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            },
+            "namespace": {
+              "type": "string",
+              "description": "Socket.IO namespace (default /)"
+            },
+            "auth": {
+              "type": "string",
+              "description": "Socket.IO handshake auth payload (JSON text)"
+            },
+            "transports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "websocket",
+                  "polling"
+                ]
+              },
+              "description": "Socket.IO transports"
+            }
+          }
+        },
+        "messages": {
+          "type": "array",
+          "description": "Saved message drafts. The live frame log is not persisted.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "data"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "binary"
+                ]
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "json",
+                  "xml",
+                  "html",
+                  "binary"
+                ],
+                "description": "Editor display/validation format"
+              },
+              "encoding": {
+                "type": "string",
+                "enum": [
+                  "base64",
+                  "hex"
+                ],
+                "description": "Binary payload encoding"
+              },
+              "data": {
+                "type": "string",
+                "description": "Text payload, or encoded bytes for binary"
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true
+              },
+              "event": {
+                "type": "string",
+                "description": "Socket.IO event name"
+              },
+              "args": {
+                "type": "array",
+                "description": "Additional Socket.IO arguments",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ack": {
+                "type": "boolean",
+                "description": "Request a Socket.IO acknowledgement"
+              }
+            }
+          }
+        },
+        "frameHistory": {
+          "type": "array",
+          "description": "Persisted frame log from previous runs",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
     },
     "settings": {
       "type": "object",
@@ -370,7 +780,9 @@
           "description": "Host-based TLS certificate mappings",
           "items": {
             "type": "object",
-            "required": ["host"],
+            "required": [
+              "host"
+            ],
             "properties": {
               "host": {
                 "type": "string",

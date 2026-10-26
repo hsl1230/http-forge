@@ -261,3 +261,36 @@ When you open a new request while the current panel has unsaved changes, a unifi
 
 - **Tab title**: A `●` prefix appears on the tab title when there are unsaved changes (e.g., `● GET /users`), matching VS Code's native editor convention.
 - **Save button**: Displays a pulsing highlight (`.has-changes`) for at-a-glance feedback.
+
+## WebSocket and Socket.IO requests
+
+The Request Tester supports three request types: **HTTP**, **WebSocket**, and **Socket.IO**. All three can live in the same collection.
+
+### Request type selector
+- The request type selector (HTTP / WebSocket / Socket.IO) drives the composer, not the HTTP method dropdown.
+- WebSocket handshakes always use `GET`.
+
+### Saved messages
+- Text and binary (Base64 / Hex) payloads.
+- Message formats: text, JSON, XML, HTML, binary.
+- Socket.IO: event name, additional args, acknowledgement request.
+
+### Frame inspector
+- Search, direction filter, wrap, hexdump, diff, copy, save.
+- Socket.IO: event listeners, event/args/ack composition, acknowledgement display.
+
+### Connection settings
+- Handshake timeout, maximum message size, subprotocols, reconnect attempts/interval.
+- Socket.IO: client version (2.x / 3.x / 4.x), handshake path, namespace, auth payload (JSON), transports (WebSocket / polling).
+- **Response Wait After Sending** (ms): time to collect inbound frames during a headless run (default 1000; 0 closes immediately).
+
+### Scripts
+- Pre-request scripts run before connecting.
+- Post-response scripts and `pm.test` assertions run after disconnect, against a JSON transcript.
+- Headless runs (collection, suite, CLI, MCP) execute WebSocket/Socket.IO requests and run scripts/assertions against the transcript (`pm.response.code === 101`).
+
+### Persistent frame history
+- Frames are persisted with the request. Use **Load history** in the frame inspector to restore them.
+
+### Headless execution
+Raw WebSocket and Socket.IO requests execute in the collection runner, suite executor, CLI, and MCP. A run sends saved messages, collects inbound frames for the configured response wait, and runs pre-request/post-response scripts and `pm.test` assertions against a JSON transcript.

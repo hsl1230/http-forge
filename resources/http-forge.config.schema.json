@@ -22,17 +22,17 @@
         "root": {
           "type": "string",
           "default": "./.http-forge/assets",
-          "description": "Root directory for HTTP Forge data (collections, environments, flows, suites)"
+          "description": "Root directory for HTTP Forge data (collections, environments, flows, suites). Relative paths resolve from the config file directory."
         },
         "history": {
           "type": "string",
           "default": "./.http-forge/.cache/histories",
-          "description": "Directory for request history storage (can be gitignored)"
+          "description": "Directory for request history storage (can be gitignored). Relative paths resolve from the config file directory."
         },
         "results": {
           "type": "string",
           "default": "./.http-forge/.cache/results",
-          "description": "Directory for test suite results storage (can be gitignored)"
+          "description": "Directory for test suite results storage (can be gitignored). Relative paths resolve from the config file directory."
         }
       }
     },
@@ -149,7 +149,7 @@
             "type": "string"
           },
           "default": ["./.http-forge/assets/src", "./.http-forge/assets/lib"],
-          "description": "Paths to search for custom modules in pre/post request scripts. Relative to workspace root."
+          "description": "Paths to search for custom modules in pre/post request scripts. Relative to the config file directory."
         },
         "scope": {
           "type": "string",
@@ -202,7 +202,7 @@
       "properties": {
         "path": {
           "type": "string",
-          "description": "Output path for exported REST‑Client files.  If relative it is resolved against the workspace root.",
+          "description": "Output path for exported REST‑Client files. If relative it is resolved against the config file directory.",
           "default": "collections-rest-client"
         },
         "mergeGlobals": {
@@ -218,7 +218,7 @@
         "properties": {
           "customSeedLoaderModulePath": {
             "type": "string",
-            "description": "Absolute or workspace-relative path to a custom seed loader module. When set, hybrid seed loading is enabled.",
+            "description": "Absolute or discovery-project-relative path to a custom seed loader module. When set, hybrid seed loading is enabled.",
             "default": ""
           },
           "frameworks": {
@@ -244,6 +244,147 @@
         },
         "additionalProperties": false
       },
+    "mcp": {
+      "type": "object",
+      "description": "Embedded MCP server configuration (port, exposed collections/suites, tool-list shape, and CORS).",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 3100,
+          "description": "Port for the embedded MCP HTTP server. Runtime callers can override this."
+        },
+        "excludedCollections": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Collection IDs or names to hide from MCP tools. Empty = expose all collections."
+        },
+        "excludedSuites": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Suite IDs or names to hide from MCP tools. Empty = expose all suites."
+        },
+        "toolPrefix": {
+          "type": "string",
+          "default": "",
+          "description": "Optional prefix added to every MCP tool name, e.g. \"acme_\"."
+        },
+        "maxRequestsPerCall": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 500,
+          "description": "Maximum number of requests the MCP server executes in a single collection or suite call."
+        },
+        "toolMode": {
+          "type": "string",
+          "enum": ["flat", "drilldown", "auto", "execution-only"],
+          "default": "auto",
+          "description": "Tool-list shape. 'auto' uses flat below drilldownThreshold, then switches to drilldown."
+        },
+        "drilldownThreshold": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 100,
+          "description": "When toolMode is 'auto', switch to drilldown once the request-tool count exceeds this value."
+        },
+        "toolPageSize": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 200,
+          "description": "Maximum tools per tools/list page in flat mode. 0 disables pagination."
+        },
+        "cors": {
+          "type": "object",
+          "description": "CORS configuration for the embedded MCP server.",
+          "properties": {
+            "allowedOrigins": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": ["http://localhost", "http://127.0.0.1"],
+              "description": "Origins allowed to access the MCP server."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "secrets": {
+      "type": "object",
+      "description": "Secret provider aliases used by {{secret:alias/path}} tokens. Built-in providers use ambient credential chains; custom providers load a workspace module. Prefer environment variables over storing credentials here.",
+      "properties": {
+        "providers": {
+          "type": "object",
+          "description": "Map of alias -> provider configuration. The key is the alias used in {{secret:<alias>/<path>}}.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["provider"],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": ["aws", "azure", "gcp", "vault", "1password", "doppler", "custom"],
+                "description": "Secret provider implementation."
+              },
+              "region": {
+                "type": "string",
+                "description": "AWS region (aws). Falls back to AWS_DEFAULT_REGION / AWS_REGION."
+              },
+              "profile": {
+                "type": "string",
+                "description": "AWS shared-config profile (aws), e.g. an SSO profile. Avoids requiring AWS_PROFILE in the extension host environment; falls back to AWS_PROFILE when omitted."
+              },
+              "vaultUrl": {
+                "type": "string",
+                "description": "Azure Key Vault URL (azure), e.g. https://myvault.vault.azure.net. Falls back to AZURE_KEYVAULT_URL."
+              },
+              "projectId": {
+                "type": "string",
+                "description": "GCP project ID (gcp). Falls back to GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT / GCP_PROJECT."
+              },
+              "address": {
+                "type": "string",
+                "description": "HashiCorp Vault address (vault). Falls back to VAULT_ADDR."
+              },
+              "mountPath": {
+                "type": "string",
+                "default": "secret",
+                "description": "HashiCorp Vault KV v2 mount path (vault). Defaults to 'secret'."
+              },
+              "namespace": {
+                "type": "string",
+                "description": "HashiCorp Vault Enterprise/HCP namespace (vault). Falls back to VAULT_NAMESPACE."
+              },
+              "vault": {
+                "type": "string",
+                "description": "Default 1Password vault name (1password). When set, tokens may omit the vault segment."
+              },
+              "account": {
+                "type": "string",
+                "description": "1Password desktop-app account name (1password). Used with @1password/sdk DesktopAuth when OP_SERVICE_ACCOUNT_TOKEN is not set. Requires the desktop app and SDK 0.5.0+. Omit to use the op CLI session."
+              },
+              "serviceToken": {
+                "type": "string",
+                "description": "Doppler service token (doppler). Prefer the DOPPLER_TOKEN environment variable over storing a token here."
+              },
+              "module": {
+                "type": "string",
+                "description": "Custom resolver module path or package name (custom). Resolved from the first scripts.modulePaths entry that contains a package.json. The module must export a resolver factory function, a createResolver function, or an object with resolve(path)."
+              },
+              "options": {
+                "type": "object",
+                "description": "Non-sensitive options passed to the custom resolver factory (custom).",
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "proxy": {
       "type": ["object", "null"],
       "description": "Proxy configuration (null to disable). Requests are tunnelled through the proxy using native Node.js http/https — no extra packages required.",

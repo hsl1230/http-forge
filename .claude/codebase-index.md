@@ -14,7 +14,7 @@ Major source file map
 Registered commands (representative list)
 - MCP server control: `COMMAND_IDS.mcpStartServer`, `mcpStopServer`, `mcpToggleServer`.
 - Collection/environment commands: `refreshCollections`, `refreshEnvironments`, `newEnvironment`, `deleteEnvironment`, `duplicateEnvironment`, `renameEnvironment`.
-- Collection management: `newCollection`, `editCollection`, `deleteCollection`, `generateCollectionFromCurl`, `exportCollection`, `importCollection`, `newFolder`, `deleteFolder`, `newRequest`, `openRequest`, `openRequestInNewPanel`, `closeAllRequestPanels`, `deleteRequest`, `duplicateCollection`, `duplicateFolder`, `duplicateRequest`.
+- Collection management: `newCollection`, `editCollection`, `deleteCollection`, `generateCollectionFromCurl`, `exportCollection`, `importCollection`, `newFolder`, `deleteFolder`, `newRequest`, `newWebSocketRequest`, `openRequest`, `openRequestInNewPanel`, `closeAllRequestPanels`, `deleteRequest`, `duplicateCollection`, `duplicateFolder`, `duplicateRequest`.
 - Test suite commands: `runCollection`, `runFolder`, `runPerformanceTest`.
 
 Providers and UI hooks

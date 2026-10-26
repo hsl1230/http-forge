@@ -14,6 +14,7 @@
  * @param {Object} options.state - Application state
  * @param {Function} options.getMethod - Function to get current method
  * @param {Function} options.setMethod - Function to set method
+ * @param {Function} options.setRequestType - Function to set request type
  * @param {Function} options.getPath - Function to get current path
  * @param {Function} options.setPath - Function to set path
  * @param {Object} options.queryParamsManager - Query params manager instance
@@ -24,12 +25,14 @@
  * @param {Object} options.elements - DOM elements
  * @param {Function} options.updateUrlPreview - Function to update URL preview
  * @param {Function} options.markClean - Function to mark request as clean
+ * @param {Object} [options.websocketManager] - WebSocket UI/state manager
  * @returns {Object} Request loader interface
  */
 function createRequestLoader({
     state,
     getMethod,
     setMethod,
+    setRequestType,
     getPath,
     setPath,
     queryParamsManager,
@@ -40,7 +43,8 @@ function createRequestLoader({
     elements,
     updateUrlPreview,
     markClean,
-    oauth2Manager
+    oauth2Manager,
+    websocketManager
 }) {
 
     /**
@@ -48,8 +52,19 @@ function createRequestLoader({
      * @param {Object} request - Request data (unified format)
      */
     function loadCollectionRequest(request) {
-        // Set method using unified accessor
-        setMethod(request.method || 'GET');
+        // Request type is authoritative; method is the HTTP verb (GET for the
+        // WebSocket handshake). Socket.IO is a WebSocket request flavor.
+        const requestType = request.requestType === 'websocket'
+            ? (request.websocket?.protocol === 'socketio' ? 'socketio' : 'websocket')
+            : 'http';
+        setRequestType(requestType);
+        setMethod(requestType === 'http' ? request.method || 'GET' : 'GET');
+
+        // WebSocket configuration is independent of the HTTP body/scripts tabs.
+        if (websocketManager) {
+            websocketManager.setConfig(request.websocket);
+            websocketManager.refreshMode();
+        }
 
         // Clear existing form
         formManager.clearForm();

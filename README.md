@@ -6,7 +6,7 @@
 
 **An AI-native and fully Postman-compatible API client for VS Code.**
 
-Build, test, automate, and version REST, GraphQL, and OpenAPI APIs in one local workspace — offline, Git-native, merge-friendly, and ready for AI agents.
+Build, test, automate, and version REST, GraphQL, WebSocket/Socket.IO, and OpenAPI APIs in one local workspace — offline, Git-native, merge-friendly, and ready for AI agents.
 
 Designed for teams comparing Postman, Bruno, Thunder Client, and Insomnia alternatives.
 
@@ -122,6 +122,9 @@ The **Discovered APIs** tree view (`HTTP Forge: Discover APIs`) scans the worksp
 
 The same loop is available to agents via MCP: `create_request_from_endpoint`, `generate_test_suite`, `suggest_workflow`/`generate_workflow` for AUTH/CRUD chains, and `check_drift`/`propose_update` to detect when source changes have made a generated suite stale while preserving your hand edits.
 
+### ✅ QA-gate your backend in one shot
+Run **HTTP Forge: QA Check API (Discover, Generate, Run, Report)** from the Command Palette: pick a collection, point at a backend project and a running server (or dry-run the plan first), optionally add Copilot-written assertion suggestions, then review the per-endpoint report with one-click JSON save. Reruns reuse existing requests — nothing is duplicated unless the source changed. Same gate for agents via the `qa_api` MCP tool, and for CI via `http-forge qa` (exit codes `0` pass, `1` failures, `2` infra error, `3` drift).
+
 ### 🔄 Postman migration
 Import your Postman v2.1 collection — all `pm.*` scripts, environments, and globals work unchanged. No rewriting, no learning curve.
 
@@ -159,6 +162,14 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Pre/post scripts with full `pm.*` Postman API compatibility  
 ✅ IntelliSense for variables, filters, dynamic vars, and scripting API  
 ✅ Split/stack layout modes — view request and response side-by-side or stacked with resizable dividers  
+
+### 🔌 WebSocket & Socket.IO
+✅ Raw WebSocket and Socket.IO requests alongside HTTP in the same collection  
+✅ Text and binary frames — Base64/hex encoding, JSON/XML/HTML formatting and beautify  
+✅ Saved messages, Socket.IO event listeners, event args and acknowledgements  
+✅ Frame inspector — search, direction filter, wrap, hexdump, diff, copy, and save  
+✅ Handshake timeout, max message size, subprotocols, and reconnect settings  
+✅ Headless raw WebSocket runs — collection, suite, CLI and MCP execution with `pm.test` assertions on the frame transcript
 
 ### 📁 Collections
 ✅ Git-friendly folder structure — one file per request  
@@ -210,6 +221,7 @@ Export Postman collection (v2.1) → Import into HTTP Forge → Done. All `pm.*`
 | `pm.sendRequest()`, `pm.setNextRequest()`, `pm.execution.skipRequest()` | ✅ Unchanged |
 | CryptoJS, lodash, moment, uuid | ✅ Built-in |
 | All body modes — raw, urlencoded, form-data, GraphQL, binary | ✅ Unchanged |
+| WebSocket and Socket.IO requests | ✅ Request Tester; ✅ headless raw WebSocket runs (mixed with HTTP collections) |
 
 ---
 
@@ -240,7 +252,7 @@ Your OpenAPI contract is not just for import or export — it can also be reused
 - [Secret Providers](docs/user-guide/secret-providers.md)
 - [TypeScript Codegen](docs/user-guide/codegen.md)
 - [Playwright Integration](docs/user-guide/playwright.md)
-- [Configuration](docs/configuration.md)
+- [Configuration](docs/user-guide/configuration.md) — [full example](resources/http-forge.config.example.json)
 - [Script API & Postman Compatibility](docs/postman-compatibility.md)
 - [OpenAPI Round-Trip & API Design](docs/OPENAPI-SOLUTION.md)
 - [Copilot Chat Guide](docs/COPILOT-CHAT-GUIDE.md)

@@ -14,13 +14,17 @@ When a request is executed, HTTP Forge writes history entries, full responses, a
 | **URL query params** | Any parameter name containing `password`, `token`, `secret`, `api_key`, `client_secret`, `jwt`, etc. |
 | **Request body (JSON)** | Any JSON key containing `password`, `token`, `secret`, `credential`, `api_key`, `private_key`, `auth_code`, `jwt`, `cookie`, etc. — applied recursively |
 | **Request body (form)** | URL-encoded form fields matching the same patterns |
+| **Resolved `{{secret:...}}` values** | Exact values resolved from a secret provider, wherever they appear in the persisted request (URL/path/query, headers, params, body) or its response (headers, cookies, body) |
+| **Suite result text** | Exact resolved secret values in assertion messages, captured console output, errors, and visualizer data |
 | **Response headers** | Same header patterns as request headers (e.g. `Set-Cookie`) |
 | **Response cookies** | Cookie names matching sensitive patterns |
 
+Exact-value redaction only applies to values of at least four characters. Shorter values are still covered by name-based redaction; replacing them globally would corrupt unrelated data such as status codes or IDs.
+
 ### What is NOT redacted
 
-- **`originalConfig`** — The unresolved request template (with `{{variable}}` placeholders) is never redacted. It contains no secret values since variables haven't been resolved yet.
-- **Response bodies** — Response content is not redacted because field names vary too widely to pattern-match safely.
+- **`originalConfig`** — The unresolved request template (with `{{variable}}` placeholders) is never redacted. It contains no resolved secret values.
+- **Response bodies by field name** — Response content is not pattern-matched by field name because names vary too widely. Exact values resolved from a secret provider are still redacted if they appear in the response.
 - **In-memory data** — Redaction only applies to data written to disk. The Request Tester UI shows the full unredacted response for debugging.
 
 ### Examples

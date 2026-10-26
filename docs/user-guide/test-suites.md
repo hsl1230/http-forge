@@ -397,3 +397,11 @@ hf.variables.get('token')
 - Keep suite names stable for reporting.
 - Use environments to run the same suite across targets.
 - Add assertions for expected error-path tests (401/403/404).
+
+## WebSocket and Socket.IO in suites
+
+Test suites can mix HTTP, WebSocket, and Socket.IO request nodes. Each request node references a collection request; the suite executor hydrates the full request (including `requestType` and `websocket` config) before executing. WebSocket requests open and close their own socket per node, and the suite continues with subsequent nodes.
+
+- WebSocket nodes report `ok: true` for a successful `101` handshake.
+- Scripts and `pm.test` assertions run against the frame transcript.
+- Socket.IO nodes are supported in the interactive Request Tester and in headless suite runs.

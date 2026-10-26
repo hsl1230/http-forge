@@ -55,6 +55,7 @@ export function ensureRequestDefaults(item: Partial<CollectionRequest>): Collect
     return {
         id: item.id || item.name || '',
         name: item.name || '',
+        requestType: item.requestType || 'http',
         method: item.method || 'GET',
         url: item.url || '',
         headers,
@@ -67,6 +68,7 @@ export function ensureRequestDefaults(item: Partial<CollectionRequest>): Collect
         },
         auth: item.auth,
         settings: item.settings,
+        websocket: item.websocket,
         // Preserve OpenAPI metadata
         deprecated: item.deprecated,
         description: item.description,

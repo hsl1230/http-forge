@@ -68,6 +68,8 @@ export const VIEW_IDS = {
  */
 export const COMMAND_IDS = {
     newRequest: 'httpForge.newRequest',
+    newWebSocketRequest: 'httpForge.newWebSocketRequest',
+    newSocketIoRequest: 'httpForge.newSocketIoRequest',
     openRequest: 'httpForge.openRequest',
     openRequestInNewPanel: 'httpForge.openRequestInNewPanel',
     newFolder: 'httpForge.newFolder',
@@ -146,6 +148,8 @@ export const COMMAND_IDS = {
     checkDiscoveryDrift: 'httpForge.checkDiscoveryDrift',
     // API Architect (Phase 4 / Layer 8)
     architect: 'httpForge.architect',
+    // QA Check (discover → generate → run → report)
+    qaCheck: 'httpForge.qaCheck',
 };
 
 /**

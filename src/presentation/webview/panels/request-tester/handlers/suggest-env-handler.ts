@@ -56,7 +56,7 @@ export class SuggestEnvHandler implements IMessageHandler {
 
     try {
       const provider = new CopilotAiProvider();
-      const suggestions = await scanCollectionForEnvVarsWithAi(collection, provider);
+      const suggestions = await scanCollectionForEnvVarsWithAi(collection, provider, this.collectionService);
       messenger.postMessage({ command: 'envScanResult', suggestions, collectionName: collection.name });
     } catch (err: any) {
       messenger.postMessage({ command: 'envScanResult', error: err?.message ?? 'Scan failed.' });

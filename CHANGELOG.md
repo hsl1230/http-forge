@@ -5,6 +5,50 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.17.0 - 2026-10-26
+
+### Added
+
+- **WebSocket and Socket.IO Request Tester** — the request-type selector now offers HTTP, WebSocket, and Socket.IO, and all three can live in the same collection. Raw WebSocket and Socket.IO share saved messages, text/binary frames (Base64/hex), JSON/XML/HTML formatting, and a frame inspector with search, direction filter, wrap, hexdump, diff, copy, and save. Socket.IO adds event listeners, event/args/ack composition, and acknowledgement display. New per-request settings cover handshake timeout, maximum message size, subprotocols, reconnect attempts/interval, and the Socket.IO handshake path.
+- **Headless WebSocket runs** — raw WebSocket requests now execute in the collection runner, suite executor, CLI, and MCP. A run sends saved messages, collects inbound frames for a configurable response wait, and runs pre-request/post-response scripts and `pm.test` assertions against a JSON transcript (`pm.response.code === 101`). Text and Base64/hex binary frames are preserved. New per-request setting: "Response Wait After Sending" (default 1000 ms; 0 closes immediately).
+- **Headless Socket.IO runs** — Socket.IO requests now execute in the collection runner, suite executor, CLI, and MCP as well. Emits, arguments, acknowledgements, and inbound events are captured in the same JSON transcript (`pm.response.code === 101`), so mixed HTTP / WebSocket / Socket.IO collections can run end-to-end.
+- **Interactive WebSocket scripts** — the Request Tester now runs pre-request scripts before connecting and post-response scripts/tests after disconnect, reporting results in the script results panel.
+- **Socket.IO handshake options** — Socket.IO requests now support namespace, auth payload, and transport selection (WebSocket / polling) in both the Request Tester and headless runs. Raw WebSocket handshake cookies are captured into the collection cookie jar.
+- **Socket.IO client versions** — the Request Tester can target Socket.IO 2.x, 3.x, or 4.x servers (polling is used automatically for 2.x/3.x).
+- **Monaco highlighting in the WebSocket composer** — the message payload editor now uses Monaco with language switching for JSON, XML, HTML, and text.
+- **Dedicated creation actions** — `HTTP Forge: New WebSocket Request` and `HTTP Forge: New Socket.IO Request`.
+
+### Notes
+
+- The bundled Socket.IO client is v4; it can connect to v2/v3 servers when polling transport is enabled.
+- Monaco highlighting in the message composer requires a browser Monaco instance; falls back to a plain textarea if unavailable.
+
+## 0.16.42 - 2026-10-15
+
+### Fixed
+
+- **Legacy jest suite green for the first time** — `importRequest.test.ts` never ran (missing `@jest/globals` import, then an ESM-only `uuid` that CJS ts-jest cannot require). It now imports test functions explicitly like its sibling, and `jest.config.js` maps `uuid` to a deterministic `__mocks__/uuid.js` stub covering both the top-level and the nested copy under `@http-forge/core`. Both suites pass (3 tests).
+
+### Changed
+
+- **Dev-dependency majors to clear audit highs** — `jest` 29→30, `ts-jest` 29.0→29.4 (Jest 30-compatible), `@mermaid-js/mermaid-cli` 11→12. Audit went 38 → 0 vulnerabilities.
+- **Transitive overrides clear the remaining audit findings** — `katex` pinned to `^0.18.10` under `@mermaid-js/mermaid-cli` (drops the vulnerable 0.16.x copy; matches the version mermaid already used) and `js-yaml` pinned to `^4.1.0` (drops the vulnerable v3 chain `js-yaml@3 → argparse@1 → sprintf-js@1` used by `@istanbuljs/load-nyc-config`; `load()` is the safe API in both v3 and v4). Verified with `jest --coverage`, `tsc --noEmit`, `build:dev`, and a real mermaid render.
+
+## 0.16.41 - 2026-10-14
+
+### Added
+
+- **QA Check API command** — new `HTTP Forge: QA Check API (Discover, Generate, Run, Report)` palette command: pick a collection, point at a backend project and a running server (or dry-run the plan), optionally add Copilot-written assertion suggestions, then review the per-endpoint report in the HTTP Forge QA output channel with one-click JSON report save. Reruns reuse existing requests; nothing is duplicated.
+
+### Changed
+
+- **Upgraded `@http-forge/core` to `^0.6.40`** — collections now load lazily: the tree/activation reads metadata only, while bodies, scripts, schemas, and `doc.md` load on demand when a request is opened, executed, or inspected. Large workspaces should activate and refresh noticeably faster with no behavior change; saves and metadata-only updates can no longer clobber heavy files.
+
+### Fixed
+
+- **Request Tester panel compile error** — the on-demand AI handler now implements `IMessageHandler` with narrow service types instead of an invalid cast, so the extension typechecks cleanly again.
+- **Collection env scan hydration** — the AI environment-variable scan now receives the collection service, so request bodies and docs are included in the scan input.
+
 ## 0.16.39 - 2026-09-22
 
 ### Added

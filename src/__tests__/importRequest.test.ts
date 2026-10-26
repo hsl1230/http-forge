@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals';
 import { runImportRequestCommand } from '../commands/importRequest';
 
 describe('importRequest command', () => {
