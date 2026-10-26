@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "HTTP Forge Request",
-  "description": "Metadata file for an HTTP request (request.json). Body content may be stored in separate body.* files.",
+  "description": "Metadata file for an HTTP or WebSocket request (request.json). Body content may be stored in separate body.* files.",
   "type": "object",
   "properties": {
     "id": {
@@ -12,10 +12,15 @@
       "type": "string",
       "description": "Display name of the request"
     },
+    "requestType": {
+      "type": "string",
+      "enum": ["http", "websocket"],
+      "description": "Request transport type. Defaults to http when omitted."
+    },
     "method": {
       "type": "string",
-      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "WS"],
-      "description": "HTTP method, or WS for a WebSocket request"
+      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"],
+      "description": "HTTP method. WebSocket requests use GET for the handshake."
     },
     "url": {
       "type": "string",
@@ -298,7 +303,7 @@
     },
     "websocket": {
       "type": "object",
-      "description": "WebSocket-specific request configuration. The request method must be WS.",
+      "description": "WebSocket-specific request configuration. Set requestType to websocket.",
       "properties": {
         "subprotocols": {
           "type": "array",

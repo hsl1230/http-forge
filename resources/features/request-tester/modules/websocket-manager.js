@@ -11,7 +11,7 @@ const MAX_FRAMES = 500;
 function createWebSocketManager({
     vscode,
     elements,
-    getMethod,
+    getRequestType,
     getRequest,
     markDirty
 }) {
@@ -23,7 +23,7 @@ function createWebSocketManager({
     let nextDraftId = 1;
 
     function isWebSocketMode() {
-        return (getMethod() || '').toUpperCase() === 'WS';
+        return getRequestType() === 'websocket';
     }
 
     function normalizeConfig(value) {
@@ -391,7 +391,7 @@ function createWebSocketManager({
         updateSendButton();
     }
 
-    function onMethodChanged() {
+    function onRequestTypeChanged() {
         if (!isWebSocketMode() && connectionState !== 'closed') {
             disconnect();
         }
@@ -413,7 +413,7 @@ function createWebSocketManager({
         getConfig,
         setConfig,
         refreshMode,
-        onMethodChanged,
+        onRequestTypeChanged,
         connect,
         disconnect,
         sendComposer,

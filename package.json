@@ -183,9 +183,15 @@
     "commands": [
       {
         "command": "httpForge.newRequest",
-        "title": "New Request",
+        "title": "New HTTP Request",
         "category": "HTTP Forge",
         "icon": "$(add)"
+      },
+      {
+        "command": "httpForge.newWebSocketRequest",
+        "title": "New WebSocket Request",
+        "category": "HTTP Forge",
+        "icon": "$(radio-tower)"
       },
       {
         "command": "httpForge.openRequest",
@@ -643,9 +649,14 @@
           "group": "1_add@1"
         },
         {
-          "command": "httpForge.newFolder",
+          "command": "httpForge.newWebSocketRequest",
           "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
           "group": "1_add@2"
+        },
+        {
+          "command": "httpForge.newFolder",
+          "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
+          "group": "1_add@3"
         },
         {
           "command": "httpForge.runCollection",

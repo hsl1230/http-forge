@@ -43,6 +43,8 @@ function createState() {
         /** Original request data received from backend */
         requestData: null,
         selectedEnvironment: '',
+        /** Current request type: 'http' | 'websocket' */
+        requestType: 'http',
         /** Current request path/URL */
         requestPath: '',
         /** Base URL without query string (for two-way sync) */

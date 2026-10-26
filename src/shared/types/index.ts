@@ -19,6 +19,7 @@ import type {
     RequestBody,
     RequestScripts,
     RequestSettings,
+    RequestType,
     ResponseSchemaDefinition,
     TestAssertion,
     WebSocketRequestConfig,
@@ -45,9 +46,10 @@ export interface UIRequest {
     id?: string;
     name?: string;
     
-    // Request details (path or url, method)
+    // Request details (path or url, request type, method)
     path?: string;  // Can be full URL or path
     url?: string;   // Alternative to path
+    requestType?: RequestType;
     method?: string;
     
     // Request data — dual format: Record (execution) or KeyValueEntry[] (save with metadata)

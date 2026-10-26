@@ -69,10 +69,12 @@ export class RequestTesterPanelManager {
   }
 
   /**
-   * Generate panel title in format "METHOD - Request Name"
+   * Generate panel title in format "METHOD - Request Name" or "WS - Request Name".
    */
   private generatePanelTitle(context: RequestContext): string {
-    const method = context.request?.method?.toUpperCase() || 'GET';
+    const method = context.request?.requestType === 'websocket'
+      ? 'WS'
+      : context.request?.method?.toUpperCase() || 'GET';
     const name = context.title || context.request?.name || 'Request';
     return `${method} - ${name}`;
   }

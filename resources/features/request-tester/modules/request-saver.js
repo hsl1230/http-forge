@@ -14,6 +14,7 @@
  * @param {Object} options.vscode - VS Code API
  * @param {Object} options.state - Application state
  * @param {Function} options.getMethod - Function to get current method
+ * @param {Function} options.getRequestType - Function to get current request type
  * @param {Function} options.getPath - Function to get current path
  * @param {Object} options.queryParamsManager - Query params manager instance
  * @param {Object} options.bodyTypeManager - Body type manager instance
@@ -26,6 +27,7 @@ function createRequestSaver({
     vscode,
     state,
     getMethod,
+    getRequestType,
     getPath,
     queryParamsManager,
     bodyTypeManager,
@@ -123,7 +125,8 @@ function createRequestSaver({
             return fresh;
         });
 
-        const websocket = getMethod() === 'WS' && getWebSocketConfig
+        const requestType = getRequestType ? getRequestType() : 'http';
+        const websocket = requestType === 'websocket' && getWebSocketConfig
             ? getWebSocketConfig()
             : undefined;
 
@@ -132,7 +135,8 @@ function createRequestSaver({
             id: state.requestData?.id,
             name: state.requestData?.name,
             collectionId: state.collectionId,
-            method: getMethod(),
+            requestType,
+            method: requestType === 'websocket' ? 'GET' : getMethod(),
             url: urlWithoutQuery,
             path: urlWithoutQuery,
             params,
@@ -171,6 +175,7 @@ function createRequestSaver({
      */
     function takeSnapshot() {
         return {
+            requestType: getRequestType ? getRequestType() : 'http',
             method: getMethod(),
             path: getPath(),
             pathParams: JSON.stringify(state.pathParams),
@@ -185,7 +190,9 @@ function createRequestSaver({
             oauth2: JSON.stringify(state.oauth2 || {}),
             scripts: JSON.stringify(state.scripts),
             settings: JSON.stringify(state.settings),
-            websocket: JSON.stringify(getMethod() === 'WS' && getWebSocketConfig ? getWebSocketConfig() : null),
+            websocket: JSON.stringify(
+                getRequestType?.() === 'websocket' && getWebSocketConfig ? getWebSocketConfig() : null
+            ),
             // Include OpenAPI metadata maps for dirty detection
             paramsMeta: JSON.stringify(state._paramsMeta || {}),
             queryMeta: JSON.stringify(state._queryMeta || {}),
@@ -206,6 +213,7 @@ function createRequestSaver({
         const current = takeSnapshot();
         
         return (
+            current.requestType !== snapshot.requestType ||
             current.method !== snapshot.method ||
             current.path !== snapshot.path ||
             current.pathParams !== snapshot.pathParams ||

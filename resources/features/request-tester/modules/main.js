@@ -200,7 +200,7 @@ class RequestTesterApp {
         this.websocketManager = createWebSocketManager({
             vscode,
             elements: this.elements,
-            getMethod: () => this.getMethod(),
+            getRequestType: () => this.getRequestType(),
             getRequest: () => this.requestBuilder.buildRequest(),
             markDirty: () => this.markDirty()
         });
@@ -210,6 +210,7 @@ class RequestTesterApp {
             vscode,
             state: this.state,
             getMethod: () => this.getMethod(),
+            getRequestType: () => this.getRequestType(),
             getPath: () => this.getPath(),
             queryParamsManager: this.queryParamsManager,
             bodyTypeManager: this.bodyTypeManager,
@@ -304,6 +305,7 @@ class RequestTesterApp {
             elements: this.elements,
             state: this.state,
             getMethod: () => this.getMethod(),
+            getRequestType: () => this.getRequestType(),
             getPath: () => this.getPath(),
             getWebSocketConfig: () => this.websocketManager.getConfig()
         });
@@ -366,6 +368,7 @@ class RequestTesterApp {
             state: this.state,
             getMethod: () => this.getMethod(),
             setMethod: (m) => this.setMethod(m),
+            setRequestType: (t) => this.setRequestType(t),
             getPath: () => this.getPath(),
             setPath: (p) => this.setPath(p),
             queryParamsManager: this.queryParamsManager,
@@ -496,10 +499,19 @@ class RequestTesterApp {
             });
         }
 
+        // Request type (HTTP vs WebSocket)
+        if (this.elements.requestTypeSelect) {
+            this.elements.requestTypeSelect.addEventListener('change', () => {
+                this.setRequestType(this.elements.requestTypeSelect.value);
+                this.websocketManager.onRequestTypeChanged();
+                this.markDirty();
+            });
+        }
+
         // HTTP API Mode: Method select
         if (this.elements.methodSelect) {
             this.elements.methodSelect.addEventListener('change', () => {
-                this.websocketManager.onMethodChanged();
+                this.markDirty();
             });
         }
 
@@ -675,8 +687,9 @@ class RequestTesterApp {
                 this.state.lastSentRequest = null;
                 this.resetRequestState();
 
-                // Request section — form, method, path
+                // Request section — form, request type, method, path
                 this.formManager.clearForm();
+                this.setRequestType('http');
                 this.setMethod('GET');
                 this.setPath('');
                 this.state.requestPath = '';
@@ -825,6 +838,14 @@ class RequestTesterApp {
         this.queryParamsManager.handleUrlChange(currentUrl, this.setPath.bind(this), keyEditable);
         
         this.pathVariablesManager.updateFromPath(currentUrl);
+
+        // A literal ws:// or wss:// URL is unambiguously a WebSocket request.
+        // Environment-based URLs stay explicit so the user can choose the type.
+        if (/^wss?:\/\//i.test(currentUrl.trim()) && this.getRequestType() !== 'websocket') {
+            this.setRequestType('websocket');
+            this.websocketManager.onRequestTypeChanged();
+        }
+
         this.updateUrlPreview();
         this.markDirty();
     }
@@ -860,8 +881,10 @@ class RequestTesterApp {
             return;
         }
 
-        // Set method and path using unified accessors
-        const method = (reqData?.method || 'GET').toUpperCase();
+        // Set request type, method, and path using unified accessors.
+        const requestType = reqData?.requestType === 'websocket' ? 'websocket' : 'http';
+        this.setRequestType(requestType);
+        const method = requestType === 'websocket' ? 'GET' : (reqData?.method || 'GET').toUpperCase();
         this.setMethod(method);
 
         // Restore WebSocket composer state when opening a saved WS request.
@@ -1862,6 +1885,43 @@ class RequestTesterApp {
     // ========================================
 
     /**
+     * Get the current request type
+     * @returns {'http'|'websocket'} Request type
+     */
+    getRequestType() {
+        return this.elements.requestTypeSelect?.value === 'websocket' ? 'websocket' : 'http';
+    }
+
+    /**
+     * Set the request type and update the method selector visibility.
+     * @param {'http'|'websocket'} requestType - Request type
+     */
+    setRequestType(requestType) {
+        const normalized = requestType === 'websocket' ? 'websocket' : 'http';
+        this.state.requestType = normalized;
+
+        if (this.elements.requestTypeSelect) {
+            this.elements.requestTypeSelect.value = normalized;
+        }
+
+        const isWebSocket = normalized === 'websocket';
+        if (isWebSocket) {
+            this.setMethod('GET');
+        }
+
+        if (this.elements.methodSelect) {
+            this.elements.methodSelect.classList.toggle('hidden', isWebSocket);
+            this.elements.methodSelect.disabled = this.state.readonly || isWebSocket;
+        }
+
+        if (this.elements.requestPathInput) {
+            this.elements.requestPathInput.placeholder = isWebSocket
+                ? 'wss://example.com/socket or {{baseUrl}}/socket'
+                : 'Enter request URL or path';
+        }
+    }
+
+    /**
      * Get current HTTP method
      * @returns {string} HTTP method (GET, POST, etc.)
      */
@@ -1874,7 +1934,7 @@ class RequestTesterApp {
      * @param {string} method - HTTP method
      */
     setMethod(method) {
-        const upperMethod = (method || 'GET').toUpperCase();
+        const upperMethod = (this.getRequestType() === 'websocket' ? 'GET' : (method || 'GET')).toUpperCase();
         if (this.elements.methodSelect) {
             this.elements.methodSelect.value = upperMethod;
         }
@@ -1903,10 +1963,16 @@ class RequestTesterApp {
      */
     applyReadonlyState() {
         const isReadonly = this.state.readonly;
-        
-        // Method select - disable when readonly
+        const isWebSocket = this.getRequestType() === 'websocket';
+
+        // Request type select - disable when readonly
+        if (this.elements.requestTypeSelect) {
+            this.elements.requestTypeSelect.disabled = isReadonly;
+        }
+
+        // Method select - disable when readonly or in WebSocket mode
         if (this.elements.methodSelect) {
-            this.elements.methodSelect.disabled = isReadonly;
+            this.elements.methodSelect.disabled = isReadonly || isWebSocket;
         }
         
         // Path input - set readonly attribute
@@ -2009,7 +2075,7 @@ class RequestTesterApp {
     // ========================================
 
     async sendRequest() {
-        if (this.getMethod() === 'WS') {
+        if (this.getRequestType() === 'websocket') {
             this.websocketManager.sendComposer();
             return;
         }

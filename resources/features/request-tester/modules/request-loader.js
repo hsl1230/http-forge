@@ -14,6 +14,7 @@
  * @param {Object} options.state - Application state
  * @param {Function} options.getMethod - Function to get current method
  * @param {Function} options.setMethod - Function to set method
+ * @param {Function} options.setRequestType - Function to set request type
  * @param {Function} options.getPath - Function to get current path
  * @param {Function} options.setPath - Function to set path
  * @param {Object} options.queryParamsManager - Query params manager instance
@@ -31,6 +32,7 @@ function createRequestLoader({
     state,
     getMethod,
     setMethod,
+    setRequestType,
     getPath,
     setPath,
     queryParamsManager,
@@ -50,8 +52,11 @@ function createRequestLoader({
      * @param {Object} request - Request data (unified format)
      */
     function loadCollectionRequest(request) {
-        // Set method using unified accessor
-        setMethod(request.method || 'GET');
+        // Request type is authoritative; method is the HTTP verb (GET for the
+        // WebSocket handshake).
+        const requestType = request.requestType === 'websocket' ? 'websocket' : 'http';
+        setRequestType(requestType);
+        setMethod(requestType === 'websocket' ? 'GET' : request.method || 'GET');
 
         // WebSocket configuration is independent of the HTTP body/scripts tabs.
         if (websocketManager) {

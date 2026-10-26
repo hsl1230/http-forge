@@ -60,10 +60,11 @@ describe('mergeCollectionRequests', () => {
       messages: [{ id: 'm1', type: 'text' as const, data: 'hello' }]
     };
     const merged = mergeCollectionRequests(
-      request({ method: 'WS', url: 'wss://example.test/socket' }),
-      request({ method: 'WS', url: 'wss://example.test/socket', websocket })
+      request({ requestType: 'websocket', method: 'GET', url: 'wss://example.test/socket' }),
+      request({ requestType: 'websocket', method: 'GET', url: 'wss://example.test/socket', websocket })
     );
 
+    expect(merged.requestType).toBe('websocket');
     expect(merged.websocket).toEqual(websocket);
   });
 });

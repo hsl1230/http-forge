@@ -30,7 +30,12 @@
 
         <!-- Request Line - Unified (single set of elements, readonly controlled via JS) -->
         <div class="request-line">
-            <!-- Method Select - disabled when readonly -->
+            <!-- Request Type - HTTP vs WebSocket; disables method select in WS mode -->
+            <select id="request-type-select" class="method-select request-type-select" title="Request type">
+                <option value="http">HTTP</option>
+                <option value="websocket">WebSocket</option>
+            </select>
+            <!-- Method Select - HTTP requests only, disabled when readonly -->
             <select id="method-select" class="method-select">
                 <option value="GET">GET</option>
                 <option value="POST">POST</option>
@@ -39,7 +44,6 @@
                 <option value="DELETE">DELETE</option>
                 <option value="HEAD">HEAD</option>
                 <option value="OPTIONS">OPTIONS</option>
-                <option value="WS">WS</option>
             </select>
             <!-- Path Input - readOnly attribute set via JS -->
             <input type="text" id="request-path-input" class="request-path-input" 

@@ -55,7 +55,8 @@ function createHarness() {
               id: 'request-1',
               type: 'request',
               name: 'Chat',
-              method: 'WS',
+              requestType: 'websocket',
+              method: 'GET',
               url: '/socket',
               auth: { type: 'inherit' },
             },
@@ -92,7 +93,8 @@ function createHarness() {
 const uiRequest = {
   id: 'request-1',
   name: 'Chat',
-  method: 'WS',
+  requestType: 'websocket' as const,
+  method: 'GET',
   path: '/socket',
   headers: { 'X-Trace': 'abc' },
   auth: { type: 'inherit' as const },
@@ -116,7 +118,8 @@ describe('WebSocketHandler', () => {
 
     expect(requestPreparer.prepareRequest as jest.Mock).toHaveBeenCalledWith(
       expect.objectContaining({
-        method: 'WS',
+        requestType: 'websocket',
+        method: 'GET',
         url: '/socket',
         auth: { type: 'bearer', bearerToken: 'folder-token' },
         websocket: uiRequest.websocket,

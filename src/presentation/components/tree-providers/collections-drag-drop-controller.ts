@@ -273,6 +273,7 @@ export class CollectionsDragAndDropController implements vscode.TreeDragAndDropC
         // Create a copy in the target collection
         await this.collectionService.createRequest({
             name: request.name,
+            requestType: request.requestType,
             method: request.method || 'GET',
             url: request.url || '',
             headers: request.headers,
@@ -282,6 +283,7 @@ export class CollectionsDragAndDropController implements vscode.TreeDragAndDropC
             auth: request.auth,
             settings: request.settings,
             scripts: request.scripts,
+            websocket: request.websocket,
             deprecated: request.deprecated,
             description: request.description,
             operationId: request.operationId,
@@ -342,6 +344,7 @@ export class CollectionsDragAndDropController implements vscode.TreeDragAndDropC
                 // request
                 await this.collectionService.createRequest({
                     name: child.name,
+                    requestType: child.requestType,
                     method: child.method || 'GET',
                     url: child.url || '',
                     headers: child.headers,
@@ -351,6 +354,7 @@ export class CollectionsDragAndDropController implements vscode.TreeDragAndDropC
                     auth: child.auth,
                     settings: child.settings,
                     scripts: child.scripts,
+                    websocket: child.websocket,
                     deprecated: child.deprecated,
                     description: child.description,
                     operationId: child.operationId,

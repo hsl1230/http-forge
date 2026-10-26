@@ -2,10 +2,11 @@
  * Request commands.
  *
  * Single Responsibility: register every command that creates, opens, saves,
- * updates, deletes, duplicates or closes HTTP request items/panels.
+ * updates, deletes, duplicates or closes request items/panels (HTTP and
+ * WebSocket).
  */
 
-import type { CollectionFolderItem, CollectionRequestItem, CollectionService } from '@http-forge/core';
+import type { CollectionFolderItem, CollectionRequestItem, CollectionService, RequestType } from '@http-forge/core';
 import { generateId } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { ensureRequestDefaults, RequestContext } from '../shared/utils';
@@ -18,44 +19,53 @@ import type { CommandContext } from './command-context';
 export function registerRequestCommands(ctx: CommandContext): void {
   const { context, collectionService, collectionsTreeProvider, collectionsView } = ctx;
 
-  // New Request command (creates quick ad-hoc request, or new request in collection/folder)
+  // New Request commands (create a quick ad-hoc HTTP or WebSocket request, or
+  // a new request in a collection/folder).
+  const openNewRequest = async (item: CollectionTreeItem | undefined, requestType: RequestType): Promise<void> => {
+    const isWebSocket = requestType === 'websocket';
+    const name = await vscode.window.showInputBox({
+      prompt: isWebSocket ? 'Enter WebSocket request name' : 'Enter HTTP request name',
+      placeHolder: isWebSocket ? 'New WebSocket Request' : 'New HTTP Request',
+      value: isWebSocket ? 'New WebSocket Request' : 'New HTTP Request'
+    });
+
+    if (!name) {
+      return; // User cancelled
+    }
+
+    const requestContext: RequestContext = {
+      title: name,
+      request: {
+        id: generateId(name),
+        name: name,
+        requestType,
+        method: 'GET',
+        url: '',
+        headers: [],
+        query: [],
+        body: null,
+        scripts: {
+          preRequest: '',
+          postResponse: ''
+        }
+      },
+      readonly: false,
+      // If called from collection/folder context menu, pre-set the collection info
+      collectionId: item?.collectionId,
+      folderPath: item?.itemPath?.join('/'),
+      allowDuplicatedName: true // Allow duplicate names for ad-hoc requests created from the tree (since they might not be saved to collection)
+    };
+
+    RequestTesterPanel.show(context.extensionUri, requestContext);
+  };
+
   context.subscriptions.push(
-    vscode.commands.registerCommand(COMMAND_IDS.newRequest, async (item?: CollectionTreeItem) => {
-      // Ask for request name
-      const name = await vscode.window.showInputBox({
-        prompt: 'Enter request name',
-        placeHolder: 'New Request',
-        value: 'New Request'
-      });
-
-      if (!name) {
-        return; // User cancelled
-      }
-
-      const requestContext: RequestContext = {
-        title: name,
-        request: {
-          id: generateId(name),
-          name: name,
-          method: 'GET',
-          url: '',
-          headers: [],
-          query: [],
-          body: null,
-          scripts: {
-            preRequest: '',
-            postResponse: ''
-          }
-        },
-        readonly: false,
-        // If called from collection/folder context menu, pre-set the collection info
-        collectionId: item?.collectionId,
-        folderPath: item?.itemPath?.join('/'),
-        allowDuplicatedName: true // Allow duplicate names for ad-hoc requests created from the tree (since they might not be saved to collection)
-      };
-
-      RequestTesterPanel.show(context.extensionUri, requestContext);
-    })
+    vscode.commands.registerCommand(COMMAND_IDS.newRequest, (item?: CollectionTreeItem) =>
+      openNewRequest(item, 'http')
+    ),
+    vscode.commands.registerCommand(COMMAND_IDS.newWebSocketRequest, (item?: CollectionTreeItem) =>
+      openNewRequest(item, 'websocket')
+    )
   );
 
   // Open Request (from tree click)
@@ -135,6 +145,7 @@ export function registerRequestCommands(ctx: CommandContext): void {
       if (newName) {
         await collectionService.createRequest({
           name: newName,
+          requestType: requestData.requestType,
           method: requestData.method || 'GET',
           url: requestData.url || '',
           params: requestData.params,
@@ -143,6 +154,8 @@ export function registerRequestCommands(ctx: CommandContext): void {
           body: requestData.body,
           settings: requestData.settings,
           scripts: requestData.scripts,
+          auth: requestData.auth,
+          websocket: requestData.websocket,
           collectionId: item.collectionId,
           parentId: item.folderId
         });
@@ -181,6 +194,7 @@ export function registerRequestCommands(ctx: CommandContext): void {
         if (name) {
           await collectionService.createRequest({
             name,
+            requestType: requestData.requestType,
             method: requestData.method || 'GET',
             url: requestData.url || '',
             headers: requestData.headers,
@@ -190,6 +204,7 @@ export function registerRequestCommands(ctx: CommandContext): void {
             settings: requestData.settings,
             scripts: requestData.scripts,
             auth: requestData.auth,
+            websocket: requestData.websocket,
             collectionId: selected.id,
             // Preserve OpenAPI metadata
             deprecated: requestData.deprecated,
@@ -241,6 +256,7 @@ export function registerRequestCommands(ctx: CommandContext): void {
       const createdRequest = await collectionService.createRequest({
         id: requestData.requestId,
         name: requestData.name || 'New Request',
+        requestType: requestData.requestType,
         method: requestData.method || 'GET',
         url: requestData.url || '',
         headers: requestData.headers,
@@ -308,6 +324,7 @@ export function registerRequestCommands(ctx: CommandContext): void {
         requestData.requestId,
         {
           name: requestData.name,
+          requestType: requestData.requestType,
           method: requestData.method,
           url: requestData.url,
           params: requestData.params,

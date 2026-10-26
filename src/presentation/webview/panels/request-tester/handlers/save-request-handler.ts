@@ -113,6 +113,7 @@ export class SaveRequestHandler implements IMessageHandler {
       // No collection specified - prompt user to select one
       console.log('[SaveRequestHandler] No collectionId - prompting user to select collection');
       const result = await vscode.commands.executeCommand(COMMAND_IDS.saveRequestToCollection, {
+        requestType: request.requestType ?? context?.request?.requestType ?? 'http',
         method: request.method || context?.request?.method || 'GET',
         url: requestUrl,
         headers: request.headers ?? context?.request?.headers ?? {},
@@ -162,6 +163,7 @@ export class SaveRequestHandler implements IMessageHandler {
           folderPath: context?.folderPath,
           requestId,
           name: request.name || context?.request?.name || 'New Request',
+          requestType: request.requestType ?? context?.request?.requestType ?? 'http',
           method: request.method || context?.request?.method || 'GET',
           url: requestUrl,
           headers: request.headers ?? context?.request?.headers ?? {},
@@ -202,6 +204,7 @@ export class SaveRequestHandler implements IMessageHandler {
           collectionId,
           requestId,
           name: request.name || context?.request?.name,
+          requestType: request.requestType ?? context?.request?.requestType ?? 'http',
           method: request.method || context?.request?.method || 'GET',
           url: requestUrl,
           headers: request.headers ?? context?.request?.headers ?? {},
@@ -247,6 +250,7 @@ export class SaveRequestHandler implements IMessageHandler {
     const updatedRequest: any = {
       id: request.id || context.requestId,
       name: request.name || context.request?.name || '',
+      requestType: request.requestType ?? context.request?.requestType ?? 'http',
       method: request.method || context.request?.method || 'GET',
       url: request.url || request.path || context.request?.url || '',
       headers: request.headers ?? context.request?.headers ?? [],

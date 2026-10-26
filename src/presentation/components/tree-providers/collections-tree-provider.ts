@@ -39,7 +39,9 @@ export class CollectionTreeItem extends vscode.TreeItem {
                 arguments: [this]
             };
         } else if (itemType === 'request' && requestData) {
-            this.description = (requestData as CollectionRequestItem).method;
+            this.description = (requestData as CollectionRequestItem).requestType === 'websocket'
+                ? 'WS'
+                : (requestData as CollectionRequestItem).method;
             // Request items: always open in edit mode (Request Tester panel)
             const requestContext: RequestContext = {
                 title: requestData.name || 'HTTP Request',
@@ -60,7 +62,8 @@ export class CollectionTreeItem extends vscode.TreeItem {
     private getTooltip(): string {
         if (this.itemType === 'request' && this.requestData) {
             const requestData = this.requestData as CollectionRequestItem;
-            return `${requestData.method} ${requestData.url || ''}`;
+            const label = requestData.requestType === 'websocket' ? 'WebSocket' : requestData.method;
+            return `${label} ${requestData.url || ''}`;
         }
         return this.label;
     }
@@ -78,6 +81,9 @@ export class CollectionTreeItem extends vscode.TreeItem {
 
     private getMethodIcon(): vscode.ThemeIcon {
         const requestData = this.requestData as CollectionRequestItem;
+        if (requestData?.requestType === 'websocket') {
+            return new vscode.ThemeIcon('radio-tower', new vscode.ThemeColor('charts.blue'));
+        }
         const method = requestData?.method?.toUpperCase() || 'GET';
         switch (method) {
             case 'GET':

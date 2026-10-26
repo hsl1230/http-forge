@@ -43,6 +43,7 @@ export function mergeCollectionRequests(base: CollectionRequest, saved: Collecti
     ...base,
     id: saved.id || base.id,
     name: saved.name || base.name,
+    requestType: saved.requestType ?? base.requestType,
     method: saved.method || base.method,
     url: saved.url || base.url,
     // Saved key/value lists are authoritative, including empty lists. Merging

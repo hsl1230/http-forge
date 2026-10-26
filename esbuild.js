@@ -35,6 +35,8 @@ async function main() {
   });
 
   // Build request-tester webview bundle
+  // Source maps are checked in with the minified bundles. Emit them in every
+  // build mode so the map always matches the artifact users actually load.
   const requestTesterCtx = await esbuild.context({
     entryPoints: ['resources/features/request-tester/modules/main.js'],
     bundle: true,
@@ -43,7 +45,7 @@ async function main() {
     minifyWhitespace: production,
     minifyIdentifiers: production,
     minifySyntax: production,
-    sourcemap: !production,
+    sourcemap: true,
     platform: 'browser',
     target: ['es2020'],
     legalComments: 'none',
@@ -61,7 +63,7 @@ async function main() {
     minifyWhitespace: production,
     minifyIdentifiers: production,
     minifySyntax: production,
-    sourcemap: !production,
+    sourcemap: true,
     platform: 'browser',
     target: ['es2020'],
     legalComments: 'none',

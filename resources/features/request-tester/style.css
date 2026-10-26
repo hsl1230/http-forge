@@ -3532,6 +3532,10 @@ button.primary.cancel:hover {
     border-color: var(--vscode-focusBorder, #007acc);
 }
 
+.request-type-select {
+    min-width: 96px;
+}
+
 /* Request path input (http-api mode) */
 .request-path-input {
     flex: 1;

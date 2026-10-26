@@ -10,6 +10,7 @@
 function initElements() {
     return {
         // Request section - Unified (single set of elements)
+        requestTypeSelect: document.getElementById('request-type-select'),
         methodSelect: document.getElementById('method-select'),
         requestPathInput: document.getElementById('request-path-input'),
         btnSave: document.getElementById('btn-save'),

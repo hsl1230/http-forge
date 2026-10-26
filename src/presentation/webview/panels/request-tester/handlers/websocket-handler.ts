@@ -108,7 +108,8 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
     const request: ExecutionRequest = {
       id: uiRequest.id || context?.requestId || 'standalone-ws',
       name: uiRequest.name || context?.request?.name || 'WebSocket Request',
-      method: 'WS',
+      requestType: 'websocket',
+      method: 'GET',
       url: uiRequest.path || uiRequest.url || context?.request?.url || '',
       headers: uiRequest.headers as Record<string, string> | undefined,
       query: uiRequest.query as Record<string, string> | undefined,

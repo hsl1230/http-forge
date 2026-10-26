@@ -11,11 +11,12 @@
  * @param {Object} options.elements - DOM elements
  * @param {Object} options.state - Application state
  * @param {Function} options.getMethod - Function to get current HTTP method
+ * @param {Function} options.getRequestType - Function to get current request type
  * @param {Function} options.getPath - Function to get current URL path
  * @param {Function} [options.getWebSocketConfig] - Function returning WebSocket configuration
  * @returns {Object} Request builder interface
  */
-function createRequestBuilder({ elements, state, getMethod, getPath, getWebSocketConfig }) {
+function createRequestBuilder({ elements, state, getMethod, getRequestType, getPath, getWebSocketConfig }) {
 
     /**
      * Build path parameters from DOM
@@ -140,12 +141,14 @@ function createRequestBuilder({ elements, state, getMethod, getPath, getWebSocke
         
         const saveResponse = elements.saveResponseCheckbox?.checked || false;
         const body = buildRequestBody();
-        const websocket = getMethod && getMethod() === 'WS' && getWebSocketConfig
+        const requestType = getRequestType ? getRequestType() : 'http';
+        const websocket = requestType === 'websocket' && getWebSocketConfig
             ? getWebSocketConfig()
             : undefined;
 
         return {
-            method: getMethod ? getMethod() : 'GET',
+            requestType,
+            method: requestType === 'websocket' ? 'GET' : (getMethod ? getMethod() : 'GET'),
             path: getPath ? getPath() : '',
             params: buildPathParams(),
             query: buildQueryObject(),

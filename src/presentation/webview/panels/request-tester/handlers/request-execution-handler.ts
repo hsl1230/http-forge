@@ -59,6 +59,14 @@ export class RequestExecutionHandler implements IMessageHandler {
   }
 
   private async handleSendRequest(request: UIRequest, messenger: IWebviewMessenger): Promise<void> {
+    if (request.requestType === 'websocket') {
+      messenger.postMessage({
+        command: 'requestError',
+        error: 'WebSocket requests must be executed through the WebSocket client'
+      });
+      return;
+    }
+
     const environment = this.envConfigService.getSelectedEnvironment();
     const resolvedEnv = this.envConfigService.getResolvedEnvironment(environment);
     const context = this.contextProvider.getCurrentContext();
@@ -162,6 +170,7 @@ export class RequestExecutionHandler implements IMessageHandler {
     const request: ExecutionRequest = {
       id: uiRequest.id || context?.requestId || 'standalone',
       name: uiRequest.name || context?.request?.name || 'Request',
+      requestType: uiRequest.requestType ?? context?.request?.requestType ?? 'http',
       method: uiRequest.method || context?.request?.method || 'GET',
       url: uiRequest.path || context?.request?.url || '',
       // Execution path always receives Record<string, string> from webview's request-builder.js
