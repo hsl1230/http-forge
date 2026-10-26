@@ -593,6 +593,27 @@
                                         <input type="text" id="ws-setting-handshake-path" class="setting-input" value="/socket.io">
                                         <span class="setting-hint">Socket.IO endpoint path</span>
                                     </div>
+
+                                    <div class="setting-group">
+                                        <label class="setting-label">Namespace</label>
+                                        <input type="text" id="ws-setting-namespace" class="setting-input" value="/">
+                                        <span class="setting-hint">Socket.IO namespace (default /)</span>
+                                    </div>
+
+                                    <div class="setting-group">
+                                        <label class="setting-label">Transports</label>
+                                        <select id="ws-setting-transports" class="setting-input">
+                                            <option value="websocket">WebSocket only</option>
+                                            <option value="polling,websocket">Polling + WebSocket</option>
+                                        </select>
+                                        <span class="setting-hint">Socket.IO transports</span>
+                                    </div>
+
+                                    <div class="setting-group">
+                                        <label class="setting-label">Auth Payload (JSON)</label>
+                                        <textarea id="ws-setting-auth" class="setting-input" rows="3" placeholder='{"token":"..."}'></textarea>
+                                        <span class="setting-hint">Socket.IO handshake auth payload</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -21,6 +21,9 @@ const DEFAULT_SETTINGS = {
 const DEFAULT_SOCKETIO = {
     clientVersion: '4',
     handshakePath: '/socket.io',
+    namespace: '/',
+    auth: '',
+    transports: ['websocket'],
     listeners: []
 };
 
@@ -90,6 +93,13 @@ function createWebSocketManager({
                 handshakePath: typeof socketio.handshakePath === 'string' && socketio.handshakePath.trim()
                     ? socketio.handshakePath.trim()
                     : DEFAULT_SOCKETIO.handshakePath,
+                namespace: typeof socketio.namespace === 'string' && socketio.namespace.trim()
+                    ? socketio.namespace.trim()
+                    : DEFAULT_SOCKETIO.namespace,
+                auth: typeof socketio.auth === 'string' ? socketio.auth : DEFAULT_SOCKETIO.auth,
+                transports: Array.isArray(socketio.transports) && socketio.transports.length > 0
+                    ? socketio.transports
+                    : DEFAULT_SOCKETIO.transports,
                 listeners
             }
         };
@@ -162,9 +172,13 @@ function createWebSocketManager({
     }
 
     function readSocketIoFromDom() {
+        const transportValue = elements.wsSettingTransports?.value || DEFAULT_SOCKETIO.transports.join(',');
         return {
             clientVersion: elements.wsSettingClientVersion?.value || DEFAULT_SOCKETIO.clientVersion,
             handshakePath: (elements.wsSettingHandshakePath?.value || DEFAULT_SOCKETIO.handshakePath).trim() || DEFAULT_SOCKETIO.handshakePath,
+            namespace: (elements.wsSettingNamespace?.value || DEFAULT_SOCKETIO.namespace).trim() || DEFAULT_SOCKETIO.namespace,
+            auth: elements.wsSettingAuth?.value || DEFAULT_SOCKETIO.auth,
+            transports: transportValue.split(',').map(value => value.trim()).filter(Boolean),
             listeners: config.socketio.listeners
         };
     }
@@ -221,6 +235,9 @@ function createWebSocketManager({
     function writeSocketIoToDom(socketio) {
         if (elements.wsSettingClientVersion) elements.wsSettingClientVersion.value = socketio.clientVersion;
         if (elements.wsSettingHandshakePath) elements.wsSettingHandshakePath.value = socketio.handshakePath;
+        if (elements.wsSettingNamespace) elements.wsSettingNamespace.value = socketio.namespace || DEFAULT_SOCKETIO.namespace;
+        if (elements.wsSettingTransports) elements.wsSettingTransports.value = (socketio.transports || DEFAULT_SOCKETIO.transports).join(',');
+        if (elements.wsSettingAuth) elements.wsSettingAuth.value = socketio.auth || '';
     }
 
     function readComposer() {
@@ -1320,6 +1337,9 @@ function createWebSocketManager({
         elements.wsSettingMaxMessageSize?.addEventListener('input', () => markDirty?.());
         elements.wsSettingClientVersion?.addEventListener('change', () => markDirty?.());
         elements.wsSettingHandshakePath?.addEventListener('input', () => markDirty?.());
+        elements.wsSettingNamespace?.addEventListener('input', () => markDirty?.());
+        elements.wsSettingTransports?.addEventListener('change', () => markDirty?.());
+        elements.wsSettingAuth?.addEventListener('input', () => markDirty?.());
 
         elements.wsFrameSearch?.addEventListener('input', renderFrames);
         elements.wsFrameFilter?.addEventListener('change', renderFrames);
