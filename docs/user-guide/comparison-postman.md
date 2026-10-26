@@ -45,7 +45,7 @@ This document compares HTTP Forge (VS Code‑native) with Postman (standalone ap
 | CI usage | CLI/standalone runner | Newman / Postman CLI | CLI (paid) |
 | Collaboration | Git‑based workflows | Cloud workspaces, team features | Paid Git sync |
 | GraphQL | ✅ Introspection, auto-complete, schema explorer | ✅ Schema introspection | ✅ GraphQL support |
-| WebSocket / Socket.IO | ✅ Request Tester (raw WS + Socket.IO) | ✅ Full WebSocket support | ✅ WebSocket support |
+| WebSocket / Socket.IO | ✅ Request Tester + headless raw WS runs | ✅ Full WebSocket support | ✅ WebSocket support |
 
 ## Workflow differences
 ### HTTP Forge

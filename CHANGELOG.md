@@ -10,11 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **WebSocket and Socket.IO Request Tester** — the request-type selector now offers HTTP, WebSocket, and Socket.IO, and all three can live in the same collection. Raw WebSocket and Socket.IO share saved messages, text/binary frames (Base64/hex), JSON/XML/HTML formatting, and a frame inspector with search, direction filter, wrap, hexdump, diff, copy, and save. Socket.IO adds event listeners, event/args/ack composition, and acknowledgement display. New per-request settings cover handshake timeout, maximum message size, subprotocols, reconnect attempts/interval, and the Socket.IO handshake path.
+- **Headless WebSocket runs** — raw WebSocket requests now execute in the collection runner, suite executor, CLI, and MCP. A run sends saved messages, collects inbound frames for a configurable response wait, and runs pre-request/post-response scripts and `pm.test` assertions against a JSON transcript (`pm.response.code === 101`). Text and Base64/hex binary frames are preserved. New per-request setting: "Response Wait After Sending" (default 1000 ms; 0 closes immediately).
 - **Dedicated creation actions** — `HTTP Forge: New WebSocket Request` and `HTTP Forge: New Socket.IO Request`.
 
 ### Notes
 
-- WebSocket and Socket.IO remain Request Tester features; collection-runner, CLI, MCP, and suite execution reject them, matching Postman.
+- Socket.IO headless execution is not yet supported; Socket.IO still runs interactively in the Request Tester. Interactive Request Tester scripts/tests, cookies from the WebSocket handshake, and persistent frame history remain unsupported.
 - Known gaps: Socket.IO v2/v3 clients, polling transport, and a separate Socket.IO `auth` payload.
 
 ## 0.16.42 - 2026-10-15

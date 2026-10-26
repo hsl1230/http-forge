@@ -13,6 +13,7 @@ const TEXT_FORMATS = ['text', 'json', 'xml', 'html'];
 const MESSAGE_FORMATS = [...TEXT_FORMATS, 'binary'];
 const DEFAULT_SETTINGS = {
     handshakeTimeout: 30000,
+    responseTimeout: 1000,
     reconnectionAttempts: 5,
     reconnectionInterval: 5000,
     maxMessageSizeMb: 0
@@ -79,6 +80,7 @@ function createWebSocketManager({
             messages,
             settings: {
                 handshakeTimeout: normalizeNumber(settings.handshakeTimeout, DEFAULT_SETTINGS.handshakeTimeout, 0),
+                responseTimeout: normalizeNumber(settings.responseTimeout, DEFAULT_SETTINGS.responseTimeout, 0),
                 reconnectionAttempts: clamp(normalizeNumber(settings.reconnectionAttempts, DEFAULT_SETTINGS.reconnectionAttempts, 0), 0, 100),
                 reconnectionInterval: normalizeNumber(settings.reconnectionInterval, DEFAULT_SETTINGS.reconnectionInterval, 0),
                 maxMessageSizeMb: normalizeNumber(settings.maxMessageSizeMb, DEFAULT_SETTINGS.maxMessageSizeMb, 0)
@@ -152,6 +154,7 @@ function createWebSocketManager({
     function readSettingsFromDom() {
         return {
             handshakeTimeout: normalizeNumber(elements.wsSettingHandshakeTimeout?.value, DEFAULT_SETTINGS.handshakeTimeout, 0),
+            responseTimeout: normalizeNumber(elements.wsSettingResponseTimeout?.value, DEFAULT_SETTINGS.responseTimeout, 0),
             reconnectionAttempts: clamp(normalizeNumber(elements.wsSettingReconnectAttempts?.value, DEFAULT_SETTINGS.reconnectionAttempts, 0), 0, 100),
             reconnectionInterval: normalizeNumber(elements.wsSettingReconnectInterval?.value, DEFAULT_SETTINGS.reconnectionInterval, 0),
             maxMessageSizeMb: normalizeNumber(elements.wsSettingMaxMessageSize?.value, DEFAULT_SETTINGS.maxMessageSizeMb, 0)
@@ -209,6 +212,7 @@ function createWebSocketManager({
 
     function writeSettingsToDom(settings) {
         if (elements.wsSettingHandshakeTimeout) elements.wsSettingHandshakeTimeout.value = String(settings.handshakeTimeout);
+        if (elements.wsSettingResponseTimeout) elements.wsSettingResponseTimeout.value = String(settings.responseTimeout);
         if (elements.wsSettingReconnectAttempts) elements.wsSettingReconnectAttempts.value = String(settings.reconnectionAttempts);
         if (elements.wsSettingReconnectInterval) elements.wsSettingReconnectInterval.value = String(settings.reconnectionInterval);
         if (elements.wsSettingMaxMessageSize) elements.wsSettingMaxMessageSize.value = String(settings.maxMessageSizeMb);
@@ -1231,6 +1235,7 @@ function createWebSocketManager({
         lines.push('## Connection Settings');
         lines.push('');
         lines.push(`- Handshake timeout: ${websocket.settings.handshakeTimeout} ms`);
+        lines.push(`- Response wait after sending: ${websocket.settings.responseTimeout} ms`);
         lines.push(`- Reconnection attempts: ${websocket.settings.reconnectionAttempts}`);
         lines.push(`- Reconnection interval: ${websocket.settings.reconnectionInterval} ms`);
         lines.push(`- Maximum message size: ${websocket.settings.maxMessageSizeMb > 0 ? `${websocket.settings.maxMessageSizeMb} MB` : 'unlimited'}`);
@@ -1309,6 +1314,7 @@ function createWebSocketManager({
         elements.wsBinaryEncoding?.addEventListener('change', updateComposerHint);
 
         elements.wsSettingHandshakeTimeout?.addEventListener('input', () => markDirty?.());
+        elements.wsSettingResponseTimeout?.addEventListener('input', () => markDirty?.());
         elements.wsSettingReconnectAttempts?.addEventListener('input', () => markDirty?.());
         elements.wsSettingReconnectInterval?.addEventListener('input', () => markDirty?.());
         elements.wsSettingMaxMessageSize?.addEventListener('input', () => markDirty?.());

@@ -321,6 +321,7 @@
           "description": "WebSocket connection and reconnect settings",
           "properties": {
             "handshakeTimeout": { "type": "number", "minimum": 0, "description": "Handshake timeout in milliseconds" },
+            "responseTimeout": { "type": "number", "minimum": 0, "description": "Time in milliseconds to collect inbound frames after sending saved messages during a collection/suite run (0 = close immediately, default 1000)" },
             "reconnectionAttempts": { "type": "number", "minimum": 0, "maximum": 100, "description": "Automatic reconnect attempts" },
             "reconnectionInterval": { "type": "number", "minimum": 0, "description": "Delay between reconnect attempts in milliseconds" },
             "maxMessageSizeMb": { "type": "number", "minimum": 0, "description": "Maximum accepted message size in MB (0 = unlimited)" }

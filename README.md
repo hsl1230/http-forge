@@ -169,6 +169,7 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Saved messages, Socket.IO event listeners, event args and acknowledgements  
 ✅ Frame inspector — search, direction filter, wrap, hexdump, diff, copy, and save  
 ✅ Handshake timeout, max message size, subprotocols, and reconnect settings  
+✅ Headless raw WebSocket runs — collection, suite, CLI and MCP execution with `pm.test` assertions on the frame transcript
 
 ### 📁 Collections
 ✅ Git-friendly folder structure — one file per request  
@@ -220,7 +221,7 @@ Export Postman collection (v2.1) → Import into HTTP Forge → Done. All `pm.*`
 | `pm.sendRequest()`, `pm.setNextRequest()`, `pm.execution.skipRequest()` | ✅ Unchanged |
 | CryptoJS, lodash, moment, uuid | ✅ Built-in |
 | All body modes — raw, urlencoded, form-data, GraphQL, binary | ✅ Unchanged |
-| WebSocket and Socket.IO requests | ✅ Request Tester (mixed with HTTP collections) |
+| WebSocket and Socket.IO requests | ✅ Request Tester; ✅ headless raw WebSocket runs (mixed with HTTP collections) |
 
 ---
 

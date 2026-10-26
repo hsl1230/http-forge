@@ -388,6 +388,9 @@ Potential additions for extended Postman parity:
 
 WebSocket and Socket.IO Request Tester support is implemented; see the
 request-tester docs for connection settings, saved messages, and listeners.
+Raw WebSocket requests can also run headlessly in collections/suites with
+script assertions on the frame transcript; Socket.IO headless runs are not yet
+supported.
 
 ---
 

@@ -445,7 +445,7 @@ The following features are explicitly out of scope for the current version:
 | Request chaining | See HTTP API Tester | 🔗 Separate feature |
 | ~~OAuth2 flow automation~~ | ~~Complexity~~ | ✅ **Implemented in v0.11.0** |
 | ~~GraphQL support~~ | ~~Different paradigm~~ | ✅ **Implemented in v0.11.0** (Schema introspection, auto-complete, syntax highlighting, Schema Explorer, operation selector) |
-| WebSocket / Socket.IO testing | Different protocol | ✅ Implemented (Request Tester) |
+| WebSocket / Socket.IO testing | Different protocol | ✅ Implemented (Request Tester + headless raw WS runner) |
 | Import from Postman | See HTTP API Tester | 🔗 Separate feature |
 | Export to cURL | Nice-to-have | v0.8.0 |
 

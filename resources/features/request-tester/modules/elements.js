@@ -57,6 +57,7 @@ function initElements() {
         wsSettingsSection: document.getElementById('ws-settings-section'),
         wsSocketIoSettings: document.getElementById('ws-socketio-settings'),
         wsSettingHandshakeTimeout: document.getElementById('ws-setting-handshake-timeout'),
+        wsSettingResponseTimeout: document.getElementById('ws-setting-response-timeout'),
         wsSettingReconnectAttempts: document.getElementById('ws-setting-reconnect-attempts'),
         wsSettingReconnectInterval: document.getElementById('ws-setting-reconnect-interval'),
         wsSettingMaxMessageSize: document.getElementById('ws-setting-max-message-size'),

@@ -556,6 +556,12 @@
                                 </div>
 
                                 <div class="setting-group">
+                                    <label class="setting-label">Response Wait After Sending (ms)</label>
+                                    <input type="number" id="ws-setting-response-timeout" class="setting-input" value="1000" min="0" step="100">
+                                    <span class="setting-hint">How long a collection or suite run collects inbound frames after sending saved messages (0 = close immediately)</span>
+                                </div>
+
+                                <div class="setting-group">
                                     <label class="setting-label">Reconnection Attempts</label>
                                     <input type="number" id="ws-setting-reconnect-attempts" class="setting-input" value="5" min="0" max="100" step="1">
                                     <span class="setting-hint">Automatic reconnect attempts after an unexpected close (0 = disabled)</span>
