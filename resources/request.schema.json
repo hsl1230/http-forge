@@ -303,12 +303,50 @@
     },
     "websocket": {
       "type": "object",
-      "description": "WebSocket-specific request configuration. Set requestType to websocket.",
+      "description": "WebSocket or Socket.IO request configuration. Set requestType to websocket.",
       "properties": {
+        "protocol": {
+          "type": "string",
+          "enum": ["websocket", "socketio"],
+          "default": "websocket",
+          "description": "Raw WebSocket or Socket.IO request flavor"
+        },
         "subprotocols": {
           "type": "array",
           "description": "Sec-WebSocket-Protocol values, in preference order",
           "items": { "type": "string" }
+        },
+        "settings": {
+          "type": "object",
+          "description": "WebSocket connection and reconnect settings",
+          "properties": {
+            "handshakeTimeout": { "type": "number", "minimum": 0, "description": "Handshake timeout in milliseconds" },
+            "reconnectionAttempts": { "type": "number", "minimum": 0, "maximum": 100, "description": "Automatic reconnect attempts" },
+            "reconnectionInterval": { "type": "number", "minimum": 0, "description": "Delay between reconnect attempts in milliseconds" },
+            "maxMessageSizeMb": { "type": "number", "minimum": 0, "description": "Maximum accepted message size in MB (0 = unlimited)" }
+          }
+        },
+        "socketio": {
+          "type": "object",
+          "description": "Socket.IO-specific configuration",
+          "properties": {
+            "clientVersion": { "type": "string", "description": "Socket.IO client version" },
+            "handshakePath": { "type": "string", "description": "Socket.IO handshake path (default /socket.io)" },
+            "listeners": {
+              "type": "array",
+              "description": "Events displayed in the response pane",
+              "items": {
+                "type": "object",
+                "required": ["id", "name"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "enabled": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
         },
         "messages": {
           "type": "array",
@@ -320,8 +358,13 @@
               "id": { "type": "string" },
               "name": { "type": "string" },
               "type": { "type": "string", "enum": ["text", "binary"] },
-              "data": { "type": "string", "description": "Text payload, or base64 for binary" },
-              "enabled": { "type": "boolean", "default": true }
+              "format": { "type": "string", "enum": ["text", "json", "xml", "html", "binary"], "description": "Editor display/validation format" },
+              "encoding": { "type": "string", "enum": ["base64", "hex"], "description": "Binary payload encoding" },
+              "data": { "type": "string", "description": "Text payload, or encoded bytes for binary" },
+              "enabled": { "type": "boolean", "default": true },
+              "event": { "type": "string", "description": "Socket.IO event name" },
+              "args": { "type": "array", "description": "Additional Socket.IO arguments", "items": { "type": "string" } },
+              "ack": { "type": "boolean", "description": "Request a Socket.IO acknowledgement" }
             }
           }
         }

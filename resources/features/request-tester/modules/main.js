@@ -201,6 +201,7 @@ class RequestTesterApp {
             vscode,
             elements: this.elements,
             getRequestType: () => this.getRequestType(),
+            getWebSocketProtocol: () => this.getWebSocketProtocol(),
             getRequest: () => this.requestBuilder.buildRequest(),
             markDirty: () => this.markDirty()
         });
@@ -414,6 +415,7 @@ class RequestTesterApp {
             'wsState': (msg) => this.websocketManager.handleState(msg),
             'wsFrame': (msg) => this.websocketManager.handleFrame(msg),
             'wsClosed': (msg) => this.websocketManager.handleClosed(msg),
+            'wsInfo': (msg) => this.websocketManager.handleInfo(msg),
             'wsError': (msg) => this.websocketManager.handleError(msg),
             'applyHistoryEntry': (msg) => this.requestLoader.applyHistoryEntry(
                 msg.entry || msg.data, 
@@ -504,6 +506,12 @@ class RequestTesterApp {
             this.elements.requestTypeSelect.addEventListener('change', () => {
                 this.setRequestType(this.elements.requestTypeSelect.value);
                 this.websocketManager.onRequestTypeChanged();
+                const isWebSocket = this.getRequestType() === 'websocket';
+                this.updateDocTab(
+                    isWebSocket
+                        ? (this.state.requestData?.doc || this.websocketManager.getDocumentation())
+                        : this.state.requestData?.doc
+                );
                 this.markDirty();
             });
         }
@@ -709,7 +717,10 @@ class RequestTesterApp {
                 this.pathVariablesManager.applyEnvironmentDefaults(this.state.resolvedEnvironment.variables);
 
                 // Update document tab
-                this.updateDocTab(msg.request?.doc);
+                const generatedDoc = this.getRequestType() === 'websocket'
+                    ? this.websocketManager.getDocumentation()
+                    : undefined;
+                this.updateDocTab(msg.request?.doc || generatedDoc);
 
                 // Render history (clear if not provided so stale entries don't persist)
                 this.renderHistory(msg.history || []);
@@ -882,9 +893,11 @@ class RequestTesterApp {
         }
 
         // Set request type, method, and path using unified accessors.
-        const requestType = reqData?.requestType === 'websocket' ? 'websocket' : 'http';
+        const requestType = reqData?.requestType === 'websocket'
+            ? (reqData?.websocket?.protocol === 'socketio' ? 'socketio' : 'websocket')
+            : 'http';
         this.setRequestType(requestType);
-        const method = requestType === 'websocket' ? 'GET' : (reqData?.method || 'GET').toUpperCase();
+        const method = requestType === 'http' ? (reqData?.method || 'GET').toUpperCase() : 'GET';
         this.setMethod(method);
 
         // Restore WebSocket composer state when opening a saved WS request.
@@ -996,8 +1009,12 @@ class RequestTesterApp {
         // Load schemas from backend for this request
         this.schemaEditorManager.loadSchemas();
 
-        // Handle document tab visibility and content
-        this.updateDocTab(reqData?.doc);
+        // Handle document tab visibility and content. WebSocket requests get
+        // generated documentation when the request has no doc.md yet.
+        const generatedDoc = this.getRequestType() === 'websocket'
+            ? this.websocketManager.getDocumentation()
+            : undefined;
+        this.updateDocTab(reqData?.doc || generatedDoc);
     }
 
     /**
@@ -1889,22 +1906,35 @@ class RequestTesterApp {
      * @returns {'http'|'websocket'} Request type
      */
     getRequestType() {
-        return this.elements.requestTypeSelect?.value === 'websocket' ? 'websocket' : 'http';
+        const value = this.elements.requestTypeSelect?.value;
+        return value === 'websocket' || value === 'socketio' ? 'websocket' : 'http';
+    }
+
+    /**
+     * Get the WebSocket protocol selected in the UI.
+     * @returns {'websocket'|'socketio'}
+     */
+    getWebSocketProtocol() {
+        return this.elements.requestTypeSelect?.value === 'socketio' ? 'socketio' : 'websocket';
     }
 
     /**
      * Set the request type and update the method selector visibility.
-     * @param {'http'|'websocket'} requestType - Request type
+     * @param {'http'|'websocket'|'socketio'} requestType - Request type
      */
     setRequestType(requestType) {
-        const normalized = requestType === 'websocket' ? 'websocket' : 'http';
-        this.state.requestType = normalized;
+        const normalized = requestType === 'socketio'
+            ? 'socketio'
+            : requestType === 'websocket'
+                ? 'websocket'
+                : 'http';
+        this.state.requestType = normalized === 'http' ? 'http' : 'websocket';
 
         if (this.elements.requestTypeSelect) {
             this.elements.requestTypeSelect.value = normalized;
         }
 
-        const isWebSocket = normalized === 'websocket';
+        const isWebSocket = normalized !== 'http';
         if (isWebSocket) {
             this.setMethod('GET');
         }
@@ -2247,6 +2277,9 @@ class RequestTesterApp {
                 }
                 if (tabName === 'body-schema' || tabName === 'response-schema') {
                     this.schemaEditorManager.layout();
+                }
+                if (tabName === 'doc' && this.getRequestType() === 'websocket') {
+                    this.updateDocTab(this.state.requestData?.doc || this.websocketManager.getDocumentation());
                 }
             });
         });

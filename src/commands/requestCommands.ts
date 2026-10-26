@@ -19,14 +19,20 @@ import type { CommandContext } from './command-context';
 export function registerRequestCommands(ctx: CommandContext): void {
   const { context, collectionService, collectionsTreeProvider, collectionsView } = ctx;
 
-  // New Request commands (create a quick ad-hoc HTTP or WebSocket request, or
-  // a new request in a collection/folder).
-  const openNewRequest = async (item: CollectionTreeItem | undefined, requestType: RequestType): Promise<void> => {
+  // New Request commands (create a quick ad-hoc HTTP, WebSocket, or Socket.IO
+  // request, or a new request in a collection/folder).
+  const openNewRequest = async (
+    item: CollectionTreeItem | undefined,
+    requestType: RequestType,
+    protocol: 'websocket' | 'socketio' = 'websocket'
+  ): Promise<void> => {
     const isWebSocket = requestType === 'websocket';
+    const isSocketIo = isWebSocket && protocol === 'socketio';
+    const label = isSocketIo ? 'Socket.IO' : isWebSocket ? 'WebSocket' : 'HTTP';
     const name = await vscode.window.showInputBox({
-      prompt: isWebSocket ? 'Enter WebSocket request name' : 'Enter HTTP request name',
-      placeHolder: isWebSocket ? 'New WebSocket Request' : 'New HTTP Request',
-      value: isWebSocket ? 'New WebSocket Request' : 'New HTTP Request'
+      prompt: `Enter ${label} request name`,
+      placeHolder: `New ${label} Request`,
+      value: `New ${label} Request`
     });
 
     if (!name) {
@@ -47,7 +53,8 @@ export function registerRequestCommands(ctx: CommandContext): void {
         scripts: {
           preRequest: '',
           postResponse: ''
-        }
+        },
+        ...(isWebSocket && { websocket: { protocol: isSocketIo ? 'socketio' : 'websocket' } })
       },
       readonly: false,
       // If called from collection/folder context menu, pre-set the collection info
@@ -64,7 +71,10 @@ export function registerRequestCommands(ctx: CommandContext): void {
       openNewRequest(item, 'http')
     ),
     vscode.commands.registerCommand(COMMAND_IDS.newWebSocketRequest, (item?: CollectionTreeItem) =>
-      openNewRequest(item, 'websocket')
+      openNewRequest(item, 'websocket', 'websocket')
+    ),
+    vscode.commands.registerCommand(COMMAND_IDS.newSocketIoRequest, (item?: CollectionTreeItem) =>
+      openNewRequest(item, 'websocket', 'socketio')
     )
   );
 

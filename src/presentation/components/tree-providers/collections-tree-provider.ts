@@ -40,7 +40,7 @@ export class CollectionTreeItem extends vscode.TreeItem {
             };
         } else if (itemType === 'request' && requestData) {
             this.description = (requestData as CollectionRequestItem).requestType === 'websocket'
-                ? 'WS'
+                ? ((requestData as CollectionRequestItem).websocket?.protocol === 'socketio' ? 'SIO' : 'WS')
                 : (requestData as CollectionRequestItem).method;
             // Request items: always open in edit mode (Request Tester panel)
             const requestContext: RequestContext = {
@@ -62,7 +62,9 @@ export class CollectionTreeItem extends vscode.TreeItem {
     private getTooltip(): string {
         if (this.itemType === 'request' && this.requestData) {
             const requestData = this.requestData as CollectionRequestItem;
-            const label = requestData.requestType === 'websocket' ? 'WebSocket' : requestData.method;
+            const label = requestData.requestType === 'websocket'
+                ? (requestData.websocket?.protocol === 'socketio' ? 'Socket.IO' : 'WebSocket')
+                : requestData.method;
             return `${label} ${requestData.url || ''}`;
         }
         return this.label;

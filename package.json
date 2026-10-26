@@ -194,6 +194,12 @@
         "icon": "$(radio-tower)"
       },
       {
+        "command": "httpForge.newSocketIoRequest",
+        "title": "New Socket.IO Request",
+        "category": "HTTP Forge",
+        "icon": "$(plug)"
+      },
+      {
         "command": "httpForge.openRequest",
         "title": "Open Request",
         "icon": "$(go-to-file)"
@@ -654,9 +660,14 @@
           "group": "1_add@2"
         },
         {
-          "command": "httpForge.newFolder",
+          "command": "httpForge.newSocketIoRequest",
           "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
           "group": "1_add@3"
+        },
+        {
+          "command": "httpForge.newFolder",
+          "when": "view == httpForge.collections && viewItem =~ /collection|folder/",
+          "group": "1_add@4"
         },
         {
           "command": "httpForge.runCollection",
@@ -881,6 +892,7 @@
   "dependencies": {
     "@http-forge/core": "^0.6.43",
     "cheerio": "^1.1.2",
+    "socket.io-client": "^4.8.1",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",
     "yaml": "^2.4.0"

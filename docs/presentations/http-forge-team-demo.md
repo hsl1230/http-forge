@@ -119,7 +119,7 @@ Things we all deal with daily:
 | **Data stays on machine** | ✅ Always | ❌ Synced to cloud |
 | **Extension size** | ✅ Lightweight | ❌ Separate 500MB app |
 | **GraphQL** | ✅ Full support | ✅ Full support |
-| **WebSocket** | 🔜 Planned | ✅ Available |
+| **WebSocket / Socket.IO** | ✅ Request Tester | ✅ Available |
 | **Mock servers** | 🔜 Planned (local) | ✅ Cloud-based |
 
 ---
@@ -267,7 +267,7 @@ A: Yes! They don't conflict. Migrate at your own pace.
 A: Requests, collections, environments, scripts, assertions, OAuth — all supported.
 
 **Q: What about WebSocket / Mock servers?**
-A: On the roadmap. For now, use existing tools for those specific cases.
+A: WebSocket and Socket.IO requests run in the Request Tester today. Mock servers are still on the roadmap.
 
 **Q: Is it stable for production use?**
 A: v0.11.27, actively maintained, used by our team daily.
@@ -297,7 +297,7 @@ A: File on GitHub — fixes are typically same-day.
 | **Playwright integration** | ✅ Built-in | ❌ No | ❌ No | ❌ No |
 | **Schema editor** | ✅ Body + Response with inference | ❌ No | ❌ No | ❌ No |
 | **OAuth 2.0 + PKCE** | ✅ Auto-refresh | ✅ All grant types | ✅ Full OAuth 2.0 | ⚠️ Basic, manual refresh |
-| **gRPC / WebSocket** | 🔜 Planned | ✅ Available | ✅ gRPC + WebSocket | ❌ No |
+| **gRPC / WebSocket** | ✅ WebSocket + Socket.IO; gRPC planned | ✅ Available | ✅ gRPC + WebSocket | ❌ No |
 | **CLI for CI/CD** | ⚠️ Via Playwright | ❌ No first-class CLI | ✅ `inso run test` | ✅ `bru run` |
 | **Secret managers** | ❌ Local only | ⚠️ Vault (paid) | ❌ No | ✅ AWS/Azure/HashiCorp (paid) |
 | **Auth breadth** | OAuth2, Bearer, Basic, API Key | +OAuth1, NTLM, Digest, AWS Sig | +NTLM, Digest, Hawk, AWS Sig | +OAuth1, AWS Sig, Digest, NTLM |

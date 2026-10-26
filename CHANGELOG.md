@@ -5,6 +5,18 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.16.43 - 2026-10-26
+
+### Added
+
+- **WebSocket and Socket.IO Request Tester** — the request-type selector now offers HTTP, WebSocket, and Socket.IO, and all three can live in the same collection. Raw WebSocket and Socket.IO share saved messages, text/binary frames (Base64/hex), JSON/XML/HTML formatting, and a frame inspector with search, direction filter, wrap, hexdump, diff, copy, and save. Socket.IO adds event listeners, event/args/ack composition, and acknowledgement display. New per-request settings cover handshake timeout, maximum message size, subprotocols, reconnect attempts/interval, and the Socket.IO handshake path.
+- **Dedicated creation actions** — `HTTP Forge: New WebSocket Request` and `HTTP Forge: New Socket.IO Request`.
+
+### Notes
+
+- WebSocket and Socket.IO remain Request Tester features; collection-runner, CLI, MCP, and suite execution reject them, matching Postman.
+- Known gaps: Socket.IO v2/v3 clients, polling transport, and a separate Socket.IO `auth` payload.
+
 ## 0.16.42 - 2026-10-15
 
 ### Fixed

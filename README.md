@@ -6,7 +6,7 @@
 
 **An AI-native and fully Postman-compatible API client for VS Code.**
 
-Build, test, automate, and version REST, GraphQL, and OpenAPI APIs in one local workspace — offline, Git-native, merge-friendly, and ready for AI agents.
+Build, test, automate, and version REST, GraphQL, WebSocket/Socket.IO, and OpenAPI APIs in one local workspace — offline, Git-native, merge-friendly, and ready for AI agents.
 
 Designed for teams comparing Postman, Bruno, Thunder Client, and Insomnia alternatives.
 
@@ -163,6 +163,13 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ IntelliSense for variables, filters, dynamic vars, and scripting API  
 ✅ Split/stack layout modes — view request and response side-by-side or stacked with resizable dividers  
 
+### 🔌 WebSocket & Socket.IO
+✅ Raw WebSocket and Socket.IO requests alongside HTTP in the same collection  
+✅ Text and binary frames — Base64/hex encoding, JSON/XML/HTML formatting and beautify  
+✅ Saved messages, Socket.IO event listeners, event args and acknowledgements  
+✅ Frame inspector — search, direction filter, wrap, hexdump, diff, copy, and save  
+✅ Handshake timeout, max message size, subprotocols, and reconnect settings  
+
 ### 📁 Collections
 ✅ Git-friendly folder structure — one file per request  
 ✅ Discovered APIs tree view — endpoints from the workspace's backend (Express/Nest/Fastify/Lambda/Spring/FastAPI) grouped by framework, with confidence + source tooltips  
@@ -213,6 +220,7 @@ Export Postman collection (v2.1) → Import into HTTP Forge → Done. All `pm.*`
 | `pm.sendRequest()`, `pm.setNextRequest()`, `pm.execution.skipRequest()` | ✅ Unchanged |
 | CryptoJS, lodash, moment, uuid | ✅ Built-in |
 | All body modes — raw, urlencoded, form-data, GraphQL, binary | ✅ Unchanged |
+| WebSocket and Socket.IO requests | ✅ Request Tester (mixed with HTTP collections) |
 
 ---
 

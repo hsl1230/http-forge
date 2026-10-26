@@ -6,16 +6,29 @@ import type {
   IRequestPreparer,
   IWebSocketClient,
   IWebSocketConnection,
+  WebSocketConnectOptions,
+  WebSocketMessageFormat,
 } from '@http-forge/core';
 import type { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { resolveInheritedAuth } from '../../../shared/auth-resolution';
 import type { IPanelContextProvider, UIRequest } from '../interfaces';
 import { confirmProductionRequest } from './production-guard';
 import { findRequestInCollection, resolveParamsToStrings } from './request-context-utils';
+import type {
+  ISocketIoClient,
+  ISocketIoConnection,
+  SocketIoConnectOptions,
+  SocketIoEvent,
+} from './socketio-client-adapter';
 
 interface WebSocketSendMessage {
   type?: 'text' | 'binary';
+  format?: WebSocketMessageFormat;
+  encoding?: 'base64' | 'hex';
   data?: string;
+  event?: string;
+  args?: string[];
+  ack?: boolean;
 }
 
 /**
@@ -23,20 +36,28 @@ interface WebSocketSendMessage {
  *
  * The webview never opens a socket itself: the extension host prepares the
  * request through the same environment/header/auth pipeline as HTTP, then
- * streams frames back to the webview.
+ * streams frames back to the webview. Raw WebSocket and Socket.IO share this
+ * orchestration boundary; Socket.IO-specific behavior lives in
+ * `SocketIoClientAdapter`.
  */
 export class WebSocketHandler implements IMessageHandler, IDisposable {
   private connection?: IWebSocketConnection;
+  private socketIoConnection?: ISocketIoConnection;
   private messenger?: IWebviewMessenger;
   private listeners: IDisposable[] = [];
   private connectionAttempt = 0;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private reconnectAttempts = 0;
+  private manualDisconnect = false;
+  private lastRawConnect?: WebSocketConnectOptions;
 
   constructor(
     private readonly envConfigService: IEnvironmentConfigService,
     private readonly requestPreparer: IRequestPreparer,
     private readonly webSocketClient: IWebSocketClient,
     private readonly contextProvider: IPanelContextProvider,
-    private readonly collectionService: ICollectionService
+    private readonly collectionService: ICollectionService,
+    private readonly socketIoClient?: ISocketIoClient
   ) {}
 
   getSupportedCommands(): string[] {
@@ -63,16 +84,24 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
   }
 
   dispose(): void {
+    this.manualDisconnect = true;
     this.connectionAttempt++;
+    this.clearReconnectTimer();
     const connection = this.connection;
+    const socketIo = this.socketIoConnection;
     this.connection = undefined;
+    this.socketIoConnection = undefined;
     this.cleanupListeners();
     connection?.dispose();
+    socketIo?.dispose();
   }
 
   private async connect(uiRequest: UIRequest, messenger: IWebviewMessenger): Promise<void> {
     const attempt = ++this.connectionAttempt;
     this.messenger = messenger;
+    this.manualDisconnect = false;
+    this.reconnectAttempts = 0;
+    this.clearReconnectTimer();
     await this.closeExisting('Reconnecting');
     if (attempt !== this.connectionAttempt) {
       return;
@@ -123,66 +152,153 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       websocket: uiRequest.websocket || context?.request?.websocket,
     };
 
+    const protocol = request.websocket?.protocol === 'socketio' ? 'socketio' : 'websocket';
+
     try {
       const prepared = await this.requestPreparer.prepareRequest(request, environment, resolvedEnv);
       if (attempt !== this.connectionAttempt) {
         return;
       }
-      this.post({ command: 'wsState', state: 'connecting', url: prepared.url });
+      this.post({ command: 'wsState', state: 'connecting', url: prepared.url, transport: protocol });
 
-      const connection = await this.webSocketClient.connect({
-        url: prepared.url,
-        headers: prepared.headers,
-        protocols: request.websocket?.subprotocols,
-        settings: request.settings,
-      });
-
-      if (attempt !== this.connectionAttempt) {
-        connection.dispose();
-        return;
+      if (protocol === 'socketio') {
+        await this.openSocketIo(prepared, request, attempt);
+      } else {
+        await this.openRaw(prepared, request, attempt);
       }
-
-      this.connection = connection;
-      this.bindConnection(connection);
-      this.post({
-        command: 'wsState',
-        state: 'open',
-        url: prepared.url,
-        protocol: connection.negotiatedProtocol,
-      });
     } catch (error) {
       if (attempt !== this.connectionAttempt) {
         return;
       }
       this.postError(this.messageOf(error));
-      this.post({ command: 'wsState', state: 'closed' });
+      this.post({ command: 'wsState', state: 'closed', transport: protocol });
     }
   }
 
+  private async openRaw(
+    prepared: { url: string; headers: Record<string, string> },
+    request: ExecutionRequest,
+    attempt: number
+  ): Promise<void> {
+    const websocketSettings = request.websocket?.settings;
+    const maxMessageSizeMb = websocketSettings?.maxMessageSizeMb ?? 0;
+    const maxPayloadBytes = maxMessageSizeMb > 0
+      ? Math.round(maxMessageSizeMb * 1024 * 1024)
+      : undefined;
+    const settings = websocketSettings?.handshakeTimeout && websocketSettings.handshakeTimeout > 0
+      ? { ...request.settings, timeout: websocketSettings.handshakeTimeout }
+      : request.settings;
+
+    const connectOptions: WebSocketConnectOptions = {
+      url: prepared.url,
+      headers: prepared.headers,
+      protocols: request.websocket?.subprotocols,
+      settings,
+      ...(maxPayloadBytes ? { maxPayloadBytes } : {}),
+    };
+    this.lastRawConnect = connectOptions;
+
+    const connection = await this.webSocketClient.connect(connectOptions);
+    if (attempt !== this.connectionAttempt) {
+      connection.dispose();
+      return;
+    }
+
+    this.connection = connection;
+    this.reconnectAttempts = 0;
+    this.bindConnection(connection, attempt, request);
+    this.post({
+      command: 'wsState',
+      state: 'open',
+      url: prepared.url,
+      protocol: connection.negotiatedProtocol,
+      transport: 'websocket',
+    });
+  }
+
+  private async openSocketIo(
+    prepared: { url: string; headers: Record<string, string> },
+    request: ExecutionRequest,
+    attempt: number
+  ): Promise<void> {
+    if (!this.socketIoClient) {
+      throw new Error('Socket.IO transport is not available');
+    }
+
+    const websocketSettings = request.websocket?.settings;
+    const socketIoConfig = request.websocket?.socketio;
+    const reconnectionAttempts = websocketSettings?.reconnectionAttempts ?? 0;
+    const options: SocketIoConnectOptions = {
+      url: prepared.url,
+      headers: prepared.headers,
+      path: socketIoConfig?.handshakePath || '/socket.io',
+      timeout: websocketSettings?.handshakeTimeout ?? request.settings?.timeout,
+      reconnectionAttempts,
+      reconnectionDelay: websocketSettings?.reconnectionInterval ?? 5000,
+      listeners: (socketIoConfig?.listeners || [])
+        .filter(listener => listener.enabled !== false && listener.name.trim())
+        .map(listener => listener.name),
+    };
+
+    const connection = await this.socketIoClient.connect(options);
+    if (attempt !== this.connectionAttempt) {
+      connection.dispose();
+      return;
+    }
+
+    this.socketIoConnection = connection;
+    this.bindSocketIo(connection, attempt, reconnectionAttempts);
+    this.post({
+      command: 'wsState',
+      state: 'open',
+      url: prepared.url,
+      protocol: connection.id ? `socket.io ${connection.id}` : 'socket.io',
+      transport: 'socketio',
+    });
+  }
+
   private async disconnect(messenger: IWebviewMessenger): Promise<void> {
+    this.manualDisconnect = true;
     this.connectionAttempt++;
+    this.clearReconnectTimer();
     this.messenger = messenger;
+
     const connection = this.connection;
+    const socketIo = this.socketIoConnection;
+    this.connection = undefined;
+    this.socketIoConnection = undefined;
+    this.cleanupListeners();
+
+    if (socketIo) {
+      socketIo.close();
+      socketIo.dispose();
+      this.post({ command: 'wsClosed', code: 1000, reason: 'Client closed', wasClean: true });
+      this.post({ command: 'wsState', state: 'closed', transport: 'socketio' });
+      return;
+    }
+
     if (!connection) {
       this.post({ command: 'wsState', state: 'closed' });
       return;
     }
 
-    const wasConnecting = connection.state === 'connecting';
     await connection.close(1000, 'Client closed');
+    connection.dispose();
 
-    // Closing a socket that has not completed its handshake resolves without a
-    // close event, so report the terminal state explicitly.
-    if (wasConnecting) {
-      this.post({ command: 'wsClosed', code: 1000, reason: 'Client closed', wasClean: true });
-      this.post({ command: 'wsState', state: 'closed' });
-      this.connection = undefined;
-      this.cleanupListeners();
-    }
+    // Listeners were detached before closing to suppress the reconnect path,
+    // so report the terminal state explicitly for both open and connecting
+    // sockets.
+    this.post({ command: 'wsClosed', code: 1000, reason: 'Client closed', wasClean: true });
+    this.post({ command: 'wsState', state: 'closed', transport: 'websocket' });
   }
 
   private async send(message: WebSocketSendMessage, messenger: IWebviewMessenger): Promise<void> {
     this.messenger = messenger;
+    if (this.socketIoConnection) {
+      await this.sendSocketIo(message);
+      return;
+    }
+
     const connection = this.connection;
     if (!connection || connection.state !== 'open') {
       this.postError('WebSocket is not connected');
@@ -191,7 +307,7 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
 
     const type = message.type === 'binary' ? 'binary' : 'text';
     const data = message.data || '';
-    const payload = type === 'binary' ? Buffer.from(data, 'base64') : data;
+    const payload = type === 'binary' ? decodeBinary(data, message.encoding) : data;
 
     try {
       await connection.send(payload);
@@ -199,7 +315,9 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
         command: 'wsFrame',
         direction: 'out',
         type,
+        format: message.format || (type === 'binary' ? 'binary' : detectTextFormat(data)),
         data,
+        encoding: type === 'binary' ? (message.encoding || 'base64') : undefined,
         size: type === 'binary' ? payload.length : Buffer.byteLength(data, 'utf8'),
         time: Date.now(),
       });
@@ -208,7 +326,47 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
     }
   }
 
-  private bindConnection(connection: IWebSocketConnection): void {
+  private async sendSocketIo(message: WebSocketSendMessage): Promise<void> {
+    const connection = this.socketIoConnection;
+    if (!connection || !connection.connected) {
+      this.postError('Socket.IO is not connected');
+      return;
+    }
+
+    const event = message.event?.trim() || 'message';
+    const type = message.type === 'binary' ? 'binary' : 'text';
+    const data = message.data || '';
+    const firstArg = type === 'binary' ? decodeBinary(data, message.encoding) : data;
+    const args = [firstArg, ...(message.args || [])];
+
+    try {
+      // Show the outbound frame immediately. An acknowledgement can arrive
+      // later (or never), and the composer should not appear to have dropped
+      // the message while it waits.
+      const sendResult = connection.send(event, args, message.ack === true);
+      this.post({
+        command: 'wsFrame',
+        direction: 'out',
+        type,
+        format: message.format || (type === 'binary' ? 'binary' : detectTextFormat(data)),
+        data,
+        encoding: type === 'binary' ? (message.encoding || 'base64') : undefined,
+        args: (message.args || []).map(value => String(value)),
+        event,
+        ack: message.ack === true,
+        size: Buffer.byteLength(data, 'utf8') + (message.args || []).reduce((total, value) => total + Buffer.byteLength(String(value), 'utf8'), 0),
+        time: Date.now(),
+      });
+      const ack = await sendResult;
+      if (message.ack && ack && ack.length > 0) {
+        this.post({ command: 'wsInfo', message: `Acknowledgement: ${formatArgs(ack)}` });
+      }
+    } catch (error) {
+      this.postError(this.messageOf(error));
+    }
+  }
+
+  private bindConnection(connection: IWebSocketConnection, attempt: number, request: ExecutionRequest): void {
     this.listeners.push(
       connection.onFrame((frame) => {
         const data = frame.isBinary
@@ -218,16 +376,22 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
           command: 'wsFrame',
           direction: 'in',
           type: frame.isBinary ? 'binary' : 'text',
+          format: frame.isBinary ? 'binary' : detectTextFormat(data),
+          encoding: frame.isBinary ? 'base64' : undefined,
           data,
           size: frame.isBinary ? (frame.data as Uint8Array).byteLength : Buffer.byteLength(data, 'utf8'),
           time: Date.now(),
         });
       }),
       connection.onClose((info) => {
+        if (attempt !== this.connectionAttempt) {
+          return;
+        }
         this.post({ command: 'wsClosed', code: info.code, reason: info.reason, wasClean: info.wasClean });
-        this.post({ command: 'wsState', state: 'closed' });
+        this.post({ command: 'wsState', state: 'closed', transport: 'websocket' });
         this.connection = undefined;
         this.cleanupListeners();
+        this.scheduleReconnect(request);
       }),
       connection.onError((error) => {
         this.postError(this.messageOf(error));
@@ -235,13 +399,168 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
     );
   }
 
+  private bindSocketIo(
+    connection: ISocketIoConnection,
+    attempt: number,
+    reconnectionAttempts: number
+  ): void {
+    this.listeners.push(
+      connection.onEvent((event) => {
+        if (attempt !== this.connectionAttempt) {
+          return;
+        }
+        this.postSocketIoFrame(event);
+      }),
+      connection.onConnect(() => {
+        if (attempt !== this.connectionAttempt) {
+          return;
+        }
+        this.post({
+          command: 'wsState',
+          state: 'open',
+          protocol: connection.id ? `socket.io ${connection.id}` : 'socket.io',
+          transport: 'socketio',
+        });
+      }),
+      connection.onDisconnect((reason) => {
+        if (attempt !== this.connectionAttempt) {
+          return;
+        }
+        // socket.io-client owns reconnection. Keep the adapter and listeners
+        // attached so the subsequent onConnect/event stream still reaches the
+        // webview instead of being orphaned after a transient disconnect.
+        this.post({ command: 'wsClosed', code: 1006, reason, wasClean: false });
+        this.post({ command: 'wsState', state: 'closed', transport: 'socketio' });
+        if (reconnectionAttempts > 0 && reason !== 'io server disconnect' && reason !== 'io client disconnect') {
+          this.post({
+            command: 'wsInfo',
+            message: 'Socket.IO connection lost; reconnecting…',
+            reconnecting: true,
+          });
+        }
+      }),
+      connection.onReconnectFailed(() => {
+        if (attempt !== this.connectionAttempt) {
+          return;
+        }
+        this.post({
+          command: 'wsInfo',
+          message: 'Socket.IO reconnection failed',
+          reconnecting: false,
+        });
+      }),
+      connection.onError((error) => {
+        if (attempt !== this.connectionAttempt) {
+          return;
+        }
+        this.postError(this.messageOf(error));
+      })
+    );
+  }
+
+  private postSocketIoFrame(event: SocketIoEvent): void {
+    const first = event.args[0];
+    const binary = isBinaryPayload(first);
+    const data = event.args.length === 0
+      ? ''
+      : binary
+        ? Buffer.from(first as Uint8Array).toString('base64')
+        : typeof first === 'string'
+          ? first
+          : formatArgs([first]);
+    const extraArgs = event.args.slice(1).map(value => formatArg(value));
+    const size = binary
+      ? (first as Uint8Array).byteLength
+      : Buffer.byteLength(data, 'utf8') + extraArgs.reduce((total, value) => total + Buffer.byteLength(value, 'utf8'), 0);
+
+    this.post({
+      command: 'wsFrame',
+      direction: 'in',
+      type: binary ? 'binary' : 'text',
+      format: binary ? 'binary' : detectTextFormat(data),
+      encoding: binary ? 'base64' : undefined,
+      data,
+      args: extraArgs,
+      event: event.event,
+      size,
+      time: Date.now(),
+    });
+  }
+
+  private scheduleReconnect(request: ExecutionRequest): void {
+    const settings = request.websocket?.settings;
+    const maxAttempts = clamp(settings?.reconnectionAttempts ?? 0, 0, 100);
+    if (this.manualDisconnect || !this.lastRawConnect || maxAttempts <= 0) {
+      return;
+    }
+    if (this.reconnectAttempts >= maxAttempts) {
+      this.post({
+        command: 'wsInfo',
+        message: `Reconnection stopped after ${maxAttempts} attempt${maxAttempts === 1 ? '' : 's'}`,
+        reconnecting: false,
+      });
+      return;
+    }
+
+    const delay = clamp(settings?.reconnectionInterval ?? 5000, 0, 600000);
+    const nextAttempt = ++this.reconnectAttempts;
+    this.post({
+      command: 'wsInfo',
+      message: `Reconnecting in ${delay} ms (attempt ${nextAttempt}/${maxAttempts})`,
+      reconnecting: true,
+      attempt: nextAttempt,
+      maxAttempts,
+      delay,
+    });
+
+    const token = this.connectionAttempt;
+    this.reconnectTimer = setTimeout(async () => {
+      if (this.manualDisconnect || token !== this.connectionAttempt || !this.lastRawConnect) {
+        return;
+      }
+
+      const reconnectToken = ++this.connectionAttempt;
+      this.post({ command: 'wsState', state: 'connecting', transport: 'websocket' });
+      try {
+        const connection = await this.webSocketClient.connect(this.lastRawConnect);
+        if (reconnectToken !== this.connectionAttempt) {
+          connection.dispose();
+          return;
+        }
+        this.connection = connection;
+        this.reconnectAttempts = 0;
+        this.bindConnection(connection, reconnectToken, request);
+        this.post({
+          command: 'wsState',
+          state: 'open',
+          url: this.lastRawConnect.url,
+          protocol: connection.negotiatedProtocol,
+          transport: 'websocket',
+        });
+      } catch (error) {
+        if (reconnectToken !== this.connectionAttempt) {
+          return;
+        }
+        this.postError(this.messageOf(error));
+        this.scheduleReconnect(request);
+      }
+    }, delay);
+  }
+
   private async closeExisting(reason: string): Promise<void> {
+    this.clearReconnectTimer();
     const connection = this.connection;
+    const socketIo = this.socketIoConnection;
     this.connection = undefined;
+    this.socketIoConnection = undefined;
     this.cleanupListeners();
     if (connection) {
       await connection.close(1000, reason);
       connection.dispose();
+    }
+    if (socketIo) {
+      socketIo.close();
+      socketIo.dispose();
     }
   }
 
@@ -250,6 +569,13 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       listener.dispose();
     }
     this.listeners = [];
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
   }
 
   private post(message: unknown): void {
@@ -263,4 +589,51 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
   private messageOf(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
   }
+}
+
+function decodeBinary(data: string, encoding: 'base64' | 'hex' = 'base64'): Buffer {
+  return encoding === 'hex' ? Buffer.from(data, 'hex') : Buffer.from(data, 'base64');
+}
+
+function isBinaryPayload(value: unknown): value is Uint8Array {
+  return value instanceof Uint8Array || (typeof Buffer !== 'undefined' && Buffer.isBuffer(value));
+}
+
+function formatArgs(args: unknown[]): string {
+  return args.map(value => formatArg(value)).join(' ');
+}
+
+function formatArg(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (isBinaryPayload(value)) {
+    return `[binary ${value.byteLength} B]`;
+  }
+  try {
+    return JSON.stringify(value ?? null);
+  } catch {
+    return String(value);
+  }
+}
+
+function detectTextFormat(data: string): 'text' | 'json' | 'xml' | 'html' {
+  const trimmed = data.trim();
+  if (/^[\[{]/.test(trimmed)) {
+    return 'json';
+  }
+  if (/^<\?xml\b/i.test(trimmed)) {
+    return 'xml';
+  }
+  if (/^<(!doctype|html|[a-z][\w-]*(\s|>|\/))/i.test(trimmed)) {
+    return 'html';
+  }
+  return 'text';
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.min(max, Math.max(min, Math.trunc(value)));
 }

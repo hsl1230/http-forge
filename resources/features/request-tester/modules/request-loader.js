@@ -53,10 +53,12 @@ function createRequestLoader({
      */
     function loadCollectionRequest(request) {
         // Request type is authoritative; method is the HTTP verb (GET for the
-        // WebSocket handshake).
-        const requestType = request.requestType === 'websocket' ? 'websocket' : 'http';
+        // WebSocket handshake). Socket.IO is a WebSocket request flavor.
+        const requestType = request.requestType === 'websocket'
+            ? (request.websocket?.protocol === 'socketio' ? 'socketio' : 'websocket')
+            : 'http';
         setRequestType(requestType);
-        setMethod(requestType === 'websocket' ? 'GET' : request.method || 'GET');
+        setMethod(requestType === 'http' ? request.method || 'GET' : 'GET');
 
         // WebSocket configuration is independent of the HTTP body/scripts tabs.
         if (websocketManager) {

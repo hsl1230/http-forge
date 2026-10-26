@@ -69,6 +69,7 @@ export const VIEW_IDS = {
 export const COMMAND_IDS = {
     newRequest: 'httpForge.newRequest',
     newWebSocketRequest: 'httpForge.newWebSocketRequest',
+    newSocketIoRequest: 'httpForge.newSocketIoRequest',
     openRequest: 'httpForge.openRequest',
     openRequestInNewPanel: 'httpForge.openRequestInNewPanel',
     newFolder: 'httpForge.newFolder',

@@ -73,7 +73,7 @@ export class RequestTesterPanelManager {
    */
   private generatePanelTitle(context: RequestContext): string {
     const method = context.request?.requestType === 'websocket'
-      ? 'WS'
+      ? (context.request?.websocket?.protocol === 'socketio' ? 'SIO' : 'WS')
       : context.request?.method?.toUpperCase() || 'GET';
     const name = context.title || context.request?.name || 'Request';
     return `${method} - ${name}`;

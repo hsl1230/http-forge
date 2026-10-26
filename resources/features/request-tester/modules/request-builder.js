@@ -147,6 +147,7 @@ function createRequestBuilder({ elements, state, getMethod, getRequestType, getP
             : undefined;
 
         return {
+            name: state.requestData?.name,
             requestType,
             method: requestType === 'websocket' ? 'GET' : (getMethod ? getMethod() : 'GET'),
             path: getPath ? getPath() : '',

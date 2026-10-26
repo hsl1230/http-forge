@@ -119,7 +119,7 @@ Status legend:
 | Cloud workspaces and cloud-native team collaboration | Git-based workflow | Missing | HTTP Forge is repository-first and local/VS Code-centric. |
 | Monitors | N/A | Missing | Not provided as a hosted monitoring platform feature. |
 | Mock servers | N/A | Missing | Not provided as a Postman-style hosted mock service. |
-| WebSocket client parity with Postman | Planned | Missing | Marked as planned in HTTP Forge comparison docs. |
+| WebSocket and Socket.IO Request Tester | Implemented | Supported | Raw WebSocket and Socket.IO share the Request Tester (saved messages, frame inspector, Socket.IO listeners/acks). Collection-runner, CLI, MCP, and suite execution remain HTTP-only, matching Postman. Known gaps: Socket.IO v2/v3 clients, polling transport, and a separate Socket.IO `auth` payload. |
 
 ## Additional advanced Postman APIs
 

@@ -17,6 +17,7 @@ import {
   VariableHandler,
   WebSocketHandler
 } from './handlers';
+import { SocketIoClientAdapter } from './handlers/socketio-client-adapter';
 import type { IMessageHandler } from '../../shared-interfaces';
 import type { IPanelContextProvider } from './interfaces';
 import type { ICollectionService, IEnvironmentConfigService } from '@http-forge/core';
@@ -158,7 +159,8 @@ export class RequestTesterPanel implements vscode.Disposable {
       container.requestPreparer,
       container.webSocketClient,
       this.dataProvider,
-      collectionService
+      collectionService,
+      new SocketIoClientAdapter()
     );
     const suggestAssertionsHandler: IMessageHandler = new LazySuggestAssertionsHandler(this.dataProvider, collectionService, envConfigService);
 
