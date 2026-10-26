@@ -1,6 +1,7 @@
 import type {
   ExecutionRequest,
   ICollectionService,
+  RequestContext,
   IDisposable,
   IEnvironmentConfigService,
   IRequestPreparer,
@@ -18,6 +19,7 @@ import { resolveInheritedAuth } from '../../../shared/auth-resolution';
 import type { IPanelContextProvider, UIRequest } from '../interfaces';
 import { confirmProductionRequest } from './production-guard';
 import { findRequestInCollection, resolveParamsToStrings } from './request-context-utils';
+import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
 
 
 interface WebSocketSendMessage {
@@ -133,7 +135,7 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       ? findRequestInCollection(collection, context.requestId)
       : undefined;
 
-    const request: ExecutionRequest = {
+    let request: ExecutionRequest = {
       id: uiRequest.id || context?.requestId || 'standalone-ws',
       name: uiRequest.name || context?.request?.name || 'WebSocket Request',
       requestType: 'websocket',
@@ -150,6 +152,18 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       ),
       websocket: uiRequest.websocket || context?.request?.websocket,
     };
+
+    const initialProtocol = request.websocket?.protocol === 'socketio' ? 'socketio' : 'websocket';
+
+    try {
+      request = await this.runPreRequestScripts(request, context, collection, environment, resolvedEnv);
+    } catch (error) {
+      if (attempt === this.connectionAttempt) {
+        this.postError(this.messageOf(error));
+        this.post({ command: 'wsState', state: 'closed', transport: initialProtocol });
+      }
+      return;
+    }
 
     const protocol = request.websocket?.protocol === 'socketio' ? 'socketio' : 'websocket';
 
@@ -172,6 +186,94 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       this.postError(this.messageOf(error));
       this.post({ command: 'wsState', state: 'closed', transport: protocol });
     }
+  }
+
+  private async runPreRequestScripts(
+    request: ExecutionRequest,
+    context: any,
+    collection: any,
+    environment: string,
+    resolvedEnv: any
+  ): Promise<ExecutionRequest> {
+    const scripts = request.scripts?.preRequest;
+    const hasScripts = Array.isArray(scripts) ? scripts.length > 0 : !!scripts;
+    if (!hasScripts) {
+      return request;
+    }
+
+    const scriptExecutor = getServiceContainer().scriptExecutor;
+    const cookieJar = getServiceContainer().persistentCookieJar;
+    const envVars = resolvedEnv?.variables || {};
+
+    const requestContext: RequestContext = {
+      url: request.url,
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+      params: request.params,
+      query: request.query,
+      settings: request.settings,
+      scripts: request.scripts,
+      auth: request.auth,
+    };
+
+    const session = scriptExecutor.createRequestSession({
+      request: requestContext,
+      variables: {},
+      collectionVariables: {},
+      globals: {},
+      environmentVariables: envVars,
+      environmentName: environment,
+      info: {
+        eventName: 'prerequest',
+        requestName: request.name,
+        requestId: request.id,
+        collectionName: collection?.name || 'standalone',
+      },
+      iteration: 1,
+      iterationCount: 1,
+      cookieJar,
+      onEnvironmentChange: async (action: 'set' | 'unset' | 'clear', key?: string, value?: string) => {
+        if (action === 'set' && key && value !== undefined) {
+          this.envConfigService.setEnvironmentVariable(key, value, environment);
+        } else if (action === 'unset' && key) {
+          this.envConfigService.deleteEnvironmentVariable(key, environment);
+        } else if (action === 'clear') {
+          this.envConfigService.clearEnvironmentVariables(environment);
+        }
+      },
+    });
+
+    const result = await session.executePreRequest(Array.isArray(scripts) ? scripts : [scripts as string]);
+    if (!result.success) {
+      throw new Error(result.error || 'Pre-request script failed');
+    }
+
+    let updated = { ...request };
+    if (result.modifiedRequest) {
+      if (result.modifiedRequest.url) {
+        updated.url = result.modifiedRequest.url;
+      }
+      if (result.modifiedRequest.headers) {
+        updated.headers = { ...(updated.headers ?? {}), ...result.modifiedRequest.headers };
+      }
+      if (result.modifiedRequest.query) {
+        updated.query = result.modifiedRequest.query;
+      }
+      if (result.modifiedRequest.params) {
+        updated.params = result.modifiedRequest.params;
+      }
+      if (result.modifiedRequest.body !== undefined) {
+        updated.body = result.modifiedRequest.body;
+      }
+    }
+    if (result.modifiedVariables) {
+      for (const [key, value] of Object.entries(result.modifiedVariables)) {
+        this.envConfigService.setEnvironmentVariable(key, value, environment);
+      }
+    }
+
+    return updated;
   }
 
   private async openRaw(
