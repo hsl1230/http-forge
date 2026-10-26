@@ -5,7 +5,7 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.16.43 - 2026-10-26
+## 0.17.0 - 2026-10-26
 
 ### Added
 
@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 
-- Socket.IO headless execution is not yet supported; Socket.IO still runs interactively in the Request Tester. Interactive Request Tester scripts/tests, cookies from the WebSocket handshake, and persistent frame history remain unsupported.
-- Known gaps: Socket.IO v2/v3 clients, polling transport, and a separate Socket.IO `auth` payload.
+- The bundled Socket.IO client is v4; it can connect to v2/v3 servers when polling transport is enabled.
+- Monaco highlighting in the message composer requires a browser Monaco instance; falls back to a plain textarea if unavailable.
 
 ## 0.16.42 - 2026-10-15
 
