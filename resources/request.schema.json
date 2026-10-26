@@ -692,6 +692,13 @@
               }
             }
           }
+        },
+        "frameHistory": {
+          "type": "array",
+          "description": "Persisted frame log from previous runs",
+          "items": {
+            "type": "object"
+          }
         }
       }
     },

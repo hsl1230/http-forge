@@ -41,6 +41,7 @@ function createWebSocketManager({
     let negotiatedProtocol = '';
     let transport = 'websocket';
     let frames = [];
+    let historyLoaded = false;
     let frameSequence = 0;
     let wasWebSocketMode = false;
     let activeDraftId = null;
@@ -101,7 +102,8 @@ function createWebSocketManager({
                     ? socketio.transports
                     : DEFAULT_SOCKETIO.transports,
                 listeners
-            }
+            },
+            frameHistory: Array.isArray(source.frameHistory) ? source.frameHistory.slice(-200) : []
         };
     }
 
@@ -189,13 +191,18 @@ function createWebSocketManager({
         config.settings = settings;
         config.socketio.clientVersion = socketio.clientVersion;
         config.socketio.handshakePath = socketio.handshakePath;
+        config.socketio.namespace = socketio.namespace;
+        config.socketio.auth = socketio.auth;
+        config.socketio.transports = socketio.transports;
+        config.frameHistory = Array.isArray(config.frameHistory) ? config.frameHistory.slice(-200) : [];
 
         return {
             protocol: currentProtocol(),
             subprotocols: readSubprotocols(),
             settings,
             socketio,
-            messages: config.messages.map(message => ({ ...message }))
+            messages: config.messages.map(message => ({ ...message })),
+            frameHistory: config.frameHistory
         };
     }
 
@@ -207,6 +214,11 @@ function createWebSocketManager({
         transport = currentProtocol();
         clearFrames();
         config = normalizeConfig(value);
+        historyLoaded = false;
+        if (elements.wsLoadHistoryBtn) {
+            elements.wsLoadHistoryBtn.disabled = false;
+            elements.wsLoadHistoryBtn.textContent = 'Load history';
+        }
         activeDraftId = config.messages[0]?.id || null;
         writeSettingsToDom(config.settings);
         writeSocketIoToDom(config.socketio);
@@ -707,7 +719,7 @@ function createWebSocketManager({
         }
     }
 
-    function appendFrame(frame) {
+    function appendFrame(frame, persist = true) {
         const normalized = {
             id: frame.id || `frame-${Date.now()}-${frameSequence++}`,
             direction: frame.direction || 'system',
@@ -722,6 +734,15 @@ function createWebSocketManager({
             ack: frame.ack === true
         };
         frames.push(normalized);
+        if (persist) {
+            if (!Array.isArray(config.frameHistory)) {
+                config.frameHistory = [];
+            }
+            config.frameHistory.push(normalized);
+            if (config.frameHistory.length > 200) {
+                config.frameHistory.shift();
+            }
+        }
         scrollToBottom = true;
         if (frames.length > MAX_FRAMES) {
             const removed = frames.shift();
@@ -1146,11 +1167,28 @@ function createWebSocketManager({
 
     function clearFrames() {
         frames = [];
+        if (config) {
+            config.frameHistory = [];
+        }
         expandedFrames.clear();
         diffSelection = [];
         scrollToBottom = false;
         updateDiffLabel();
         renderFrames();
+    }
+
+    function loadFrameHistory() {
+        if (historyLoaded || !Array.isArray(config?.frameHistory) || config.frameHistory.length === 0) {
+            return;
+        }
+        historyLoaded = true;
+        config.frameHistory.forEach(frame => {
+            appendFrame(frame, false);
+        });
+        if (elements.wsLoadHistoryBtn) {
+            elements.wsLoadHistoryBtn.disabled = true;
+            elements.wsLoadHistoryBtn.textContent = 'History loaded';
+        }
     }
 
     function activateRequestTab(name) {
@@ -1326,6 +1364,7 @@ function createWebSocketManager({
         elements.wsBeautifyBtn?.addEventListener('click', beautifyComposer);
         elements.wsDisconnectBtn?.addEventListener('click', disconnect);
         elements.wsClearFramesBtn?.addEventListener('click', clearFrames);
+        elements.wsLoadHistoryBtn?.addEventListener('click', loadFrameHistory);
         elements.wsAddListenerBtn?.addEventListener('click', addListener);
         elements.wsMessageFormat?.addEventListener('change', updateComposerForFormat);
         elements.wsBinaryEncoding?.addEventListener('change', updateComposerHint);

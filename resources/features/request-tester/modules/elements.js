@@ -75,6 +75,7 @@ function initElements() {
         wsFrameHexdump: document.getElementById('ws-frame-hexdump'),
         wsFrameDiff: document.getElementById('ws-frame-diff'),
         wsClearFramesBtn: document.getElementById('ws-clear-frames'),
+        wsLoadHistoryBtn: document.getElementById('ws-load-history'),
         wsFramesScroll: document.getElementById('ws-frames-scroll'),
         wsFramesBody: document.getElementById('ws-frames-body'),
 
