@@ -1408,6 +1408,7 @@ function createWebSocketManager({
         handleInfo,
         handleError,
         clearFrames,
+        appendSystemFrame,
         getDocumentation
     };
 }

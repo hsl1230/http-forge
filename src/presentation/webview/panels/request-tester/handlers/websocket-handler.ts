@@ -13,6 +13,8 @@ import type {
   IWebSocketConnection,
   WebSocketConnectOptions,
   WebSocketMessageFormat,
+  WebSocketRunFrame,
+  WebSocketRunTranscript,
 } from '@http-forge/core';
 import type { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { resolveInheritedAuth } from '../../../shared/auth-resolution';
@@ -44,6 +46,12 @@ interface WebSocketSendMessage {
 export class WebSocketHandler implements IMessageHandler, IDisposable {
   private connection?: IWebSocketConnection;
   private socketIoConnection?: ISocketIoConnection;
+  private frames: WebSocketRunFrame[] = [];
+  private lastRequest?: ExecutionRequest;
+  private lastCollection?: any;
+  private lastEnvironment?: string;
+  private lastResolvedEnv?: any;
+  private postResponseRan = false;
   private messenger?: IWebviewMessenger;
   private listeners: IDisposable[] = [];
   private connectionAttempt = 0;
@@ -164,6 +172,13 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       }
       return;
     }
+
+    this.lastRequest = request;
+    this.lastCollection = collection;
+    this.lastEnvironment = environment;
+    this.lastResolvedEnv = resolvedEnv;
+    this.frames = [];
+    this.postResponseRan = false;
 
     const protocol = request.websocket?.protocol === 'socketio' ? 'socketio' : 'websocket';
 
@@ -361,6 +376,105 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
     });
   }
 
+  private async runPostResponseScripts(): Promise<void> {
+    if (this.postResponseRan) {
+      return;
+    }
+    this.postResponseRan = true;
+
+    const request = this.lastRequest;
+    const scripts = request?.scripts?.postResponse;
+    const hasScripts = Array.isArray(scripts) ? scripts.length > 0 : !!scripts;
+    if (!request || !hasScripts) {
+      return;
+    }
+
+    const environment = this.lastEnvironment || this.envConfigService.getSelectedEnvironment();
+    const resolvedEnv = this.lastResolvedEnv || this.envConfigService.getResolvedEnvironment(environment);
+    const collection = this.lastCollection;
+    const scriptExecutor = getServiceContainer().scriptExecutor;
+    const cookieJar = getServiceContainer().persistentCookieJar;
+
+    const transcript: WebSocketRunTranscript = {
+      protocol: request.websocket?.protocol === 'socketio' ? 'socketio' : 'websocket',
+      frames: this.frames,
+      close: {
+        code: 1000,
+        reason: 'Client closed',
+        wasClean: true,
+      },
+    };
+
+    const session = scriptExecutor.createRequestSession({
+      request: {
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        params: request.params,
+        query: request.query,
+        settings: request.settings,
+        scripts: request.scripts,
+        auth: request.auth,
+      },
+      variables: {},
+      collectionVariables: {},
+      globals: {},
+      environmentVariables: resolvedEnv?.variables || {},
+      environmentName: environment,
+      info: {
+        eventName: 'test',
+        requestName: request.name,
+        requestId: request.id,
+        collectionName: collection?.name || 'standalone',
+      },
+      iteration: 1,
+      iterationCount: 1,
+      cookieJar,
+      onEnvironmentChange: async (action: 'set' | 'unset' | 'clear', key?: string, value?: string) => {
+        if (action === 'set' && key && value !== undefined) {
+          this.envConfigService.setEnvironmentVariable(key, value, environment);
+        } else if (action === 'unset' && key) {
+          this.envConfigService.deleteEnvironmentVariable(key, environment);
+        } else if (action === 'clear') {
+          this.envConfigService.clearEnvironmentVariables(environment);
+        }
+      },
+    });
+
+    const responseContext = {
+      executedRequest: {
+        url: request.url,
+        method: request.method,
+        headers: request.headers || {},
+        body: { type: 'none', content: null },
+        params: request.params || {},
+        query: request.query || {},
+      } as any,
+      status: 101,
+      statusText: 'Switching Protocols',
+      headers: {},
+      body: transcript,
+      cookies: [],
+      responseTime: 0,
+      responseSize: Buffer.byteLength(JSON.stringify(transcript), 'utf8'),
+    };
+
+    try {
+      const result = await session.executePostResponse(
+        Array.isArray(scripts) ? scripts : [scripts as string],
+        responseContext
+      );
+      this.post({
+        command: 'wsScriptResults',
+        consoleOutput: result.consoleOutput || [],
+        testResults: result.testResults || [],
+      });
+    } catch (error) {
+      this.postError(this.messageOf(error));
+    }
+  }
+
   private async disconnect(messenger: IWebviewMessenger): Promise<void> {
     this.manualDisconnect = true;
     this.connectionAttempt++;
@@ -378,6 +492,7 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       socketIo.dispose();
       this.post({ command: 'wsClosed', code: 1000, reason: 'Client closed', wasClean: true });
       this.post({ command: 'wsState', state: 'closed', transport: 'socketio' });
+      void this.runPostResponseScripts();
       return;
     }
 
@@ -394,6 +509,7 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
     // sockets.
     this.post({ command: 'wsClosed', code: 1000, reason: 'Client closed', wasClean: true });
     this.post({ command: 'wsState', state: 'closed', transport: 'websocket' });
+    void this.runPostResponseScripts();
   }
 
   private async send(message: WebSocketSendMessage, messenger: IWebviewMessenger): Promise<void> {
@@ -415,6 +531,15 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
 
     try {
       await connection.send(payload);
+      const rawOutboundFrame: WebSocketRunFrame = {
+        direction: 'out',
+        type,
+        data,
+        encoding: type === 'binary' ? (message.encoding || 'base64') : undefined,
+        size: type === 'binary' ? payload.length : Buffer.byteLength(data, 'utf8'),
+        time: Date.now(),
+      };
+      this.frames.push(rawOutboundFrame);
       this.post({
         command: 'wsFrame',
         direction: 'out',
@@ -448,6 +573,18 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       // later (or never), and the composer should not appear to have dropped
       // the message while it waits.
       const sendResult = connection.send(event, args, message.ack === true);
+      const socketIoOutbound: WebSocketRunFrame = {
+        direction: 'out',
+        type,
+        data,
+        encoding: type === 'binary' ? (message.encoding || 'base64') : undefined,
+        event,
+        args: (message.args || []).map(value => String(value)),
+        ack: message.ack === true,
+        size: Buffer.byteLength(data, 'utf8') + (message.args || []).reduce((total, value) => total + Buffer.byteLength(String(value), 'utf8'), 0),
+        time: Date.now(),
+      };
+      this.frames.push(socketIoOutbound);
       this.post({
         command: 'wsFrame',
         direction: 'out',
@@ -476,6 +613,14 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
         const data = frame.isBinary
           ? Buffer.from(frame.data as Uint8Array).toString('base64')
           : String(frame.data);
+        this.frames.push({
+          direction: 'in',
+          type: frame.isBinary ? 'binary' : 'text',
+          data,
+          encoding: frame.isBinary ? 'base64' : undefined,
+          size: frame.isBinary ? (frame.data as Uint8Array).byteLength : Buffer.byteLength(data, 'utf8'),
+          time: Date.now(),
+        });
         this.post({
           command: 'wsFrame',
           direction: 'in',
@@ -577,6 +722,17 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       ? (first as Uint8Array).byteLength
       : Buffer.byteLength(data, 'utf8') + extraArgs.reduce((total, value) => total + Buffer.byteLength(value, 'utf8'), 0);
 
+    this.frames.push({
+      direction: 'in',
+      type: binary ? 'binary' : 'text',
+      data,
+      encoding: binary ? 'base64' : undefined,
+      args: extraArgs,
+      event: event.event,
+      ack: false,
+      size,
+      time: Date.now(),
+    });
     this.post({
       command: 'wsFrame',
       direction: 'in',

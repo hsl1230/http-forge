@@ -417,6 +417,7 @@ class RequestTesterApp {
             'wsClosed': (msg) => this.websocketManager.handleClosed(msg),
             'wsInfo': (msg) => this.websocketManager.handleInfo(msg),
             'wsError': (msg) => this.websocketManager.handleError(msg),
+            'wsScriptResults': (msg) => this.handleWsScriptResults(msg),
             'applyHistoryEntry': (msg) => this.requestLoader.applyHistoryEntry(
                 msg.entry || msg.data, 
                 msg.fullResponse,
@@ -656,6 +657,23 @@ class RequestTesterApp {
                     this.testResultsManager.addResult(result);
                 }
             });
+        }
+    }
+
+    handleWsScriptResults(msg) {
+        const testResults = Array.isArray(msg?.testResults) ? msg.testResults : [];
+        testResults.forEach(result => {
+            if (result && typeof result === 'object') {
+                this.testResultsManager?.addResult(result.name, result.passed, result.message || result.error || null);
+            } else {
+                this.testResultsManager?.addResult(result);
+            }
+        });
+        const consoleOutput = Array.isArray(msg?.consoleOutput) ? msg.consoleOutput : [];
+        consoleOutput.forEach(line => this.websocketManager?.appendSystemFrame?.(String(line)));
+        const passed = testResults.filter(result => result && result.passed).length;
+        if (testResults.length > 0) {
+            this.websocketManager?.appendSystemFrame?.(`Scripts: ${passed}/${testResults.length} passed`);
         }
     }
 
