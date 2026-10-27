@@ -5,6 +5,13 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.17.1 - 2026-10-27
+
+### Changed
+
+- **Display name and description formatting** — updated extension display name and description.
+- **Core dependency** — upgraded to `@http-forge/core` ^0.7.1.
+
 ## 0.17.0 - 2026-10-26
 
 ### Added
