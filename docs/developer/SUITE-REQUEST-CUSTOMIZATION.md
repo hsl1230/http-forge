@@ -8,7 +8,7 @@
 > carry per-request `postResponseScript` and are tagged `ai_generated` /
 > `derived_from` when produced by API discovery or the **API Architect** flow
 > (`httpForge.architect`). See `docs/user-guide/test-suites.md` for the current
-> suite capabilities and [`README.md`](../README.md) for the platform overview
+> suite capabilities and [`README.md`](../../README.md) for the platform overview
 > (extension **0.17.0**).
 
 ## Overview

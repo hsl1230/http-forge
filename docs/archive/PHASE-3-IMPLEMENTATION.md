@@ -6,7 +6,7 @@
 > 该阶段已完成：core 已成为扩展、CLI 与 MCP server 共享的单一执行引擎，`@http-forge/core`
 > 即当前核心包。当前版本 **0.16.36** 新增了本文档未覆盖的 **Discovered APIs** 树视图、
 > **API Architect**（`httpForge.architect`）、**.http-forge/knowledge/** 业务上下文与
-> 带 60+ 工具的 **MCP server**。总览见 [`README.md`](../README.md)。
+> 带 60+ 工具的 **MCP server**。总览见 [`README.md`](../../README.md)。
 
 > **本文档聚焦于代码实现层面的架构设计**
 >

@@ -9,7 +9,7 @@
 > (`suggest assertions`, `fix assertions`, etc.) that attach
 > `.http-forge/knowledge/**/*.md` business context, the **Discovered APIs** tree
 > view, the **API Architect** command (`httpForge.architect`), or the **MCP
-> server** (60+ tools). See [`README.md`](../README.md), `docs/user-guide/extension.md`,
+> server** (60+ tools). See [`README.md`](../../README.md), `docs/user-guide/extension.md`,
 > and `docs/user-guide/mcp-server.md` for those.
 
 ## Overview

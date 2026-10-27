@@ -9,7 +9,7 @@
 > **API Architect** and `generate_test_suite`). The current platform (extension
 > **0.16.36**) adds API **discovery**, the **API Architect** command
 > (`httpForge.architect`), and the **MCP server** with 60+ tools — none of which
-> existed when this was written. See [`README.md`](../README.md) and
+> existed when this was written. See [`README.md`](../../README.md) and
 > `docs/user-guide/flows.md`.
 
 ## 1. Overview

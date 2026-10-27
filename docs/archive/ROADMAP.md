@@ -9,7 +9,7 @@
 > 落地；**k6/JMeter 导出并未实现**。
 >
 > 当前平台在此规划之上已大幅演进，新增了本文档未覆盖的能力，请以
-> [`README.md`](../README.md) 为准：**Discovered APIs** 树视图（六种框架发现）、
+> [`README.md`](../../README.md) 为准：**Discovered APIs** 树视图（六种框架发现）、
 > **API Architect**（`httpForge.architect`，从意图设计 API）、
 > `.http-forge/knowledge/**/*.md` 业务上下文、以及带 60+ 工具的 **MCP server**。
 > 本文档仅作历史参考。

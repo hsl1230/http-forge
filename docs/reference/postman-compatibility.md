@@ -7,9 +7,9 @@
 > It pairs with the platform's AI surface: the same script engine powers the
 > MCP server's 60+ tools, and Copilot generates/repairs these `pm.test()`
 > assertions via the request tester's AI handlers. Related docs:
-> [`docs/user-guide/scripts-assertions.md`](user-guide/scripts-assertions.md),
-> [`docs/user-guide/template-syntax.md`](user-guide/template-syntax.md),
-> [`docs/user-guide/postman-compatibility.md`](user-guide/postman-compatibility.md).
+> [`docs/../user-guide/scripts-assertions.md`](../user-guide/scripts-assertions.md),
+> [`docs/../user-guide/template-syntax.md`](../user-guide/template-syntax.md),
+> [`docs/../user-guide/postman-compatibility.md`](../user-guide/postman-compatibility.md).
 
 ## Overview
 This document describes the `ctx` script API with full Postman compatibility. The `ctx` object is available in pre-request and post-response scripts, with `agl` and `pm` as equivalent aliases.

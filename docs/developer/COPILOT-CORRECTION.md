@@ -7,7 +7,7 @@
 > migration is complete and these conventions are the enforced baseline (see the
 > repository's `AGENTS.md`). It is not a description of the current feature set;
 > for the current platform (extension **0.17.0**: API discovery, API Architect,
-> MCP server, `.http-forge/knowledge/` context) see [`README.md`](../README.md).
+> MCP server, `.http-forge/knowledge/` context) see [`README.md`](../../README.md).
 
 Quick reference for common mistakes I might make during refactoring.
 If I generate code with any of these patterns, use this guide to correct me.

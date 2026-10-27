@@ -93,7 +93,7 @@ http-forge run-suite smoke --env prod --var apiKey=$API_KEY
 API_KEY=mytoken http-forge run-suite smoke --env prod
 ```
 
-See [CLI Reference](../cli/README.md) for full details.
+See [CLI Reference](../../../http-forge.cli/README.md) for full details.
 
 ## Cloud secret providers (`{{secret:alias/path}}`)
 

@@ -9,7 +9,7 @@
 > `.http-forge/http-forge.config.json`, see `docs/developer/configuration.md`). It is a
 > scripting feature of the current platform (extension **0.17.0**); the same
 > script engine powers the **MCP server**'s request execution. Related docs:
-> `docs/user-guide/scripts-assertions.md` and [`README.md`](../README.md).
+> `docs/user-guide/scripts-assertions.md` and [`README.md`](../../README.md).
 
 ## 概述
 

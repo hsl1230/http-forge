@@ -8,7 +8,7 @@
 > enforced baseline (see the repository's `AGENTS.md`). It is not a description
 > of the current feature set — for the current platform (extension **0.16.36**:
 > API discovery, API Architect, MCP server, `.http-forge/knowledge/` context)
-> see [`README.md`](../README.md).
+> see [`README.md`](../../README.md).
 
 Quick reference guide for refactoring code to DDD architecture.
 Use this alongside `.vscode/.copilot-instructions` and `docs/CUSTOM-INSTRUCTIONS.md`

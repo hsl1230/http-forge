@@ -221,7 +221,7 @@ Export Postman collection (v2.1) → Import into HTTP Forge → Done. All `pm.*`
 | `pm.sendRequest()`, `pm.setNextRequest()`, `pm.execution.skipRequest()` | ✅ Unchanged |
 | CryptoJS, lodash, moment, uuid | ✅ Built-in |
 | All body modes — raw, urlencoded, form-data, GraphQL, binary | ✅ Unchanged |
-| WebSocket and Socket.IO requests | ✅ Request Tester; ✅ headless raw WebSocket runs (mixed with HTTP collections) |
+| WebSocket and Socket.IO requests | ✅ Request Tester; ✅ headless raw WebSocket and Socket.IO runs (mixed with HTTP collections) |
 
 ---
 

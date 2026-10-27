@@ -8,7 +8,7 @@
 > 档描述的目录结构（`src/services/` 等）已随重构演化。它**不覆盖当前平台的 AI 功能**：
 > **Discovered APIs** 树视图、**API Architect**（`httpForge.architect`）、带 60+ 工具
 > 的 **MCP server**、以及 `.http-forge/knowledge/**/*.md` 业务上下文。当前平台总览
-> 见 [`README.md`](../README.md)。
+> 见 [`README.md`](../../README.md)。
 
 这份文档是对 `.vscode/.copilot-instructions` 的深度扩展，包含详细的示例、反面教材和最佳实践。
 

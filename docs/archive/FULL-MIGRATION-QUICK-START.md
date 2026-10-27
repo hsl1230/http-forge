@@ -7,7 +7,7 @@
 > DDD architecture it targets is now the enforced baseline (see the repository's
 > `AGENTS.md`). It is not a description of the current feature set. For the
 > current platform (extension **0.16.36**: API discovery, API Architect, MCP
-> server, `.http-forge/knowledge/` context) see [`README.md`](../README.md).
+> server, `.http-forge/knowledge/` context) see [`README.md`](../../README.md).
 
 You want to refactor **everything at once**. Here's how.
 

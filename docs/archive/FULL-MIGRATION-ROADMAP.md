@@ -8,7 +8,7 @@
 > the repository's `AGENTS.md`). It does not reflect the current platform's
 > feature surface — API **discovery**, the **API Architect** (`httpForge.architect`),
 > the **MCP server**, and `.http-forge/knowledge/` business context came later.
-> See [`README.md`](../README.md) for the current state.
+> See [`README.md`](../../README.md) for the current state.
 
 Complete plan for refactoring the entire HTTP Forge codebase to DDD architecture in one comprehensive migration.
 

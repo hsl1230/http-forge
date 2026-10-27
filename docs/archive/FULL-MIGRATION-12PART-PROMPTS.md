@@ -8,7 +8,7 @@
 > is the enforced baseline (see the repository's `AGENTS.md`). It is not a
 > description of the current feature set. For the current platform (extension
 > **0.16.36**: API discovery, API Architect, MCP server, `.http-forge/knowledge/`
-> context) see [`README.md`](../README.md).
+> context) see [`README.md`](../../README.md).
 
 This document contains **12 separate Copilot prompts** to generate all 85 refactored files in sequence.
 

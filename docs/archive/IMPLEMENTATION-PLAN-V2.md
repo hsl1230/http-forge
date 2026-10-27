@@ -9,7 +9,7 @@
 > 框架发现）、**API Architect**（`httpForge.architect`，从意图设计 API）、
 > `.http-forge/knowledge/**/*.md` 业务上下文、以及带 60+ 工具的 **MCP server**。
 > 本文档仅作历史参考；当前配置说明见 `docs/configuration.md`，总览见
-> [`README.md`](../README.md)。
+> [`README.md`](../../README.md)。
 
 ## 概述
 

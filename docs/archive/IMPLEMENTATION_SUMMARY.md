@@ -8,7 +8,7 @@
 > here: the **Discovered APIs** tree view (six framework providers), the **API
 > Architect** command (`httpForge.architect`), the AI **context layer**
 > (`.http-forge/knowledge/**/*.md`), and the **MCP server** with 60+ tools.
-> Keep this file as a historical record; see [`README.md`](../README.md) and
+> Keep this file as a historical record; see [`README.md`](../../README.md) and
 > the current `CHANGELOG.md` for the up-to-date feature set.
 
 ## ✅ RECENT: Complete SOLID Refactoring of Webview Panels (v0.13.0)
@@ -514,7 +514,7 @@ The "Generate Example" buttons on both Body Schema and Response Schema tabs now 
 
 ## ✅ RECENT: OpenAPI Round-Trip Implementation (v0.10.0)
 
-All 6 phases of the OpenAPI solution are now complete. See [OPENAPI-SOLUTION.md](docs/OPENAPI-SOLUTION.md) for the full design document.
+All 6 phases of the OpenAPI solution are now complete. See [OPENAPI-SOLUTION.md](../developer/OPENAPI-SOLUTION.md) for the full design document.
 
 ### Phase 1 — Schema Storage Foundation ✅
 - **New types**: `ResponseSchemaDefinition`, `BodySchemaDefinition`, `ResponseDefinition`, `ContentDefinition`, `EncodingDefinition`, `PathParamEntry`, `JSONSchema7` in `src/shared/types/index.ts`

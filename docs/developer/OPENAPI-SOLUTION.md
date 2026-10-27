@@ -11,7 +11,7 @@
 > intent, import it as a collection, and round-trip it back out
 > (`collectionName.openapi.json` under `.http-forge/`). API discovery
 > (`Discovered APIs` tree view) and MCP contract-testing tools build on the same
-> spec features. See [`README.md`](../README.md) and `docs/user-guide/import-export.md`.
+> spec features. See [`README.md`](../../README.md) and `docs/user-guide/import-export.md`.
 
 ---
 

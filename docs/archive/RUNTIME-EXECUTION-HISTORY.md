@@ -8,7 +8,7 @@
 > path serves the VS Code extension's in-process MCP executor, the standalone
 > MCP server in `@http-forge/core` (`mcp-runtime.ts`), and the CLI. See
 > `docs/user-guide/cli-standalone.md`, `docs/user-guide/mcp-server.md`, and
-> [`README.md`](../README.md) for the current runtime surface.
+> [`README.md`](../../README.md) for the current runtime surface.
 
 ---
 
@@ -23,7 +23,7 @@
 > exposed through the CLI (`run`, `discover`, `generate-suite`, `architect`,
 > etc.), and the extension's MCP executor runs in-process. See
 > `docs/user-guide/cli-standalone.md`, `docs/user-guide/mcp-server.md`, and
-> [`README.md`](../README.md) for the current runtime surface.
+> [`README.md`](../../README.md) for the current runtime surface.
 
 ## Document Information
 
@@ -201,7 +201,7 @@ This creates these gaps:
 > is now shipping: one execution path serves the VS Code extension's in-process
 > MCP executor, the standalone MCP server in `@http-forge/core`
 > (`mcp-runtime.ts`), and the CLI. See `docs/user-guide/cli-standalone.md`,
-> `docs/user-guide/mcp-server.md`, and [`README.md`](../README.md).
+> `docs/user-guide/mcp-server.md`, and [`README.md`](../../README.md).
 
 ## Document Information
 

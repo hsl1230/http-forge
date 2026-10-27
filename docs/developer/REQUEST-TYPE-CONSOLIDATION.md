@@ -10,7 +10,7 @@
 > a description of the current feature set — the current platform (extension
 > **0.17.0**) also includes API **discovery**, the **API Architect**
 > (`httpForge.architect`), the **MCP server**, and `.http-forge/knowledge/`
-> context. See [`README.md`](../README.md).
+> context. See [`README.md`](../../README.md).
 
 ## Executive Summary
 
@@ -1203,5 +1203,5 @@ All types are strongly typed with **no `any` usage**:
 ## References
 
 - [Postman Collection Format v2.1](https://schema.postman.com/json/collection/v2.1.0/docs/index.html)
-- [HTTP Forge Architecture](./http-forge/DESIGN.md)
+- [HTTP Forge Architecture](./DESIGN.md)
 - [SOLID Architecture](./SOLID-ARCHITECTURE.md)

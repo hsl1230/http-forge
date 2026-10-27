@@ -10,7 +10,7 @@
 > APIs** tree view, the **API Architect** command (`httpForge.architect`),
 > `.http-forge/knowledge/**/*.md` business context, and the **MCP server**
 > (60+ tools) are all current features not covered by these requirements. See
-> [`README.md`](../README.md) for the full current surface.
+> [`README.md`](../../README.md) for the full current surface.
 
 ## Document Information
 

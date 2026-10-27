@@ -8,7 +8,7 @@
 > repository's `AGENTS.md`). It is not a description of the current feature
 > set — the current platform (extension **0.17.0**) adds API **discovery**, the
 > **API Architect** (`httpForge.architect`), the **MCP server**, and
-> `.http-forge/knowledge/` context. See [`README.md`](../README.md).
+> `.http-forge/knowledge/` context. See [`README.md`](../../README.md).
 
 This document outlines the SOLID principles applied to the HTTP Forge VS Code extension.
 
@@ -474,7 +474,7 @@ const service = container.httpRequest;
 
 Existing code continues to work. The refactoring is backward compatible:
 - Global service variables replaced with service container
-- Services cast to concrete types where needed (TODO: update panels to use interfaces)
+- Services cast to concrete types where needed (partially done: WebSocketHandler and RequestExecutionHandler now depend on interfaces; remaining panels can be migrated incrementally)
 - Extension entry point uses `bootstrapServices()` for initialization
 
 ## Future Improvements

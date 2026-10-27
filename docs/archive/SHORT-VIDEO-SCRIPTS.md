@@ -8,7 +8,7 @@
 > platform additionally includes the **Discovered APIs** tree view, the **API
 > Architect** command (`httpForge.architect`), `.http-forge/knowledge/`
 > business context, and the **MCP server** with 60+ tools — see
-> [`README.md`](../README.md) for the full feature list before recording.
+> [`README.md`](../../README.md) for the full feature list before recording.
 
 > Three series. Tone: empathetic, solution-focused — universal pain points, no competitor criticism.
 > Format: ~30 seconds each. Hook (pain) → Body (solution) → CTA.

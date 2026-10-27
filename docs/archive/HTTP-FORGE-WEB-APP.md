@@ -10,7 +10,7 @@
 > served by the built-in **MCP server** (60+ tools) rather than a browser app.
 > The reusable-engine goal this doc outlines *was* achieved — see
 > `docs/user-guide/extension.md`, `docs/user-guide/mcp-server.md`, and
-> [`README.md`](../README.md) for the current surface.
+> [`README.md`](../../README.md) for the current surface.
 
 > **Goal:** Create a standalone web-based HTTP Forge app that reuses the existing `@http-forge/core` engine and the VS Code extension's webview UI. The app runs as a local Node.js server, opens in the user's browser, and can optionally be deployed as a shared team server.
 

@@ -13,7 +13,7 @@
 > as an inventory of today's features — API **discovery**, the **API Architect**
 > (`httpForge.architect`), the **MCP server**, and `.http-forge/knowledge/`
 > business context did not exist when it was written. See
-> [`README.md`](../README.md) for the current architecture overview.
+> [`README.md`](../../README.md) for the current architecture overview.
 
 ## Executive Summary
 
