@@ -169,7 +169,7 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 ✅ Saved messages, Socket.IO event listeners, event args and acknowledgements  
 ✅ Frame inspector — search, direction filter, wrap, hexdump, diff, copy, and save  
 ✅ Handshake timeout, max message size, subprotocols, and reconnect settings  
-✅ Headless raw WebSocket runs — collection, suite, CLI and MCP execution with `pm.test` assertions on the frame transcript
+✅ Headless raw WebSocket and Socket.IO runs — collection, suite, CLI and MCP execution with `pm.test` assertions on the frame transcript
 
 ### 📁 Collections
 ✅ Git-friendly folder structure — one file per request  

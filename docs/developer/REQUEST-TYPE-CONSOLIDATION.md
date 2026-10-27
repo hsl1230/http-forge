@@ -8,7 +8,7 @@
 > types now live in `@http-forge/core` (e.g. `CollectionRequestItem` in
 > `src/types/types.ts`) with the extension acting as a thin adapter. It is not
 > a description of the current feature set — the current platform (extension
-> **0.16.36**) also includes API **discovery**, the **API Architect**
+> **0.17.0**) also includes API **discovery**, the **API Architect**
 > (`httpForge.architect`), the **MCP server**, and `.http-forge/knowledge/`
 > context. See [`README.md`](../README.md).
 

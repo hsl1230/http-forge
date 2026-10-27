@@ -3,7 +3,7 @@
 > **Status / Current State**
 >
 > This document is **current** and describes the shipping Postman-compatible
-> script sandbox (`agl`, `pm`, and `ctx` aliases) in HTTP Forge **0.16.36**.
+> script sandbox (`agl`, `pm`, and `ctx` aliases) in HTTP Forge **0.17.0**.
 > It pairs with the platform's AI surface: the same script engine powers the
 > MCP server's 60+ tools, and Copilot generates/repairs these `pm.test()`
 > assertions via the request tester's AI handlers. Related docs:

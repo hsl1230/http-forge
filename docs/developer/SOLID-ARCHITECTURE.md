@@ -6,7 +6,7 @@
 > refactoring (it still references old `src/services/` paths). The refactoring
 > was completed and SOLID is now the enforced, project-wide convention (see the
 > repository's `AGENTS.md`). It is not a description of the current feature
-> set — the current platform (extension **0.16.36**) adds API **discovery**, the
+> set — the current platform (extension **0.17.0**) adds API **discovery**, the
 > **API Architect** (`httpForge.architect`), the **MCP server**, and
 > `.http-forge/knowledge/` context. See [`README.md`](../README.md).
 

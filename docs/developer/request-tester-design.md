@@ -3,7 +3,7 @@
 > **Status / Current State**
 >
 > This design document describes the shipping **Request Tester** webview in
-> HTTP Forge **0.16.36** (the design is current; module internals have evolved
+> HTTP Forge **0.17.0** (the design is current; module internals have evolved
 > under the SOLID handler architecture). It does **not** cover the platform's
 > newer AI surface: Copilot-powered suggestion handlers in the request tester
 > (`suggest assertions`, `fix assertions`, etc.) that attach

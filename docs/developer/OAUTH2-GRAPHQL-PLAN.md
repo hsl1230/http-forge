@@ -3,7 +3,7 @@
 > **Status / Current State（历史规划文档）**
 >
 > 本文档是 OAuth 2.0 与 GraphQL 增强的**历史实施方案**，其两个阶段均已在 v0.11.0
-> 落地。当前版本（**0.16.36**）中这些能力仍然存在并有完整 UI；本文档**不覆盖**此后新增
+> 落地。当前版本（**0.17.0**）中这些能力仍然存在并有完整 UI；本文档**不覆盖**此后新增
 > 的 **Discovered APIs** 树视图、**API Architect**（`httpForge.architect`）、
 > **MCP server**（60+ 工具）与 `.http-forge/knowledge/` 业务上下文。总览见
 > [`README.md`](../README.md)。

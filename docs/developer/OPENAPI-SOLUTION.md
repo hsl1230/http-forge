@@ -4,7 +4,7 @@
 > **Date:** 2026-02-25 (proposed) → 2026-02-26 (completed)  
 > **Scope:** Import OpenAPI 3.0 specs → Collections, Export Collections → OpenAPI 3.0 specs, User-editable response schemas, Schema inference from execution history & post-response scripts
 >
-> **Current State (v0.16.36):** The OpenAPI importer/exporter/schema-inference
+> **Current State (v0.17.0):** The OpenAPI importer/exporter/schema-inference
 > machinery described here is now shared core (`@http-forge/core`) and is also
 > the backbone of the **API Architect** flow — `httpForge.architect` /
 > `design_api_from_intent` design an OpenAPI 3.0 spec from a plain-English
