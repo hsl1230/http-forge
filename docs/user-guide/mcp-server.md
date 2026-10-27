@@ -1098,7 +1098,7 @@ Given a run id and request name, return the full request context (URL, method, h
 
 ---
 
-For full input/output schemas, return shapes, and implementation notes, see [`MCP_MANAGEMENT_TOOLS.md`](../../http-forge.core/docs/MCP_MANAGEMENT_TOOLS.md).
+For full input/output schemas, return shapes, and implementation notes, see [`MCP_MANAGEMENT_TOOLS.md`](../../http-forge.core/docs/developer/MCP_MANAGEMENT_TOOLS.md).
 
 ---
 

@@ -1,3 +1,5 @@
+> **Archived / Historical.** This document is preserved for reference. Canonical architecture documentation now lives in `docs/developer/SOLID-ARCHITECTURE.md`.
+
 # HTTP Forge VS Code Extension - Architecture Analysis & DDD Refactoring Plan
 
 > **Status / Current State**

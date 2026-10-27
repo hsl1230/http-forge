@@ -1,5 +1,7 @@
 # Custom Modules
 
+> For implementation details, see [Custom Modules (developer)](../developer/CUSTOM-MODULES.md).
+
 HTTP Forge scripts can load custom npm modules installed in your workspace. This enables richer scripting for data generation, validation, parsing, and HTTP calls.
 
 ## How it works

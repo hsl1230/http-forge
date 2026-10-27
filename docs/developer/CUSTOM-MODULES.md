@@ -1,5 +1,7 @@
 # 自定义模块加载指南
 
+> User-facing guide: [Custom Modules](../user-guide/custom-modules.md).
+
 > **Status / Current State**
 >
 > This document is **current** — the script sandbox loads custom npm modules

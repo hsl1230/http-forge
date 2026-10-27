@@ -1,3 +1,5 @@
+> **Archived / Historical.** Requirements implemented; canonical design lives in `docs/developer/request-tester-design.md` and user docs in `docs/user-guide/request-tester.md`.
+
 # HTTP Forge - Request Tester Requirements Document
 
 > **Status / Current State**
