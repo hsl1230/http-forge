@@ -253,9 +253,9 @@ Your OpenAPI contract is not just for import or export — it can also be reused
 - [TypeScript Codegen](docs/user-guide/codegen.md)
 - [Playwright Integration](docs/user-guide/playwright.md)
 - [Configuration](docs/user-guide/configuration.md) — [full example](resources/http-forge.config.example.json)
-- [Script API & Postman Compatibility](docs/postman-compatibility.md)
-- [OpenAPI Round-Trip & API Design](docs/OPENAPI-SOLUTION.md)
-- [Copilot Chat Guide](docs/COPILOT-CHAT-GUIDE.md)
+- [Script API & Postman Compatibility](docs/user-guide/postman-compatibility.md)
+- [OpenAPI Round-Trip & API Design](docs/developer/OPENAPI-SOLUTION.md)
+- [Copilot Chat Guide](docs/developer/COPILOT-CHAT-GUIDE.md)
 
 ---
 
