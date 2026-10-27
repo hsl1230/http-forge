@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Socket.IO handshake options** — Socket.IO requests now support namespace, auth payload, and transport selection (WebSocket / polling) in both the Request Tester and headless runs. Raw WebSocket handshake cookies are captured into the collection cookie jar.
 - **Socket.IO client versions** — the Request Tester can target Socket.IO 2.x, 3.x, or 4.x servers (polling is used automatically for 2.x/3.x).
 - **Monaco highlighting in the WebSocket composer** — the message payload editor now uses Monaco with language switching for JSON, XML, HTML, and text.
+- **Monaco composer sizing** — the WebSocket message editor now has a minimum height so payloads are visible.
 - **Dedicated creation actions** — `HTTP Forge: New WebSocket Request` and `HTTP Forge: New Socket.IO Request`.
 
 ### Notes

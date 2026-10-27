@@ -235,4 +235,4 @@ Exit code model:
 - Extension MCP integration point: `http-forge/src/extension.ts`
 - Extension composition root: `http-forge/src/infrastructure/services/service-bootstrap.ts`
 - Core bootstrap/contracts: `http-forge.core/src/di/core-bootstrap.ts`, `http-forge.core/src/types/platform.ts`
-- Requirements source: `http-forge/docs/RUNTIME-EXECUTION-REQUIREMENTS.md`
+- Requirements source: `http-forge/docs/developer/RUNTIME-EXECUTION-REQUIREMENTS.md`

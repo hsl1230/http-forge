@@ -4,7 +4,7 @@
 >
 > This document is **current** — the script sandbox loads custom npm modules
 > installed in the workspace (`scripts.modulePaths` in
-> `.http-forge/http-forge.config.json`, see `docs/configuration.md`). It is a
+> `.http-forge/http-forge.config.json`, see `docs/developer/configuration.md`). It is a
 > scripting feature of the current platform (extension **0.16.36**); the same
 > script engine powers the **MCP server**'s request execution. Related docs:
 > `docs/user-guide/scripts-assertions.md` and [`README.md`](../README.md).

@@ -405,3 +405,4 @@ Test suites can mix HTTP, WebSocket, and Socket.IO request nodes. Each request n
 - WebSocket nodes report `ok: true` for a successful `101` handshake.
 - Scripts and `pm.test` assertions run against the frame transcript.
 - Socket.IO nodes are supported in the interactive Request Tester and in headless suite runs.
+- See [WebSocket examples](../reference/websocket-examples.md) for sample requests.

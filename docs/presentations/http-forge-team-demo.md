@@ -247,7 +247,7 @@ http-forge.bat --test .
 | Resource | Description |
 |----------|-------------|
 | 📖 [User Guide](docs/user-guide/index.md) | Complete documentation |
-| 🔧 [Configuration](docs/configuration.md) | Settings & custom modules |
+| 🔧 [Configuration](docs/developer/configuration.md) | Settings & custom modules |
 | 📦 Shared Collections repo | Team collections in Git |
 | 🧪 Test Suites | Pre-built QA suites |
 | ❓ [Q&A](https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge&ssr=false#qna) | Ask questions on Marketplace |

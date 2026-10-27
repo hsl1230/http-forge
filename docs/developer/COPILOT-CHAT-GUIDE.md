@@ -20,7 +20,7 @@
 
 ```
 @ARCHITECTURE-ANALYSIS.md - 完整架构分析
-@docs/CUSTOM-INSTRUCTIONS.md - 详细开发指南
+@docs/developer/CUSTOM-INSTRUCTIONS.md - 详细开发指南
 @.vscode/.copilot-instructions - 快速参考
 ```
 
@@ -201,7 +201,7 @@
 ### 询问架构决策
 
 ```
-@ARCHITECTURE-ANALYSIS.md @docs/CUSTOM-INSTRUCTIONS.md
+@ARCHITECTURE-ANALYSIS.md @docs/developer/CUSTOM-INSTRUCTIONS.md
 为什么我们要用 DDD 分层架构？相比混合设计有什么优势？
 ```
 
@@ -346,7 +346,7 @@ Anti-pattern Checklist:
 {
   "key": "cmd+shift+d",
   "command": "workbench.action.quickOpen",
-  "args": "@docs/CUSTOM-INSTRUCTIONS.md"
+  "args": "@docs/developer/CUSTOM-INSTRUCTIONS.md"
 }
 ```
 
@@ -385,13 +385,13 @@ Anti-pattern Checklist:
 | 文件 | 用途 |
 |------|------|
 | `ARCHITECTURE-ANALYSIS.md` | 完整的架构分析和设计文档（历史） |
-| `docs/CUSTOM-INSTRUCTIONS.md` | 详细的开发指南和实例（历史） |
+| `docs/developer/CUSTOM-INSTRUCTIONS.md` | 详细的开发指南和实例（历史） |
 | `.vscode/.copilot-instructions` | Copilot 的快速参考 |
 | `.vscode/http-forge.code-snippets` | 代码片段模板 |
-| `docs/PHASE-3-IMPLEMENTATION.md` | 原始实现计划 |
+| `docs/archive/PHASE-3-IMPLEMENTATION.md` | 原始实现计划 |
 | `README.md` | 当前平台总览（含 Discovered APIs / Architect / MCP） |
 | `docs/user-guide/mcp-server.md` | MCP server 60+ 工具使用指南 |
-| `docs/configuration.md` | `.http-forge/http-forge.config.json` 与 `.http-forge/knowledge/` |
+| `docs/developer/configuration.md` | `.http-forge/http-forge.config.json` 与 `.http-forge/knowledge/` |
 
 ---
 
