@@ -4,21 +4,42 @@
 
 # HTTP Forge 🔨
 
-</div>
-
 **An AI-native, fully Postman-compatible API client for VS Code.**
 
 Build, test, automate, and version REST, GraphQL, WebSocket/Socket.IO, and OpenAPI APIs in one local workspace — offline, Git-native, merge-friendly, and ready for AI agents.
 
-## The Loop: Discover → Generate → Edit → Run → Report → Fix ↺
+Coming from Postman, Bruno, or Thunder Client? Import and run in under a minute.
 
-Point your AI agent at your repo. It finds every endpoint in your source code, generates the collection and test suites, and hands you a draft you own — **edit it before the first run**, or let the agent refine it. Then run, read the report, and when something fails, the agent proposes a fix (a healed assertion, a suite update that preserves your hand edits) — **or you fix it yourself**. Either way, you re-run and re-report. The cycle repeats **until all tests are green**.
+[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/henry-huang.http-forge?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/henry-huang.http-forge)](https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![MCP Server](https://img.shields.io/badge/MCP-60%2B%20tools-blueviolet)](docs/user-guide/mcp-server.md)
+[![GitHub Copilot](https://img.shields.io/badge/GitHub%20Copilot-native-blue?logo=github)](docs/user-guide/ai-features.md)
 
-A pipeline stops at "report." HTTP Forge closes the loop — with AI in the driver's seat, a human in the loop, or both.
+[📖 Docs](docs/user-guide/index.md) • [🐛 Issues](https://github.com/hsl1230/http-forge/issues) • [📝 Changelog](CHANGELOG.md)
 
-![The HTTP Forge Loop](docs/assets/loop.gif)
+</div>
 
-The extension, CLI, and MCP server share one workspace: design in the editor, automate in the terminal, and let your agent drive the full lifecycle — discover, generate, edit, run, report, fix, and re-run until green. Edits and fixes can come from the agent or from you; the cycle works either way. Coming from Postman, Bruno, or Thunder Client? Import and run in under a minute.
+---
+
+## The Lifecycle: Design or Discover → Generate → Edit → Run → Report → Fix ↺
+
+| Stage | What happens |
+|---|---|
+| **Design** (manual or from intent) | Create an API by hand (import OpenAPI, build requests) or let AI design one from a plain-English intent | 
+| **Discover** (from source code) | Scan a backend project for endpoints with provenance and confidence |
+| **Generate** | Turn endpoints into requests, suites, flows, and workflow chains |
+| **Edit** (CRUD · Import · Refine) | Create, read, update, delete requests; import Postman/OpenAPI; refine bodies, assertions, environments |
+| **Run** | Execute requests, collections, folders, or suites (HTTP + WebSocket + Socket.IO) |
+| **Report** | Inspect results, diagnose failures, generate HTML/JUnit/Markdown reports |
+| **Fix ↺** | Heal assertions, regenerate stale suites, re-run until green |
+
+The agent can drive every stage above; you can step in at any point. A pipeline stops at 'report.' HTTP Forge closes the loop — with AI in the driver's seat, a human in the loop, or both.
+
+<img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/e2e-api-testing-through-ai.gif" alt="The HTTP Forge Loop" width="100%"/>
+
+<br>
+The extension, CLI, and MCP server share one workspace: design in the editor, automate in the terminal, and let your agent drive the full lifecycle — design, discover, generate, edit, run, report, fix, and re-run until green. Edits and fixes can come from the agent or from you; the cycle works either way.
 
 ---
 
@@ -36,17 +57,43 @@ That's it. You've sent your first request in under a minute.
 
 **Prerequisites:** GitHub Copilot Chat + the `http-forge-mcp` companion extension (installed and activated).
 
-4. **Let AI write your tests** — In GitHub Copilot Chat, type:
-@http-forge suggest assertions for the last response
+The full lifecycle — **Design → Discover → Generate → Edit → Run → Report → Fix** — can be driven by your AI agent:
 
-text
+4. **Design or discover** — Ask Copilot:
+```
+@http-forge design an API from intent: a shopping cart
+```
+or scan your backend:
+```
+@http-forge discover APIs in ./src
+```
+
+5. **Generate tests** —
+```
+@http-forge generate test suite from discovered endpoints
+```
+Copilot scaffolds requests, suites, and flows tagged `ai_generated: true`.
+
+6. **Let AI write your tests** —
+```
+@http-forge suggest assertions for the last response
+```
 Copilot reads the response schema and generates `pm.test()` assertions automatically.
 
-5. **Run the whole collection** —
+7. **Run the whole collection** —
+```
 @http-forge run collection "My Collection"
-
-text
+```
 Full results, timing stats, and a self-contained HTML report — no terminal required.
+
+8. **Close the loop** — If something fails, ask:
+```
+@http-forge analyze the failures and propose fixes
+```
+Copilot diagnoses root causes, heals broken assertions, and proposes suite updates that preserve your hand edits. Re-run until green.
+
+The agent reads the failure context and proposes healed assertions or a suite update that preserves your edits. Review the proposal — accept it, edit it, or fix it manually — then re-run. Repeat until green.
+
 
 ---
 
@@ -54,7 +101,7 @@ Full results, timing stats, and a self-contained HTML report — no terminal req
 
 - **Your API workspace stays in Git** — one file per request, merge-friendly, no lock-in.
 - **No cloud account, works offline, free forever (MIT).**
-- **AI agents drive the full lifecycle** via a native, published MCP server.
+- **Your agent drives the full lifecycle** — design/discover, generate, edit, run, report, fix, re-run — via a native, published MCP server and CLI. Edits and fixes can be agent-made or human-made; the loop closes either way.
 - **Postman v2.1 import** — all `pm.*` scripts, environments, and globals run unchanged.
 - **CI-ready** — `http-forge run --reporter junit`, exit codes, zero GUI dependencies.
 
@@ -65,8 +112,8 @@ Full results, timing stats, and a self-contained HTML report — no terminal req
 ### 🧑‍💻 Explore & debug APIs
 Build requests, inspect responses, and iterate fast — all without leaving VS Code. No account, no cloud, no subscription.
 
-### 🤖 AI-assisted API testing
-Ask GitHub Copilot to generate tests, heal broken assertions, analyse coverage against your OpenAPI spec, and run the entire suite autonomously. HTTP Forge ships a native, published MCP server — no build-from-source step.
+### 🤖 AI-assisted API testing — the full lifecycle, with you in control
+Ask GitHub Copilot to generate tests, then shape them your way before the first run — adjust CRUD requests and chain them into flows, import an existing Postman collection or OpenAPI spec, refine assertions, bodies, and scripts. Then run, read the report, and when something fails, the agent proposes a fix and re-runs until green. **Every generated assertion is editable and every proposed fix is reviewable.** HTTP Forge ships a native, published MCP server — no build-from-source step.
 
 ### 🏗️ Design an API from an intent
 Tell HTTP Forge "I need a shopping cart" and it designs the whole API — endpoints, DTOs, auth — as an OpenAPI spec, imports it as a collection, and generates the test suite, runnable flow, workflow chains, and docs in one reviewable package. Run it from the Command Palette (**HTTP Forge: Design an API from Intent (AI)**), from the CLI (`http-forge architect`), or via the `design_api_from_intent` MCP tool.
@@ -76,7 +123,8 @@ The **Discovered APIs** tree view (**HTTP Forge: Discover APIs**) scans the work
 
 - **Discover Request from Endpoint** — scaffold a working request from a discovered endpoint into any collection (auth header + path/query params + request body schema included).
 - **Generate Test Suite from Discovered Endpoints** — create requests and a runnable suite (one node per endpoint asserting the discovered status) for a framework group or the whole scan.
-- **Check Discovery Drift** — compare project freshness against the last scan; when source has changed, offer to regenerate the derived suite.
+
+- **Check Discovery Drift** — compare project freshness against the last scan; when source has changed, offer to regenerate the derived suite while preserving your hand edits.
 
 The same loop is available to agents via MCP: `create_request_from_endpoint`, `generate_test_suite`, `suggest_workflow`/`generate_workflow` for AUTH/CRUD chains, and `check_drift`/`propose_update` to detect stale generated suites while preserving hand edits.
 
@@ -119,6 +167,11 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 | TypeScript codegen | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Playwright integration | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Cloud secrets (AWS/Azure/GCP…) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Design API from intent | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Native MCP server, ready to use | ✅ 60+ tools | ❌ | [待核实] | ❌ | ❌ |
+| Closed lifecycle: design/discover → generate → edit → run → report → fix → re-run | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Human-in-the-loop edit & fix review | ✅ | N/A | N/A | N/A | N/A |
+| GitHub Copilot native | ✅ | ❌ Postbot | [待核实] | ❌ | ❌ |
 
 Your OpenAPI contract is not just for import or export — it can also be reused by your own team for documentation, testing, and downstream tooling.
 
@@ -135,8 +188,11 @@ Your OpenAPI contract is not just for import or export — it can also be reused
 ✅ Heal broken assertions after API changes  
 ✅ Open GitHub Copilot Chat with suite failure context to analyse failed requests faster  
 ✅ Generate negative/edge-case test scenarios  
-✅ Full agent mode — AI drives the entire test lifecycle autonomously  
+✅ Full agent mode — AI drives the entire test lifecycle autonomously, with human review at every edit and fix step  
 ✅ Auto-generated `.http-forge/AGENTS.md` enables execution-only MCP mode for AI agents with workspace file access, reducing tool-list token overhead  
+✅ **Two entry points** — design an API from plain-English intent, or discover endpoints from source code  
+✅ **Full closed lifecycle** — design/discover, generate, edit (CRUD, import, refine), run, report, propose fixes, re-run until green  
+✅ **Human-in-the-loop** — every generated assertion is editable and every agent-proposed fix is reviewable  
 
 ### 🔧 Request Builder
 ✅ All HTTP methods — GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS  
@@ -221,7 +277,7 @@ Typical flow: design and validate in the extension, automate with CLI/MCP, and g
 
 - **[User Guide](docs/user-guide/index.md)** — start here, split by workflow
 - **[Getting Started](docs/user-guide/getting-started.md)** — first-time setup in under 2 minutes
-- **[Architecture](docs/architecture.md)** — how the extension, CLI, and MCP server share one workspace
+- **[Architecture](resources/architecture.png)** — how the extension, CLI, and MCP server share one workspace
 - **[WebSocket Testing Guide](docs/websocket-examples.md)** — raw WebSocket and Socket.IO examples
 - **[Postman Compatibility Reference](docs/user-guide/postman-compatibility.md)** — full `pm.*` matrix
 
