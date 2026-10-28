@@ -42,6 +42,7 @@ export function registerHttpForgeChatParticipant(context: vscode.ExtensionContex
 - \`suggest assertions\` — generate \`pm.test()\` assertions from the last response
 - \`design an api from intent: <description>\` — design a full API from plain English
 - \`discover APIs in <path>\` — scan a backend for endpoints
+- \`generate collection\` — create requests from discovered endpoints (no suite)
 - \`generate test suite\` — scaffold tests from discovered endpoints
 - \`run collection "<name>"\` — run a collection
 - \`analyze the failures\` — diagnose and heal broken tests
@@ -73,6 +74,14 @@ You can also use MCP tools directly if the MCP server is running, or CLI command
       stream.markdown('Use the **Discovered APIs** tree view (`HTTP Forge: Discover APIs`), or run `http-forge discover --path <project>` from the CLI.\n');
       if (guideContent) {
         stream.markdown('\n> See `.http-forge/AGENTS.md` for the discovery workflow.\n');
+      }
+      return;
+    }
+
+    if (message.startsWith('generate collection')) {
+      stream.markdown('Run `http-forge generate-collection --path <project> --collection <ref>` from the CLI (requests only, no suite), or `http-forge discover --generate-collection <ref>`.\n');
+      if (guideContent) {
+        stream.markdown('\n> See `.http-forge/AGENTS.md` for the discover → generate loop.\n');
       }
       return;
     }
