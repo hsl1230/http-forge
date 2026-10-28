@@ -847,6 +847,15 @@
         "key": "alt+down",
         "when": "focusedView == httpForge.collections && listFocus"
       }
+    ],
+    "chatParticipants": [
+      {
+        "id": "http-forge",
+        "name": "http-forge",
+        "fullName": "HTTP Forge",
+        "description": "API testing, collection runs, and MCP tools for HTTP Forge",
+        "isSticky": true
+      }
     ]
   },
   "scripts": {

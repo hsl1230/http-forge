@@ -55,11 +55,19 @@ That's it. You've sent your first request in under a minute.
 
 ## 🤖 Next 60 Seconds: let AI run the full Loop
 
-**Prerequisites:** GitHub Copilot Chat + the `http-forge-mcp` companion extension (installed and activated).
+**Prerequisites:** GitHub Copilot Chat (or any MCP-compatible client). The `@http-forge` chat participant is built into the extension — no companion extension required.
 
 The full lifecycle — **Design → Discover → Generate → Edit → Run → Report → Fix** — can be driven by your AI agent:
 
-4. **Design or discover** — Ask Copilot:
+4. **Send a request** — Open a request and hit **Send** to get a response.
+
+5. **Let AI write your tests** —
+```
+@http-forge suggest assertions for the last response
+```
+Copilot reads the response schema and generates `pm.test()` assertions automatically.
+
+6. **Design or discover** (optional) — Ask Copilot:
 ```
 @http-forge design an API from intent: a shopping cart
 ```
@@ -68,25 +76,19 @@ or scan your backend:
 @http-forge discover APIs in ./src
 ```
 
-5. **Generate tests** —
+7. **Generate tests** —
 ```
 @http-forge generate test suite from discovered endpoints
 ```
 Copilot scaffolds requests, suites, and flows tagged `ai_generated: true`.
 
-6. **Let AI write your tests** —
-```
-@http-forge suggest assertions for the last response
-```
-Copilot reads the response schema and generates `pm.test()` assertions automatically.
-
-7. **Run the whole collection** —
+8. **Run the whole collection** —
 ```
 @http-forge run collection "My Collection"
 ```
 Full results, timing stats, and a self-contained HTML report — no terminal required.
 
-8. **Close the loop** — If something fails, ask:
+9. **Close the loop** — If something fails, ask:
 ```
 @http-forge analyze the failures and propose fixes
 ```
@@ -123,6 +125,7 @@ The **Discovered APIs** tree view (**HTTP Forge: Discover APIs**) scans the work
 
 - **Discover Request from Endpoint** — scaffold a working request from a discovered endpoint into any collection (auth header + path/query params + request body schema included).
 - **Generate Test Suite from Discovered Endpoints** — create requests and a runnable suite (one node per endpoint asserting the discovered status) for a framework group or the whole scan.
+- **Generate Collection from Discovered Endpoints** — create requests only (no suite) via CLI (`http-forge generate-collection --path <root> --collection <ref>`) or `http-forge discover --generate-collection <ref>`.
 
 - **Check Discovery Drift** — compare project freshness against the last scan; when source has changed, offer to regenerate the derived suite while preserving your hand edits.
 

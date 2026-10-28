@@ -13,6 +13,7 @@ import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { createEmptyApi } from './api/empty-api';
 import { registerAllCommands } from './commands';
+import { registerHttpForgeChatParticipant } from './presentation/chat/http-forge-chat-participant';
 import { notifyIfAgentsMdStale } from './commands/agentsMdCommands';
 import type { CommandContext } from './commands/command-context';
 import { runImportRequestCommand } from './commands/importRequest';
@@ -149,6 +150,9 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
     requestGitHistoryProvider,
     collectionsView
   } satisfies CommandContext);
+
+  // Register @http-forge chat participant for GitHub Copilot
+  registerHttpForgeChatParticipant(context);
 
   // One-time notice when the versioned AI agent guide is stale (opt-in refresh)
   void notifyIfAgentsMdStale({ workspaceFolder, context }).catch(() => {});
