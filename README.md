@@ -38,74 +38,24 @@ The agent can drive every stage above; you can step in at any point. A pipeline 
 
 <img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/e2e-api-testing-through-ai.gif" alt="The HTTP Forge Loop" width="100%"/>
 
+---
+
+<br>
+
+<img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/introduction.gif" alt="Introduction" width="100%"/>
+
 <br>
 The extension, CLI, and MCP server share one workspace: design in the editor, automate in the terminal, and let your agent drive the full lifecycle — design, discover, generate, edit, run, report, fix, and re-run until green. Edits and fixes can come from the agent or from you; the cycle works either way.
 
 ---
 
-## ⚡ 60-Second Quickstart: send your first request
+## ⚡ Quickstart
 
-No account, no cloud, no config. This path is dependency-free and always works.
+1. `npm install -g @http-forge/cli && http-forge launch`
+2. Open the HTTP Forge panel → click **+** → create a collection and request
+3. Set method to **GET**, URL to `https://jsonplaceholder.typicode.com/posts/1`, hit **Send**
 
-1. **Install** — Open VS Code, press `Ctrl+Shift+X`, search **HTTP Forge**, click Install.
-2. **Create a request** — Open the HTTP Forge panel in the sidebar → click `+` → choose a collection → name your request.
-3. **Send it** — Set the URL to `https://jsonplaceholder.typicode.com/posts/1`, hit **Send** — you'll see the JSON response instantly.
-
-That's it. You've sent your first request in under a minute.
-
-## 🤖 Next 60 Seconds: let AI run the full Loop
-
-**Prerequisites:** GitHub Copilot Chat (or any MCP-compatible client). The `@http-forge` chat participant is built into the extension — no companion extension required.
-
-The full lifecycle — **Design → Discover → Generate → Edit → Run → Report → Fix** — can be driven by your AI agent:
-
-4. **Send a request** — Open a request and hit **Send** to get a response.
-
-5. **Let AI write your tests** —
-```
-@http-forge suggest assertions for the last response
-```
-Copilot reads the response schema and generates `pm.test()` assertions automatically.
-
-6. **Design or discover** (optional) — Ask Copilot:
-```
-@http-forge design an API from intent: a shopping cart
-```
-or scan your backend:
-```
-@http-forge discover APIs in ./src
-```
-
-7. **Generate tests** —
-```
-@http-forge generate test suite from discovered endpoints
-```
-Copilot scaffolds requests, suites, and flows tagged `ai_generated: true`.
-
-8. **Run the whole collection** —
-```
-@http-forge run collection "My Collection"
-```
-Full results, timing stats, and a self-contained HTML report — no terminal required.
-
-9. **Close the loop** — If something fails, ask:
-```
-@http-forge analyze the failures and propose fixes
-```
-Copilot diagnoses root causes, heals broken assertions, and proposes suite updates that preserve your hand edits. Re-run until green.
-
-The agent reads the failure context and proposes healed assertions or a suite update that preserves your edits. Review the proposal — accept it, edit it, or fix it manually — then re-run. Repeat until green.
-
-
----
-
-## Why developers switch
-
-- **Your API workspace stays in Git** — one file per request, merge-friendly, no lock-in.
-- **No cloud account, works offline, free forever (MIT).**
-- **Your agent drives the full lifecycle** — design/discover, generate, edit, run, report, fix, re-run — via a native, published MCP server and CLI. Edits and fixes can be agent-made or human-made; the loop closes either way.
-- **Postman v2.1 import** — all `pm.*` scripts, environments, and globals run unchanged.
-- **CI-ready** — `http-forge run --reporter junit`, exit codes, zero GUI dependencies.
+Full walkthrough (AI tests, collections, suites, CLI): [Getting Started](docs/user-guide/getting-started.md)
 
 ---
 
@@ -150,9 +100,30 @@ Import your OpenAPI 3.0 spec, scaffold a full collection in one command, then va
 
 ## 📸 Screenshots
 
-| The Loop | Discovered APIs tree | HTML test report |
-|---|---|---|
-| ![The Loop](docs/assets/loop.gif) | ![Discovered APIs](docs/assets/discovered-apis.png) | ![HTML report](docs/assets/html-report.png) |
+<table width="100%">
+  <tr>
+    <th width="50%">The Loop</th>
+    <th width="50%">Discovered APIs tree and HTML test report</th>
+  </tr>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/docs/videos/e2e-api-testing-through-ai.gif" width="100%" alt="The Loop"></td>
+    <td width="50%"><img src="resources/screenshots/discovery-and-report.png" width="100%" alt="Discovered APIs & HTML test report"></td>
+  </tr>
+</table>
+
+| Http Request | Test suite|
+|---|---|
+| <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/send-a-request.png"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/send-a-request.png" width="100%" alt="Send a Request"></a> | <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/run-a-collection.png"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/run-a-collection.png" width="100%" alt="Run a Collection"></a> |
+
+| Environment | Request Authorization|
+|---|---|
+| <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/edit-environment.png"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/edit-environment.png" width="100%" alt="Edit Environment"></a> | <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/oauth2.0.png"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/oauth2.0.png" width="100%" alt="OAuth 2.0"></a> |
+
+
+| Script assistant | Schema definition |
+|---|---|
+| <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/template-code-completion.png"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/template-code-completion.png" width="100%" alt="Template Completion"></a> | <a href="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/open-api-type.png"><img src="https://raw.githubusercontent.com/hsl1230/http-forge/main/resources/screenshots/open-api-type.png" width="100%" alt="OpenAPI"></a> |
+
 
 ---
 
@@ -283,7 +254,15 @@ Typical flow: design and validate in the extension, automate with CLI/MCP, and g
 - **[Architecture](resources/architecture.png)** — how the extension, CLI, and MCP server share one workspace
 - **[WebSocket Testing Guide](docs/websocket-examples.md)** — raw WebSocket and Socket.IO examples
 - **[Postman Compatibility Reference](docs/user-guide/postman-compatibility.md)** — full `pm.*` matrix
-
+- [CLI & CI/CD](docs/user-guide/cli-standalone.md)
+- [MCP Server](docs/user-guide/mcp-server.md)
+- [Secret Providers](docs/user-guide/secret-providers.md)
+- [TypeScript Codegen](docs/user-guide/codegen.md)
+- [Playwright Integration](docs/user-guide/playwright.md)
+- [Configuration](docs/user-guide/configuration.md) — [full example](resources/http-forge.config.example.json)
+- [Script API & Postman Compatibility](docs/postman-compatibility.md)
+- [OpenAPI Round-Trip & API Design](docs/OPENAPI-SOLUTION.md)
+- [Copilot Chat Guide](docs/COPILOT-CHAT-GUIDE.md)
 ---
 
 ## 📄 License

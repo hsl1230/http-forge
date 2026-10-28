@@ -3,6 +3,7 @@
 This guide is split by how you use HTTP Forge. Start with the guide that matches your workflow, then use the reference chapters for deep dives.
 
 ## Primary Guides
+- [Getting Started](getting-started.md)
 - [Extension (VS Code)](extension.md)
 - [CLI & Standalone](cli-standalone.md)
 - [Codegen (@http-forge/codegen)](codegen.md)
