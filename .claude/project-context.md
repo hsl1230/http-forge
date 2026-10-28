@@ -8,13 +8,13 @@ Primary docs (in repo):
 - [CHANGELOG.md](../CHANGELOG.md)
 - [MIGRATION GUIDE](../MIGRATION-GUIDE.md)
 - Docs folder (select important files):
-  - [docs/ARCHITECTURE-ANALYSIS.md](docs/ARCHITECTURE-ANALYSIS.md)
-  - [docs/HTTP-FORGE-WEB-APP.md](docs/HTTP-FORGE-WEB-APP.md)
-  - [docs/IMPLEMENTATION-TEST-SUITE.md](docs/IMPLEMENTATION-TEST-SUITE.md)
-  - [docs/REQUEST-TYPE-CONSOLIDATION.md](docs/REQUEST-TYPE-CONSOLIDATION.md)
+  - [docs/developer/ARCHITECTURE-ANALYSIS.md](docs/developer/ARCHITECTURE-ANALYSIS.md)
+  - [docs/archive/HTTP-FORGE-WEB-APP.md](docs/archive/HTTP-FORGE-WEB-APP.md)
+  - [docs/archive/IMPLEMENTATION-TEST-SUITE.md](docs/archive/IMPLEMENTATION-TEST-SUITE.md)
+  - [docs/developer/REQUEST-TYPE-CONSOLIDATION.md](docs/developer/REQUEST-TYPE-CONSOLIDATION.md)
   - [docs/COPILOT-CHAT-GUIDE.md](docs/COPILOT-CHAT-GUIDE.md)
   - [docs/CUSTOM-INSTRUCTIONS.md](docs/CUSTOM-INSTRUCTIONS.md)
-  - [docs/IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md)
+  - [docs/archive/IMPLEMENTATION_SUMMARY.md](docs/archive/IMPLEMENTATION_SUMMARY.md)
 
 Project summary
 ----------------
@@ -42,7 +42,7 @@ Important files to know
 
 Where to look for more details
 - Start with [DEVELOPMENT.md](../DEVELOPMENT.md) for dev setup and node version notes.
-- Read [docs/ARCHITECTURE-ANALYSIS.md](docs/ARCHITECTURE-ANALYSIS.md) for design rationale.
+- Read [docs/developer/ARCHITECTURE-ANALYSIS.md](docs/developer/ARCHITECTURE-ANALYSIS.md) for design rationale.
 - The codebase is instrumented with `@http-forge/core` interfaces — search for imports of `@http-forge/core` to find typed service usage.
 
 Core repository (local):

@@ -191,7 +191,7 @@ When no `:<path>` is specified, the file is written to the HTTP Forge cache (`.h
 
 ### CI integration quick-start
 
-For a complete guide covering GitHub Actions (composite action and npm install), Docker, Jenkins/GitLab/CircleCI/Azure Pipelines, multi-environment matrices, PR annotations, and troubleshooting, see **[ci-guide.md](../../docs/ci-guide.md)** in the CLI package.
+For a complete guide covering GitHub Actions (composite action and npm install), Docker, Jenkins/GitLab/CircleCI/Azure Pipelines, multi-environment matrices, PR annotations, and troubleshooting, see **[ci-guide.md](../../../http-forge.cli/docs/ci-guide.md)** in the CLI package.
 
 **Minimal GitHub Actions example:**
 

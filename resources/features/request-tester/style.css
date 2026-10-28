@@ -4073,6 +4073,21 @@ body.suite-edit-no-schema .schema-toggle {
     color: var(--vscode-input-foreground, #ddd);
 }
 
+.ws-message-editor {
+    width: 100%;
+    min-height: 120px;
+    border: 0;
+    background: var(--vscode-input-background, #2d2d2d);
+}
+
+.ws-message-editor .monaco-editor {
+    min-height: 120px;
+}
+
+.ws-composer textarea.hidden {
+    display: none;
+}
+
 .ws-drafts {
     margin-top: 18px;
 }

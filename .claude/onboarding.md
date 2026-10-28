@@ -4,7 +4,7 @@ Quick start for Claude Code when contributing to this repository.
 
 1) Read the baseline docs
 - `DEVELOPMENT.md` — dev environment and Node version requirements.
-- `docs/ARCHITECTURE-ANALYSIS.md` — architectural overview.
+- `docs/developer/ARCHITECTURE-ANALYSIS.md` — architectural overview.
 - `README.md` — user-facing description and quick usage.
 
 2) Local setup

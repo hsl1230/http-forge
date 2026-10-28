@@ -1,8 +1,8 @@
 {
   "name": "http-forge",
-  "displayName": "HTTP Forge — The API Platform Built for AI Agents",
-  "description": "Turn GitHub Copilot, Claude Code, and Cursor into expert API engineers. 60+ MCP tools. No extra API keys. No cloud account. Full Postman compatibility, OpenAPI 3.0, headless CLI, and TypeScript codegen — all local.",
-  "version": "0.17.0",
+  "displayName": "HTTP Forge - The API Platform Built for AI Agents",
+  "description": "Free Postman/Bruno/Thunder Client alternative. Run API tests in VS Code, CI/CD, and let AI agents drive your entire test lifecycle via MCP. 60+ MCP tools, OpenAPI 3.0, headless CLI, TypeScript codegen - all local, no cloud account.",
+  "version": "0.17.2",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -847,6 +847,15 @@
         "key": "alt+down",
         "when": "focusedView == httpForge.collections && listFocus"
       }
+    ],
+    "chatParticipants": [
+      {
+        "id": "http-forge",
+        "name": "http-forge",
+        "fullName": "HTTP Forge",
+        "description": "API testing, collection runs, and MCP tools for HTTP Forge",
+        "isSticky": true
+      }
     ]
   },
   "scripts": {
@@ -890,7 +899,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^0.7.0",
+    "@http-forge/core": "^0.7.2",
     "cheerio": "^1.1.2",
     "socket.io-client": "^4.8.1",
     "uuid": "^13.0.0",

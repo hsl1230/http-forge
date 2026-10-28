@@ -294,3 +294,5 @@ The Request Tester supports three request types: **HTTP**, **WebSocket**, and **
 
 ### Headless execution
 Raw WebSocket and Socket.IO requests execute in the collection runner, suite executor, CLI, and MCP. A run sends saved messages, collects inbound frames for the configured response wait, and runs pre-request/post-response scripts and `pm.test` assertions against a JSON transcript.
+
+See [WebSocket examples](../reference/websocket-examples.md) for sample requests.

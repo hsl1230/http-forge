@@ -246,8 +246,8 @@ http-forge.bat --test .
 
 | Resource | Description |
 |----------|-------------|
-| 📖 [User Guide](docs/user-guide/index.md) | Complete documentation |
-| 🔧 [Configuration](docs/configuration.md) | Settings & custom modules |
+| 📖 [User Guide](../user-guide/index.md) | Complete documentation |
+| 🔧 [Configuration](../developer/configuration.md) | Settings & custom modules |
 | 📦 Shared Collections repo | Team collections in Git |
 | 🧪 Test Suites | Pre-built QA suites |
 | ❓ [Q&A](https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge&ssr=false#qna) | Ask questions on Marketplace |
@@ -267,7 +267,7 @@ A: Yes! They don't conflict. Migrate at your own pace.
 A: Requests, collections, environments, scripts, assertions, OAuth — all supported.
 
 **Q: What about WebSocket / Mock servers?**
-A: WebSocket and Socket.IO requests run in the Request Tester today. Raw WebSocket requests also run headlessly in the collection runner, suite executor, and CLI with pre/post scripts and assertions. Mock servers are still on the roadmap.
+A: WebSocket and Socket.IO requests run in the Request Tester today. Both raw WebSocket and Socket.IO requests also run headlessly in the collection runner, suite executor, CLI, and MCP with pre/post scripts and assertions. Mock servers are still on the roadmap.
 
 **Q: Is it stable for production use?**
 A: v0.11.27, actively maintained, used by our team daily.
@@ -297,7 +297,7 @@ A: File on GitHub — fixes are typically same-day.
 | **Playwright integration** | ✅ Built-in | ❌ No | ❌ No | ❌ No |
 | **Schema editor** | ✅ Body + Response with inference | ❌ No | ❌ No | ❌ No |
 | **OAuth 2.0 + PKCE** | ✅ Auto-refresh | ✅ All grant types | ✅ Full OAuth 2.0 | ⚠️ Basic, manual refresh |
-| **gRPC / WebSocket** | ✅ WebSocket + Socket.IO; headless raw WS runs; gRPC planned | ✅ Available | ✅ gRPC + WebSocket | ❌ No |
+| **gRPC / WebSocket** | ✅ WebSocket + Socket.IO; headless raw WS + Socket.IO runs; gRPC planned | ✅ Available | ✅ gRPC + WebSocket | ❌ No |
 | **CLI for CI/CD** | ⚠️ Via Playwright | ❌ No first-class CLI | ✅ `inso run test` | ✅ `bru run` |
 | **Secret managers** | ❌ Local only | ⚠️ Vault (paid) | ❌ No | ✅ AWS/Azure/HashiCorp (paid) |
 | **Auth breadth** | OAuth2, Bearer, Basic, API Key | +OAuth1, NTLM, Digest, AWS Sig | +NTLM, Digest, Hawk, AWS Sig | +OAuth1, AWS Sig, Digest, NTLM |

@@ -1098,7 +1098,7 @@ Given a run id and request name, return the full request context (URL, method, h
 
 ---
 
-For full input/output schemas, return shapes, and implementation notes, see [`MCP_MANAGEMENT_TOOLS.md`](../../http-forge.core/docs/MCP_MANAGEMENT_TOOLS.md).
+For full input/output schemas, return shapes, and implementation notes, see [`MCP_MANAGEMENT_TOOLS.md`](../../../http-forge.core/docs/developer/MCP_MANAGEMENT_TOOLS.md).
 
 ---
 
@@ -1207,3 +1207,115 @@ Add an `mcp` section to control what gets exposed and how:
   }
 }
 ```
+
+## Complete tool list (generated from `mcp-tool-schemas.ts`)
+
+### General
+
+- `list_collections`
+- `list_folders`
+- `list_requests`
+- `search_requests`
+- `get_environment`
+- `run_request`
+- `run_folder`
+- `run_collection`
+- `run_suite`
+- `get_run_status`
+- `get_run_summary`
+- `get_failed_requests`
+- `get_request_result`
+- `cancel_run`
+- `set_variable`
+
+### Collection management
+
+- `create_collection`
+- `rename_collection`
+- `delete_collection`
+- `duplicate_collection`
+- `create_folder`
+- `delete_folder`
+
+### Request management
+
+- `get_request`
+- `create_request`
+- `update_request`
+- `delete_request`
+
+### API discovery
+
+- `create_request_from_endpoint`
+- `generate_test_suite`
+- `suggest_workflow`
+- `generate_workflow`
+- `check_drift`
+- `propose_update`
+- `qa_api`
+- `review_suite`
+
+### Script management
+
+- `get_request_script`
+- `set_request_script`
+
+### Ordering
+
+- `reorder_collection_items`
+
+### Suite management
+
+- `list_suites`
+- `get_suite`
+- `create_suite`
+- `update_suite_config`
+- `get_suite_node`
+- `list_suite_node_paths`
+- `add_suite_node`
+- `update_suite_node`
+- `remove_suite_node`
+- `move_suite_node`
+- `add_suite_requests`
+- `remove_suite_request`
+- `reorder_suite_requests`
+- `duplicate_suite`
+- `delete_suite`
+
+### Environment management
+
+- `list_environments`
+- `get_environment_variables`
+- `select_environment`
+- `create_environment`
+- `delete_environment`
+- `set_environment_variable`
+- `unset_environment_variable`
+- `set_global_variable`
+- `get_globals`
+
+### AI-native tools
+
+- `scaffold_collection_from_openapi`
+- `suggest_assertions`
+- `explain_failure`
+- `suggest_env_vars`
+- `apply_env_vars`
+
+### Collection enhancement
+
+- `get_requests_for_enhancement`
+- `apply_request_enhancements`
+- `ai_suggest_env_vars`
+- `ai_enhance_collection`
+
+### Gap-closure tools
+
+- `analyze_coverage`
+- `ai_analyze_coverage`
+- `generate_request_from_intent`
+- `design_api_from_intent`
+- `validate_against_spec`
+- `generate_scenarios`
+- `heal_assertions`
+- `generate_iteration_data`
