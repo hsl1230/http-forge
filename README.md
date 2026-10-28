@@ -253,6 +253,7 @@ Typical flow: design and validate in the extension, automate with CLI/MCP, and g
 - **[Getting Started](docs/user-guide/getting-started.md)** — first-time setup in under 2 minutes
 - **[Architecture](resources/architecture.png)** — how the extension, CLI, and MCP server share one workspace
 - **[WebSocket Testing Guide](docs/websocket-examples.md)** — raw WebSocket and Socket.IO examples
+- **[Contributing](CONTRIBUTING.md)** — development workflow and coding conventions
 - **[Postman Compatibility Reference](docs/user-guide/postman-compatibility.md)** — full `pm.*` matrix
 - [CLI & CI/CD](docs/user-guide/cli-standalone.md)
 - [MCP Server](docs/user-guide/mcp-server.md)
