@@ -36,7 +36,7 @@
 
 ### 0.3 Monetization transparency
 - README states clearly: "Open source (MIT). Free forever. No cloud account required."
-- If a paid tier is planned later, say so: "Core is free; team features may come later."
+- If a paid tier is planned later, say so: "`@http-forge/core` is open source (MIT) on GitHub/npm; team features may come later."
 - Developers distrust "free" without a sustainability story.
 
 ### 0.4 Marketplace SEO (90% of installs come from here)
@@ -156,6 +156,15 @@ If you must compress to 4 weeks, cut Article 2 and the X thread — not the quic
 6. **Community > ads.** Fast issue response and genuine engagement outperform paid promotion for dev tools at this stage.
 
 ---
+
+## 📣 Open-source announcement (core is now MIT)
+
+Use this when announcing that `@http-forge/core` is open source:
+
+- **X/Twitter:** "`@http-forge/core` — the engine behind HTTP Forge (MCP server, 60+ tools, API discovery for 6 frameworks, WebSocket/Socket.IO) — is now open source (MIT). Build on it, embed it, or contribute: https://github.com/hsl1230/http-forge.core"
+- **Reddit (r/programming, r/webdev):** Title: "`@http-forge/core` is now open source (MIT) — the API testing engine behind HTTP Forge". Body: honest story + link + invite feedback.
+- **dev.to/Hashnode:** Short post: "Why I open-sourced the core of HTTP Forge" — explain the engine, MCP, discovery; CTA to GitHub + Marketplace.
+- **VS Code Marketplace:** Update description to mention "`@http-forge/core` is open source (MIT)".
 
 ## 📊 Metrics to track
 
