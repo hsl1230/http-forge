@@ -5,7 +5,6 @@ features/
 docs
 coverage
 extension
-node_modules
 README.md
 package-lock.json
 http-forge-assets
@@ -28,3 +27,4 @@ out/resources/screenshots/*.png
 
 # Exclude webview source modules (only bundle.js is needed)
 out/resources/features/**/modules/
+node_modules

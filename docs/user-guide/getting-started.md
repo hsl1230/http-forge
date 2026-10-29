@@ -4,7 +4,7 @@ Get from zero to your first API test in under 60 seconds, then learn the full li
 
 ## Prerequisites
 
-- Node.js 20+ (the CLI installs VS Code, HTTP Forge, and GitHub Copilot automatically)
+- Node.js 20+ (Node 24 recommended; the CLI installs VS Code, HTTP Forge, and GitHub Copilot automatically)
 - GitHub Copilot sign-in (optional, for AI features)
 
 ## 1. Install

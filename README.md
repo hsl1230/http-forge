@@ -271,3 +271,5 @@ Typical flow: design and validate in the extension, automate with CLI/MCP, and g
 MIT. Free forever. No cloud account required. Core is free; team features may come later.
 
 Enjoy HTTP Forge! 🔨✨
+
+> `@http-forge/core` is open source (MIT) — audit the execution engine, Postman compatibility layer, and sensitive-data redaction yourself: https://github.com/hsl1230/http-forge.core

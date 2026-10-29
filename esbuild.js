@@ -28,7 +28,6 @@ async function main() {
     // the user's project (scripts.modulePaths) rather than bundled.
     external: [
       'vscode', 'moment', 'tv4', 'ajv',
-      'socket.io-client',
       '@aws-sdk/client-secrets-manager', '@azure/keyvault-secrets',
       '@azure/identity', '@google-cloud/secret-manager',
     ],
