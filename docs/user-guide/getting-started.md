@@ -20,12 +20,14 @@ Launch modes:
 - `--test` (default) — isolated profile with only HTTP Forge + Copilot (clean, reproducible)
 - `--dev` — your default VS Code profile (all your existing extensions)
 - `--both` — launch both profiles side by side
+- `--examples` — clone the `http-forge.examples` sample workspace and open it in test mode (aliases: `--with-examples`, `--clone-examples`)
 
 ```bash
 http-forge launch --dev          # use your existing VS Code setup
 http-forge launch --test         # isolated profile (default)
 http-forge launch --both         # both side by side
 http-forge launch ./my-project   # open a specific workspace
+http-forge launch --examples     # clone and open the sample workspace
 ```
 
 > Already have VS Code installed? You can also install HTTP Forge from the VS Code Marketplace: search **HTTP Forge** in the Extensions panel.

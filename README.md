@@ -51,9 +51,8 @@ The extension, CLI, and MCP server share one workspace: design in the editor, au
 
 ## ⚡ Quickstart
 
-1. `npm install -g @http-forge/cli && http-forge launch`
-2. Open the HTTP Forge panel → click **+** → create a collection and request
-3. Set method to **GET**, URL to `https://jsonplaceholder.typicode.com/posts/1`, hit **Send**
+1. `npm install -g @http-forge/cli && http-forge launch --examples`
+2. Open the HTTP Forge panel, explore the preloaded sample collections, and send a request to try it out
 
 Full walkthrough (AI tests, collections, suites, CLI): [Getting Started](docs/user-guide/getting-started.md)
 
