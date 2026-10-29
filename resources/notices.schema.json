@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HTTP Forge Notices",
+  "description": "In-app notices shown to users. Single source of truth for bundled and remote notices.",
+  "type": "object",
+  "required": ["notices"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "notices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "message"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique notice ID. Used as globalState key. Bump to re-show."
+          },
+          "message": {
+            "type": "string",
+            "description": "The message displayed to the user."
+          },
+          "actionLabel": {
+            "type": "string",
+            "description": "Optional action button label."
+          },
+          "actionUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to open when the action button is clicked."
+          },
+          "trigger": {
+            "type": "string",
+            "enum": ["activation", "execution"],
+            "default": "activation",
+            "description": "When to show: 'activation' (on startup) or 'execution' (after N requests)."
+          },
+          "thresholds": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 1 },
+            "description": "Execution count thresholds (only for trigger: 'execution'). If multiple thresholds are set, 'Dismiss' re-prompts at the next threshold. If a single threshold, dismissal is permanent."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

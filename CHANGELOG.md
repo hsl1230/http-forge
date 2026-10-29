@@ -5,6 +5,27 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.0 - 2026-10-29
+
+### Added
+
+- **1.0.0 release** — Full API testing platform: Request Tester, collections, test suites, AI features, MCP server, WebSocket/Socket.IO support, OpenAPI import/export, and API discovery. `@http-forge/core` is open source (MIT).
+- **`generate-collection` command** — generate requests from discovered backend endpoints (no suite). Also available as `discover --generate-collection`.
+- **`generate-ai-agent` / `generate-ai-config` commands** — create AI agent guide and thin pointer files for Claude, Copilot, OpenCode, Cursor.
+- **Getting started guide** — `docs/user-guide/getting-started.md` with 60-second walkthrough.
+- **CONTRIBUTING.md** — development workflow and coding conventions.
+- **Issue templates** — bug report and feature request templates.
+- **Unified notice system** — all in-app notices now live in `resources/notices.json` with a JSON schema (`notices.schema.json`). Activation and execution-triggered notices are handled by a single mechanism. `statusBar` and `repromptOnDismiss` behavior is derived from `thresholds` (multiple = re-prompt, single = permanent).
+- **Marketplace SEO** — updated description to lead with "Free Postman/Bruno/Thunder Client alternative."
+
+### Fixed
+
+- **GraphQL introspection 415/400 errors** — `GraphQLHandler` now resolves `{{variable}}` placeholders in URL and headers before introspection, and `Content-Type`/`Accept` headers always take precedence over user-supplied values.
+
+### Changed
+
+- **Core dependency** — upgraded to `@http-forge/core` ^1.0.0.
+
 ## 0.17.2 - 2026-10-28
 
 ### Added

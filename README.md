@@ -230,6 +230,12 @@ Export Postman collection (v2.1) → Import into HTTP Forge → Done. All `pm.*`
 
 ---
 
+## 🔓 Open Source
+
+`@http-forge/core` is **open source (MIT)**. Audit the execution engine, Postman compatibility layer, and sensitive-data redaction yourself:
+
+https://github.com/hsl1230/http-forge.core
+
 ## 👨‍👩‍👧‍👦 HTTP Forge Family
 
 HTTP Forge is a family of components that share the same workspace model and work together across local development, AI workflows, and CI/CD.

@@ -17,6 +17,7 @@
 import {
     getCompletions,
     GraphQLSchemaService,
+    type IEnvironmentConfigService,
     type IGraphQLSchemaService,
     type IHttpClient,
     parseQueryContext
@@ -28,6 +29,7 @@ export class GraphQLHandler implements IMessageHandler {
 
     constructor(
         httpClient: IHttpClient,
+        private readonly envConfigService?: IEnvironmentConfigService,
     ) {
         this.schemaService = new GraphQLSchemaService(httpClient);
     }
@@ -66,7 +68,34 @@ export class GraphQLHandler implements IMessageHandler {
                 throw new Error('No endpoint URL provided. Enter a GraphQL endpoint URL first.');
             }
 
-            const schema = await this.schemaService.fetchSchema(endpointUrl, headers || {});
+            // Resolve {{variable}} placeholders in the URL and headers before
+            // introspecting, so templated endpoints (e.g. {{graphqlzero_url}})
+            // hit the real server.
+            // Resolve {{variable}} placeholders. Try the selected environment
+            // first; if it doesn't contain the variable (e.g. stale selection),
+            // fall back to any environment that does.
+            const tryResolve = (input: string, envName?: string): string => {
+                if (!this.envConfigService?.resolveVariables) return input;
+                const resolved = this.envConfigService.resolveVariables(input, envName);
+                if (resolved !== input) return resolved;
+                for (const name of this.envConfigService.getEnvironmentNames?.() || []) {
+                    const r = this.envConfigService.resolveVariables(input, name);
+                    if (r !== input) return r;
+                }
+                return resolved;
+            };
+
+            const envName = this.envConfigService?.getSelectedEnvironment?.();
+            const resolvedUrl = tryResolve(endpointUrl, envName);
+
+            const resolvedHeaders: Record<string, string> = {};
+            if (headers && typeof headers === 'object') {
+                for (const [key, value] of Object.entries(headers)) {
+                    resolvedHeaders[key] = tryResolve(String(value), envName);
+                }
+            }
+
+            const schema = await this.schemaService.fetchSchema(resolvedUrl, resolvedHeaders);
 
             // Convert schema to serializable format for webview
             const serializable = this.schemaService.schemaToSerializable(schema);

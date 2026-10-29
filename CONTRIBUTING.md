@@ -18,9 +18,9 @@ HTTP Forge is a multi-repo workspace. Some repos are **public** (open to externa
 
 ## Prerequisites
 
-- **Node.js 20.19.5** (required — Node 18.x breaks Vitest)
+- **Node.js 20+** (Node 24 recommended — Node 18.x breaks Vitest)
   ```bash
-  export PATH=/home/henry/.nvm/versions/node/v20.19.5/bin:$PATH
+  export PATH=/home/henry/.nvm/versions/node/v24.19.0/bin:$PATH
   ```
 - Git
 

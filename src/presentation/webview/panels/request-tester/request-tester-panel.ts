@@ -177,7 +177,8 @@ export class RequestTesterPanel implements vscode.Disposable {
 
     // GraphQL handler for schema introspection and completions
     const graphqlHandler = new GraphQLHandler(
-      container.httpClient
+      container.httpClient,
+      envConfigService
     );
 
     // Register all handlers (Open/Closed - new handlers can be added here)
