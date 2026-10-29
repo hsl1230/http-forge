@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Initial public release** — HTTP Forge extension is now open source (MIT). Includes the full API testing platform: Request Tester, collections, test suites, AI features, MCP server, WebSocket/Socket.IO support, OpenAPI import/export, and API discovery.
+- **1.0.0 release** — Full API testing platform: Request Tester, collections, test suites, AI features, MCP server, WebSocket/Socket.IO support, OpenAPI import/export, and API discovery. `@http-forge/core` is open source (MIT).
 - **`generate-collection` command** — generate requests from discovered backend endpoints (no suite). Also available as `discover --generate-collection`.
 - **`generate-ai-agent` / `generate-ai-config` commands** — create AI agent guide and thin pointer files for Claude, Copilot, OpenCode, Cursor.
 - **Getting started guide** — `docs/user-guide/getting-started.md` with 60-second walkthrough.
