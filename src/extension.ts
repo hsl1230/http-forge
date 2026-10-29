@@ -15,6 +15,7 @@ import { createEmptyApi } from './api/empty-api';
 import { registerAllCommands } from './commands';
 import { registerHttpForgeChatParticipant } from './presentation/chat/http-forge-chat-participant';
 import { notifyIfAgentsMdStale } from './commands/agentsMdCommands';
+import { showPendingNotices } from './commands/notices';
 import type { CommandContext } from './commands/command-context';
 import { runImportRequestCommand } from './commands/importRequest';
 import { McpServerController } from './infrastructure/mcp/mcp-server-controller';
@@ -156,6 +157,9 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
 
   // One-time notice when the versioned AI agent guide is stale (opt-in refresh)
   void notifyIfAgentsMdStale({ workspaceFolder, context }).catch(() => {});
+
+  // Show pending in-app notices (one per activation, tracked via globalState)
+  void showPendingNotices(context).catch(() => {});
 
   // Register OAuth2 callback URI handler
   const oauth2TokenManager = services.container.oauth2TokenManager;

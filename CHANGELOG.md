@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Getting started guide** — `docs/user-guide/getting-started.md` with 60-second walkthrough.
 - **CONTRIBUTING.md** — development workflow and coding conventions.
 - **Issue templates** — bug report and feature request templates.
+- **Unified notice system** — all in-app notices now live in `resources/notices.json` with a JSON schema (`notices.schema.json`). Activation and execution-triggered notices are handled by a single mechanism. `statusBar` and `repromptOnDismiss` behavior is derived from `thresholds` (multiple = re-prompt, single = permanent).
 - **Marketplace SEO** — updated description to lead with "Free Postman/Bruno/Thunder Client alternative."
 
 ### Fixed

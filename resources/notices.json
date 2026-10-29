@@ -1,0 +1,20 @@
+{
+  "$schema": "./notices.schema.json",
+  "notices": [
+    {
+      "id": "open-source-core-v1",
+      "message": "HTTP Forge core engine is now open source (MIT). You can audit the execution engine, Postman compatibility, and sensitive-data redaction yourself.",
+      "actionLabel": "View on GitHub",
+      "actionUrl": "https://github.com/hsl1230/http-forge.core",
+      "trigger": "activation"
+    },
+    {
+      "id": "review-prompt",
+      "message": "Enjoying HTTP Forge? A quick review on the Marketplace helps others discover it.",
+      "actionLabel": "$(star-full) Leave a Review",
+      "actionUrl": "https://marketplace.visualstudio.com/items?itemName=henry-huang.http-forge&ssr=false#review-details",
+      "trigger": "execution",
+      "thresholds": [10, 50, 200, 500]
+    }
+  ]
+}

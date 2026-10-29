@@ -82,3 +82,4 @@ export async function notifyIfAgentsMdStale(
         await vscode.commands.executeCommand(COMMAND_IDS.refreshAgentsMd);
     }
 }
+

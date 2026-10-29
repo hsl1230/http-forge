@@ -1,7 +1,7 @@
 import { CollectionRequestExecutor, type ConsoleOutputSource, type ExecutionRequest, type IAsyncCookieService, IEnvironmentConfigService, type IHttpRequestService, type IRequestHistoryService, IRequestPreparer, type IScriptExecutor, type PreparedRequest, type RequestAuth, getSecretValues } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { getServiceContainer } from '../../../../../infrastructure/services/service-container';
-import { trackRequestAndPromptReview } from '../../../../../shared/review-prompt';
+import { trackRequestAndPromptReview } from '../../../../../commands/notices';
 import { RequestContext } from '../../../../../shared/utils';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { resolveInheritedAuth } from '../../../shared/auth-resolution';
