@@ -34,7 +34,7 @@
 
 ### 0.3 Monetization transparency
 - State clearly in README: "Open source (MIT). Free forever. No cloud account required."
-- If you plan a paid tier later, say so: "Core is free; team features may come later."
+- If you plan a paid tier later, say so: "`@http-forge/core` is open source (MIT) on GitHub/npm; team features may come later."
 - Developers distrust "free" without a sustainability story.
 
 ### 0.4 Marketplace SEO
@@ -154,6 +154,15 @@ Produce **2 videos, not 4**. Quality over quantity.
 3. **MCP is the real differentiator.** Postman has Newman (CI). Bruno has CLI. HTTP Forge has an MCP server with 60+ tools that lets AI agents drive the entire lifecycle. That's the story.
 4. **Be honest about limitations.** "Free forever, open source, local-first" is strong. Don't overclaim ("better than Postman" — instead, "Postman alternative for developers who want local-first + AI").
 5. **Community > ads.** For dev tools, fast issue response and genuine engagement outperform paid promotion.
+
+## 📣 Open-source announcement (core is now MIT)
+
+Use this when announcing that `@http-forge/core` is open source:
+
+- **X/Twitter:** "`@http-forge/core` — the engine behind HTTP Forge (MCP server, 60+ tools, API discovery for 6 frameworks, WebSocket/Socket.IO) — is now open source (MIT). Build on it, embed it, or contribute: https://github.com/hsl1230/http-forge.core"
+- **Reddit (r/programming, r/webdev):** Title: "`@http-forge/core` is now open source (MIT) — the API testing engine behind HTTP Forge". Body: honest story + link + invite feedback.
+- **dev.to/Hashnode:** Short post: "Why I open-sourced the core of HTTP Forge" — explain the engine, MCP, discovery; CTA to GitHub + Marketplace.
+- **VS Code Marketplace:** Update description to mention "`@http-forge/core` is open source (MIT)".
 
 ## Metrics to track
 
