@@ -148,6 +148,11 @@ suites/<suite-id>/<request-slug>/
     `-- post-response.js
 ```
 
+Suite requests are hydrated from their source collection when the suite runs.
+This includes body content stored in an external `body.json`, so a request body
+edited in the collection is picked up by suite runs. If a request was already
+loaded before `body.json` was added, reopen it or refresh collections first.
+
 ## Save on close
 
 Both the suite flow panel and the suite request editor track unsaved changes.
