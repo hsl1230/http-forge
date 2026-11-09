@@ -113,6 +113,17 @@ export class RequestExecutionHandler implements IMessageHandler {
     const collectionService = getServiceContainer().collection;
     const collection = collectionService.getCollection(context.collectionId!);
 
+    // Lazy-loaded collections keep body.json (and other heavy fields) off the
+    // initial tree. Hydrate the request before execution so a body stored in
+    // body.json is actually sent even if the open panel still holds a light
+    // cached copy.
+    const hydratedRequest = context?.requestId && collection
+      ? collectionService.findRequest(collection.id, context.requestId)
+      : undefined;
+    if (hydratedRequest && context?.request) {
+      context.request = { ...context.request, body: hydratedRequest.body ?? context.request.body };
+    }
+
     // Find the request in the collection to get folder scripts chain
     const requestData = findRequestInCollection(collection, context.requestId!);
     const folderScriptsChain = requestData?.folderScriptsChain || [];
@@ -177,7 +188,7 @@ export class RequestExecutionHandler implements IMessageHandler {
       headers: uiRequest.headers as Record<string, string> | undefined,
       query: uiRequest.query as Record<string, string> | undefined,
       params: (uiRequest.params as Record<string, string> | undefined) || resolveParamsToStrings(context?.request?.params),
-      body: uiRequest.body !== null && uiRequest.body !== undefined ? uiRequest.body : context?.request?.body,
+      body: uiRequest.body !== null && uiRequest.body !== undefined ? uiRequest.body : (hydratedRequest?.body ?? context?.request?.body),
       scripts: uiRequest.scripts || context?.request?.scripts,
       settings: uiRequest.settings || context?.request?.settings,
       // include authorization info so CollectionRequestExecutor can apply auth
