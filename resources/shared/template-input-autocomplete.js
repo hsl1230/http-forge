@@ -6,7 +6,7 @@
  * variable / dynamic-variable / filter suggestions to ordinary inputs.
  */
 
-import { getTemplateSuggestions } from '../features/request-tester/modules/template-completion-provider.js';
+import { getTemplateSuggestions, DYNAMIC_VARIABLE_COMPLETIONS, FILTER_COMPLETIONS } from '../features/request-tester/modules/template-completion-provider.js';
 
 const ATTACHED = new WeakSet();
 let dropdown = null;
@@ -210,15 +210,67 @@ function handleKeydown(event) {
 function attach(input) {
     if (!input || ATTACHED.has(input)) return;
     ATTACHED.add(input);
-    input.addEventListener('input', () => updateAutocomplete(input));
+    updateInputTitle(input);
+    input.addEventListener('input', () => {
+        updateAutocomplete(input);
+        updateInputTitle(input);
+    });
     input.addEventListener('click', () => updateAutocomplete(input));
-    input.addEventListener('focus', () => updateAutocomplete(input));
+    input.addEventListener('focus', () => {
+        updateAutocomplete(input);
+        updateInputTitle(input);
+    });
     input.addEventListener('keydown', handleKeydown);
     input.addEventListener('blur', () => {
         setTimeout(() => {
             if (activeInput === input) hideDropdown();
         }, 150);
     });
+}
+
+function getTemplateState() {
+    if (typeof window.getTemplateState === 'function') {
+        return window.getTemplateState() || {};
+    }
+    return window.__requestTesterApp?.state || {};
+}
+
+function getVariableEntries(state, name) {
+    const entries = [];
+    const resolved = state?.resolvedEnvironment?.variables?.[name];
+    if (resolved !== undefined) entries.push(['env', resolved]);
+    const collection = state?.collectionVariables?.[name];
+    if (collection !== undefined) entries.push(['collection', collection]);
+    const global = state?.globalVariables?.[name];
+    if (global !== undefined) entries.push(['global', global]);
+    const session = state?.sessionVariables?.[name];
+    if (session !== undefined) entries.push(['session', session]);
+    return entries;
+}
+
+function updateInputTitle(input) {
+    if (!input) return;
+    const state = getTemplateState();
+    const value = input.value || '';
+    const regex = /\\{\\{([\\s\\S]*?)\\}\\}/g;
+    const lines = [];
+    let match;
+    while ((match = regex.exec(value)) !== null) {
+        const content = match[1].trim();
+        const variablePart = content.split('|')[0].trim();
+        if (!/^\\$?\\w+$/.test(variablePart)) continue;
+
+        const entries = getVariableEntries(state, variablePart);
+        if (entries.length) {
+            entries.forEach(([scope, val]) => lines.push(`${variablePart} (${scope}) = ${String(val)}`));
+        } else if (variablePart.startsWith('$')) {
+            const dv = (DYNAMIC_VARIABLE_COMPLETIONS || []).find((item) => item.name === variablePart);
+            lines.push(`${variablePart} — ${dv ? dv.description : 'Dynamic variable'}`);
+        } else {
+            lines.push(`${variablePart} — (not defined)`);
+        }
+    }
+    input.title = lines.join('\\n');
 }
 
 function isTemplateInput(input) {
@@ -230,7 +282,10 @@ function isTemplateInput(input) {
 
 function attachAll() {
     document.querySelectorAll('input.value, #request-path-input').forEach((input) => {
-        if (isTemplateInput(input)) attach(input);
+        if (isTemplateInput(input)) {
+            updateInputTitle(input);
+            attach(input);
+        }
     });
 }
 

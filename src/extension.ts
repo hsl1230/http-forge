@@ -15,7 +15,7 @@ import { createEmptyApi } from './api/empty-api';
 import { registerAllCommands } from './commands';
 import { HttpForgeModuleDefinitionProvider } from './infrastructure/module-definition-provider';
 import { HttpForgeTemplateCompletionProvider } from './infrastructure/template-completion-provider';
-import { registerHttpForgeChatParticipant } from './presentation/chat/http-forge-chat-participant';
+import { HttpForgeTemplateHoverProvider } from './infrastructure/template-hover-provider';import { registerHttpForgeChatParticipant } from './presentation/chat/http-forge-chat-participant';
 import { notifyIfAgentsMdStale } from './commands/agentsMdCommands';
 import { showPendingNotices } from './commands/notices';
 import type { CommandContext } from './commands/command-context';
@@ -173,6 +173,16 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
       templateCompletionProvider,
       '{', '$', '|', ' '
     )
+  );
+
+  // Show template variable values and filter descriptions on hover
+  const templateHoverProvider = new HttpForgeTemplateHoverProvider(
+    envConfigService as IEnvironmentConfigService,
+    collectionService as CollectionService
+  );
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider('json', templateHoverProvider),
+    vscode.languages.registerHoverProvider('javascript', templateHoverProvider)
   );
 
   // Make require('./helper') and require('helper') in HTTP Forge scripts open

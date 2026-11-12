@@ -1519,9 +1519,105 @@ ${f.description}` },
       ]
     };
   }
+  function registerTemplateHoverProviders2(state) {
+    const languages = ["json", "plaintext", "xml", "html", "javascript"];
+    const disposables = [];
+    const getVariableEntries2 = (name) => {
+      const entries = [];
+      const resolved = state?.resolvedEnvironment?.variables?.[name];
+      if (resolved !== void 0) entries.push(["env", resolved]);
+      const collection = state?.collectionVariables?.[name];
+      if (collection !== void 0) entries.push(["collection", collection]);
+      const global = state?.globalVariables?.[name];
+      if (global !== void 0) entries.push(["global", global]);
+      const session = state?.sessionVariables?.[name];
+      if (session !== void 0) entries.push(["session", session]);
+      return entries;
+    };
+    const findCatalogEntry = (catalog, name) => catalog.find((entry) => entry.name === name);
+    for (const lang of languages) {
+      try {
+        disposables.push(monaco.languages.registerHoverProvider(lang, {
+          provideHover(model, position) {
+            const text = model.getValue();
+            const offset = model.getOffsetAt(position);
+            const regex = /\\{\\{([\\s\\S]*?)\\}\\}/g;
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+              const contentStart = match.index + 2;
+              const contentEnd = match.index + match[0].length - 2;
+              if (offset < contentStart || offset > contentEnd) {
+                continue;
+              }
+              const content = match[1];
+              const relativeOffset = offset - contentStart;
+              const tokenRegex = /\\$?\\w+/g;
+              let tokenMatch;
+              let token = null;
+              let tokenStart = -1;
+              let tokenEnd = -1;
+              while ((tokenMatch = tokenRegex.exec(content)) !== null) {
+                const start = tokenMatch.index;
+                const end = start + tokenMatch[0].length;
+                if (relativeOffset >= start && relativeOffset <= end) {
+                  token = tokenMatch[0];
+                  tokenStart = start;
+                  tokenEnd = end;
+                  break;
+                }
+              }
+              if (!token) {
+                return null;
+              }
+              const lastPipe = content.lastIndexOf("|");
+              const isFilter = lastPipe !== -1 && tokenStart > lastPipe;
+              const isDynamic = token.startsWith("$");
+              const lines = [];
+              if (isFilter) {
+                const entry = findCatalogEntry(FILTER_COMPLETIONS, token);
+                lines.push(`**${token}** \u2014 ${entry ? entry.description : "Template filter"}`);
+                if (entry?.category) {
+                  lines.push(`Category: *${entry.category}*`);
+                }
+              } else if (isDynamic) {
+                const entry = findCatalogEntry(DYNAMIC_VARIABLE_COMPLETIONS, token);
+                lines.push(`**${token}** \u2014 ${entry ? entry.description : "Dynamic variable"}`);
+              } else {
+                const entries = getVariableEntries2(token);
+                if (entries.length === 0) {
+                  lines.push(`**${token}** \u2014 _(not defined)_`);
+                } else if (entries.length === 1) {
+                  lines.push(`**${token}** = \`${String(entries[0][1])}\``);
+                  lines.push(`Scope: *${entries[0][0]}*`);
+                } else {
+                  lines.push(`**${token}**`);
+                  for (const [scope, value] of entries) {
+                    lines.push(`- *${scope}*: \`${String(value)}\``);
+                  }
+                }
+              }
+              const startPos = model.getPositionAt(contentStart + tokenStart);
+              const endPos = model.getPositionAt(contentStart + tokenEnd);
+              return {
+                range: new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column),
+                contents: [{ value: lines.join("\\n") }]
+              };
+            }
+            return null;
+          }
+        }));
+      } catch (e) {
+        console.warn(`[TemplateHover] Could not register for "${lang}":`, e.message);
+      }
+    }
+    return disposables;
+  }
   if (typeof window !== "undefined") {
     window.registerHttpForgeTemplateCompletionProviders = registerTemplateCompletionProviders;
     window.getHttpForgeTemplateSuggestions = getTemplateSuggestions;
+    window.registerHttpForgeTemplateHoverProviders = registerTemplateHoverProviders2;
+    window.DYNAMIC_VARIABLE_COMPLETIONS = DYNAMIC_VARIABLE_COMPLETIONS;
+    window.FILTER_COMPLETIONS = FILTER_COMPLETIONS;
   }
 
   // resources/features/request-tester/modules/monaco-editors-manager.js
@@ -1798,6 +1894,9 @@ ${f.description}` },
         }
         registerGraphQLLanguage(monaco);
         registerTemplateCompletionProviders(state);
+        if (typeof registerTemplateHoverProviders === "function") {
+          registerTemplateHoverProviders(state);
+        }
         registerScriptCompletionProviders();
         requestAnimationFrame(() => {
           isReady = true;
@@ -2213,9 +2312,16 @@ ${f.description}` },
   function attach(input) {
     if (!input || ATTACHED.has(input)) return;
     ATTACHED.add(input);
-    input.addEventListener("input", () => updateAutocomplete(input));
+    updateInputTitle(input);
+    input.addEventListener("input", () => {
+      updateAutocomplete(input);
+      updateInputTitle(input);
+    });
     input.addEventListener("click", () => updateAutocomplete(input));
-    input.addEventListener("focus", () => updateAutocomplete(input));
+    input.addEventListener("focus", () => {
+      updateAutocomplete(input);
+      updateInputTitle(input);
+    });
     input.addEventListener("keydown", handleKeydown);
     input.addEventListener("blur", () => {
       setTimeout(() => {
@@ -2223,12 +2329,56 @@ ${f.description}` },
       }, 150);
     });
   }
+  function getTemplateState() {
+    if (typeof window.getTemplateState === "function") {
+      return window.getTemplateState() || {};
+    }
+    return window.__requestTesterApp?.state || {};
+  }
+  function getVariableEntries(state, name) {
+    const entries = [];
+    const resolved = state?.resolvedEnvironment?.variables?.[name];
+    if (resolved !== void 0) entries.push(["env", resolved]);
+    const collection = state?.collectionVariables?.[name];
+    if (collection !== void 0) entries.push(["collection", collection]);
+    const global = state?.globalVariables?.[name];
+    if (global !== void 0) entries.push(["global", global]);
+    const session = state?.sessionVariables?.[name];
+    if (session !== void 0) entries.push(["session", session]);
+    return entries;
+  }
+  function updateInputTitle(input) {
+    if (!input) return;
+    const state = getTemplateState();
+    const value = input.value || "";
+    const regex = /\\{\\{([\\s\\S]*?)\\}\\}/g;
+    const lines = [];
+    let match;
+    while ((match = regex.exec(value)) !== null) {
+      const content = match[1].trim();
+      const variablePart = content.split("|")[0].trim();
+      if (!/^\\$?\\w+$/.test(variablePart)) continue;
+      const entries = getVariableEntries(state, variablePart);
+      if (entries.length) {
+        entries.forEach(([scope, val]) => lines.push(`${variablePart} (${scope}) = ${String(val)}`));
+      } else if (variablePart.startsWith("$")) {
+        const dv = (DYNAMIC_VARIABLE_COMPLETIONS || []).find((item) => item.name === variablePart);
+        lines.push(`${variablePart} \u2014 ${dv ? dv.description : "Dynamic variable"}`);
+      } else {
+        lines.push(`${variablePart} \u2014 (not defined)`);
+      }
+    }
+    input.title = lines.join("\\n");
+  }
   function isTemplateInput(input) {
     return input && (input.id === "request-path-input" || input.classList.contains("value"));
   }
   function attachAll() {
     document.querySelectorAll("input.value, #request-path-input").forEach((input) => {
-      if (isTemplateInput(input)) attach(input);
+      if (isTemplateInput(input)) {
+        updateInputTitle(input);
+        attach(input);
+      }
     });
   }
   function initTemplateInputAutocomplete(stateOrGetter) {

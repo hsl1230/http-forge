@@ -331,13 +331,129 @@ function getTemplateSuggestions(state, textUntilPosition) {
     };
 }
 
+// ─── Hover Provider ──────────────────────────────────────────────────────────
+
+/**
+ * Register hover providers for template expressions.
+ *
+ * @param {Object} state - Live application state
+ * @returns {import('monaco-editor').IDisposable[]} Disposables
+ */
+function registerTemplateHoverProviders(state) {
+    const languages = ['json', 'plaintext', 'xml', 'html', 'javascript'];
+    const disposables = [];
+
+    const getVariableEntries = (name) => {
+        const entries = [];
+        const resolved = state?.resolvedEnvironment?.variables?.[name];
+        if (resolved !== undefined) entries.push(['env', resolved]);
+        const collection = state?.collectionVariables?.[name];
+        if (collection !== undefined) entries.push(['collection', collection]);
+        const global = state?.globalVariables?.[name];
+        if (global !== undefined) entries.push(['global', global]);
+        const session = state?.sessionVariables?.[name];
+        if (session !== undefined) entries.push(['session', session]);
+        return entries;
+    };
+
+    const findCatalogEntry = (catalog, name) => catalog.find((entry) => entry.name === name);
+
+    for (const lang of languages) {
+        try {
+            disposables.push(monaco.languages.registerHoverProvider(lang, {
+                provideHover(model, position) {
+                    const text = model.getValue();
+                    const offset = model.getOffsetAt(position);
+                    const regex = /\\{\\{([\\s\\S]*?)\\}\\}/g;
+                    let match;
+
+                    while ((match = regex.exec(text)) !== null) {
+                        const contentStart = match.index + 2;
+                        const contentEnd = match.index + match[0].length - 2;
+                        if (offset < contentStart || offset > contentEnd) {
+                            continue;
+                        }
+
+                        const content = match[1];
+                        const relativeOffset = offset - contentStart;
+                        const tokenRegex = /\\$?\\w+/g;
+                        let tokenMatch;
+                        let token = null;
+                        let tokenStart = -1;
+                        let tokenEnd = -1;
+
+                        while ((tokenMatch = tokenRegex.exec(content)) !== null) {
+                            const start = tokenMatch.index;
+                            const end = start + tokenMatch[0].length;
+                            if (relativeOffset >= start && relativeOffset <= end) {
+                                token = tokenMatch[0];
+                                tokenStart = start;
+                                tokenEnd = end;
+                                break;
+                            }
+                        }
+
+                        if (!token) {
+                            return null;
+                        }
+
+                        const lastPipe = content.lastIndexOf('|');
+                        const isFilter = lastPipe !== -1 && tokenStart > lastPipe;
+                        const isDynamic = token.startsWith('$');
+                        const lines = [];
+
+                        if (isFilter) {
+                            const entry = findCatalogEntry(FILTER_COMPLETIONS, token);
+                            lines.push(`**${token}** — ${entry ? entry.description : 'Template filter'}`);
+                            if (entry?.category) {
+                                lines.push(`Category: *${entry.category}*`);
+                            }
+                        } else if (isDynamic) {
+                            const entry = findCatalogEntry(DYNAMIC_VARIABLE_COMPLETIONS, token);
+                            lines.push(`**${token}** — ${entry ? entry.description : 'Dynamic variable'}`);
+                        } else {
+                            const entries = getVariableEntries(token);
+                            if (entries.length === 0) {
+                                lines.push(`**${token}** — _(not defined)_`);
+                            } else if (entries.length === 1) {
+                                lines.push(`**${token}** = \`${String(entries[0][1])}\``);
+                                lines.push(`Scope: *${entries[0][0]}*`);
+                            } else {
+                                lines.push(`**${token}**`);
+                                for (const [scope, value] of entries) {
+                                    lines.push(`- *${scope}*: \`${String(value)}\``);
+                                }
+                            }
+                        }
+
+                        const startPos = model.getPositionAt(contentStart + tokenStart);
+                        const endPos = model.getPositionAt(contentStart + tokenEnd);
+                        return {
+                            range: new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column),
+                            contents: [{ value: lines.join('\\n') }]
+                        };
+                    }
+
+                    return null;
+                }
+            }));
+        } catch (e) {
+            console.warn(`[TemplateHover] Could not register for "${lang}":`, e.message);
+        }
+    }
+
+    return disposables;
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
-export { registerTemplateCompletionProviders, getTemplateSuggestions };
+export { registerTemplateCompletionProviders, getTemplateSuggestions, registerTemplateHoverProviders, DYNAMIC_VARIABLE_COMPLETIONS, FILTER_COMPLETIONS };
 
-// Expose the registration helper for non-bundled editors (folder/collection)
-// that load this module directly as an ES module.
+// Expose helpers for non-bundled editors (folder/collection)
 if (typeof window !== 'undefined') {
     window.registerHttpForgeTemplateCompletionProviders = registerTemplateCompletionProviders;
     window.getHttpForgeTemplateSuggestions = getTemplateSuggestions;
+    window.registerHttpForgeTemplateHoverProviders = registerTemplateHoverProviders;
+    window.DYNAMIC_VARIABLE_COMPLETIONS = DYNAMIC_VARIABLE_COMPLETIONS;
+    window.FILTER_COMPLETIONS = FILTER_COMPLETIONS;
 }

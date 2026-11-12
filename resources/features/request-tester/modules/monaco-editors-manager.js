@@ -381,6 +381,9 @@ function createMonacoEditorsManager({
 
             // Register completion providers (IntelliSense for {{ }} templates + hf/pm/ctx script API)
             registerTemplateCompletionProviders(state);
+            if (typeof registerTemplateHoverProviders === 'function') {
+                registerTemplateHoverProviders(state);
+            }
             registerScriptCompletionProviders();
 
             // Mark as ready after Monaco finishes internal setup
