@@ -153,8 +153,10 @@ export class CollectionEditorPanel implements IWebviewMessenger {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'script.js'));
         const monacoViewerUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, 'monaco-viewer.js'));
         const scriptCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, '..', 'request-tester', 'modules', 'script-completion-provider.js'));
+        const templateCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, '..', 'request-tester', 'modules', 'template-completion-provider.js'));
 
         // Build CSP
+
         const cspContent = `default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src ${webview.cspSource} https://cdnjs.cloudflare.com; font-src ${webview.cspSource} https://cdnjs.cloudflare.com; img-src ${webview.cspSource} data:; connect-src https://cdnjs.cloudflare.com;`;
 
         // Read HTML template
@@ -167,6 +169,7 @@ export class CollectionEditorPanel implements IWebviewMessenger {
         html = html.replace('{{scriptUri}}', scriptUri.toString());
         html = html.replace('{{monacoViewerUri}}', monacoViewerUri.toString());
         html = html.replace('{{scriptCompletionUri}}', scriptCompletionUri.toString());
+        html = html.replace('{{templateCompletionUri}}', templateCompletionUri.toString());
 
         return html;
     }

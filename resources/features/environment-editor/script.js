@@ -512,3 +512,18 @@ window.addEventListener('message', event => {
 
 // Request initial data
 vscode.postMessage({ type: 'ready' });
+
+/**
+ * Template autocomplete state for environment variable values.
+ */
+function getTemplateState() {
+    const env = state.sharedConfig?.environments?.[state.selectedEnvironment];
+    return {
+        resolvedEnvironment: { variables: env?.variables || {} },
+        globalVariables: state.sharedConfig?.globalVariables || {},
+        collectionVariables: {},
+        sessionVariables: {}
+    };
+}
+
+window.getTemplateState = getTemplateState;

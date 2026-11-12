@@ -6,6 +6,7 @@
 
 const vscode = acquireVsCodeApi();
 let collection = null;
+let collectionVariables = {};
 let preRequestEditor = null;
 let postResponseEditor = null;
 let isDirty = false;
@@ -167,6 +168,12 @@ function initEditors() {
     if (typeof monaco !== 'undefined' && typeof window.registerHttpForgeScriptCompletions === 'function') {
         window.registerHttpForgeScriptCompletions();
     }
+
+    if (typeof monaco !== 'undefined' && typeof window.registerHttpForgeTemplateCompletionProviders === 'function') {
+        window.registerHttpForgeTemplateCompletionProviders({
+            collectionVariables: collectionVariables || {}
+        });
+    }
 }
 
 function markDirty() {
@@ -179,6 +186,7 @@ window.addEventListener('message', event => {
     switch (message.type) {
         case 'init':
             collection = message.collection;
+            collectionVariables = collection?.variables || {};
             renderCollection();
             break;
         case 'saveSuccess':

@@ -114,6 +114,15 @@
         </footer>
     </div>
 
+    <script type="module">
+        import { initTemplateInputAutocomplete } from '{{templateInputAutocompleteUri}}';
+        window.addEventListener('DOMContentLoaded', () => {
+            const getState = typeof window.getTemplateState === 'function'
+                ? window.getTemplateState
+                : () => ({});
+            initTemplateInputAutocomplete(getState);
+        });
+    </script>
     <script src="{{scriptUri}}"></script>
 </body>
 

@@ -33,6 +33,8 @@ const ROOT_MEMBERS = [
     { label: 'expect', detail: 'Chai-style expect assertion', kind: 'Function', insertText: 'expect(${1:value})', snippet: true, doc: 'Chai-style assertion chain:\n```js\nhf.expect(value).to.equal(expected);\nhf.expect(arr).to.include(item);\nhf.expect(obj).to.have.property(\'key\');\n```' },
     { label: 'sendRequest', detail: 'Send an HTTP request from script', kind: 'Function', insertText: 'sendRequest(${1:urlOrOptions})', snippet: true, doc: 'Send an HTTP request:\n```js\nhf.sendRequest(\'https://api.example.com/data\', (err, res) => {\n    console.log(res.json());\n});\n// or with options:\nhf.sendRequest({ url, method: \'POST\', headers: {}, body: {} });\n```' },
     { label: 'info', detail: 'Request execution info', kind: 'Module', doc: 'Execution metadata.\nProperties: `eventName`, `requestName`, `requestId`, `iteration`, `iterationCount`' },
+    { label: 'execution', detail: 'Suite flow control', kind: 'Module', doc: 'Flow control for suite runs.\nMethods: `setNextRequest(name|null)`, `skipRequest()`\nOnly affects suite execution; ignored in the Request Tester.' },
+    { label: 'vault', detail: 'Secret provider access', kind: 'Module', doc: 'Read-only access to configured secret providers.\nMethod: `get(key)` returns a Promise<string | undefined>.' },
 ];
 
 /**
@@ -71,6 +73,19 @@ const REQUEST_MEMBERS = [
     { label: 'body', detail: 'Request body', kind: 'Module', doc: 'Request body object.\nProperties: `mode` (raw/formdata/urlencoded/file/graphql/none), `raw`, `formdata`, `urlencoded`, `graphql`' },
     { label: 'params', detail: 'Path parameters', kind: 'Property', doc: 'Path parameters object `{ paramName: value }`.' },
     { label: 'query', detail: 'Query parameters', kind: 'Property', doc: 'Query parameters object `{ key: value }`.' },
+    { label: 'auth', detail: 'Request auth', kind: 'Property', doc: 'Request authentication configuration.' },
+    { label: 'settings', detail: 'Request settings', kind: 'Property', doc: 'Request settings such as timeout, redirects, and SSL.' },
+    { label: 'setHeader', detail: 'Set a request header', insertText: 'setHeader(\'${1:name}\', \'${2:value}\')', snippet: true, doc: 'Set a request header (convenience alias for `headers.upsert`).' },
+    { label: 'removeHeader', detail: 'Remove a request header', insertText: 'removeHeader(\'${1:name}\')', snippet: true, doc: 'Remove a request header (convenience alias for `headers.remove`).' },
+];
+
+/**
+ * Members for test function namespace
+ */
+const TEST_MEMBERS = [
+    { label: 'skip', detail: 'Record a skipped test', insertText: 'skip(\'${1:Test name}\', () => { ${2} })', snippet: true, doc: 'Record a skipped test. The callback is not executed.' },
+    { label: 'fail', detail: 'Record an immediate failure', insertText: 'fail(\'${1:Test name}\')', snippet: true, doc: 'Record an immediate test failure.' },
+    { label: 'index', detail: 'Next test index', insertText: 'index()', doc: 'Zero-based index of the next test in execution order.' },
 ];
 
 /**
@@ -188,6 +203,23 @@ const EXPECT_CHAIN_MEMBERS = [
 ];
 
 /**
+ * Members for execution object
+ */
+const EXECUTION_MEMBERS = [
+    { label: 'setNextRequest', detail: 'Jump to a named request', insertText: 'setNextRequest(\'${1:request name}\')', snippet: true, doc: 'Jump to a named request in the suite. Pass `null` to stop after the current request.' },
+    { label: 'skipRequest', detail: 'Skip the HTTP call', insertText: 'skipRequest()', doc: 'Skip the HTTP call. Only valid in pre-request scripts.' },
+];
+
+/**
+ * Members for vault object
+ */
+const VAULT_MEMBERS = [
+    { label: 'get', detail: 'Get a secret value', insertText: 'get(\'${1:provider/path}\')', snippet: true, doc: 'Read a secret from a configured provider. Returns a Promise<string | undefined>.' },
+    { label: 'set', detail: 'Not supported', kind: 'Property', doc: 'Read-only in HTTP Forge. Use environment variables or `{{secret:provider/path}}` tokens instead.' },
+    { label: 'unset', detail: 'Not supported', kind: 'Property', doc: 'Read-only in HTTP Forge. Use environment variables or `{{secret:provider/path}}` tokens instead.' },
+];
+
+/**
  * Members for info object
  */
 const INFO_MEMBERS = [
@@ -281,6 +313,21 @@ function resolveMemberList(segments) {
     // Info
     if (first === 'info') {
         return INFO_MEMBERS;
+    }
+
+    // Test namespace
+    if (first === 'test') {
+        return TEST_MEMBERS;
+    }
+
+    // Execution
+    if (first === 'execution') {
+        return EXECUTION_MEMBERS;
+    }
+
+    // Vault
+    if (first === 'vault') {
+        return VAULT_MEMBERS;
     }
 
     return [];

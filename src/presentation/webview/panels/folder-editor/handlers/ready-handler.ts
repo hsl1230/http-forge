@@ -66,7 +66,8 @@ export class ReadyHandler implements IMessageHandler {
         messenger.postMessage({
             type: 'init',
             folder: folderData,
-            collectionName: collection.name
+            collectionName: collection.name,
+            collectionVariables: collection?.variables || {}
         });
     }
 

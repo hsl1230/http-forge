@@ -996,7 +996,9 @@
     { label: "test", detail: "Define a test assertion", kind: "Function", insertText: "test('${1:Test name}', () => {\n    ${2:// assertions}\n});", snippet: true, doc: "Define a named test:\n```js\nhf.test('Status is 200', () => {\n    hf.expect(hf.response.status).to.equal(200);\n});\n```" },
     { label: "expect", detail: "Chai-style expect assertion", kind: "Function", insertText: "expect(${1:value})", snippet: true, doc: "Chai-style assertion chain:\n```js\nhf.expect(value).to.equal(expected);\nhf.expect(arr).to.include(item);\nhf.expect(obj).to.have.property('key');\n```" },
     { label: "sendRequest", detail: "Send an HTTP request from script", kind: "Function", insertText: "sendRequest(${1:urlOrOptions})", snippet: true, doc: "Send an HTTP request:\n```js\nhf.sendRequest('https://api.example.com/data', (err, res) => {\n    console.log(res.json());\n});\n// or with options:\nhf.sendRequest({ url, method: 'POST', headers: {}, body: {} });\n```" },
-    { label: "info", detail: "Request execution info", kind: "Module", doc: "Execution metadata.\nProperties: `eventName`, `requestName`, `requestId`, `iteration`, `iterationCount`" }
+    { label: "info", detail: "Request execution info", kind: "Module", doc: "Execution metadata.\nProperties: `eventName`, `requestName`, `requestId`, `iteration`, `iterationCount`" },
+    { label: "execution", detail: "Suite flow control", kind: "Module", doc: "Flow control for suite runs.\nMethods: `setNextRequest(name|null)`, `skipRequest()`\nOnly affects suite execution; ignored in the Request Tester." },
+    { label: "vault", detail: "Secret provider access", kind: "Module", doc: "Read-only access to configured secret providers.\nMethod: `get(key)` returns a Promise<string | undefined>." }
   ];
   var VARIABLE_SCOPE_MEMBERS = [
     { label: "get", detail: "Get variable value", insertText: "get('${1:key}')", snippet: true, doc: "Get a variable by key. Returns `undefined` if not found." },
@@ -1018,7 +1020,16 @@
     { label: "headers", detail: "Request headers", kind: "Module", doc: "Request headers object.\nMethods: `add({key, value})`, `get(name)`, `has(name)`, `remove(name)`, `update({key, value})`, `upsert({key, value})`" },
     { label: "body", detail: "Request body", kind: "Module", doc: "Request body object.\nProperties: `mode` (raw/formdata/urlencoded/file/graphql/none), `raw`, `formdata`, `urlencoded`, `graphql`" },
     { label: "params", detail: "Path parameters", kind: "Property", doc: "Path parameters object `{ paramName: value }`." },
-    { label: "query", detail: "Query parameters", kind: "Property", doc: "Query parameters object `{ key: value }`." }
+    { label: "query", detail: "Query parameters", kind: "Property", doc: "Query parameters object `{ key: value }`." },
+    { label: "auth", detail: "Request auth", kind: "Property", doc: "Request authentication configuration." },
+    { label: "settings", detail: "Request settings", kind: "Property", doc: "Request settings such as timeout, redirects, and SSL." },
+    { label: "setHeader", detail: "Set a request header", insertText: "setHeader('${1:name}', '${2:value}')", snippet: true, doc: "Set a request header (convenience alias for `headers.upsert`)." },
+    { label: "removeHeader", detail: "Remove a request header", insertText: "removeHeader('${1:name}')", snippet: true, doc: "Remove a request header (convenience alias for `headers.remove`)." }
+  ];
+  var TEST_MEMBERS = [
+    { label: "skip", detail: "Record a skipped test", insertText: "skip('${1:Test name}', () => { ${2} })", snippet: true, doc: "Record a skipped test. The callback is not executed." },
+    { label: "fail", detail: "Record an immediate failure", insertText: "fail('${1:Test name}')", snippet: true, doc: "Record an immediate test failure." },
+    { label: "index", detail: "Next test index", insertText: "index()", doc: "Zero-based index of the next test in execution order." }
   ];
   var REQUEST_HEADERS_MEMBERS = [
     { label: "add", detail: "Add a header", insertText: "add({ key: '${1:name}', value: '${2:value}' })", snippet: true, doc: "Add a new header to the request." },
@@ -1102,6 +1113,15 @@
     { label: "undefined", detail: "Assert undefined", kind: "Property", doc: "Assert the value is `undefined`." },
     { label: "empty", detail: "Assert empty", kind: "Property", doc: "Assert the value is empty (empty string, array, or object)." }
   ];
+  var EXECUTION_MEMBERS = [
+    { label: "setNextRequest", detail: "Jump to a named request", insertText: "setNextRequest('${1:request name}')", snippet: true, doc: "Jump to a named request in the suite. Pass `null` to stop after the current request." },
+    { label: "skipRequest", detail: "Skip the HTTP call", insertText: "skipRequest()", doc: "Skip the HTTP call. Only valid in pre-request scripts." }
+  ];
+  var VAULT_MEMBERS = [
+    { label: "get", detail: "Get a secret value", insertText: "get('${1:provider/path}')", snippet: true, doc: "Read a secret from a configured provider. Returns a Promise<string | undefined>." },
+    { label: "set", detail: "Not supported", kind: "Property", doc: "Read-only in HTTP Forge. Use environment variables or `{{secret:provider/path}}` tokens instead." },
+    { label: "unset", detail: "Not supported", kind: "Property", doc: "Read-only in HTTP Forge. Use environment variables or `{{secret:provider/path}}` tokens instead." }
+  ];
   var INFO_MEMBERS = [
     { label: "eventName", detail: "Current event (prerequest/test)", kind: "Property", doc: 'The script event: `"prerequest"` or `"test"`.' },
     { label: "requestName", detail: "Name of the request", kind: "Property", doc: "The name of the current request." },
@@ -1160,6 +1180,15 @@
     }
     if (first === "info") {
       return INFO_MEMBERS;
+    }
+    if (first === "test") {
+      return TEST_MEMBERS;
+    }
+    if (first === "execution") {
+      return EXECUTION_MEMBERS;
+    }
+    if (first === "vault") {
+      return VAULT_MEMBERS;
     }
     return [];
   }
@@ -1322,71 +1351,59 @@
           endLineNumber: position.lineNumber,
           endColumn: position.column
         });
-        const lastOpen = textUntilPosition.lastIndexOf("{{");
-        const lastClose = textUntilPosition.lastIndexOf("}}");
-        const insideTemplate = lastOpen !== -1 && lastOpen > lastClose;
-        const rangeFor = (len) => ({
-          startLineNumber: position.lineNumber,
-          endLineNumber: position.lineNumber,
-          startColumn: position.column - len,
-          endColumn: position.column
-        });
-        if (textUntilPosition.endsWith("{{")) {
-          const range2 = rangeFor(0);
-          return {
-            suggestions: [
-              ...buildVariableSuggestions(state, range2),
-              ...buildDynamicVarSuggestions(range2),
-              buildAtSnippet(range2)
-            ]
-          };
-        }
-        if (!insideTemplate) {
+        const result = getTemplateSuggestions(state, textUntilPosition);
+        if (!result.suggestions.length) {
           return { suggestions: [] };
         }
-        const templateContent = textUntilPosition.substring(lastOpen + 2);
-        const pipeMatch = templateContent.match(/\|\s*(\w*)$/);
-        if (pipeMatch) {
-          const partial = pipeMatch[1];
-          const range2 = rangeFor(partial.length);
-          return { suggestions: buildFilterSuggestions(range2) };
-        }
-        const dollarMatch = templateContent.match(/\$(\w*)$/);
-        if (dollarMatch) {
-          const partial = dollarMatch[1];
-          const range2 = rangeFor(partial.length + 1);
-          return { suggestions: buildDynamicVarSuggestions(range2) };
-        }
-        const word = model.getWordUntilPosition(position);
-        const range = rangeFor(word.word.length);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: position.column - result.replaceLength,
+          endColumn: position.column
+        };
+        const monacoKind = (kind) => {
+          const kindMap = {
+            variable: monaco.languages.CompletionItemKind.Variable,
+            constant: monaco.languages.CompletionItemKind.Constant,
+            function: monaco.languages.CompletionItemKind.Function,
+            snippet: monaco.languages.CompletionItemKind.Snippet
+          };
+          return kindMap[kind] || monaco.languages.CompletionItemKind.Text;
+        };
         return {
-          suggestions: [
-            ...buildVariableSuggestions(state, range),
-            ...buildDynamicVarSuggestions(range)
-          ]
+          suggestions: result.suggestions.map((suggestion, i) => ({
+            label: suggestion.label,
+            kind: monacoKind(suggestion.kind),
+            insertText: suggestion.monacoInsertText || suggestion.insertText,
+            insertTextRules: suggestion.snippet ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : void 0,
+            detail: suggestion.detail || "",
+            documentation: suggestion.documentation,
+            sortText: suggestion.sortText || String(i).padStart(3, "0")
+          }))
         };
       }
     };
   }
-  function buildVariableSuggestions(state, range) {
-    const suggestions = [];
+  function buildVariableSuggestions(state) {
+    const suggestions2 = [];
     const seen = /* @__PURE__ */ new Set();
     const addScope = (vars, scopeLabel, sortPrefix) => {
       if (!vars || typeof vars !== "object") return;
       for (const [key, value] of Object.entries(vars)) {
         if (seen.has(key)) continue;
         seen.add(key);
-        suggestions.push({
+        suggestions2.push({
           label: key,
-          kind: monaco.languages.CompletionItemKind.Variable,
+          kind: "variable",
           insertText: key,
+          monacoInsertText: key,
+          snippet: false,
           detail: `(${scopeLabel}) ${truncate(String(value ?? ""), 60)}`,
           documentation: {
             value: `**${key}**  
 Scope: *${scopeLabel}*  
 Value: \`${String(value ?? "")}\``
           },
-          range,
           sortText: sortPrefix + key.toLowerCase()
         });
       }
@@ -1395,50 +1412,50 @@ Value: \`${String(value ?? "")}\``
     addScope(state.collectionVariables, "collection", "b");
     addScope(state.globalVariables, "global", "c");
     addScope(state.sessionVariables, "session", "d");
-    return suggestions;
+    return suggestions2;
   }
-  function buildDynamicVarSuggestions(range) {
+  function buildDynamicVarSuggestions() {
     return DYNAMIC_VARIABLE_COMPLETIONS.map((dv, i) => {
       const hasSnippet = !!dv.snippet;
       return {
         label: dv.name,
-        kind: monaco.languages.CompletionItemKind.Constant,
-        insertText: hasSnippet ? dv.snippet : dv.name,
-        insertTextRules: hasSnippet ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : void 0,
+        kind: "constant",
+        insertText: dv.name,
+        monacoInsertText: hasSnippet ? dv.snippet : dv.name,
+        snippet: hasSnippet,
         detail: dv.description,
         documentation: { value: `**${dv.name}**  
 ${dv.description}` },
-        range,
         sortText: "e" + String(i).padStart(2, "0")
       };
     });
   }
-  function buildFilterSuggestions(range) {
+  function buildFilterSuggestions() {
     return FILTER_COMPLETIONS.map((f, i) => {
       const hasSnippet = !!f.snippet;
       return {
         label: f.name,
-        kind: monaco.languages.CompletionItemKind.Function,
-        insertText: hasSnippet ? f.snippet : f.name,
-        insertTextRules: hasSnippet ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : void 0,
+        kind: "function",
+        insertText: f.name,
+        monacoInsertText: hasSnippet ? f.snippet : f.name,
+        snippet: hasSnippet,
         detail: `[${f.category}] ${f.description}`,
         documentation: { value: `**${f.name}**  
 Category: *${f.category}*  
 ${f.description}` },
-        range,
         sortText: String(i).padStart(2, "0")
       };
     });
   }
-  function buildAtSnippet(range) {
+  function buildAtSnippet() {
     return {
       label: "@ | filter",
-      kind: monaco.languages.CompletionItemKind.Snippet,
-      insertText: "@ | ${1:filterName}",
-      insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+      kind: "snippet",
+      insertText: "@ | filterName",
+      monacoInsertText: "@ | ${1:filterName}",
+      snippet: true,
       detail: "No-input filter expression",
       documentation: { value: "Insert a no-input filter expression: `{{@ | filterName}}`" },
-      range,
       sortText: "zz"
     };
   }
@@ -1459,6 +1476,52 @@ ${f.description}` },
       }
     }
     return disposables;
+  }
+  function getTemplateSuggestions(state, textUntilPosition) {
+    const lastOpen = textUntilPosition.lastIndexOf("{{");
+    const lastClose = textUntilPosition.lastIndexOf("}}");
+    const insideTemplate = lastOpen !== -1 && lastOpen > lastClose;
+    if (textUntilPosition.endsWith("{{")) {
+      return {
+        replaceLength: 0,
+        suggestions: [
+          ...buildVariableSuggestions(state),
+          ...buildDynamicVarSuggestions(),
+          buildAtSnippet()
+        ]
+      };
+    }
+    if (!insideTemplate) {
+      return { replaceLength: 0, suggestions: [] };
+    }
+    const templateContent = textUntilPosition.substring(lastOpen + 2);
+    const pipeMatch = templateContent.match(/\\|\\s*(\\w*)$/);
+    if (pipeMatch) {
+      return {
+        replaceLength: pipeMatch[1].length,
+        suggestions: buildFilterSuggestions()
+      };
+    }
+    const dollarMatch = templateContent.match(/\\$(\\w*)$/);
+    if (dollarMatch) {
+      return {
+        replaceLength: dollarMatch[1].length + 1,
+        suggestions: buildDynamicVarSuggestions()
+      };
+    }
+    const wordMatch = templateContent.match(/(\\w*)$/);
+    const partial = wordMatch ? wordMatch[1] : "";
+    return {
+      replaceLength: partial.length,
+      suggestions: [
+        ...buildVariableSuggestions(state),
+        ...buildDynamicVarSuggestions()
+      ]
+    };
+  }
+  if (typeof window !== "undefined") {
+    window.registerHttpForgeTemplateCompletionProviders = registerTemplateCompletionProviders;
+    window.getHttpForgeTemplateSuggestions = getTemplateSuggestions;
   }
 
   // resources/features/request-tester/modules/monaco-editors-manager.js
@@ -1981,6 +2044,207 @@ ${f.description}` },
       layout,
       clearAll
     };
+  }
+
+  // resources/shared/template-input-autocomplete.js
+  var ATTACHED = /* @__PURE__ */ new WeakSet();
+  var dropdown = null;
+  var activeInput = null;
+  var suggestions = [];
+  var selectedIndex = 0;
+  var replaceLength = 0;
+  var justSelected = false;
+  function escapeHtml2(value) {
+    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function getTemplateContext(textUntilCursor) {
+    const lastOpen = textUntilCursor.lastIndexOf("{{");
+    const lastClose = textUntilCursor.lastIndexOf("}}");
+    const insideTemplate = lastOpen !== -1 && lastOpen > lastClose;
+    if (textUntilCursor.endsWith("{{")) {
+      return { inside: true, partial: "", replaceLength: 0 };
+    }
+    if (!insideTemplate) {
+      return null;
+    }
+    const templateContent = textUntilCursor.substring(lastOpen + 2);
+    const pipeMatch = templateContent.match(/\|\s*(\w*)$/);
+    if (pipeMatch) {
+      return { inside: true, partial: pipeMatch[1], replaceLength: pipeMatch[1].length, mode: "filter" };
+    }
+    const dollarMatch = templateContent.match(/\$(\w*)$/);
+    if (dollarMatch) {
+      return { inside: true, partial: "$" + dollarMatch[1], replaceLength: dollarMatch[1].length + 1, mode: "dynamic" };
+    }
+    const wordMatch = templateContent.match(/(\w*)$/);
+    const partial = wordMatch ? wordMatch[1] : "";
+    return { inside: true, partial, replaceLength: partial.length, mode: "variable" };
+  }
+  function ensureDropdown() {
+    if (dropdown) return dropdown;
+    dropdown = document.createElement("div");
+    dropdown.className = "template-input-autocomplete";
+    dropdown.style.position = "fixed";
+    dropdown.style.zIndex = "100000";
+    dropdown.style.display = "none";
+    dropdown.style.maxHeight = "220px";
+    dropdown.style.overflowY = "auto";
+    dropdown.style.background = "var(--vscode-editorWidget-background, #252526)";
+    dropdown.style.border = "1px solid var(--vscode-editorWidget-border, #454545)";
+    dropdown.style.borderRadius = "4px";
+    dropdown.style.boxShadow = "0 4px 12px rgba(0,0,0,0.35)";
+    dropdown.style.fontSize = "12px";
+    dropdown.style.minWidth = "180px";
+    document.body.appendChild(dropdown);
+    dropdown.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+    return dropdown;
+  }
+  function hideDropdown() {
+    if (dropdown) dropdown.style.display = "none";
+    activeInput = null;
+    suggestions = [];
+    selectedIndex = 0;
+  }
+  function positionDropdown(input) {
+    const rect = input.getBoundingClientRect();
+    const dropdownEl = ensureDropdown();
+    dropdownEl.style.left = `${rect.left}px`;
+    dropdownEl.style.top = `${rect.bottom + 2}px`;
+    dropdownEl.style.width = `${Math.max(rect.width, 180)}px`;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 240 && rect.top > 240) {
+      dropdownEl.style.top = `${rect.top - dropdownEl.offsetHeight - 2}px`;
+    }
+  }
+  function filterSuggestions(list, partial) {
+    if (!partial) return list.slice(0, 12);
+    const lower = partial.toLowerCase();
+    return list.filter((suggestion) => String(suggestion.label || "").toLowerCase().startsWith(lower)).slice(0, 12);
+  }
+  function renderDropdown(input) {
+    const dropdownEl = ensureDropdown();
+    dropdownEl.innerHTML = suggestions.map((suggestion, index) => {
+      const selectedClass = index === selectedIndex ? " template-autocomplete-selected" : "";
+      return `
+            <div class="template-autocomplete-item${selectedClass}" data-index="${index}">
+                <span class="template-autocomplete-label">${escapeHtml2(suggestion.label)}</span>
+                <span class="template-autocomplete-detail">${escapeHtml2(suggestion.detail || "")}</span>
+            </div>
+        `;
+    }).join("");
+    dropdownEl.querySelectorAll(".template-autocomplete-item").forEach((item) => {
+      item.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        const index = Number(item.dataset.index);
+        if (!Number.isNaN(index)) {
+          selectSuggestion(input, suggestions[index]);
+        }
+      });
+    });
+    positionDropdown(input);
+    dropdownEl.style.display = "block";
+  }
+  function updateAutocomplete(input) {
+    if (justSelected) {
+      justSelected = false;
+      hideDropdown();
+      return;
+    }
+    const cursor = input.selectionStart ?? input.value.length;
+    const textUntilCursor = input.value.slice(0, cursor);
+    const context = getTemplateContext(textUntilCursor);
+    if (!context || !context.inside) {
+      hideDropdown();
+      return;
+    }
+    const state = typeof window.__templateInputStateGetter === "function" ? window.__templateInputStateGetter() : window.__requestTesterApp?.state || {};
+    const result = getTemplateSuggestions(state, textUntilCursor);
+    const filtered = filterSuggestions(result.suggestions || [], context.partial);
+    if (!filtered.length) {
+      hideDropdown();
+      return;
+    }
+    activeInput = input;
+    suggestions = filtered;
+    selectedIndex = 0;
+    replaceLength = result.replaceLength || 0;
+    renderDropdown(input);
+  }
+  function selectSuggestion(input, suggestion) {
+    if (!suggestion) return;
+    const cursor = input.selectionStart ?? input.value.length;
+    const value = input.value;
+    const textUntilCursor = value.slice(0, cursor);
+    const start = cursor - replaceLength;
+    const inserted = suggestion.label;
+    let newValue = value.slice(0, start) + inserted + value.slice(cursor);
+    let newCursor = start + inserted.length;
+    const afterCursor = newValue.slice(newCursor);
+    if (!afterCursor.startsWith("}}")) {
+      newValue = newValue.slice(0, newCursor) + "}}" + newValue.slice(newCursor);
+    }
+    input.value = newValue;
+    input.selectionStart = input.selectionEnd = newCursor;
+    justSelected = true;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    hideDropdown();
+  }
+  function handleKeydown(event) {
+    if (!dropdown || dropdown.style.display === "none" || activeInput !== event.target) {
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      selectedIndex = (selectedIndex + 1) % suggestions.length;
+      renderDropdown(activeInput);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
+      renderDropdown(activeInput);
+    } else if (event.key === "Enter" || event.key === "Tab") {
+      event.preventDefault();
+      selectSuggestion(activeInput, suggestions[selectedIndex]);
+    } else if (event.key === "Escape") {
+      hideDropdown();
+    }
+  }
+  function attach(input) {
+    if (!input || ATTACHED.has(input)) return;
+    ATTACHED.add(input);
+    input.addEventListener("input", () => updateAutocomplete(input));
+    input.addEventListener("click", () => updateAutocomplete(input));
+    input.addEventListener("focus", () => updateAutocomplete(input));
+    input.addEventListener("keydown", handleKeydown);
+    input.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (activeInput === input) hideDropdown();
+      }, 150);
+    });
+  }
+  function isTemplateInput(input) {
+    return input && (input.id === "request-path-input" || input.classList.contains("value"));
+  }
+  function attachAll() {
+    document.querySelectorAll("input.value, #request-path-input").forEach((input) => {
+      if (isTemplateInput(input)) attach(input);
+    });
+  }
+  function initTemplateInputAutocomplete(stateOrGetter) {
+    const getState = typeof stateOrGetter === "function" ? stateOrGetter : () => stateOrGetter || {};
+    window.__templateInputStateGetter = getState;
+    attachAll();
+    const observer = new MutationObserver(() => attachAll());
+    observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("click", (event) => {
+      if (dropdown && !dropdown.contains(event.target) && event.target !== activeInput) {
+        hideDropdown();
+      }
+    });
+  }
+  if (typeof window !== "undefined") {
+    window.initTemplateInputAutocomplete = initTemplateInputAutocomplete;
   }
 
   // resources/features/request-tester/modules/path-variables-manager.js
@@ -4170,7 +4434,7 @@ ${f.description}` },
   }
 
   // resources/features/request-tester/modules/form-manager.js
-  function createFormManager({ elements, state, escapeHtml: escapeHtml2, updateUrlPreview, syncUrlWithQueryParams, markDirty }) {
+  function createFormManager({ elements, state, escapeHtml: escapeHtml3, updateUrlPreview, syncUrlWithQueryParams, markDirty }) {
     const TYPE_OPTIONS = ["string", "integer", "number", "boolean", "array"];
     const FORMAT_SUGGESTIONS = {
       string: ["date-time", "date", "time", "email", "uri", "uuid", "hostname", "ipv4", "ipv6", "byte", "binary", "password"],
@@ -4182,7 +4446,7 @@ ${f.description}` },
         (t2) => `<option value="${t2}" ${meta.type === t2 ? "selected" : ""}>${t2}</option>`
       ).join("");
       const enumTags = (meta.enum || []).map(
-        (v) => `<span class="enum-tag">${escapeHtml2(v)}<span class="remove-enum" title="Remove">\xD7</span></span>`
+        (v) => `<span class="enum-tag">${escapeHtml3(v)}<span class="remove-enum" title="Remove">\xD7</span></span>`
       ).join("");
       const t = meta.type || "";
       const isStr = t === "string";
@@ -4192,7 +4456,7 @@ ${f.description}` },
       const oneOfVariants = meta.oneOf && meta.oneOf.length > 0 ? meta.oneOf : [];
       const variantItems = oneOfVariants.map((v, i) => {
         const summary = variantSummary(v);
-        const jsonAttr = escapeHtml2(JSON.stringify(v));
+        const jsonAttr = escapeHtml3(JSON.stringify(v));
         return `<div class="oneof-variant-item" data-index="${i}" data-variant="${jsonAttr}" title="Click to load into fields above">
                 <span class="oneof-variant-label">Variant ${i + 1}:</span>
                 <span class="oneof-variant-summary">${summary}</span>
@@ -4204,7 +4468,7 @@ ${f.description}` },
                 <label class="section-label">Parameter</label>
                 <div class="meta-field full-width">
                     <label>Description</label>
-                    <textarea class="meta-description" placeholder="Parameter description" rows="1">${escapeHtml2(meta.description || "")}</textarea>
+                    <textarea class="meta-description" placeholder="Parameter description" rows="1">${escapeHtml3(meta.description || "")}</textarea>
                 </div>
                 <div class="meta-toggles">
                     <label class="meta-toggle-label">
@@ -4229,7 +4493,7 @@ ${f.description}` },
                     </div>
                     <div class="meta-field">
                         <label>Format</label>
-                        <input type="text" class="meta-format" placeholder="e.g. date-time, int32" value="${escapeHtml2(meta.format || "")}" list="format-suggestions">
+                        <input type="text" class="meta-format" placeholder="e.g. date-time, int32" value="${escapeHtml3(meta.format || "")}" list="format-suggestions">
                     </div>
                     <label class="meta-toggle-label nullable-toggle">
                         <input type="checkbox" class="meta-nullable" ${meta.nullable ? "checked" : ""}>
@@ -4251,7 +4515,7 @@ ${f.description}` },
                     <label class="group-label">String</label>
                     <div class="meta-field full-width">
                         <label>Pattern</label>
-                        <input type="text" class="meta-pattern" placeholder="e.g. ^[a-z]+$" value="${escapeHtml2(meta.pattern || "")}">
+                        <input type="text" class="meta-pattern" placeholder="e.g. ^[a-z]+$" value="${escapeHtml3(meta.pattern || "")}">
                     </div>
                     <div class="constraint-fields-grid two-col">
                         <div class="meta-field">
@@ -4324,10 +4588,10 @@ ${f.description}` },
     }
     function variantSummary(v) {
       const parts = [];
-      if (v.type) parts.push(`<b>type:</b> ${escapeHtml2(v.type)}`);
-      if (v.format) parts.push(`<b>format:</b> ${escapeHtml2(v.format)}`);
+      if (v.type) parts.push(`<b>type:</b> ${escapeHtml3(v.type)}`);
+      if (v.format) parts.push(`<b>format:</b> ${escapeHtml3(v.format)}`);
       if (v.nullable) parts.push(`<b>nullable</b>`);
-      if (v.pattern) parts.push(`<b>pattern:</b> <code>${escapeHtml2(v.pattern)}</code>`);
+      if (v.pattern) parts.push(`<b>pattern:</b> <code>${escapeHtml3(v.pattern)}</code>`);
       if (v.minimum !== void 0) parts.push(`<b>min${v.exclusiveMinimum ? " (excl)" : ""}:</b> ${v.minimum}`);
       if (v.maximum !== void 0) parts.push(`<b>max${v.exclusiveMaximum ? " (excl)" : ""}:</b> ${v.maximum}`);
       if (v.multipleOf !== void 0) parts.push(`<b>multipleOf:</b> ${v.multipleOf}`);
@@ -4336,7 +4600,7 @@ ${f.description}` },
       if (v.minItems !== void 0) parts.push(`<b>minItems:</b> ${v.minItems}`);
       if (v.maxItems !== void 0) parts.push(`<b>maxItems:</b> ${v.maxItems}`);
       if (v.uniqueItems) parts.push(`<b>uniqueItems</b>`);
-      if (v.enum && v.enum.length > 0) parts.push(`<b>enum:</b> [${v.enum.map((e) => escapeHtml2(e)).join(", ")}]`);
+      if (v.enum && v.enum.length > 0) parts.push(`<b>enum:</b> [${v.enum.map((e) => escapeHtml3(e)).join(", ")}]`);
       return parts.length > 0 ? parts.join(", ") : "<i>empty</i>";
     }
     function readMetaFromPanel(detailEl, metaMapKey, itemKey) {
@@ -4557,23 +4821,23 @@ ${f.description}` },
       inp.addEventListener("blur", inp._blurValidator);
     }
     function buildComboboxHtml(key, value, options, pattern) {
-      const patternHint = pattern ? ` title="Suggestions from enum; also accepts: ${escapeHtml2(pattern)}"` : ' title="Type or select a value"';
+      const patternHint = pattern ? ` title="Suggestions from enum; also accepts: ${escapeHtml3(pattern)}"` : ' title="Type or select a value"';
       const optionsHtml = options.map(
-        (opt) => `<div class="combobox-option" data-value="${escapeHtml2(opt)}">${escapeHtml2(opt)}</div>`
+        (opt) => `<div class="combobox-option" data-value="${escapeHtml3(opt)}">${escapeHtml3(opt)}</div>`
       ).join("");
-      return `<span class="combobox-container"><input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml2(value)}"${patternHint}><div class="combobox-dropdown hidden">${optionsHtml}</div></span>`;
+      return `<span class="combobox-container"><input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml3(value)}"${patternHint}><div class="combobox-dropdown hidden">${optionsHtml}</div></span>`;
     }
     function attachComboboxBehavior(container) {
       const input = container.querySelector("input.value");
-      const dropdown = container.querySelector(".combobox-dropdown");
-      if (!input || !dropdown) return;
+      const dropdown2 = container.querySelector(".combobox-dropdown");
+      if (!input || !dropdown2) return;
       let highlightIndex = -1;
       function getVisibleOptions() {
-        return [...dropdown.querySelectorAll(".combobox-option:not(.hidden-opt)")];
+        return [...dropdown2.querySelectorAll(".combobox-option:not(.hidden-opt)")];
       }
       function filterOptions() {
         const val = input.value.toLowerCase();
-        const allOpts = dropdown.querySelectorAll(".combobox-option");
+        const allOpts = dropdown2.querySelectorAll(".combobox-option");
         allOpts.forEach((opt) => {
           const match = !val || opt.dataset.value.toLowerCase().includes(val);
           opt.classList.toggle("hidden-opt", !match);
@@ -4594,27 +4858,27 @@ ${f.description}` },
       }
       function showDropdown() {
         filterOptions();
-        dropdown.classList.remove("hidden");
+        dropdown2.classList.remove("hidden");
       }
-      function hideDropdown() {
-        dropdown.classList.add("hidden");
+      function hideDropdown2() {
+        dropdown2.classList.add("hidden");
         highlightIndex = -1;
       }
       function selectOption(value) {
         input.value = value;
-        hideDropdown();
+        hideDropdown2();
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
       input.addEventListener("focus", () => showDropdown());
       input.addEventListener("input", () => showDropdown());
       input.addEventListener("blur", () => {
-        setTimeout(() => hideDropdown(), 150);
+        setTimeout(() => hideDropdown2(), 150);
       });
       input.addEventListener("keydown", (e) => {
         const opts = getVisibleOptions();
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          if (dropdown.classList.contains("hidden")) showDropdown();
+          if (dropdown2.classList.contains("hidden")) showDropdown();
           highlightIndex = Math.min(highlightIndex + 1, opts.length - 1);
           updateHighlight();
         } else if (e.key === "ArrowUp") {
@@ -4625,10 +4889,10 @@ ${f.description}` },
           e.preventDefault();
           selectOption(opts[highlightIndex].dataset.value);
         } else if (e.key === "Escape") {
-          hideDropdown();
+          hideDropdown2();
         }
       });
-      dropdown.addEventListener("mousedown", (e) => {
+      dropdown2.addEventListener("mousedown", (e) => {
         const opt = e.target.closest(".combobox-option");
         if (opt) {
           e.preventDefault();
@@ -4637,10 +4901,10 @@ ${f.description}` },
       });
     }
     function updateComboboxOptions(container, options) {
-      const dropdown = container.querySelector(".combobox-dropdown");
-      if (!dropdown) return;
-      dropdown.innerHTML = options.map(
-        (opt) => `<div class="combobox-option" data-value="${escapeHtml2(opt)}">${escapeHtml2(opt)}</div>`
+      const dropdown2 = container.querySelector(".combobox-dropdown");
+      if (!dropdown2) return;
+      dropdown2.innerHTML = options.map(
+        (opt) => `<div class="combobox-option" data-value="${escapeHtml3(opt)}">${escapeHtml3(opt)}</div>`
       ).join("");
     }
     function updateConstraintGroupVisibility(detailEl, selectedType) {
@@ -4716,7 +4980,7 @@ ${f.description}` },
         if (!val) return;
         const tag = document.createElement("span");
         tag.className = "enum-tag";
-        tag.innerHTML = `${escapeHtml2(val)}<span class="remove-enum" title="Remove">\xD7</span>`;
+        tag.innerHTML = `${escapeHtml3(val)}<span class="remove-enum" title="Remove">\xD7</span>`;
         tag.querySelector(".remove-enum").addEventListener("click", () => {
           tag.remove();
           updateMeta();
@@ -4806,7 +5070,7 @@ ${f.description}` },
           (v.enum || []).forEach((val) => {
             const tag = document.createElement("span");
             tag.className = "enum-tag";
-            tag.innerHTML = `${escapeHtml2(val)}<span class="remove-enum" title="Remove">\xD7</span>`;
+            tag.innerHTML = `${escapeHtml3(val)}<span class="remove-enum" title="Remove">\xD7</span>`;
             tag.querySelector(".remove-enum").addEventListener("click", () => {
               tag.remove();
               updateMeta();
@@ -4821,7 +5085,7 @@ ${f.description}` },
         const current = state[metaMapKey]?.[itemKey]?.oneOf || [];
         oneOfList.innerHTML = current.map((v, i) => {
           const summary = variantSummary(v);
-          const jsonAttr = escapeHtml2(JSON.stringify(v));
+          const jsonAttr = escapeHtml3(JSON.stringify(v));
           return `<div class="oneof-variant-item" data-index="${i}" data-variant="${jsonAttr}" title="Click to load into fields above">
                     <span class="oneof-variant-label">Variant ${i + 1}:</span>
                     <span class="oneof-variant-summary">${summary}</span>
@@ -4915,18 +5179,18 @@ ${f.description}` },
           }
         }
         const optionsHtml = options.map(
-          (opt) => `<option value="${escapeHtml2(opt)}" ${opt === effectiveValue ? "selected" : ""}>${escapeHtml2(opt)}</option>`
+          (opt) => `<option value="${escapeHtml3(opt)}" ${opt === effectiveValue ? "selected" : ""}>${escapeHtml3(opt)}</option>`
         ).join("");
         valueHtml = `<select class="value">${optionsHtml}</select>`;
       } else if (options && options.length > 0 && combobox) {
         valueHtml = buildComboboxHtml(key, value, options, pattern);
       } else {
-        const patternHint = pattern ? ` title="Must match: ${escapeHtml2(pattern)}"` : "";
-        valueHtml = `<input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml2(value)}"${patternHint}>`;
+        const patternHint = pattern ? ` title="Must match: ${escapeHtml3(pattern)}"` : "";
+        valueHtml = `<input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml3(value)}"${patternHint}>`;
       }
       row.innerHTML = `
             ${checkboxHtml}
-            <input type="text" class="key" placeholder="Key" value="${escapeHtml2(key)}" ${keyDisabled ? "disabled" : ""}>
+            <input type="text" class="key" placeholder="Key" value="${escapeHtml3(key)}" ${keyDisabled ? "disabled" : ""}>
             ${valueHtml}
             ${isNew ? '<button class="icon-btn remove-btn" title="Remove">\xD7</button>' : ""}
         `;
@@ -5006,18 +5270,18 @@ ${f.description}` },
           effectiveValue = options[0];
         }
         const optionsHtml = options.map(
-          (opt) => `<option value="${escapeHtml2(opt)}" ${opt === effectiveValue ? "selected" : ""}>${escapeHtml2(opt)}</option>`
+          (opt) => `<option value="${escapeHtml3(opt)}" ${opt === effectiveValue ? "selected" : ""}>${escapeHtml3(opt)}</option>`
         ).join("");
         valueHtml = `<select class="value">${optionsHtml}</select>`;
       } else if (options && options.length > 0 && combobox) {
         valueHtml = buildComboboxHtml(key, value, options, pattern);
       } else {
-        const patternHint = pattern ? ` title="Must match: ${escapeHtml2(pattern)}"` : "";
-        valueHtml = `<input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml2(value)}"${patternHint}>`;
+        const patternHint = pattern ? ` title="Must match: ${escapeHtml3(pattern)}"` : "";
+        valueHtml = `<input type="text" class="value" placeholder="Value or {{variable}}" value="${escapeHtml3(value)}"${patternHint}>`;
       }
       row.innerHTML = `
             ${checkboxHtml}
-            <input type="text" class="key" placeholder="Header name" value="${escapeHtml2(key)}">
+            <input type="text" class="key" placeholder="Header name" value="${escapeHtml3(key)}">
             ${valueHtml}
             ${isNew ? '<button class="icon-btn remove-btn" title="Remove">\xD7</button>' : ""}
         `;
@@ -5141,7 +5405,7 @@ ${f.description}` },
   }
 
   // resources/features/request-tester/modules/history-renderer.js
-  function createHistoryRenderer({ escapeHtml: escapeHtml2, formatTime: formatTime2, formatDuration: formatDuration2, postMessage }) {
+  function createHistoryRenderer({ escapeHtml: escapeHtml3, formatTime: formatTime2, formatDuration: formatDuration2, postMessage }) {
     let historyListElement = null;
     let onEntryClick = null;
     let onEntryDelete = null;
@@ -5198,7 +5462,7 @@ ${f.description}` },
     function createGroupHeader(displayName, ticket, isCurrent, isShared, branch) {
       const header = document.createElement("div");
       header.className = "history-group-header";
-      const ticketSpan = ticket ? `<span class="ticket-link">${escapeHtml2(displayName)}</span>` : escapeHtml2(displayName);
+      const ticketSpan = ticket ? `<span class="ticket-link">${escapeHtml3(displayName)}</span>` : escapeHtml3(displayName);
       const sharedBadge = isShared ? ' <span class="shared-badge">shared</span>' : "";
       const renameButton = isShared ? ' <button class="rename-button" title="Rename shared group">\u270E</button>' : "";
       header.innerHTML = `<span class="chevron">\u25BC</span> ${ticketSpan}${isCurrent ? ' <span class="current-badge" title="Current branch">\u{1F4CD}</span>' : ""}${sharedBadge}${renameButton}`;
@@ -5553,17 +5817,17 @@ ${f.description}` },
 
   // resources/features/request-tester/modules/suggest-assertions.js
   function generateAssertionSuggestions(status, bodyText, contentType) {
-    const suggestions = [];
+    const suggestions2 = [];
     const statusCode = Number(status);
     if (statusCode) {
-      suggestions.push({
+      suggestions2.push({
         snippet: `pm.test("Status code is ${statusCode}", function () {
   pm.response.to.have.status(${statusCode});
 });`,
         rationale: `Observed status ${statusCode}.`
       });
     }
-    suggestions.push({
+    suggestions2.push({
       snippet: `pm.test("Response time is under 2000ms", function () {
   pm.expect(pm.response.responseTime).to.be.below(2000);
 });`,
@@ -5573,7 +5837,7 @@ ${f.description}` },
     if (isJson && bodyText) {
       try {
         const parsed = JSON.parse(bodyText);
-        suggestions.push({
+        suggestions2.push({
           snippet: `pm.test("Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include("application/json");
 });`,
@@ -5584,7 +5848,7 @@ ${f.description}` },
           const fields = Object.keys(obj).slice(0, 4);
           const accessor = Array.isArray(parsed) ? `body[0]` : `body`;
           for (const field of fields) {
-            suggestions.push({
+            suggestions2.push({
               snippet: `pm.test("Response has field '${field}'", function () {
   const body = pm.response.json();
   pm.expect(${accessor}).to.have.property("${field}");
@@ -5594,7 +5858,7 @@ ${f.description}` },
           }
         }
         if (Array.isArray(parsed)) {
-          suggestions.push({
+          suggestions2.push({
             snippet: `pm.test("Response is a non-empty array", function () {
   const body = pm.response.json();
   pm.expect(body).to.be.an("array").that.is.not.empty;
@@ -5603,7 +5867,7 @@ ${f.description}` },
           });
         }
       } catch {
-        suggestions.push({
+        suggestions2.push({
           snippet: `pm.test("Response body is not empty", function () {
   pm.expect(pm.response.text()).to.not.be.empty;
 });`,
@@ -5611,14 +5875,14 @@ ${f.description}` },
         });
       }
     } else if (bodyText && bodyText.trim().length > 0) {
-      suggestions.push({
+      suggestions2.push({
         snippet: `pm.test("Response body is not empty", function () {
   pm.expect(pm.response.text()).to.not.be.empty;
 });`,
         rationale: `Non-empty response body observed.`
       });
     }
-    return suggestions;
+    return suggestions2;
   }
 
   // resources/features/request-tester/modules/response-handler.js
@@ -5626,7 +5890,7 @@ ${f.description}` },
     elements,
     state,
     getResponseBodyEditor,
-    escapeHtml: escapeHtml2,
+    escapeHtml: escapeHtml3,
     formatDuration: formatDuration2,
     testResultsManager,
     onApplyAssertions,
@@ -5656,29 +5920,29 @@ ${f.description}` },
     function getSuggestionBanner() {
       return document.getElementById("suggest-assertions-banner");
     }
-    function renderSuggestionList(suggestions) {
+    function renderSuggestionList(suggestions2) {
       const list = document.getElementById("suggest-assertions-list");
       if (!list) return;
-      list.innerHTML = suggestions.map(
+      list.innerHTML = suggestions2.map(
         (s) => `<div class="suggestion-item">
-                <code class="suggestion-snippet">${escapeHtml2(s.snippet)}</code>
-                <small class="suggestion-rationale">${escapeHtml2(s.rationale)}</small>
+                <code class="suggestion-snippet">${escapeHtml3(s.snippet)}</code>
+                <small class="suggestion-rationale">${escapeHtml3(s.rationale)}</small>
             </div>`
       ).join("");
       const applyBtn = document.getElementById("apply-all-assertions-btn");
       if (applyBtn) {
         applyBtn.onclick = () => {
-          const combined = suggestions.map((s) => s.snippet).join("\n\n");
+          const combined = suggestions2.map((s) => s.snippet).join("\n\n");
           if (typeof onApplyAssertions === "function") {
             onApplyAssertions(combined);
           }
         };
       }
     }
-    function showAssertionSuggestions(suggestions) {
+    function showAssertionSuggestions(suggestions2) {
       const banner = getSuggestionBanner();
       if (!banner) return;
-      renderSuggestionList(suggestions);
+      renderSuggestionList(suggestions2);
       const aiBtn = document.getElementById("ai-enhance-suggestions-btn");
       if (aiBtn) {
         aiBtn.disabled = false;
@@ -5703,7 +5967,7 @@ ${f.description}` },
       }
       banner.classList.remove("hidden");
     }
-    function updateAiSuggestions(suggestions, errorMsg) {
+    function updateAiSuggestions(suggestions2, errorMsg) {
       const aiBtn = document.getElementById("ai-enhance-suggestions-btn");
       if (aiBtn) {
         aiBtn.disabled = false;
@@ -5712,14 +5976,14 @@ ${f.description}` },
       if (errorMsg) {
         const list = document.getElementById("suggest-assertions-list");
         if (list) {
-          list.innerHTML = `<div class="suggestion-item"><small class="suggestion-rationale" style="color:var(--vscode-errorForeground)">${escapeHtml2(errorMsg)}</small></div>`;
+          list.innerHTML = `<div class="suggestion-item"><small class="suggestion-rationale" style="color:var(--vscode-errorForeground)">${escapeHtml3(errorMsg)}</small></div>`;
         }
         return;
       }
-      if (suggestions && suggestions.length > 0) {
+      if (suggestions2 && suggestions2.length > 0) {
         const title = document.querySelector(".suggest-assertions-title");
         if (title) title.innerHTML = "\u2728 AI-powered <code>pm.test()</code> suggestions for this response:";
-        renderSuggestionList(suggestions);
+        renderSuggestionList(suggestions2);
       }
     }
     function hideAssertionSuggestions() {
@@ -5838,7 +6102,7 @@ ${f.description}` },
           tab.dataset.loaded = "";
           if (panel) showAiPanel(
             panel,
-            `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml2(err?.message || "AI request failed")}</span>`
+            `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml3(err?.message || "AI request failed")}</span>`
           );
         }
       };
@@ -5869,10 +6133,10 @@ ${f.description}` },
       const panel = getAiTabPanel("explain");
       if (!panel) return;
       if (error) {
-        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml2(error)}</span>`);
+        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml3(error)}</span>`);
       } else {
         const copilotLink = copilotQuery ? renderCopilotLink(copilotQuery, attachFiles) : "";
-        showAiPanel(panel, escapeHtml2(text || "").replace(/\n/g, "<br>") + copilotLink);
+        showAiPanel(panel, escapeHtml3(text || "").replace(/\n/g, "<br>") + copilotLink);
       }
     }
     function showAiContractTestsPanel(snippets, error, onApply, copilotQuery, attachFiles) {
@@ -5881,16 +6145,16 @@ ${f.description}` },
       const panel = getAiTabPanel("contract");
       if (!panel) return;
       if (error) {
-        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml2(error)}</span>`);
+        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml3(error)}</span>`);
         return;
       }
       const html = snippets.map(
         (s, idx) => `<div class="ai-contract-item">
                 <div class="ai-item-row">
                     <input type="checkbox" class="ai-item-check" data-idx="${idx}" checked>
-                    <code class="ai-contract-snippet">${escapeHtml2(s.snippet)}</code>
+                    <code class="ai-contract-snippet">${escapeHtml3(s.snippet)}</code>
                 </div>
-                <small class="ai-contract-rationale">${escapeHtml2(s.rationale ?? s.field ?? "")}</small>
+                <small class="ai-contract-rationale">${escapeHtml3(s.rationale ?? s.field ?? "")}</small>
             </div>`
       ).join("");
       showAiPanel(panel, html, [{
@@ -5914,7 +6178,7 @@ ${f.description}` },
       const panel = getAiTabPanel("extract");
       if (!panel) return;
       if (error) {
-        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml2(error)}</span>`);
+        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml3(error)}</span>`);
         return;
       }
       const vars = variables || [];
@@ -5922,10 +6186,10 @@ ${f.description}` },
         (v, idx) => `<div class="ai-var-item">
                 <div class="ai-item-row">
                     <input type="checkbox" class="ai-item-check" data-idx="${idx}" checked>
-                    <span class="ai-var-name"><code>{{${escapeHtml2(v.suggestedName)}}}</code></span>
+                    <span class="ai-var-name"><code>{{${escapeHtml3(v.suggestedName)}}}</code></span>
                 </div>
-                <span class="ai-var-field">${escapeHtml2(v.field)} <small class="ai-var-path">${escapeHtml2(v.path || "")}</small></span>
-                <small class="ai-var-reason">${escapeHtml2(v.reason || "")}</small>
+                <span class="ai-var-field">${escapeHtml3(v.field)} <small class="ai-var-path">${escapeHtml3(v.path || "")}</small></span>
+                <small class="ai-var-reason">${escapeHtml3(v.reason || "")}</small>
             </div>`
       ).join("");
       const actions = vars.length ? [
@@ -5964,10 +6228,10 @@ ${f.description}` },
       const panel = getAiTabPanel("types");
       if (!panel) return;
       if (error) {
-        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml2(error)}</span>`);
+        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml3(error)}</span>`);
         return;
       }
-      const html = `<pre class="ai-types-display">${escapeHtml2(types || "")}</pre>`;
+      const html = `<pre class="ai-types-display">${escapeHtml3(types || "")}</pre>`;
       showAiPanel(panel, html, [{
         label: "\u{1F4CB} Copy to Clipboard",
         onClick: () => {
@@ -5992,9 +6256,9 @@ ${f.description}` },
       const panel = getAiTabPanel("compare");
       if (!panel) return;
       if (error) {
-        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml2(error)}</span>`);
+        showAiPanel(panel, `<span style="color:var(--vscode-errorForeground)">\u26A0 ${escapeHtml3(error)}</span>`);
       } else {
-        showAiPanel(panel, escapeHtml2(text || "").replace(/\n/g, "<br>") + (copilotQuery ? renderCopilotLink(copilotQuery, attachFiles) : ""));
+        showAiPanel(panel, escapeHtml3(text || "").replace(/\n/g, "<br>") + (copilotQuery ? renderCopilotLink(copilotQuery, attachFiles) : ""));
       }
     }
     let currentBodyView = "raw";
@@ -6244,12 +6508,12 @@ ${f.description}` },
           if (Array.isArray(value)) {
             value.forEach((headerValue) => {
               const row = document.createElement("tr");
-              row.innerHTML = `<td>${escapeHtml2(key)}</td><td>${escapeHtml2(headerValue)}</td>`;
+              row.innerHTML = `<td>${escapeHtml3(key)}</td><td>${escapeHtml3(headerValue)}</td>`;
               elements.responseHeadersTable.appendChild(row);
             });
           } else {
             const row = document.createElement("tr");
-            row.innerHTML = `<td>${escapeHtml2(key)}</td><td>${escapeHtml2(value)}</td>`;
+            row.innerHTML = `<td>${escapeHtml3(key)}</td><td>${escapeHtml3(value)}</td>`;
             elements.responseHeadersTable.appendChild(row);
           }
         });
@@ -6262,11 +6526,11 @@ ${f.description}` },
         cookies.forEach((cookie) => {
           const row = document.createElement("tr");
           row.innerHTML = `
-                    <td>${escapeHtml2(cookie.name)}</td>
-                    <td>${escapeHtml2(cookie.value)}</td>
-                    <td>${escapeHtml2(cookie.domain || "")}</td>
-                    <td>${escapeHtml2(cookie.path || "")}</td>
-                    <td>${escapeHtml2(cookie.expires || "")}</td>
+                    <td>${escapeHtml3(cookie.name)}</td>
+                    <td>${escapeHtml3(cookie.value)}</td>
+                    <td>${escapeHtml3(cookie.domain || "")}</td>
+                    <td>${escapeHtml3(cookie.path || "")}</td>
+                    <td>${escapeHtml3(cookie.expires || "")}</td>
                 `;
           elements.responseCookiesTable.appendChild(row);
         });
@@ -6283,7 +6547,7 @@ ${f.description}` },
         if (hasParams) {
           Object.entries(sentRequest.params).forEach(([key, value]) => {
             const row = document.createElement("tr");
-            row.innerHTML = `<td>${escapeHtml2(key)}</td><td>${escapeHtml2(String(value))}</td>`;
+            row.innerHTML = `<td>${escapeHtml3(key)}</td><td>${escapeHtml3(String(value))}</td>`;
             elements.sentRequestParamsTable.appendChild(row);
           });
         }
@@ -6297,7 +6561,7 @@ ${f.description}` },
         if (hasQuery) {
           Object.entries(sentRequest.query).forEach(([key, value]) => {
             const row = document.createElement("tr");
-            row.innerHTML = `<td>${escapeHtml2(key)}</td><td>${escapeHtml2(String(value))}</td>`;
+            row.innerHTML = `<td>${escapeHtml3(key)}</td><td>${escapeHtml3(String(value))}</td>`;
             elements.sentRequestQueryTable.appendChild(row);
           });
         }
@@ -6310,7 +6574,7 @@ ${f.description}` },
         if (sentRequest?.headers) {
           Object.entries(sentRequest.headers).forEach(([key, value]) => {
             const row = document.createElement("tr");
-            row.innerHTML = `<td>${escapeHtml2(key)}</td><td>${escapeHtml2(Array.isArray(value) ? value.join(", ") : String(value))}</td>`;
+            row.innerHTML = `<td>${escapeHtml3(key)}</td><td>${escapeHtml3(Array.isArray(value) ? value.join(", ") : String(value))}</td>`;
             elements.sentRequestHeadersTable.appendChild(row);
           });
         }
@@ -6460,9 +6724,9 @@ ${f.description}` },
       const hasTests = scriptResults.testResults && scriptResults.testResults.length > 0;
       if (!hasTests) {
         const contentType = getHeaderValue(response.headers, "content-type");
-        const suggestions = generateAssertionSuggestions(statusCode, response.body, contentType);
-        if (suggestions.length > 0) {
-          showAssertionSuggestions(suggestions);
+        const suggestions2 = generateAssertionSuggestions(statusCode, response.body, contentType);
+        if (suggestions2.length > 0) {
+          showAssertionSuggestions(suggestions2);
         }
       } else {
         hideAssertionSuggestions();
@@ -7968,6 +8232,7 @@ console.log('Post-response script executed');
         this.elements = initElements();
         this.state = createState();
         this.restoreLayoutState();
+        initTemplateInputAutocomplete(this.state);
         this.initializeManagers();
         this.initializeFeatureModules();
         this.initializeEventListeners();

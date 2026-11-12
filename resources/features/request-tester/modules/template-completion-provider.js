@@ -83,6 +83,15 @@ const FILTER_COMPLETIONS = [
     { name: 'isUrl', description: 'Check if value is a valid URL', category: 'Validation' },
 ];
 
+
+/**
+ * Build template suggestions for a text prefix.
+ *
+ * Returns plain suggestion objects plus the number of characters that should be
+ * replaced when one is accepted. This is shared by Monaco editors and plain
+ * HTML inputs.
+ */
+
 // ─── Completion Provider ─────────────────────────────────────────────────────
 
 /**
@@ -106,66 +115,42 @@ function createTemplateCompletionProvider(state) {
                 endColumn: position.column
             });
 
-            // ── Detect template context ──────────────────────────────────
-            const lastOpen = textUntilPosition.lastIndexOf('{{');
-            const lastClose = textUntilPosition.lastIndexOf('}}');
-            const insideTemplate = lastOpen !== -1 && lastOpen > lastClose;
-
-            // Helper: range covering a partial word of `len` chars ending at cursor
-            const rangeFor = (len) => ({
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: position.column - len,
-                endColumn: position.column
-            });
-
-            // ── 1. Just typed "{{" — show all variables + dynamic vars ──
-            if (textUntilPosition.endsWith('{{')) {
-                const range = rangeFor(0);
-                return {
-                    suggestions: [
-                        ...buildVariableSuggestions(state, range),
-                        ...buildDynamicVarSuggestions(range),
-                        buildAtSnippet(range)
-                    ]
-                };
-            }
-
-            if (!insideTemplate) {
+            const result = getTemplateSuggestions(state, textUntilPosition);
+            if (!result.suggestions.length) {
                 return { suggestions: [] };
             }
 
-            // Content between "{{" and cursor
-            const templateContent = textUntilPosition.substring(lastOpen + 2);
-
-            // ── 2. After a pipe — suggest filters ────────────────────────
-            const pipeMatch = templateContent.match(/\|\s*(\w*)$/);
-            if (pipeMatch) {
-                const partial = pipeMatch[1]; // partial filter name typed so far
-                const range = rangeFor(partial.length);
-                return { suggestions: buildFilterSuggestions(range) };
-            }
-
-            // ── 3. After "$" — suggest dynamic variables ─────────────────
-            const dollarMatch = templateContent.match(/\$(\w*)$/);
-            if (dollarMatch) {
-                const partial = dollarMatch[1];
-                // Range includes the "$" so the inserted text replaces it
-                const range = rangeFor(partial.length + 1);
-                return { suggestions: buildDynamicVarSuggestions(range) };
-            }
-
-            // ── 4. General typing inside {{ }} — variables + dynamic vars ─
-            const word = model.getWordUntilPosition(position);
-            const range = rangeFor(word.word.length);
-            return {
-                suggestions: [
-                    ...buildVariableSuggestions(state, range),
-                    ...buildDynamicVarSuggestions(range)
-                ]
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: position.column - result.replaceLength,
+                endColumn: position.column
             };
-        }
-    };
+
+            const monacoKind = (kind) => {
+                const kindMap = {
+                    variable: monaco.languages.CompletionItemKind.Variable,
+                    constant: monaco.languages.CompletionItemKind.Constant,
+                    function: monaco.languages.CompletionItemKind.Function,
+                    snippet: monaco.languages.CompletionItemKind.Snippet,
+                };
+                return kindMap[kind] || monaco.languages.CompletionItemKind.Text;
+            };
+
+            return {
+                suggestions: result.suggestions.map((suggestion, i) => ({
+                    label: suggestion.label,
+                    kind: monacoKind(suggestion.kind),
+                    insertText: suggestion.monacoInsertText || suggestion.insertText,
+                    insertTextRules: suggestion.snippet
+                        ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                        : undefined,
+                    detail: suggestion.detail || '',
+                    documentation: suggestion.documentation,
+                        sortText: suggestion.sortText || String(i).padStart(3, '0')
+                }))
+            };
+        }    };
 }
 
 // ─── Suggestion Builders ─────────────────────────────────────────────────────
@@ -173,7 +158,7 @@ function createTemplateCompletionProvider(state) {
 /**
  * Build suggestions for environment / global / session / collection variables
  */
-function buildVariableSuggestions(state, range) {
+function buildVariableSuggestions(state) {
     const suggestions = [];
     const seen = new Set();
 
@@ -184,13 +169,14 @@ function buildVariableSuggestions(state, range) {
             seen.add(key);
             suggestions.push({
                 label: key,
-                kind: monaco.languages.CompletionItemKind.Variable,
+                kind: 'variable',
                 insertText: key,
+                monacoInsertText: key,
+                snippet: false,
                 detail: `(${scopeLabel}) ${truncate(String(value ?? ''), 60)}`,
                 documentation: {
                     value: `**${key}**  \nScope: *${scopeLabel}*  \nValue: \`${String(value ?? '')}\``
                 },
-                range,
                 sortText: sortPrefix + key.toLowerCase()
             });
         }
@@ -208,19 +194,17 @@ function buildVariableSuggestions(state, range) {
 /**
  * Build suggestions for $dynamic variables
  */
-function buildDynamicVarSuggestions(range) {
+function buildDynamicVarSuggestions() {
     return DYNAMIC_VARIABLE_COMPLETIONS.map((dv, i) => {
         const hasSnippet = !!dv.snippet;
         return {
             label: dv.name,
-            kind: monaco.languages.CompletionItemKind.Constant,
-            insertText: hasSnippet ? dv.snippet : dv.name,
-            insertTextRules: hasSnippet
-                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                : undefined,
+            kind: 'constant',
+            insertText: dv.name,
+            monacoInsertText: hasSnippet ? dv.snippet : dv.name,
+            snippet: hasSnippet,
             detail: dv.description,
             documentation: { value: `**${dv.name}**  \n${dv.description}` },
-            range,
             sortText: 'e' + String(i).padStart(2, '0')
         };
     });
@@ -229,19 +213,17 @@ function buildDynamicVarSuggestions(range) {
 /**
  * Build suggestions for filter names (after pipe)
  */
-function buildFilterSuggestions(range) {
+function buildFilterSuggestions() {
     return FILTER_COMPLETIONS.map((f, i) => {
         const hasSnippet = !!f.snippet;
         return {
             label: f.name,
-            kind: monaco.languages.CompletionItemKind.Function,
-            insertText: hasSnippet ? f.snippet : f.name,
-            insertTextRules: hasSnippet
-                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                : undefined,
+            kind: 'function',
+            insertText: f.name,
+            monacoInsertText: hasSnippet ? f.snippet : f.name,
+            snippet: hasSnippet,
             detail: `[${f.category}] ${f.description}`,
             documentation: { value: `**${f.name}**  \nCategory: *${f.category}*  \n${f.description}` },
-            range,
             sortText: String(i).padStart(2, '0')
         };
     });
@@ -250,15 +232,15 @@ function buildFilterSuggestions(range) {
 /**
  * Build the "@ | filter" snippet suggestion
  */
-function buildAtSnippet(range) {
+function buildAtSnippet() {
     return {
         label: '@ | filter',
-        kind: monaco.languages.CompletionItemKind.Snippet,
-        insertText: '@ | ${1:filterName}',
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        kind: 'snippet',
+        insertText: '@ | filterName',
+        monacoInsertText: '@ | ${1:filterName}',
+        snippet: true,
         detail: 'No-input filter expression',
         documentation: { value: 'Insert a no-input filter expression: `{{@ | filterName}}`' },
-        range,
         sortText: 'zz'
     };
 }
@@ -295,6 +277,67 @@ function registerTemplateCompletionProviders(state) {
     return disposables;
 }
 
+// ─── Plain suggestion builder for non-Monaco inputs ──────────────────────────
+
+/**
+ * Build template suggestions for a text prefix.
+ */
+function getTemplateSuggestions(state, textUntilPosition) {
+    const lastOpen = textUntilPosition.lastIndexOf('{{');
+    const lastClose = textUntilPosition.lastIndexOf('}}');
+    const insideTemplate = lastOpen !== -1 && lastOpen > lastClose;
+
+    if (textUntilPosition.endsWith('{{')) {
+        return {
+            replaceLength: 0,
+            suggestions: [
+                ...buildVariableSuggestions(state),
+                ...buildDynamicVarSuggestions(),
+                buildAtSnippet()
+            ]
+        };
+    }
+
+    if (!insideTemplate) {
+        return { replaceLength: 0, suggestions: [] };
+    }
+
+    const templateContent = textUntilPosition.substring(lastOpen + 2);
+
+    const pipeMatch = templateContent.match(/\\|\\s*(\\w*)$/);
+    if (pipeMatch) {
+        return {
+            replaceLength: pipeMatch[1].length,
+            suggestions: buildFilterSuggestions()
+        };
+    }
+
+    const dollarMatch = templateContent.match(/\\$(\\w*)$/);
+    if (dollarMatch) {
+        return {
+            replaceLength: dollarMatch[1].length + 1,
+            suggestions: buildDynamicVarSuggestions()
+        };
+    }
+
+    const wordMatch = templateContent.match(/(\\w*)$/);
+    const partial = wordMatch ? wordMatch[1] : '';
+    return {
+        replaceLength: partial.length,
+        suggestions: [
+            ...buildVariableSuggestions(state),
+            ...buildDynamicVarSuggestions()
+        ]
+    };
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
-export { registerTemplateCompletionProviders };
+export { registerTemplateCompletionProviders, getTemplateSuggestions };
+
+// Expose the registration helper for non-bundled editors (folder/collection)
+// that load this module directly as an ES module.
+if (typeof window !== 'undefined') {
+    window.registerHttpForgeTemplateCompletionProviders = registerTemplateCompletionProviders;
+    window.getHttpForgeTemplateSuggestions = getTemplateSuggestions;
+}

@@ -30,7 +30,7 @@ import { createCaseInsensitiveMap, escapeHtml, formatDuration, formatTime, getHe
 import { createBodyTypeManager } from './body-type-manager.js';
 import { createMessageHandler } from './message-handler.js';
 import { createMonacoEditorsManager } from './monaco-editors-manager.js';
-import { createPathVariablesManager } from './path-variables-manager.js';
+import { initTemplateInputAutocomplete } from '../../../shared/template-input-autocomplete.js';import { createPathVariablesManager } from './path-variables-manager.js';
 import { createQueryParamsManager } from './query-params-manager.js';
 import { createRequestLoader } from './request-loader.js';
 import { createRequestSaver } from './request-saver.js';
@@ -118,6 +118,9 @@ class RequestTesterApp {
             // Phase 2: Create state
             this.state = createState();
             this.restoreLayoutState();
+
+            // Lightweight autocomplete for plain inputs (URL, params, headers, …)
+            initTemplateInputAutocomplete(this.state);
             
             // Phase 3: Initialize managers (in dependency order)
             this.initializeManagers();

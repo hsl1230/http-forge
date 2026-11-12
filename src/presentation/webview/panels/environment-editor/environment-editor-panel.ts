@@ -159,6 +159,9 @@ export class EnvironmentEditorPanel implements IWebviewMessenger {
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'environment-editor', 'script.js')
         );
+        const templateInputAutocompleteUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'shared', 'template-input-autocomplete.js')
+        );
 
         // Read HTML template
         const htmlPath = path.join(
@@ -176,6 +179,7 @@ export class EnvironmentEditorPanel implements IWebviewMessenger {
         html = html.replace('{{sharedScriptUri}}', sharedScriptUri.toString());
         html = html.replace('{{styleUri}}', styleUri.toString());
         html = html.replace('{{scriptUri}}', scriptUri.toString());
+        html = html.replace('{{templateInputAutocompleteUri}}', templateInputAutocompleteUri.toString());
 
         return html;
     }
