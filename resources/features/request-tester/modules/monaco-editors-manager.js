@@ -203,6 +203,17 @@ function createMonacoEditorsManager({
                     noSyntaxValidation: false,
                     noSuggestionDiagnostics: true
                 });
+                // Keep HTTP Forge's own completion provider as the source of truth for
+                // pm/hf/ctx. Avoid Monaco's default JavaScript library suggestions,
+                // which can include members that do not exist on HTTP Forge's runtime
+                // response object.
+                monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+                    target: monaco.languages.typescript.ScriptTarget.ES2020,
+                    module: monaco.languages.typescript.ModuleKind.CommonJS,
+                    allowJs: true,
+                    noLib: true,
+                    strict: false
+                });
             }
 
             // Double-check Monaco is fully available

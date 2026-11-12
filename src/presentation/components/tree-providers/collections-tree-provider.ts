@@ -174,7 +174,39 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<Collecti
             }
 
             if (element.itemType === 'folder') {
-                // Return folder items
+                // Prefer the folder object captured on the tree item. Navigating by
+                // folder name is ambiguous when sibling folders share a name, so
+                // this keeps duplicate folders/requests opening their own items.
+                const folder = element.requestData as CollectionFolderItem | undefined;
+                if (folder?.items) {
+                    return folder.items.map((item) => {
+                        if (item.type === 'folder') {
+                            return new CollectionTreeItem(
+                                item.name,
+                                vscode.TreeItemCollapsibleState.Collapsed,
+                                'folder',
+                                element.collectionId,
+                                [...element.itemPath, item.name],
+                                item,
+                                item.id,
+                                undefined
+                            );
+                        }
+
+                        return new CollectionTreeItem(
+                            item.name,
+                            vscode.TreeItemCollapsibleState.None,
+                            'request',
+                            element.collectionId,
+                            element.itemPath,
+                            item,
+                            undefined,
+                            item.id
+                        );
+                    });
+                }
+
+                // Fallback for older tree items without captured folder data.
                 return this.getCollectionItems(element.collectionId, element.itemPath);
             }
 

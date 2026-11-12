@@ -163,6 +163,10 @@ function initEditors() {
         });
         postResponseEditor.onDidChangeModelContent(() => markDirty());
     }
+
+    if (typeof monaco !== 'undefined' && typeof window.registerHttpForgeScriptCompletions === 'function') {
+        window.registerHttpForgeScriptCompletions();
+    }
 }
 
 function markDirty() {

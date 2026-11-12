@@ -419,3 +419,9 @@ function registerScriptCompletionProviders() {
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 export { registerScriptCompletionProviders };
+
+// Expose the registration helper for non-bundled editors (folder/collection)
+// that load this module directly as an ES module.
+if (typeof window !== 'undefined') {
+    window.registerHttpForgeScriptCompletions = registerScriptCompletionProviders;
+}

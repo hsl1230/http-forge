@@ -1245,6 +1245,9 @@
     }
     return disposables;
   }
+  if (typeof window !== "undefined") {
+    window.registerHttpForgeScriptCompletions = registerScriptCompletionProviders;
+  }
 
   // resources/features/request-tester/modules/template-completion-provider.js
   var DYNAMIC_VARIABLE_COMPLETIONS = [
@@ -1615,6 +1618,13 @@ ${f.description}` },
             noSemanticValidation: true,
             noSyntaxValidation: false,
             noSuggestionDiagnostics: true
+          });
+          monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+            target: monaco.languages.typescript.ScriptTarget.ES2020,
+            module: monaco.languages.typescript.ModuleKind.CommonJS,
+            allowJs: true,
+            noLib: true,
+            strict: false
           });
         }
         if (typeof monaco === "undefined" || !monaco.editor || typeof monaco.editor.create !== "function") {

@@ -171,6 +171,7 @@ export class FolderEditorPanel implements IWebviewMessenger {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'style.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'script.js'));
         const monacoViewerUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, 'monaco-viewer.js'));
+        const scriptCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, '..', 'request-tester', 'modules', 'script-completion-provider.js'));
 
         // Build CSP
         const cspContent = `default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src ${webview.cspSource} https://cdnjs.cloudflare.com; font-src ${webview.cspSource} https://cdnjs.cloudflare.com; img-src ${webview.cspSource} data:; connect-src https://cdnjs.cloudflare.com;`;
@@ -184,6 +185,7 @@ export class FolderEditorPanel implements IWebviewMessenger {
         html = html.replace('{{styleUri}}', styleUri.toString());
         html = html.replace('{{scriptUri}}', scriptUri.toString());
         html = html.replace('{{monacoViewerUri}}', monacoViewerUri.toString());
+        html = html.replace('{{scriptCompletionUri}}', scriptCompletionUri.toString());
 
         return html;
     }

@@ -13,7 +13,7 @@ import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { createEmptyApi } from './api/empty-api';
 import { registerAllCommands } from './commands';
-import { registerHttpForgeChatParticipant } from './presentation/chat/http-forge-chat-participant';
+import { HttpForgeModuleDefinitionProvider } from './infrastructure/module-definition-provider';import { registerHttpForgeChatParticipant } from './presentation/chat/http-forge-chat-participant';
 import { notifyIfAgentsMdStale } from './commands/agentsMdCommands';
 import { showPendingNotices } from './commands/notices';
 import type { CommandContext } from './commands/command-context';
@@ -154,6 +154,15 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
 
   // Register @http-forge chat participant for GitHub Copilot
   registerHttpForgeChatParticipant(context);
+
+  // Make require('./helper') and require('helper') in HTTP Forge scripts open
+  // the resolved module file from scripts.modulePaths.
+  context.subscriptions.push(
+    vscode.languages.registerDefinitionProvider(
+      'javascript',
+      new HttpForgeModuleDefinitionProvider(configService as ConfigService)
+    )
+  );
 
   // One-time notice when the versioned AI agent guide is stale (opt-in refresh)
   void notifyIfAgentsMdStale({ workspaceFolder, context }).catch(() => {});
