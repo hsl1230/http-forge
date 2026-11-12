@@ -185,6 +185,9 @@ class RequestTesterApp {
             onBodyChange: () => this.markDirty(),
             onScriptChange: () => this.markDirty(),
             onWsMessageChange: () => this.markDirty(),
+            onOpenModule: (moduleName, phase) => {
+                vscode.postMessage({ command: 'openModule', moduleName, phase });
+            },
             getDefaultPreRequestScript,
             getDefaultPostResponseScript
         });

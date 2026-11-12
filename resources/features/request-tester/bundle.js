@@ -1478,6 +1478,7 @@ ${f.description}` },
     onBodyChange,
     onScriptChange,
     onWsMessageChange,
+    onOpenModule,
     getDefaultPreRequestScript: getDefaultPreRequestScript2,
     getDefaultPostResponseScript: getDefaultPostResponseScript2
   }) {
@@ -1580,6 +1581,42 @@ ${f.description}` },
     }
     function createEditors() {
       try {
+        let getRequiredModuleAtPosition2 = function(model, position) {
+          if (!model || !position) return null;
+          const line = model.getLineContent(position.lineNumber);
+          const regex = /require\\s*\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)/g;
+          let match;
+          while ((match = regex.exec(line)) !== null) {
+            const moduleName = match[1];
+            const moduleIndex = line.indexOf(moduleName, match.index);
+            const quoteStart = moduleIndex - 1;
+            const quoteEnd = moduleIndex + moduleName.length + 1;
+            const column = position.column - 1;
+            if (column >= quoteStart && column < quoteEnd) {
+              return moduleName;
+            }
+          }
+          return null;
+        }, attachModuleOpener2 = function(editor, phase) {
+          if (!editor || typeof editor.onMouseDown !== "function") return;
+          editor.onMouseDown((event) => {
+            const moduleName = getRequiredModuleAtPosition2(editor.getModel(), event.target?.position);
+            if (!moduleName) return;
+            if (event.event?.preventDefault) event.event.preventDefault();
+            if (event.event?.stopPropagation) event.event.stopPropagation();
+            if (typeof onOpenModule === "function") {
+              onOpenModule(moduleName, phase);
+            }
+          });
+        };
+        var getRequiredModuleAtPosition = getRequiredModuleAtPosition2, attachModuleOpener = attachModuleOpener2;
+        if (monaco?.languages?.typescript?.javascriptDefaults) {
+          monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+            noSemanticValidation: true,
+            noSyntaxValidation: false,
+            noSuggestionDiagnostics: true
+          });
+        }
         if (typeof monaco === "undefined" || !monaco.editor || typeof monaco.editor.create !== "function") {
           console.error(
             "[MonacoEditorsManager] Monaco editor not fully loaded. monaco:",
@@ -1664,23 +1701,27 @@ ${f.description}` },
           preRequestScriptEditor = monaco.editor.create(elements.preRequestScriptEditor, {
             ...DEFAULT_EDITOR_CONFIG,
             value: "",
-            language: "javascript"
+            language: "javascript",
+            multiCursorModifier: "ctrlCmd"
           });
           preRequestScriptEditor.onDidChangeModelContent(() => {
             state.scripts.preRequest = preRequestScriptEditor.getValue();
             if (onScriptChange) onScriptChange("preRequest");
           });
+          attachModuleOpener2(preRequestScriptEditor, "pre-request");
         }
         if (elements.postResponseScriptEditor) {
           postResponseScriptEditor = monaco.editor.create(elements.postResponseScriptEditor, {
             ...DEFAULT_EDITOR_CONFIG,
             value: "",
-            language: "javascript"
+            language: "javascript",
+            multiCursorModifier: "ctrlCmd"
           });
           postResponseScriptEditor.onDidChangeModelContent(() => {
             state.scripts.postResponse = postResponseScriptEditor.getValue();
             if (onScriptChange) onScriptChange("postResponse");
           });
+          attachModuleOpener2(postResponseScriptEditor, "post-response");
         }
         registerGraphQLLanguage(monaco);
         registerTemplateCompletionProviders(state);
@@ -7959,6 +8000,9 @@ console.log('Post-response script executed');
         onBodyChange: () => this.markDirty(),
         onScriptChange: () => this.markDirty(),
         onWsMessageChange: () => this.markDirty(),
+        onOpenModule: (moduleName, phase) => {
+          vscode2.postMessage({ command: "openModule", moduleName, phase });
+        },
         getDefaultPreRequestScript,
         getDefaultPostResponseScript
       });

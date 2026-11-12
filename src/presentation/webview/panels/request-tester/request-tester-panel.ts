@@ -457,6 +457,12 @@ export class RequestTesterPanel implements vscode.Disposable {
         return;
       }
 
+      // Open a module referenced by require() in a script editor
+      if (cmd === 'openModule') {
+        await this.openModuleFile(String(msg.moduleName || ''));
+        return;
+      }
+
       // Route all other messages through the router
       await this.router.route(msg, this.messenger);
     });
@@ -523,6 +529,62 @@ export class RequestTesterPanel implements vscode.Disposable {
       const doc = await vscode.workspace.openTextDocument(docPath);
       await vscode.window.showTextDocument(doc);
     }
+  }
+
+  /**
+   * Open a module referenced by require() in a script editor.
+   * Resolution follows scripts.modulePaths, like the runtime module loader.
+   */
+  private async openModuleFile(moduleName: string): Promise<void> {
+    if (!moduleName) return;
+
+    const container = getServiceContainer();
+    const modulePaths = container.config.getModulePaths();
+    const candidates: string[] = [];
+
+    for (const modulePath of modulePaths) {
+      const root = path.resolve(modulePath);
+
+      if (moduleName.startsWith('./') || moduleName.startsWith('../')) {
+        const resolved = path.resolve(root, moduleName);
+        candidates.push(resolved, `${resolved}.js`, `${resolved}.json`, `${resolved}.ts`, path.join(resolved, 'index.js'));
+      } else {
+        try {
+          candidates.push(require.resolve(moduleName, { paths: [root] }));
+        } catch {
+          // Fall through to conventional path candidates below.
+        }
+        candidates.push(
+          path.join(root, moduleName),
+          path.join(root, `${moduleName}.js`),
+          path.join(root, `${moduleName}.json`),
+          path.join(root, moduleName, 'index.js')
+        );
+      }
+    }
+
+    const resolvedPath = candidates.find((candidate) => {
+      try {
+        return fs.existsSync(candidate) && fs.statSync(candidate).isFile();
+      } catch {
+        return false;
+      }
+    });
+
+    const isAllowed = resolvedPath
+      ? modulePaths.some((modulePath) => {
+          const root = path.resolve(modulePath);
+          return resolvedPath === root || resolvedPath.startsWith(root + path.sep);
+        })
+      : false;
+
+    if (!resolvedPath || !isAllowed) {
+      vscode.window.showErrorMessage(`Module not found: ${moduleName}`);
+      return;
+    }
+
+    const doc = await vscode.workspace.openTextDocument(resolvedPath);
+    await vscode.window.showTextDocument(doc);
   }
 
   /**

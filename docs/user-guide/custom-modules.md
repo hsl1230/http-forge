@@ -81,6 +81,11 @@ Relative requires such as `./helpers` and `../shared/utils` are resolved inside
 the active module directory. For security, HTTP Forge blocks relative requires
 that resolve outside that directory.
 
+A self-defined module can also be required by its bare name, such as
+`require('helpers')`, when a matching file exists in the active module
+directory. Installed npm packages take precedence over local files with the same
+name.
+
 ## Global setup
 
 If the active module directory contains `global-setup.js`, HTTP Forge loads it
