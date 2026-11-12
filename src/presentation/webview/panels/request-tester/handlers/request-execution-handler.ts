@@ -80,11 +80,13 @@ export class RequestExecutionHandler implements IMessageHandler {
       return;
     }
 
+    this.scriptExecutor?.beginRun?.();
     try {
       await this.executeWithCollectionContext(request, context!, environment, messenger);
     } catch (error: any) {
       this.handleRequestError(error, messenger);
     } finally {
+      this.scriptExecutor?.endRun?.();
       this.currentAbortController = undefined;
     }
 

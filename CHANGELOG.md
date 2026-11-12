@@ -5,11 +5,22 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.3 - 2026-11-09
+
+### Fixed
+
+- Folder-based test suite runs now hydrate requests from the live collection, including payloads stored in external `body.json` files.
+
+### Changed
+
+- Upgraded `@http-forge/core` dependency to `^1.0.3`.
+
 ## 1.0.2 - 2026-11-09
 
 ### Fixed
 
 - Request execution now hydrates lazy-loaded request bodies before sending, including body content stored in external `body.json` files. This applies to the Request Tester, collection runs, test suite runs, and MCP execution.
+- Custom module files and their local dependencies are now refreshed at the start of each run, so edited modules are picked up on the next run without reloading VS Code.
 - Collection and test suite documentation now describe external `body.json` storage and on-demand hydration.
 
 ### Changed

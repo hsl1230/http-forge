@@ -156,6 +156,7 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
             return;
         }
 
+        this.scriptExecutor?.beginRun?.();
         this.isRunning = true;
         this.abortController = new AbortController();
 
@@ -341,6 +342,7 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
             vscode.window.showErrorMessage(error.message || 'An error occurred during the run');
             getServiceContainer().console.error(`Run error: ${error.message}`, 'Test Suite');
         } finally {
+            this.scriptExecutor?.endRun?.();
             this.isRunning = false;
             this.abortController = null;
             this.currentEstimatedTotalRequests = 0;
