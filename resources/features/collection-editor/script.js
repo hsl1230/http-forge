@@ -7,6 +7,7 @@
 const vscode = acquireVsCodeApi();
 let collection = null;
 let collectionVariables = {};
+let collectionRuntimeVariables = {};
 let preRequestEditor = null;
 let postResponseEditor = null;
 let isDirty = false;
@@ -187,6 +188,7 @@ window.addEventListener('message', event => {
         case 'init':
             collection = message.collection;
             collectionVariables = collection?.variables || {};
+            collectionRuntimeVariables = message.runtimeVariables || {};
             renderCollection();
             break;
         case 'saveSuccess':
@@ -279,19 +281,27 @@ function renderVariables() {
     tbody.innerHTML = '';
 
     const variables = collection.variables || {};
+    const runtimeValues = collectionRuntimeVariables || {};
     for (const [key, value] of Object.entries(variables)) {
-        addVariableRow(key, String(value));
+        addVariableRow(key, String(value), runtimeValues[key] ? String(runtimeValues[key]) : '');
+    }
+    // Runtime-only collection variables (script-added)
+    for (const [key, value] of Object.entries(runtimeValues)) {
+        if (!Object.prototype.hasOwnProperty.call(variables, key)) {
+            addVariableRow(key, '', String(value));
+        }
     }
 }
 
-function addVariableRow(key = '', value = '') {
+function addVariableRow(key = '', value = '', runtimeValue = '') {
     const tbody = document.getElementById('variables-body');
     if (!tbody) return;
     
     const tr = document.createElement('tr');
     tr.innerHTML = 
         '<td><input type="text" class="var-key" value="' + escapeHtml(key) + '" placeholder="Variable name"></td>' +
-        '<td><input type="text" class="var-value" value="' + escapeHtml(value) + '" placeholder="Value"></td>' +
+        '<td><input type="text" class="var-value" value="' + escapeHtml(value) + '" placeholder="Initial value"></td>' +
+        '<td><input type="text" class="var-runtime" value="' + escapeHtml(runtimeValue) + '" placeholder="Current value"></td>' +
         '<td class="actions">' +
             '<button class="btn-icon btn-danger delete-var-btn" title="Delete">×</button>' +
         '</td>';
@@ -377,11 +387,14 @@ function renderAuthConfig(authType) {
 function collectFormData() {
     // Variables
     const variables = {};
+    const runtimeVariables = {};
     document.querySelectorAll('#variables-body tr').forEach(row => {
         const key = row.querySelector('.var-key')?.value?.trim();
         const value = row.querySelector('.var-value')?.value || '';
+        const runtimeValue = row.querySelector('.var-runtime')?.value || '';
         if (key) {
             variables[key] = value;
+            if (runtimeValue !== '') runtimeVariables[key] = runtimeValue;
         }
     });
 
@@ -415,6 +428,7 @@ function collectFormData() {
         name: document.getElementById('collection-name')?.value?.trim() || '',
         description: document.getElementById('collection-description')?.value?.trim() || '',
         variables,
+        runtimeVariables,
         auth,
         scripts
     };

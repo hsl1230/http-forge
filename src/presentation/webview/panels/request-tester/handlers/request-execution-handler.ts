@@ -157,6 +157,13 @@ export class RequestExecutionHandler implements IMessageHandler {
       collection?.name || context.collectionName || 'standalone'
     );
 
+    if (collection) {
+      executorWithCollectionName.setCollectionVariables({
+        ...(collection.variables || {}),
+        ...collectionService.getCollectionVariableLocals(collection.id)
+      });
+    }
+
     this.currentAbortController = new AbortController();
 
     // Build ExecutionRequest format expected by executor
@@ -203,6 +210,9 @@ export class RequestExecutionHandler implements IMessageHandler {
       {}, // variables - can be extended
       this.currentAbortController.signal
     );
+
+    this.syncCollectionVariables(result.modifiedCollectionVariables, collection?.id);
+    this.postVariablesUpdated(result, environment, collection?.id, messenger);
 
     // Extract cookies from response headers (only if headers exist)
     const domain = this.extractDomain(result.executedRequest.url);
@@ -258,6 +268,69 @@ export class RequestExecutionHandler implements IMessageHandler {
           visualizerData: result.visualizerData
         }
       }
+    });
+  }
+
+  /**
+   * Persist collection variables written by collection/folder/request scripts.
+   *
+   * `modifiedCollectionVariables` is the full live collection scope, so values
+   * removed with pm.collectionVariables.unset() are deleted from the local store
+   * as well. Collection file values themselves are never mutated.
+   */
+  private syncCollectionVariables(
+    modifiedCollectionVariables: Record<string, string> | undefined,
+    collectionId: string | undefined
+  ): void {
+    if (!modifiedCollectionVariables || !collectionId) {
+      return;
+    }
+
+    const collectionService = getServiceContainer().collection;
+    const existingLocals = collectionService.getCollectionVariableLocals(collectionId);
+    const fileVariables = collectionService.getCollectionVariables(collectionId);
+
+    for (const key of Object.keys(existingLocals)) {
+      if (!(key in modifiedCollectionVariables)) {
+        collectionService.deleteCollectionVariable(collectionId, key);
+      }
+    }
+
+    for (const [key, value] of Object.entries(modifiedCollectionVariables)) {
+      // Do not shadow an unchanged collection-file value with a duplicate local.
+      // That way editing the collection file still wins on the next preview.
+      if (key in fileVariables && fileVariables[key] === value) {
+        collectionService.deleteCollectionVariable(collectionId, key);
+      } else {
+        collectionService.setCollectionVariable(collectionId, key, value);
+      }
+    }
+  }
+
+  /**
+   * Refresh the webview's variable scopes after scripts mutate them so hover
+   * tooltips and template completion see the values that were just written.
+   */
+  private postVariablesUpdated(
+    result: { requestLocalWrites?: Record<string, string> },
+    environment: string,
+    collectionId: string | undefined,
+    messenger: IWebviewMessenger
+  ): void {
+    const collectionService = getServiceContainer().collection;
+    const collectionVariables = collectionId
+      ? {
+        ...collectionService.getCollectionVariables(collectionId),
+        ...collectionService.getCollectionVariableLocals(collectionId)
+      }
+      : {};
+
+    messenger.postMessage({
+      command: 'variablesUpdated',
+      environmentVariables: this.envConfigService.getResolvedEnvironment(environment)?.variables || {},
+      collectionVariables,
+      globalVariables: this.envConfigService.getGlobalVariables(),
+      sessionVariables: result.requestLocalWrites || {}
     });
   }
 

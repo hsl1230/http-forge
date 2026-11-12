@@ -30,7 +30,7 @@ import { createCaseInsensitiveMap, escapeHtml, formatDuration, formatTime, getHe
 import { createBodyTypeManager } from './body-type-manager.js';
 import { createMessageHandler } from './message-handler.js';
 import { createMonacoEditorsManager } from './monaco-editors-manager.js';
-import { initTemplateInputAutocomplete } from '../../../shared/template-input-autocomplete.js';import { createPathVariablesManager } from './path-variables-manager.js';
+import { initTemplateInputAutocomplete, refreshTemplateInputTitles } from '../../../shared/template-input-autocomplete.js';import { createPathVariablesManager } from './path-variables-manager.js';
 import { createQueryParamsManager } from './query-params-manager.js';
 import { createRequestLoader } from './request-loader.js';
 import { createRequestSaver } from './request-saver.js';
@@ -434,6 +434,7 @@ class RequestTesterApp {
             'loadRequest': (msg) => this.handleLoadRequest(msg),
             'requestSaved': (msg) => this.handleRequestSaved(msg),
             'sessionVariablesLoaded': (msg) => this.handleSessionVariablesLoaded(msg),
+            'variablesUpdated': (msg) => this.handleVariablesUpdated(msg),
             'cookiesLoaded': (msg) => this.handleCookiesLoaded(msg),
             'docUpdated': (msg) => this.updateDocTab(msg.doc),
             'error': (msg) => this.handleError(msg),
@@ -800,6 +801,26 @@ class RequestTesterApp {
         if (msg.sessionVariables) {
             this.state.sessionVariables = msg.sessionVariables;
         }
+    }
+
+    handleVariablesUpdated(msg) {
+        if (!msg) return;
+        if (msg.environmentVariables) {
+            this.state.resolvedEnvironment = {
+                ...(this.state.resolvedEnvironment || {}),
+                variables: msg.environmentVariables
+            };
+        }
+        if (msg.collectionVariables) {
+            this.state.collectionVariables = msg.collectionVariables;
+        }
+        if (msg.globalVariables) {
+            this.state.globalVariables = msg.globalVariables;
+        }
+        if (msg.sessionVariables) {
+            this.state.sessionVariables = msg.sessionVariables;
+        }
+        refreshTemplateInputTitles();
     }
 
     handleCookiesLoaded(msg) {
@@ -1347,7 +1368,8 @@ class RequestTesterApp {
         vscode.postMessage({
             command: 'resolveUrlPreview',
             request,
-            sequence: this.previewRequestSequence
+            sequence: this.previewRequestSequence,
+            sessionVariables: this.state.sessionVariables || {}
         });
     }
 

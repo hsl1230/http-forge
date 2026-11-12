@@ -145,10 +145,11 @@ export class HttpForgeTemplateHoverProvider implements vscode.HoverProvider {
 
     const add = (scope: string, value: unknown) => {
       if (value === undefined) return;
-      const key = `${scope}:${String(value)}`;
+      const display = this.displayValue(value);
+      const key = `${scope}:${display}`;
       if (seen.has(key)) return;
       seen.add(key);
-      entries.push({ scope, value: String(value) });
+      entries.push({ scope, value: display });
     };
 
     try {
@@ -176,12 +177,22 @@ export class HttpForgeTemplateHoverProvider implements vscode.HoverProvider {
 
     try {
       for (const collection of this.collectionService.getAllCollections()) {
-        add('collection', collection.variables?.[name]);
+        const locals = this.collectionService.getCollectionVariableLocals(collection.id);
+        add('collection', locals[name] ?? collection.variables?.[name]);
       }
     } catch {
       // Ignore unavailable config.
     }
 
     return entries;
+  }
+
+  /** Strip the internal typed-variable marker before showing a value. */
+  private displayValue(value: unknown): string {
+    if (typeof value === 'string' && value.charCodeAt(0) === 0x1E) {
+      const json = value.slice(1);
+      return json === 'undefined' ? '' : json;
+    }
+    return String(value);
   }
 }

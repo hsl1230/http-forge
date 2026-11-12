@@ -152,6 +152,9 @@ export class HttpForgeTemplateCompletionProvider implements vscode.CompletionIte
     try {
       for (const collection of this.collectionService.getAllCollections()) {
         for (const key of Object.keys(collection.variables || {})) names.add(key);
+        for (const key of Object.keys(this.collectionService.getCollectionVariableLocals(collection.id))) {
+          names.add(key);
+        }
       }
     } catch {
       // Ignore unavailable config.

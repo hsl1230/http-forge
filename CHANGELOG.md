@@ -7,13 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 1.0.3 - 2026-11-09
 
+### Added
+
+- Template input autocomplete for `{{variable}}`, `$dynamicVars`, and filters in Monaco editors, plain inputs, Folder Editor, Collection Editor, and Environment Editor.
+- Hover values for variables in both webviews and VS Code editors.
+- Script-aware completion in Request Tester, Folder Editor, and Collection Editor.
+- Module opening from script editors.
+- Lazy-loading and body hydration from external `body.json` files.
+- `pm.iterationData` support during collection and suite runs.
+- Current-value columns in Environment and Collection editors.
+- **Clear Runtime Variables** command and button.
+
 ### Fixed
 
+
 - Folder-based test suite runs now hydrate requests from the live collection, including payloads stored in external `body.json` files.
+
+- `pm.iterationData` is now populated during collection and suite runs in the Test Suite panel.
+- Environment and Collection editors now show a Current value column for runtime values.
+- Added the **Clear Runtime Variables** command and button.
 
 ### Changed
 
 - Upgraded `@http-forge/core` dependency to `^1.0.3`.
+
+- Renamed suite run options for clarity: `readFromSharedSession` → `loadPersistedEnvironmentValues`, `writeToSharedSession` → `usePersistentCookieJar`.
+- Updated variable documentation for static vs runtime variables, precedence, `.local.json`, and persistence.
 
 ## 1.0.2 - 2026-11-09
 

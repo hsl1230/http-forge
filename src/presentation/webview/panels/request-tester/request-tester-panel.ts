@@ -143,7 +143,9 @@ export class RequestTesterPanel implements vscode.Disposable {
 
     const requestPreviewHandler = new RequestPreviewHandler(
       envConfigService,
-      httpService
+      httpService,
+      collectionService,
+      this.dataProvider
     );
 
     const historyHandler = new HistoryHandler(

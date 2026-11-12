@@ -1384,6 +1384,13 @@
       }
     };
   }
+  function displayVariableValue(value) {
+    if (typeof value === "string" && value.charCodeAt(0) === 30) {
+      const json = value.slice(1);
+      return json === "undefined" ? "" : json;
+    }
+    return value;
+  }
   function buildVariableSuggestions(state) {
     const suggestions2 = [];
     const seen = /* @__PURE__ */ new Set();
@@ -1398,11 +1405,11 @@
           insertText: key,
           monacoInsertText: key,
           snippet: false,
-          detail: `(${scopeLabel}) ${truncate(String(value ?? ""), 60)}`,
+          detail: `(${scopeLabel}) ${truncate(String(displayVariableValue(value) ?? ""), 60)}`,
           documentation: {
             value: `**${key}**  
 Scope: *${scopeLabel}*  
-Value: \`${String(value ?? "")}\``
+Value: \`${String(displayVariableValue(value) ?? "")}\``
           },
           sortText: sortPrefix + key.toLowerCase()
         });
@@ -1551,7 +1558,7 @@ ${f.description}` },
               }
               const content = match[1];
               const relativeOffset = offset - contentStart;
-              const tokenRegex = /\\$?\\w+/g;
+              const tokenRegex = /\$?\w+/g;
               let tokenMatch;
               let token = null;
               let tokenStart = -1;
@@ -1587,12 +1594,12 @@ ${f.description}` },
                 if (entries.length === 0) {
                   lines.push(`**${token}** \u2014 _(not defined)_`);
                 } else if (entries.length === 1) {
-                  lines.push(`**${token}** = \`${String(entries[0][1])}\``);
+                  lines.push(`**${token}** = \`${String(displayVariableValue(entries[0][1]))}\``);
                   lines.push(`Scope: *${entries[0][0]}*`);
                 } else {
                   lines.push(`**${token}**`);
                   for (const [scope, value] of entries) {
-                    lines.push(`- *${scope}*: \`${String(value)}\``);
+                    lines.push(`- *${scope}*: \`${String(displayVariableValue(value))}\``);
                   }
                 }
               }
@@ -2338,13 +2345,13 @@ ${f.description}` },
   function getVariableEntries(state, name) {
     const entries = [];
     const resolved = state?.resolvedEnvironment?.variables?.[name];
-    if (resolved !== void 0) entries.push(["env", resolved]);
+    if (resolved !== void 0) entries.push(["env", displayVariableValue(resolved)]);
     const collection = state?.collectionVariables?.[name];
-    if (collection !== void 0) entries.push(["collection", collection]);
+    if (collection !== void 0) entries.push(["collection", displayVariableValue(collection)]);
     const global = state?.globalVariables?.[name];
-    if (global !== void 0) entries.push(["global", global]);
+    if (global !== void 0) entries.push(["global", displayVariableValue(global)]);
     const session = state?.sessionVariables?.[name];
-    if (session !== void 0) entries.push(["session", session]);
+    if (session !== void 0) entries.push(["session", displayVariableValue(session)]);
     return entries;
   }
   function updateInputTitle(input) {
@@ -2357,7 +2364,7 @@ ${f.description}` },
     while ((match = regex.exec(value)) !== null) {
       const content = match[1].trim();
       const variablePart = content.split("|")[0].trim();
-      if (!/^\\$?\\w+$/.test(variablePart)) continue;
+      if (!/^\$?\w+$/.test(variablePart)) continue;
       const entries = getVariableEntries(state, variablePart);
       if (entries.length) {
         entries.forEach(([scope, val]) => lines.push(`${variablePart} (${scope}) = ${String(val)}`));
@@ -2379,6 +2386,11 @@ ${f.description}` },
         updateInputTitle(input);
         attach(input);
       }
+    });
+  }
+  function refreshTemplateInputTitles() {
+    document.querySelectorAll("input.value, #request-path-input").forEach((input) => {
+      updateInputTitle(input);
     });
   }
   function initTemplateInputAutocomplete(stateOrGetter) {
@@ -8639,6 +8651,7 @@ console.log('Post-response script executed');
         "loadRequest": (msg) => this.handleLoadRequest(msg),
         "requestSaved": (msg) => this.handleRequestSaved(msg),
         "sessionVariablesLoaded": (msg) => this.handleSessionVariablesLoaded(msg),
+        "variablesUpdated": (msg) => this.handleVariablesUpdated(msg),
         "cookiesLoaded": (msg) => this.handleCookiesLoaded(msg),
         "docUpdated": (msg) => this.updateDocTab(msg.doc),
         "error": (msg) => this.handleError(msg),
@@ -8899,6 +8912,25 @@ console.log('Post-response script executed');
       if (msg.sessionVariables) {
         this.state.sessionVariables = msg.sessionVariables;
       }
+    }
+    handleVariablesUpdated(msg) {
+      if (!msg) return;
+      if (msg.environmentVariables) {
+        this.state.resolvedEnvironment = {
+          ...this.state.resolvedEnvironment || {},
+          variables: msg.environmentVariables
+        };
+      }
+      if (msg.collectionVariables) {
+        this.state.collectionVariables = msg.collectionVariables;
+      }
+      if (msg.globalVariables) {
+        this.state.globalVariables = msg.globalVariables;
+      }
+      if (msg.sessionVariables) {
+        this.state.sessionVariables = msg.sessionVariables;
+      }
+      refreshTemplateInputTitles();
     }
     handleCookiesLoaded(msg) {
       if (this.cookieManager && msg.cookies) {
@@ -9281,7 +9313,8 @@ console.log('Post-response script executed');
       vscode2.postMessage({
         command: "resolveUrlPreview",
         request,
-        sequence: this.previewRequestSequence
+        sequence: this.previewRequestSequence,
+        sessionVariables: this.state.sessionVariables || {}
       });
     }
     handleResolvedUrlPreview(msg) {

@@ -32,6 +32,7 @@ export interface FlowRunRuntime {
 
     isAborted(): boolean;
     getCurrentEstimatedTotal(): number;
+    getIterationData(): Record<string, any>;
     adjustEstimatedTotal(plannedCount: number, actualCount: number, completedCount: number): void;
     logInfo(message: string): void;
     logWarn(message: string): void;
@@ -448,10 +449,18 @@ export class FlowRunExecutor {
             }
         };
 
+        const iterationData = this.runtime.getIterationData();
+        const iterationDataApi = {
+            get: (key: string) => iterationData[key],
+            has: (key: string) => key in iterationData,
+            toObject: () => ({ ...iterationData })
+        };
+
         const pmApi = {
             variables: variablesApi,
             environment: environmentApi,
-            globals: globalsApi
+            globals: globalsApi,
+            iterationData: iterationDataApi
         };
 
         return {
@@ -526,6 +535,7 @@ export class FlowRunExecutor {
                 params: {}
             },
             variables: { ...variables },
+            iterationData: this.runtime.getIterationData(),
             environmentVariables: this.runtime.environmentConfigService?.getResolvedEnvironment(environmentId)?.variables || {},
             globals: this.runtime.environmentConfigService?.getGlobalVariables() || {},
             environmentName: environmentId,
@@ -566,10 +576,11 @@ export class FlowRunExecutor {
                 throw new Error(result.error || 'Flow script execution failed');
             }
 
-            if ((result as any).localVariables && typeof (result as any).localVariables === 'object') {
+            const resultVariables = (result as any).nonGlobalVariables;
+            if (resultVariables && typeof resultVariables === 'object') {
                 // Replace with the latest local snapshot so unset/clear operations
                 // are not reintroduced by older carried variables.
-                return { ...(result as any).localVariables };
+                return { ...resultVariables };
             }
 
             const mergedVariables = {

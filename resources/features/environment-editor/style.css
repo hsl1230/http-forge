@@ -329,6 +329,11 @@ button.danger:hover {
     font-weight: 500;
 }
 
+.variable-row input.runtime-value {
+    flex: 1;
+    border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
+}
+
 .variable-row .remove-btn {
     padding: 6px 10px;
     opacity: 0.6;

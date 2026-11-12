@@ -6,7 +6,7 @@
  * variable / dynamic-variable / filter suggestions to ordinary inputs.
  */
 
-import { getTemplateSuggestions, DYNAMIC_VARIABLE_COMPLETIONS, FILTER_COMPLETIONS } from '../features/request-tester/modules/template-completion-provider.js';
+import { getTemplateSuggestions, displayVariableValue, DYNAMIC_VARIABLE_COMPLETIONS, FILTER_COMPLETIONS } from '../features/request-tester/modules/template-completion-provider.js';
 
 const ATTACHED = new WeakSet();
 let dropdown = null;
@@ -238,13 +238,13 @@ function getTemplateState() {
 function getVariableEntries(state, name) {
     const entries = [];
     const resolved = state?.resolvedEnvironment?.variables?.[name];
-    if (resolved !== undefined) entries.push(['env', resolved]);
+    if (resolved !== undefined) entries.push(['env', displayVariableValue(resolved)]);
     const collection = state?.collectionVariables?.[name];
-    if (collection !== undefined) entries.push(['collection', collection]);
+    if (collection !== undefined) entries.push(['collection', displayVariableValue(collection)]);
     const global = state?.globalVariables?.[name];
-    if (global !== undefined) entries.push(['global', global]);
+    if (global !== undefined) entries.push(['global', displayVariableValue(global)]);
     const session = state?.sessionVariables?.[name];
-    if (session !== undefined) entries.push(['session', session]);
+    if (session !== undefined) entries.push(['session', displayVariableValue(session)]);
     return entries;
 }
 
@@ -258,7 +258,7 @@ function updateInputTitle(input) {
     while ((match = regex.exec(value)) !== null) {
         const content = match[1].trim();
         const variablePart = content.split('|')[0].trim();
-        if (!/^\\$?\\w+$/.test(variablePart)) continue;
+        if (!/^\$?\w+$/.test(variablePart)) continue;
 
         const entries = getVariableEntries(state, variablePart);
         if (entries.length) {
@@ -286,6 +286,12 @@ function attachAll() {
             updateInputTitle(input);
             attach(input);
         }
+    });
+}
+
+export function refreshTemplateInputTitles() {
+    document.querySelectorAll('input.value, #request-path-input').forEach((input) => {
+        updateInputTitle(input);
     });
 }
 

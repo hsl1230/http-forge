@@ -51,6 +51,8 @@ Methods:
 
 - See which variables are script-overridden in the Environment editor — overridden rows show the current value with a blue marker and a ↩ button. Reverting drops the override so the file value applies again. Overridden rows are read-only and are never written back to the file on save.
 - Drop **all** overrides for one environment at once: the **↩ Reset current values** button in the Environment editor, or the Command Palette → **HTTP Forge: Reset Environment Current Values** (Postman's "Reset All").
+- Clear **all** runtime variables (globals, environment Current Values, and collection variables): the **🧹 Clear runtime variables** button in the Environment editor, or the Command Palette → **HTTP Forge: Clear Runtime Variables**.
+- The Environment and Collection editors now show a **Current value** column next to the file-backed value, so static and runtime values can be edited and saved independently.
 - From scripts: `pm.environment.unset('key')` removes one override; `pm.environment.clear()` removes all for the environment.
 - `pm.globals.set()` is memory-only and does not survive restarts.
 

@@ -127,7 +127,7 @@ Right-click a suite in the **Test Suites** tree and select **Duplicate**.
 
 The duplicate includes:
 - flow nodes and ordering
-- run configuration (iterations, delay, stop-on-error, shared session)
+- run configuration (iterations, delay, stop-on-error, load persisted environment values, use persistent cookie jar)
 - suite description
 - suite request customizations (body, headers, auth, scripts)
 
@@ -294,7 +294,8 @@ pm.execution.skipRequest();
 These APIs affect suite runs only.
 
 ## Data-driven testing
-Use `pm.iterationData` in suite runs:
+
+Attach a CSV or JSON data file in the Test Suite panel. Each iteration receives the next row, and `{{variable}}` placeholders resolve from that row. Read the raw row through the read-only `pm.iterationData` scope:
 
 ```javascript
 pm.test('User name matches', () => {
@@ -389,13 +390,18 @@ HTTP Forge supports three equivalent aliases in both **script nodes** and **cond
 | `ctx` | HTTP Forge idiomatic alias |
 | `hf` | HTTP Forge shorthand |
 
-All three point to the same API (`variables`, `environment`, `globals`):
+All three point to the same API (`variables`, `environment`, `globals`, `iterationData`):
 
 ```javascript
 // These are all equivalent in conditions and script nodes
 pm.variables.get('token')
 ctx.variables.get('token')
 hf.variables.get('token')
+
+// The current data-file row is available under the same aliases
+pm.iterationData.get('role')
+ctx.iterationData.get('role')
+hf.iterationData.get('role')
 ```
 
 ## Tips

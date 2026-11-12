@@ -156,6 +156,19 @@ function createTemplateCompletionProvider(state) {
 // ─── Suggestion Builders ─────────────────────────────────────────────────────
 
 /**
+ * Strip the internal typed-value marker (\x1E) before showing a variable value
+ * in completion, hover, or tooltip text. The marker is still required for
+ * template resolution of typed script variables.
+ */
+export function displayVariableValue(value) {
+    if (typeof value === 'string' && value.charCodeAt(0) === 0x1E) {
+        const json = value.slice(1);
+        return json === 'undefined' ? '' : json;
+    }
+    return value;
+}
+
+/**
  * Build suggestions for environment / global / session / collection variables
  */
 function buildVariableSuggestions(state) {
@@ -173,9 +186,9 @@ function buildVariableSuggestions(state) {
                 insertText: key,
                 monacoInsertText: key,
                 snippet: false,
-                detail: `(${scopeLabel}) ${truncate(String(value ?? ''), 60)}`,
+                detail: `(${scopeLabel}) ${truncate(String(displayVariableValue(value) ?? ''), 60)}`,
                 documentation: {
-                    value: `**${key}**  \nScope: *${scopeLabel}*  \nValue: \`${String(value ?? '')}\``
+                    value: `**${key}**  \nScope: *${scopeLabel}*  \nValue: \`${String(displayVariableValue(value) ?? '')}\``
                 },
                 sortText: sortPrefix + key.toLowerCase()
             });
@@ -376,7 +389,7 @@ function registerTemplateHoverProviders(state) {
 
                         const content = match[1];
                         const relativeOffset = offset - contentStart;
-                        const tokenRegex = /\\$?\\w+/g;
+                        const tokenRegex = /\$?\w+/g;
                         let tokenMatch;
                         let token = null;
                         let tokenStart = -1;
@@ -416,12 +429,12 @@ function registerTemplateHoverProviders(state) {
                             if (entries.length === 0) {
                                 lines.push(`**${token}** — _(not defined)_`);
                             } else if (entries.length === 1) {
-                                lines.push(`**${token}** = \`${String(entries[0][1])}\``);
+                                lines.push(`**${token}** = \`${String(displayVariableValue(entries[0][1]))}\``);
                                 lines.push(`Scope: *${entries[0][0]}*`);
                             } else {
                                 lines.push(`**${token}**`);
                                 for (const [scope, value] of entries) {
-                                    lines.push(`- *${scope}*: \`${String(value)}\``);
+                                    lines.push(`- *${scope}*: \`${String(displayVariableValue(value))}\``);
                                 }
                             }
                         }

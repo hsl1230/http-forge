@@ -46,7 +46,8 @@ export class ReadyHandler implements IMessageHandler {
 
         messenger.postMessage({
             type: 'init',
-            collection
+            collection,
+            runtimeVariables: this.collectionService.getCollectionVariableLocals(this.collectionId)
         });
     }
 }

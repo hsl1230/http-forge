@@ -7,7 +7,7 @@ The Request Tester is the main UI for building and executing requests from the e
 - **Path/URL**: Absolute URL or relative path resolved against environment variables (supports Express.js route patterns like `:id`)
 - **Send**: Executes the request
 - **Save**: Saves updates back to the collection
-- **Resolved URL preview**: Shows the final executed URL after inline variables, selected environment values, dynamic variables, filter/pipe expressions, and auth query params are resolved.
+- **Resolved URL preview**: Shows the final executed URL after inline variables, selected environment values, collection variables, dynamic variables, filter/pipe expressions, and auth query params are resolved. Collection/global/environment values written by collection or folder pre-request scripts are reflected after the request has run.
 
 ### Example
 ```

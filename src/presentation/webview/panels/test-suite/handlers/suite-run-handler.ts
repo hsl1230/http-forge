@@ -33,6 +33,7 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
     private resultStorageService: IResultStorageService | null = null;
     private _lastReportPath: string | undefined = undefined;
     private currentEstimatedTotalRequests = 0;
+    private currentIterationData: Record<string, any> = {};
     readonly flowExecutor: FlowRunExecutor;
 
     constructor(
@@ -60,6 +61,11 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
     /** Flow run runtime contract: current estimated total request count. */
     getCurrentEstimatedTotal(): number {
         return this.currentEstimatedTotalRequests;
+    }
+
+    /** Flow run runtime contract: raw data-file row for the current iteration. */
+    getIterationData(): Record<string, any> {
+        return { ...this.currentIterationData };
     }
 
     /**
@@ -174,7 +180,8 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
         const environmentId = config.environmentId || 'default';
 
         // Create per-run cookie jar (hoisted for flush in finally)
-        const cookieJar: ICookieJar = config.writeToSharedSession ? getServiceContainer().persistentCookieJar : new InMemoryCookieJar();
+        const usePersistentCookieJar = config.usePersistentCookieJar ?? config.writeToSharedSession ?? false;
+        const cookieJar: ICookieJar = usePersistentCookieJar ? getServiceContainer().persistentCookieJar : new InMemoryCookieJar();
 
         try {
             // Initialize storage for this run
@@ -220,7 +227,8 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
             }
 
             // Load shared session variables if enabled
-            if (config.readFromSharedSession && this.environmentConfigService) {
+            const loadPersistedEnvironmentValues = config.loadPersistedEnvironmentValues ?? config.readFromSharedSession ?? false;
+            if (loadPersistedEnvironmentValues && this.environmentConfigService) {
                 const sharedEnvVars = this.environmentConfigService.getEnvironmentVariableLocals();
                 envVariables = { ...envVariables, ...sharedEnvVars };
             }
@@ -245,7 +253,10 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
                     break;
                 }
 
-                const dataRow = dataRows[iteration % dataRows.length];
+                const dataRow = dataRows.length > 0
+                    ? dataRows[iteration % dataRows.length]
+                    : {};
+                this.currentIterationData = { ...dataRow };
                 let iterationVariables = { ...accumulatedVariables, ...dataRow };
 
                 if (isFlatRequestSuite) {
@@ -346,6 +357,7 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
             this.isRunning = false;
             this.abortController = null;
             this.currentEstimatedTotalRequests = 0;
+            this.currentIterationData = {};
 
             const stats = this.statisticsService.getStatistics();
             const runId = this.resultStorageService?.getCurrentRunId();
@@ -495,6 +507,7 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
             iteration,
             iterationCount
         );
+        executorWithCollectionName.setIterationData(this.currentIterationData);
 
         return executorWithCollectionName.execute(
             normalizedRequest,
@@ -626,10 +639,11 @@ export class SuiteRunHandler implements IMessageHandler, FlowRunRuntime {
         });
 
         let nextVariables = { ...variables };
-        if ((result as any).localVariables && typeof (result as any).localVariables === 'object') {
+        const resultVariables = (result as any).nonGlobalVariables;
+        if (resultVariables && typeof resultVariables === 'object') {
             // Replace with the latest local snapshot so unset/clear operations
             // are not reintroduced by older carried variables.
-            nextVariables = { ...(result as any).localVariables };
+            nextVariables = { ...resultVariables };
         } else {
             if (result.modifiedVariables) {
                 nextVariables = { ...nextVariables, ...result.modifiedVariables };

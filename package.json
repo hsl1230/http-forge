@@ -291,6 +291,12 @@
         "icon": "$(discard)"
       },
       {
+        "command": "httpForge.clearRuntimeVariables",
+        "title": "Clear Runtime Variables",
+        "category": "HTTP Forge",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "httpForge.deleteEnvironment",
         "title": "Delete Environment",
         "icon": "$(trash)"
