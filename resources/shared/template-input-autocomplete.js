@@ -109,15 +109,32 @@ function renderDropdown(input) {
     const dropdownEl = ensureDropdown();
     dropdownEl.innerHTML = suggestions.map((suggestion, index) => {
         const selectedClass = index === selectedIndex ? ' template-autocomplete-selected' : '';
+        const selectedStyle = index === selectedIndex
+            ? 'background: var(--vscode-list-activeSelectionBackground, #094771); color: var(--vscode-list-activeSelectionForeground, #ffffff);'
+            : '';
+        const env = suggestion.env || (suggestion.kind === 'variable' ? 'variable' : suggestion.kind || '');
+        const value = suggestion.value != null ? suggestion.value : (suggestion.detail || '');
         return `
-            <div class="template-autocomplete-item${selectedClass}" data-index="${index}">
-                <span class="template-autocomplete-label">${escapeHtml(suggestion.label)}</span>
-                <span class="template-autocomplete-detail">${escapeHtml(suggestion.detail || '')}</span>
+            <div class="template-autocomplete-item${selectedClass}" data-index="${index}" style="display:grid;grid-template-columns:minmax(0,50ch) 90px 1fr;gap:8px;align-items:center;padding:4px 8px;cursor:pointer;${selectedStyle}">
+                <span class="tac-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(suggestion.label)}</span>
+                <span class="tac-env" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85;">${escapeHtml(env)}</span>
+                <span class="tac-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85;">${escapeHtml(value)}</span>
             </div>
         `;
     }).join('');
 
     dropdownEl.querySelectorAll('.template-autocomplete-item').forEach((item) => {
+        item.style.cursor = 'pointer';
+        item.addEventListener('mouseenter', () => {
+            dropdownEl.querySelectorAll('.template-autocomplete-item').forEach((row) => {
+                row.classList.remove('template-autocomplete-selected');
+                row.style.background = '';
+                row.style.color = '';
+            });
+            item.classList.add('template-autocomplete-selected');
+            item.style.background = 'var(--vscode-list-hoverBackground, #2a2d2e)';
+            item.style.color = 'var(--vscode-list-hoverForeground, var(--vscode-foreground, #cccccc))';
+        });
         item.addEventListener('mousedown', (event) => {
             event.preventDefault();
             const index = Number(item.dataset.index);

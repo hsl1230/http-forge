@@ -8,6 +8,9 @@ const vscode = acquireVsCodeApi();
 let folder = null;
 let collectionName = '';
 let collectionVariables = {};
+// Live state object shared with the template completion provider so variables
+// loaded after the editor is created are reflected in suggestions.
+const completionState = { resolvedEnvironment: null, globalVariables: {}, collectionVariables: {} };
 let preRequestEditor = null;
 let postResponseEditor = null;
 let isDirty = false;
@@ -161,9 +164,7 @@ function initEditors() {
     }
 
     if (typeof monaco !== 'undefined' && typeof window.registerHttpForgeTemplateCompletionProviders === 'function') {
-        window.registerHttpForgeTemplateCompletionProviders({
-            collectionVariables: collectionVariables || {}
-        });
+        window.registerHttpForgeTemplateCompletionProviders(completionState);
     }
 }
 
@@ -179,6 +180,9 @@ window.addEventListener('message', event => {
             folder = message.folder;
             collectionName = message.collectionName || '';
             collectionVariables = message.collectionVariables || {};
+            completionState.collectionVariables = collectionVariables;
+            completionState.resolvedEnvironment = message.resolvedEnvironment || null;
+            completionState.globalVariables = message.globalVariables || {};
             renderFolder();
             break;
         case 'saveSuccess':

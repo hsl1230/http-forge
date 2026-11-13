@@ -180,15 +180,18 @@ function buildVariableSuggestions(state) {
         for (const [key, value] of Object.entries(vars)) {
             if (seen.has(key)) continue;
             seen.add(key);
+            const displayValue = String(displayVariableValue(value) ?? '');
             suggestions.push({
                 label: key,
                 kind: 'variable',
                 insertText: key,
                 monacoInsertText: key,
                 snippet: false,
-                detail: `(${scopeLabel}) ${truncate(String(displayVariableValue(value) ?? ''), 60)}`,
+                env: scopeLabel,
+                value: truncate(displayValue, 60),
+                detail: `(${scopeLabel}) ${truncate(displayValue, 60)}`,
                 documentation: {
-                    value: `**${key}**  \nScope: *${scopeLabel}*  \nValue: \`${String(displayVariableValue(value) ?? '')}\``
+                    value: `**${key}**  \nScope: *${scopeLabel}*  \nValue: \`${displayValue}\``
                 },
                 sortText: sortPrefix + key.toLowerCase()
             });
@@ -196,7 +199,8 @@ function buildVariableSuggestions(state) {
     };
 
     // Priority order: environment > collection > global > session
-    addScope(state.resolvedEnvironment?.variables, 'env', 'a');
+    const envName = state.resolvedEnvironment?.name || 'environment';
+    addScope(state.resolvedEnvironment?.variables, envName, 'a');
     addScope(state.collectionVariables, 'collection', 'b');
     addScope(state.globalVariables, 'global', 'c');
     addScope(state.sessionVariables, 'session', 'd');
@@ -317,7 +321,7 @@ function getTemplateSuggestions(state, textUntilPosition) {
 
     const templateContent = textUntilPosition.substring(lastOpen + 2);
 
-    const pipeMatch = templateContent.match(/\\|\\s*(\\w*)$/);
+    const pipeMatch = templateContent.match(/\|\s*(\w*)$/);
     if (pipeMatch) {
         return {
             replaceLength: pipeMatch[1].length,
@@ -325,7 +329,7 @@ function getTemplateSuggestions(state, textUntilPosition) {
         };
     }
 
-    const dollarMatch = templateContent.match(/\\$(\\w*)$/);
+    const dollarMatch = templateContent.match(/\$(\w*)$/);
     if (dollarMatch) {
         return {
             replaceLength: dollarMatch[1].length + 1,
@@ -333,7 +337,7 @@ function getTemplateSuggestions(state, textUntilPosition) {
         };
     }
 
-    const wordMatch = templateContent.match(/(\\w*)$/);
+    const wordMatch = templateContent.match(/(\w*)$/);
     const partial = wordMatch ? wordMatch[1] : '';
     return {
         replaceLength: partial.length,

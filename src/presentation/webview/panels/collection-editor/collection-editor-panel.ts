@@ -55,7 +55,7 @@ export class CollectionEditorPanel implements IWebviewMessenger {
             this.panel.title = `Collection: ${name}`;
         };
 
-        const readyHandler = new ReadyHandler(this.collectionService, collectionId);
+        const readyHandler = new ReadyHandler(this.collectionService, collectionId, envConfigService);
         const saveHandler = new SaveHandler(this.collectionService, collectionId, onNameChange);
         const updateHandler = new UpdateHandler(this.collectionService, collectionId, onNameChange);
         const suggestEnvHandler = new SuggestEnvHandler(collectionId, envConfigService, this.collectionService);
@@ -152,8 +152,9 @@ export class CollectionEditorPanel implements IWebviewMessenger {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'style.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'script.js'));
         const monacoViewerUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, 'monaco-viewer.js'));
-        const scriptCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, '..', 'request-tester', 'modules', 'script-completion-provider.js'));
-        const templateCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, '..', 'request-tester', 'modules', 'template-completion-provider.js'));
+        const requestTesterModulesPath = vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'request-tester', 'modules');
+        const scriptCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(requestTesterModulesPath, 'script-completion-provider.js'));
+        const templateCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(requestTesterModulesPath, 'template-completion-provider.js'));
 
         // Build CSP
 
