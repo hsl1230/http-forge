@@ -17,11 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pm.iterationData` support during collection and suite runs.
 - Current-value columns in Environment and Collection editors.
 - **Clear Runtime Variables** command and button.
+- MCP `list_documentation` and `get_documentation` tools for AI-driven doc discovery.
+- Bundled key documentation in `resources/docs/user-guide/` for offline MCP access.
+- `examples/scripts/` with annotated patterns (auth flow, CRUD workflow, error handling, data-driven testing).
+- `.github/copilot-instructions.md` and `llms.txt` for AI tool discovery.
+- AGENTS.md template now includes step-by-step recipes for generating collections, test suites, environments, and assertions.
 
 ### Fixed
 
 
 - Folder-based test suite runs now hydrate requests from the live collection, including payloads stored in external `body.json` files.
+- Template input autocomplete dropdown: name column now content-sized (capped at 50 chars) so the value column expands to fill the dropdown.
+- Template input autocomplete: right-aligned values eliminate blank space after short values.
+- Environment editor: fixed broken shared resource paths (monaco-viewer.css, monaco-viewer.js, template-input-autocomplete.js).
+- Collection and folder editors: autocomplete now registers reliably (deferred registration + init handler).
+- Script editor suggest widget no longer appears above the cursor (fixed `overflow: hidden` on `.script-editor-container` + `fixedOverflowWidgets`).
 
 - `pm.iterationData` is now populated during collection and suite runs in the Test Suite panel.
 - Environment and Collection editors now show a Current value column for runtime values.
@@ -30,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Upgraded `@http-forge/core` dependency to `^1.0.3`.
+- AGENTS.md template extracted to `templates/AGENTS.md` (reduced bundle size by ~26 KB).
+- AGENTS.md template optimized for AI (264 lines, down from 574).
+- `ensureForgeWorkspaceFiles` now auto-generates `.github/copilot-instructions.md` and `llms.txt` in user projects.
 
 - Renamed suite run options for clarity: `readFromSharedSession` → `loadPersistedEnvironmentValues`, `writeToSharedSession` → `usePersistentCookieJar`.
 - Updated variable documentation for static vs runtime variables, precedence, `.local.json`, and persistence.

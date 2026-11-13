@@ -1,0 +1,119 @@
+# Collections & Requests
+
+## Collections
+Collections group related requests and folders. Each collection lives under:
+`storage.root/collections/<collection-name>`.
+
+## Requests
+Requests are stored in request folders with a `request.json` file.
+
+### Request parts
+- **Method**: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, TRACE
+- **URL/path**: absolute or relative
+- **Path params**: `:id` or `{{id}}`
+- **Query params**: key/value pairs, toggleable
+- **Headers**: key/value pairs, toggleable
+- **Body**: JSON, form-data, raw, or none
+- **Auth**: inherit/bearer/none
+- **Settings**: timeout, redirects, SSL, decompression
+- **Scripts**: pre‑request and post‑response
+
+### Example: request path and params
+```
+GET {{baseUrl}}/users/:id?include=profile
+```
+
+Path params:
+```
+id = 123
+```
+
+Query params:
+```
+include = profile
+```
+
+## Folder structure example
+```
+http-forge/
+└── collections/
+    └── my-collection/
+        ├── collection.json
+        ├── login/
+        │   ├── request.json
+        │   ├── body.json        ← Optional external body (raw JSON body)
+        │   └── doc.md           ← Optional request documentation (Markdown)
+        └── users/
+            ├── request.json
+            └── doc.md
+```
+
+## External body files (`body.json`, `body.xml`, `body.txt`, `body.html`, `body.js`, `body.graphql`)
+
+Large or multi-line request bodies are stored outside `request.json` in a sibling
+file. `request.json` keeps the body type/format metadata, while the file holds
+the body content.
+
+- `body.json` is loaded automatically when the request is opened or run.
+- Editing `body.json` on disk refreshes open Request Tester panels.
+- Variables in `body.json` are resolved before the request is sent.
+- Running a request, collection, suite, or MCP execution hydrates the body from
+  `body.json` if it was not already in memory.
+
+## Request documentation (doc.md)
+Each request folder can contain a `doc.md` file alongside `request.json`. This Markdown file is displayed in the **Document tab** of the Request Tester panel.
+
+- Create a `doc.md` file in any request folder to add documentation
+- The Document tab renders the Markdown content with headings, lists, tables, code blocks, etc.
+- Use the "Open File" button in the Document tab to edit the file in VS Code
+- Changes saved to `doc.md` are reflected in the Document tab immediately
+
+## File watching
+Changes to any file under the collections directory (create, edit, delete) automatically:
+- Refresh the **Collections tree view** in the sidebar
+- Reload all **open Request Tester panels** with the latest data from disk
+
+No manual refresh is needed — edits from other VS Code tabs, external editors, or git operations are reflected immediately.
+
+## Lazy loading and on-demand hydration
+
+HTTP Forge loads collection metadata first and hydrates heavy per-request files
+on demand. This includes `body.json`, scripts, schemas, and `doc.md`.
+
+- Opening a request in the Request Tester hydrates its body and other heavy
+  fields.
+- Running a request, collection, suite, or MCP tool hydrates the request before
+  execution.
+- If a request was already open before `body.json` was added or changed, reopen
+  it or use **Refresh Collections** once.
+
+## Duplicating collections, folders, and requests
+Right-click any item in the Collections tree view and select **Duplicate**. The copy is created at the same level as the original.
+
+- A **duplicated collection** copies the entire directory — all folders, requests, scripts (`pre-request.js`, `post-response.js`), schemas, and `doc.md` files.
+- A **duplicated folder** copies the folder into the same parent (collection or folder).
+- A **duplicated request** copies the request into the same folder.
+
+The duplicate gets a new ID so edits to the copy do not affect the original.
+
+## Moving and copying between collections
+
+You can drag any **request** or **folder** (including its entire nested contents) to another collection — or reposition it within the same collection.
+
+### How it works
+1. Drag the item from the Collections tree.
+2. Drop it on a **folder** or **request** in any collection (including the source collection).
+3. A quick-pick appears:
+   - **Move** — item is removed from the source and placed in the target.
+   - **Copy** — item is duplicated to the target; the original is kept.
+
+For **folders**, all nested subfolders and requests are recursively recreated in the target location.
+
+> **Tip:** To reorder within the same collection without a Move/Copy prompt was the old behavior. Dragging now always shows the prompt so you can intentionally choose between the two actions.
+
+## Naming and stability
+- Keep request names stable to preserve history and codegen output.
+- Avoid duplicate request names within the same folder.
+
+## Import/Export
+See: import-export.md
