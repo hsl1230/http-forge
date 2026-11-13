@@ -15,6 +15,7 @@ let preRequestEditor = null;
 let postResponseEditor = null;
 let isDirty = false;
 let monacoReady = false;
+let completionsRegistered = false;
 
 // Determine VS Code theme
 function getMonacoTheme() {
@@ -133,7 +134,8 @@ function initEditors() {
         automaticLayout: true,
         fontSize: 13,
         tabSize: 2,
-        wordWrap: 'on'
+        wordWrap: 'on',
+        fixedOverflowWidgets: true
     };
 
     const preRequestContainer = document.getElementById('pre-request-editor');
@@ -159,13 +161,21 @@ function initEditors() {
         postResponseEditor.onDidChangeModelContent(() => markDirty());
     }
 
-    if (typeof monaco !== 'undefined' && typeof window.registerHttpForgeScriptCompletions === 'function') {
-        window.registerHttpForgeScriptCompletions();
-    }
+    setTimeout(registerCompletions, 0);
+}
 
-    if (typeof monaco !== 'undefined' && typeof window.registerHttpForgeTemplateCompletionProviders === 'function') {
-        window.registerHttpForgeTemplateCompletionProviders(completionState);
+function registerCompletions() {
+    if (completionsRegistered || typeof monaco === 'undefined') return;
+    let registered = false;
+    if (typeof window.registerHttpForgeScriptCompletions === 'function') {
+        window.registerHttpForgeScriptCompletions();
+        registered = true;
     }
+    if (typeof window.registerHttpForgeTemplateCompletionProviders === 'function') {
+        window.registerHttpForgeTemplateCompletionProviders(completionState);
+        registered = true;
+    }
+    if (registered) completionsRegistered = true;
 }
 
 function markDirty() {
@@ -183,6 +193,7 @@ window.addEventListener('message', event => {
             completionState.collectionVariables = collectionVariables;
             completionState.resolvedEnvironment = message.resolvedEnvironment || null;
             completionState.globalVariables = message.globalVariables || {};
+            registerCompletions();
             renderFolder();
             break;
         case 'saveSuccess':

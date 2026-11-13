@@ -233,7 +233,7 @@ textarea {
 .script-editor-container {
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .script-editor {
