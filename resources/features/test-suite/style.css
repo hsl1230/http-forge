@@ -1422,6 +1422,70 @@ body {
     flex-shrink: 0;
 }
 
+/* Result row context menu — visible only when row is focused */
+.result-actions-menu {
+    position: relative;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.result-menu-trigger {
+    background: none;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+    line-height: 1;
+}
+
+.result-item:focus-within .result-menu-trigger,
+.result-item:hover .result-menu-trigger {
+    opacity: 0.8;
+}
+
+.result-menu-trigger:hover {
+    opacity: 1;
+    background-color: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
+.result-menu-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 100;
+    background: var(--vscode-menu-background, var(--vscode-dropdown-background));
+    border: 1px solid var(--vscode-menu-border, var(--vscode-dropdown-border));
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    padding: 4px 0;
+}
+
+.result-menu-dropdown.open {
+    display: block;
+}
+
+.result-action-btn {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--vscode-menu-foreground, var(--vscode-dropdown-foreground));
+    cursor: pointer;
+    font-size: 0.85em;
+    padding: 6px 12px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.result-action-btn:hover {
+    background-color: var(--vscode-list-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
 /* ============================================
    Statistics Tab
    ============================================ */

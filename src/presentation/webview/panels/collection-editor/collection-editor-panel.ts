@@ -133,6 +133,10 @@ export class CollectionEditorPanel implements IWebviewMessenger {
     private setupMessageHandlers(): void {
         this.panel.webview.onDidReceiveMessage(
             async (message) => {
+                if (message?.type === 'close') {
+                    this.dispose();
+                    return;
+                }
                 await this.router.route(message, this.messenger);
             },
             null,

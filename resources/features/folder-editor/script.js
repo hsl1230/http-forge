@@ -96,6 +96,48 @@ function setupEventListeners() {
         vscode.postMessage({ type: 'ready' }); // Re-fetch data
     });
 
+    // Close button with unsaved-changes confirmation
+    document.getElementById('btn-close')?.addEventListener('click', () => {
+        if (!isDirty) {
+            vscode.postMessage({ type: 'close' });
+            return;
+        }
+        document.getElementById('unsaved-modal')?.classList.remove('hidden');
+    });
+
+    // Modal: Save
+    document.getElementById('modal-save')?.addEventListener('click', () => {
+        const data = collectFormData();
+        vscode.postMessage({ type: 'save', folder: data });
+        const handler = (event) => {
+            if (event.data?.type === 'saveSuccess') {
+                window.removeEventListener('message', handler);
+                vscode.postMessage({ type: 'close' });
+            }
+        };
+        window.addEventListener('message', handler);
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+    });
+
+    // Modal: Discard
+    document.getElementById('modal-discard')?.addEventListener('click', () => {
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+        vscode.postMessage({ type: 'close' });
+    });
+
+    // Modal: Cancel
+    document.getElementById('modal-cancel')?.addEventListener('click', () => {
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+    });
+
+    // Prevent accidental data loss on window close (X button)
+    window.addEventListener('beforeunload', (e) => {
+        if (isDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
     // Name change handler
     document.getElementById('folder-name')?.addEventListener('input', markDirty);
     document.getElementById('folder-description')?.addEventListener('input', markDirty);
