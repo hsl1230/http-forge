@@ -188,8 +188,8 @@ function buildVariableSuggestions(state) {
                 monacoInsertText: key,
                 snippet: false,
                 env: scopeLabel,
-                value: truncate(displayValue, 60),
-                detail: `(${scopeLabel}) ${truncate(displayValue, 60)}`,
+                value: displayValue,
+                detail: `(${scopeLabel}) ${truncate(displayValue, 80)}`,
                 documentation: {
                     value: `**${key}**  \nScope: *${scopeLabel}*  \nValue: \`${displayValue}\``
                 },

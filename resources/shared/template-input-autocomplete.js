@@ -87,6 +87,7 @@ function hideDropdown() {
 function positionDropdown(input) {
     const rect = input.getBoundingClientRect();
     const dropdownEl = ensureDropdown();
+
     dropdownEl.style.left = `${rect.left}px`;
     dropdownEl.style.top = `${rect.bottom + 2}px`;
     dropdownEl.style.width = `${Math.max(rect.width, 180)}px`;
@@ -111,10 +112,19 @@ function renderDropdown(input) {
         (max, suggestion) => Math.max(max, String(suggestion.label || '').length),
         0
     );
-    // Shared name-column width for every row: as wide as the longest label,
-    // capped at 50 characters, so env/value stay aligned and value fills the rest.
+    const longestEnv = suggestions.reduce(
+        (max, suggestion) => {
+            const env = suggestion.env || (suggestion.kind === 'variable' ? 'variable' : suggestion.kind || '');
+            return Math.max(max, String(env).length);
+        },
+        0
+    );
+    // Shared column widths so env/value stay aligned across rows. Name capped at
+    // 50 chars; env sized to its longest label (max 12 chars) so the value
+    // column gets as much room as possible.
     const nameColumnWidth = `${Math.min(50, Math.max(longestLabel, 1))}ch`;
-    const gridTemplate = `grid-template-columns:minmax(0,${nameColumnWidth}) 90px minmax(0,1fr)`;
+    const envColumnWidth = `${Math.min(12, Math.max(longestEnv, 1))}ch`;
+    const gridTemplate = `grid-template-columns:minmax(0,${nameColumnWidth}) minmax(0,${envColumnWidth}) minmax(0,1fr)`;
     dropdownEl.innerHTML = suggestions.map((suggestion, index) => {
         const selectedClass = index === selectedIndex ? ' template-autocomplete-selected' : '';
         const selectedStyle = index === selectedIndex
@@ -126,7 +136,7 @@ function renderDropdown(input) {
             <div class="template-autocomplete-item${selectedClass}" data-index="${index}" style="display:grid;${gridTemplate};gap:8px;align-items:center;padding:4px 8px;cursor:pointer;${selectedStyle}">
                 <span class="tac-name" style="max-width:50ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(suggestion.label)}</span>
                 <span class="tac-env" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85;">${escapeHtml(env)}</span>
-                <span class="tac-value" style="text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85;">${escapeHtml(value)}</span>
+                <span class="tac-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85;">${escapeHtml(value)}</span>
             </div>
         `;
     }).join('');
