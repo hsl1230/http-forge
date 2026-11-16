@@ -16,6 +16,7 @@ import type {
   WebSocketRunFrame,
   WebSocketRunTranscript,
 } from '@http-forge/core';
+import { requestScriptSources } from '@http-forge/core';
 import type { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { resolveInheritedAuth } from '../../../shared/auth-resolution';
 import type { IPanelContextProvider, UIRequest } from '../interfaces';
@@ -153,6 +154,7 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       query: uiRequest.query as Record<string, string> | undefined,
       params: resolveParamsToStrings(uiRequest.params) ?? resolveParamsToStrings(context?.request?.params),
       settings: uiRequest.settings || context?.request?.settings,
+      scripts: uiRequest.scripts || context?.request?.scripts,
       auth: resolveInheritedAuth(
         uiRequest.auth || context?.request?.auth,
         lookup?.folderAuthChain || [],
@@ -210,9 +212,8 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
     environment: string,
     resolvedEnv: any
   ): Promise<ExecutionRequest> {
-    const scripts = request.scripts?.preRequest;
-    const hasScripts = Array.isArray(scripts) ? scripts.length > 0 : !!scripts;
-    if (!hasScripts) {
+    const scriptSources = requestScriptSources(request.scripts, 'preRequest');
+    if (scriptSources.length === 0) {
       return request;
     }
 
@@ -259,7 +260,7 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
       },
     });
 
-    const result = await session.executePreRequest(Array.isArray(scripts) ? scripts : [scripts as string]);
+    const result = await session.executePreRequest(scriptSources);
     if (!result.success) {
       throw new Error(result.error || 'Pre-request script failed');
     }
@@ -388,9 +389,8 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
     this.postResponseRan = true;
 
     const request = this.lastRequest;
-    const scripts = request?.scripts?.postResponse;
-    const hasScripts = Array.isArray(scripts) ? scripts.length > 0 : !!scripts;
-    if (!request || !hasScripts) {
+    const scriptSources = requestScriptSources(request?.scripts, 'postResponse');
+    if (!request || scriptSources.length === 0) {
       return;
     }
 
@@ -466,10 +466,7 @@ export class WebSocketHandler implements IMessageHandler, IDisposable {
     };
 
     try {
-      const result = await session.executePostResponse(
-        Array.isArray(scripts) ? scripts : [scripts as string],
-        responseContext
-      );
+      const result = await session.executePostResponse(scriptSources, responseContext);
       this.post({
         command: 'wsScriptResults',
         consoleOutput: result.consoleOutput || [],

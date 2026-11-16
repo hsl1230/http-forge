@@ -651,7 +651,10 @@ export class RequestTesterPanel implements vscode.Disposable {
       vscode.Uri.file(path.join(resourcePath, 'bundle.js'))
     );
 
+    const cspContent = `default-src 'none'; style-src ${panel.webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src ${panel.webview.cspSource} 'unsafe-eval' https://cdnjs.cloudflare.com; font-src ${panel.webview.cspSource} https://cdnjs.cloudflare.com; img-src ${panel.webview.cspSource} data:; connect-src https://cdnjs.cloudflare.com;`;
+
     html = html
+      .replace(/\{\{cspContent\}\}/g, cspContent)
       .replace(/\{\{styleUri\}\}/g, styleUri.toString())
       .replace(/\{\{bundleUri\}\}/g, bundleUri.toString())
       .replace(/\{\{sharedStyleUri\}\}/g, sharedStyleUri.toString())

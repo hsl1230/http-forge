@@ -883,8 +883,16 @@ export function createResultItemElement(compactResult, index, preExpanded) {
             e.preventDefault();
             e.stopPropagation();
             const wasOpen = menuDropdown.classList.contains('open');
-            document.querySelectorAll('.result-menu-dropdown.open').forEach(m => m.classList.remove('open'));
-            if (!wasOpen) menuDropdown.classList.add('open');
+            document.querySelectorAll('.result-menu-dropdown.open').forEach(m => m.classList.remove('open', 'open-above'));
+            if (!wasOpen) {
+                menuDropdown.classList.add('open');
+                // Flip the dropdown above the button when there is not enough
+                // room below, so the menu stays visible for bottom rows.
+                const rect = menuTrigger.getBoundingClientRect();
+                if (window.innerHeight - rect.bottom < 90) {
+                    menuDropdown.classList.add('open-above');
+                }
+            }
         });
     }
 
@@ -907,7 +915,7 @@ export function createResultItemElement(compactResult, index, preExpanded) {
 
     // Close menus when clicking elsewhere
     item.addEventListener('blur', () => {
-        document.querySelectorAll('.result-menu-dropdown.open').forEach(m => m.classList.remove('open'));
+        document.querySelectorAll('.result-menu-dropdown.open').forEach(m => m.classList.remove('open', 'open-above'));
     });
 
     return item;

@@ -571,7 +571,7 @@ export class FlowRunExecutor {
 
         const session = this.runtime.scriptExecutor.createRequestSession(context);
         try {
-            const result = await session.executePreRequest(script);
+            const result = await session.executePreRequest([{ code: script, filename: 'flow-script.js' }]);
             if (!result.success) {
                 throw new Error(result.error || 'Flow script execution failed');
             }

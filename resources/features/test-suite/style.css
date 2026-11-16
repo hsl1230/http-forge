@@ -1401,6 +1401,9 @@ body {
 .result-details {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .result-name {
@@ -1409,6 +1412,8 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
+    min-width: 0;
 }
 
 .result-meta {
@@ -1467,6 +1472,12 @@ body {
 
 .result-menu-dropdown.open {
     display: block;
+}
+
+.result-menu-dropdown.open-above {
+    top: auto;
+    bottom: 100%;
+    margin-bottom: 2px;
 }
 
 .result-action-btn {
