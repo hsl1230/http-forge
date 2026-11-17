@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Context menu (Edit / Open Original) on test suite result rows, visible on focus.
 
+### Changed
+
+- Raised the supported minimums to VS Code 1.145.3 and Node.js 24.19.0 to align the debugger and Node inspector protocols.
+
 ### Fixed
 
 - Collection and folder editors: added unsaved-changes confirmation (Save/Discard/Cancel) on close, plus `beforeunload` guard for the X button.
