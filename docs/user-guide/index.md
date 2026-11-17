@@ -9,6 +9,7 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - [Codegen (@http-forge/codegen)](codegen.md)
 - [Playwright Integration (@http-forge/playwright)](playwright.md)
 - [Troubleshooting & FAQs](troubleshooting.md)
+- [Debugging Collection Runs & Test Suites](debugging.md)
 
 ## Reference Chapters
 - [Configuration](configuration.md)
