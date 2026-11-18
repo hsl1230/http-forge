@@ -583,6 +583,12 @@ class RequestTesterApp {
                 this.state._suppressDirty = false;
             }
 
+            // Register HTTP Forge script globals type definitions for Monaco IntelliSense
+            // (_ , moment, CryptoJS, etc.). Must happen after editors may have been created.
+            if (data.globalsTypes && this.editorsManager && typeof this.editorsManager.setGlobalsTypes === 'function') {
+                this.editorsManager.setGlobalsTypes(data.globalsTypes);
+            }
+
             this.applyLayoutMode(this.state.layoutMode || 'stack', { persist: false });
 
             // For Endpoint Tester mode (allowSave=true, no suiteId), enable save button

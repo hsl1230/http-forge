@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added Monaco IntelliSense for HTTP Forge script globals (`_`, `moment`, `CryptoJS`, etc.) in the Request Tester webview: type definitions from `http-forge-globals.d.ts` are now loaded from the workspace or the bundled core template and registered with Monaco via `addExtraLib`.
 - Upgraded `@http-forge/core` to `^1.0.6`, inheriting the startup metadata cache for large collections on Windows.
 
 ## 1.0.5 - 2026-11-18

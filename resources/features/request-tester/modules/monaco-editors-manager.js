@@ -58,8 +58,11 @@ function createMonacoEditorsManager({
     onWsMessageChange,
     onOpenModule,
     getDefaultPreRequestScript,
-    getDefaultPostResponseScript
+    getDefaultPostResponseScript,
+    globalsTypes
 }) {
+    // Store globals types for Monaco IntelliSense (may be set later via setGlobalsTypes)
+    let _globalsTypes = globalsTypes || '';
     // Editor instances
     let requestBodyEditor = null;
     let wsMessageEditor = null;
@@ -214,6 +217,19 @@ function createMonacoEditorsManager({
                     noLib: true,
                     strict: false
                 });
+
+                // Register HTTP Forge script globals (_ , moment, CryptoJS, etc.)
+                // so the Monaco editor provides IntelliSense for them.
+                if (_globalsTypes) {
+                    try {
+                        monaco.languages.typescript.javascriptDefaults.addExtraLib(
+                            _globalsTypes,
+                            'http-forge-globals.d.ts'
+                        );
+                    } catch (e) {
+                        console.warn('[MonacoEditorsManager] Could not register globals types:', e && e.message);
+                    }
+                }
             }
 
             // Double-check Monaco is fully available
@@ -723,7 +739,26 @@ function createMonacoEditorsManager({
         if (responseBodyEditor) safeSetEditorValue(responseBodyEditor, '');
     }
 
+    /**
+     * Register HTTP Forge script globals type definitions for Monaco IntelliSense.
+     * Can be called before or after editors are created.
+     */
+    function setGlobalsTypes(content) {
+        _globalsTypes = content || '';
+        if (monaco?.languages?.typescript?.javascriptDefaults && _globalsTypes) {
+            try {
+                monaco.languages.typescript.javascriptDefaults.addExtraLib(
+                    _globalsTypes,
+                    'http-forge-globals.d.ts'
+                );
+            } catch (e) {
+                console.warn('[MonacoEditorsManager] Could not register globals types:', e && e.message);
+            }
+        }
+    }
+
     return {
+        setGlobalsTypes,
         initialize,
         onReady,
         isReady: () => isReady,

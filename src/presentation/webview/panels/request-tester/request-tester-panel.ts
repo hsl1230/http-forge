@@ -473,10 +473,46 @@ export class RequestTesterPanel implements vscode.Disposable {
   private async sendInitialData(): Promise<void> {
     try {
       const data = this.dataProvider.getInitialData();
+      // Attach HTTP Forge script globals type definitions so the Monaco editor
+      // can provide IntelliSense for `_`, `moment`, `CryptoJS`, etc.
+      data.globalsTypes = this.loadGlobalsTypes();
       this.messenger.postMessage({ command: 'init', data });
     } catch (error) {
       console.error('[RequestTesterPanel] Failed to send initial data:', error);
     }
+  }
+
+  /**
+   * Load the HTTP Forge script globals type definitions (.d.ts) for Monaco.
+   * Tries the workspace copy first, then falls back to the bundled core template.
+   */
+  private loadGlobalsTypes(): string {
+    // 1. Try workspace copy
+    try {
+      const container = getServiceContainer();
+      const collectionsPath = container.config?.getCollectionsPath?.();
+      if (collectionsPath) {
+        const forgeRoot = path.basename(path.dirname(collectionsPath)) === 'assets'
+          ? path.dirname(path.dirname(collectionsPath))
+          : path.dirname(collectionsPath);
+        const wsPath = path.join(forgeRoot, 'assets', 'http-forge-globals.d.ts');
+        if (fs.existsSync(wsPath)) {
+          return fs.readFileSync(wsPath, 'utf-8');
+        }
+      }
+    } catch { /* fall through */ }
+
+    // 2. Fall back to bundled core template
+    try {
+      const coreMain = require.resolve('@http-forge/core');
+      const coreDir = path.dirname(path.dirname(coreMain)); // dist/ -> package root
+      const templatePath = path.join(coreDir, 'dist', 'templates', 'http-forge-globals.d.ts');
+      if (fs.existsSync(templatePath)) {
+        return fs.readFileSync(templatePath, 'utf-8');
+      }
+    } catch { /* fall through */ }
+
+    return '';
   }
 
   /**
