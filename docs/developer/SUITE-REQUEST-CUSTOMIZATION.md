@@ -160,7 +160,7 @@ export interface SuiteRequest {
 }
 ```
 
-The full request data (URL, headers, body, auth, settings, scripts) lives in the `{slug}/request.json` file + `{slug}/scripts/*.js` files.
+The full request data (URL, headers, body, auth, settings, scripts) lives in the `{slug}/request.json` file + `{slug}/scripts/*.js` files. When a suite runs, request body, scripts, and auth are also hydrated from the source collection, including body content stored in an external `body.json`.
 
 ### 2. `SuiteRequestEntry` — no structural changes
 

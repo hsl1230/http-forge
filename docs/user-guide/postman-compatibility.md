@@ -188,6 +188,37 @@ Render custom HTML in the Visualize tab using Handlebars templates. Supports `{{
 - `xml2Json(xmlString)` — Convert XML to JSON
 - `jsonStringify(value)` — `JSON.stringify()` alias
 - `jsonParse(string)` — `JSON.parse()` alias
+- `require(moduleName)` — Load a module from `.http-forge/assets/lib/node_modules` or the workspace
+- `moment` — Lightweight shim (format, unix, utc). For full moment.js, use `pm.require('moment')`.
+- `CryptoJS` — Built-in shim (MD5, SHA1/256/512, AES/DES/TripleDES, HMAC, PBKDF2, encodings). Full `crypto-js` available via `pm.require('crypto-js')`.
+- `_` (lodash) — Built-in shim (get, set, cloneDeep, keys, values, map, filter, reduce, ...). Full lodash available via `pm.require('lodash')`.
+- `querystring` — Node.js querystring module.
+- `tv4` — JSON Schema validator (if installed).
+- `Buffer`, `URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `crypto`, `atob`, `btoa`, `console`, timers — Node.js built-ins (typed via `@types/node`).
+
+## Sandbox libraries and Postman compatibility
+
+HTTP Forge exposes the same bare globals as Postman (`moment`, `CryptoJS`, `_`, `tv4`, `cheerio`, etc.), but uses **lightweight shims** for the bare `moment`, `CryptoJS`, and `_` globals so scripts work out of the box without installing dependencies. The shims provide the most common methods; for the full library API, use `pm.require()`:
+
+```javascript
+// Shim (always available, limited API)
+moment().format('YYYY-MM-DD');
+
+// Full library (requires the package in .http-forge/assets/lib/package.json)
+const m = pm.require('moment');
+m().add(1, 'days').format('YYYY-MM-DD');
+```
+
+Postman-exported scripts that use advanced methods (e.g. `moment().add()`, `_.groupBy()`) may need to switch to `pm.require('moment')` / `pm.require('lodash')` unless the method is covered by the shim.
+
+To install additional libraries for `pm.require()`:
+
+```bash
+cd .http-forge/assets/lib
+npm install <package>
+```
+
+The `.http-forge/assets/jsconfig.json` references `@types/node` (installed by default) for Node.js built-in typing.
 
 ## CryptoJS
 Full CryptoJS available: hash (SHA256, SHA512, MD5, etc.), HMAC, AES/DES/TripleDES encrypt/decrypt, PBKDF2, and encoding helpers (Hex, Base64, Utf8).

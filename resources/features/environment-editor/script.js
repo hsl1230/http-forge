@@ -15,7 +15,8 @@ let state = {
     // Map of envName -> string[] of secret variable key names
     secretVariablesByEnv: {},
     // Map of envName -> { key: value } of script-set session overrides ("Current Values")
-    sessionOverridesByEnv: {}
+    sessionOverridesByEnv: {},
+    globalSessionOverrides: {}
 };
 
 // DOM Elements
@@ -28,6 +29,7 @@ const elements = {
     duplicateEnvBtn: document.getElementById('duplicate-env-btn'),
     deleteEnvBtn: document.getElementById('delete-env-btn'),
     resetOverridesBtn: document.getElementById('reset-overrides-btn'),
+    clearRuntimeVariablesBtn: document.getElementById('clear-runtime-variables-btn'),
     globalVariables: document.getElementById('global-variables'),
     globalLocalVariables: document.getElementById('global-local-variables'),
     addGlobalVarBtn: document.getElementById('add-global-var-btn'),
@@ -61,6 +63,12 @@ elements.resetOverridesBtn.addEventListener('click', () => {
         vscode.postMessage({ type: 'resetEnvironmentOverrides', environmentName: state.selectedEnvironment });
     }
 });
+
+if (elements.clearRuntimeVariablesBtn) {
+    elements.clearRuntimeVariablesBtn.addEventListener('click', () => {
+        vscode.postMessage({ type: 'clearRuntimeVariables' });
+    });
+}
 
 elements.addEnvVarBtn.addEventListener('click', () => addVariableRow(elements.envVariables, '', '', true, false, false, true));
 elements.addLocalVarBtn.addEventListener('click', () => addVariableRow(elements.envLocalVariables, '', '', true, true));
@@ -98,7 +106,7 @@ elements.saveBtn.addEventListener('click', saveAllChanges);
  *   override ("Current Value") that differs from the file value. Reverting
  *   drops the override; the row is excluded from file saves either way.
  */
-function addVariableRow(container, key, value, canRemove = true, isLocal = false, isSecret = false, showLockBtn = false, showRevertBtn = false) {
+function addVariableRow(container, key, value, canRemove = true, isLocal = false, isSecret = false, showLockBtn = false, showRevertBtn = false, runtimeValue = '', showRuntime = false) {
     const row = document.createElement('div');
     row.className = 'variable-row' + (isSecret ? ' secret-row' : '') + (showRevertBtn ? ' overridden-row' : '');
     row.dataset.isLocal = isLocal;
@@ -115,10 +123,14 @@ function addVariableRow(container, key, value, canRemove = true, isLocal = false
     const valueInput = isSecret
         ? `<input type="password" class="value secret-value" placeholder="Stored in keychain" value="${escapeHtml(value)}">`
         : `<input type="text" class="value" placeholder="${isLocal ? 'Local value (not committed)' : 'Value'}" value="${escapeHtml(value)}"${valueTitle}${showRevertBtn ? ' readonly' : ''}>`;
+    const runtimeInput = showRuntime && !isSecret
+        ? `<input type="text" class="runtime-value" placeholder="Current value" value="${escapeHtml(runtimeValue)}" title="Runtime value (pm.*.set)">`
+        : '';
 
     row.innerHTML = `
         <input type="text" class="key" placeholder="Variable name" value="${escapeHtml(key)}">
         ${valueInput}
+        ${runtimeInput}
         ${lockBtn}
         ${revertBtn}
         ${canRemove ? '<button class="icon-btn remove-btn" title="Remove">×</button>' : ''}
@@ -272,21 +284,20 @@ function renderEnvironmentDetails() {
     // Session overrides ("Current Values" from pm.environment.set) for this env
     const overrides = state.sessionOverridesByEnv[state.selectedEnvironment] || {};
 
-    // Render shared variables (plaintext) — overridden rows show the current
-    // value with a revert button instead of the file value
+    // Render shared variables (plaintext) — show file value and current runtime value
     elements.envVariables.innerHTML = '';
     const renderedKeys = new Set();
     if (env.variables) {
         Object.entries(env.variables).forEach(([key, value]) => {
-            const overridden = Object.prototype.hasOwnProperty.call(overrides, key);
-            addVariableRow(elements.envVariables, key, overridden ? overrides[key] : value, true, false, false, true, overridden);
+            const runtimeValue = Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : '';
+            addVariableRow(elements.envVariables, key, value, true, false, false, true, false, runtimeValue, true);
             renderedKeys.add(key);
         });
     }
-    // Overrides for keys with no file entry (script-added) render as session-only rows
+    // Overrides for keys with no file entry (script-added) render as runtime-only rows
     Object.entries(overrides).forEach(([key, value]) => {
         if (!renderedKeys.has(key) && !secretKeys.includes(key)) {
-            addVariableRow(elements.envVariables, key, value, true, false, false, false, true);
+            addVariableRow(elements.envVariables, key, '', true, false, false, false, false, value, true);
         }
     });
     // Render secret variable placeholders (value comes from keychain)
@@ -300,7 +311,8 @@ function renderEnvironmentDetails() {
     const localEnv = state.localConfig?.credentials?.[state.selectedEnvironment];
     if (localEnv?.variables) {
         Object.entries(localEnv.variables).forEach(([key, value]) => {
-            addVariableRow(elements.envLocalVariables, key, value, true, true);
+            const runtimeValue = Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : '';
+            addVariableRow(elements.envLocalVariables, key, value, true, true, false, false, false, runtimeValue, true);
         });
     }
 }
@@ -311,11 +323,19 @@ function renderEnvironmentDetails() {
 function renderGlobalVariables() {
     // Shared global variables
     elements.globalVariables.innerHTML = '';
+    const globalOverrides = state.globalSessionOverrides || {};
     if (state.sharedConfig?.globalVariables) {
         Object.entries(state.sharedConfig.globalVariables).forEach(([key, value]) => {
-            addVariableRow(elements.globalVariables, key, value, true);
+            const runtimeValue = Object.prototype.hasOwnProperty.call(globalOverrides, key) ? globalOverrides[key] : '';
+            addVariableRow(elements.globalVariables, key, value, true, false, false, false, false, runtimeValue, true);
         });
     }
+    // Runtime-only global overrides
+    Object.entries(globalOverrides).forEach(([key, value]) => {
+        if (!state.sharedConfig?.globalVariables || !Object.prototype.hasOwnProperty.call(state.sharedConfig.globalVariables, key)) {
+            addVariableRow(elements.globalVariables, key, '', true, false, false, false, false, value, true);
+        }
+    });
 
     // Local global variables (uses 'variables' not 'globalVariables')
     elements.globalLocalVariables.innerHTML = '';
@@ -371,9 +391,33 @@ async function saveAllChanges() {
         }
     }
 
+    // Collect runtime values
+    const envRuntimeValues = {};
+    [elements.envVariables, elements.envLocalVariables].forEach(container => {
+        container.querySelectorAll('.variable-row').forEach(row => {
+            if (row.dataset.isSecret === 'true') return;
+            const key = row.querySelector('.key')?.value?.trim();
+            const runtimeInput = row.querySelector('.runtime-value');
+            if (!key || !runtimeInput) return;
+            const value = runtimeInput.value;
+            if (value !== '') envRuntimeValues[key] = value;
+        });
+    });
+    const globalRuntimeValues = {};
+    elements.globalVariables.querySelectorAll('.variable-row').forEach(row => {
+        if (row.dataset.isSecret === 'true') return;
+        const key = row.querySelector('.key')?.value?.trim();
+        const runtimeInput = row.querySelector('.runtime-value');
+        if (!key || !runtimeInput) return;
+        const value = runtimeInput.value;
+        if (value !== '') globalRuntimeValues[key] = value;
+    });
+
     // Save both
     vscode.postMessage({ type: 'saveSharedConfig', config: sharedConfig });
     vscode.postMessage({ type: 'saveLocalConfig', config: localConfig });
+    vscode.postMessage({ type: 'saveRuntimeVariables', scope: 'environment', environmentName: state.selectedEnvironment, values: envRuntimeValues });
+    vscode.postMessage({ type: 'saveRuntimeVariables', scope: 'global', values: globalRuntimeValues });
 }
 
 /**
@@ -457,6 +501,7 @@ window.addEventListener('message', event => {
             state.localConfig = message.data.localConfig;
             state.secretVariablesByEnv = message.data.secretVariablesByEnv || {};
             state.sessionOverridesByEnv = message.data.sessionOverridesByEnv || {};
+            state.globalSessionOverrides = message.data.globalSessionOverrides || {};
 
             renderGlobalVariables();
             renderDefaultHeaders();
@@ -512,3 +557,18 @@ window.addEventListener('message', event => {
 
 // Request initial data
 vscode.postMessage({ type: 'ready' });
+
+/**
+ * Template autocomplete state for environment variable values.
+ */
+function getTemplateState() {
+    const env = state.sharedConfig?.environments?.[state.selectedEnvironment];
+    return {
+        resolvedEnvironment: { variables: env?.variables || {} },
+        globalVariables: state.sharedConfig?.globalVariables || {},
+        collectionVariables: {},
+        sessionVariables: {}
+    };
+}
+
+window.getTemplateState = getTemplateState;

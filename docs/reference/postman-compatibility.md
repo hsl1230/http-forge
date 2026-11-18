@@ -281,11 +281,11 @@ ctx.sendRequest({
 ```
 
 > **Global variable persistence:** values written with `pm.globals.set()` /
-> `ctx.globals.set()` are saved to the shared global store immediately and are
+> `ctx.globals.set()` are kept in the in-memory global store immediately and are
 > visible to every later request in the run (same live mechanism as
-> `pm.environment.set()`). Globals declared in `_global.json` act as defaults —
-> `pm.globals.unset()` / `clear()` remove session-set globals but leave the
-> file-defined defaults in place.
+> `pm.environment.set()`). They are not written back to `_global.json` or
+> `_global.local.json`. Those files act as defaults — `pm.globals.unset()` /
+> `clear()` remove session-set globals but leave the file-defined defaults in place.
 
 ## Compatibility Alias
 

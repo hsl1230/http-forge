@@ -30,7 +30,7 @@ import { createCaseInsensitiveMap, escapeHtml, formatDuration, formatTime, getHe
 import { createBodyTypeManager } from './body-type-manager.js';
 import { createMessageHandler } from './message-handler.js';
 import { createMonacoEditorsManager } from './monaco-editors-manager.js';
-import { createPathVariablesManager } from './path-variables-manager.js';
+import { initTemplateInputAutocomplete, refreshTemplateInputTitles } from '../../../shared/template-input-autocomplete.js';import { createPathVariablesManager } from './path-variables-manager.js';
 import { createQueryParamsManager } from './query-params-manager.js';
 import { createRequestLoader } from './request-loader.js';
 import { createRequestSaver } from './request-saver.js';
@@ -118,6 +118,9 @@ class RequestTesterApp {
             // Phase 2: Create state
             this.state = createState();
             this.restoreLayoutState();
+
+            // Lightweight autocomplete for plain inputs (URL, params, headers, …)
+            initTemplateInputAutocomplete(this.state);
             
             // Phase 3: Initialize managers (in dependency order)
             this.initializeManagers();
@@ -185,6 +188,9 @@ class RequestTesterApp {
             onBodyChange: () => this.markDirty(),
             onScriptChange: () => this.markDirty(),
             onWsMessageChange: () => this.markDirty(),
+            onOpenModule: (moduleName, phase) => {
+                vscode.postMessage({ command: 'openModule', moduleName, phase });
+            },
             getDefaultPreRequestScript,
             getDefaultPostResponseScript
         });
@@ -428,6 +434,7 @@ class RequestTesterApp {
             'loadRequest': (msg) => this.handleLoadRequest(msg),
             'requestSaved': (msg) => this.handleRequestSaved(msg),
             'sessionVariablesLoaded': (msg) => this.handleSessionVariablesLoaded(msg),
+            'variablesUpdated': (msg) => this.handleVariablesUpdated(msg),
             'cookiesLoaded': (msg) => this.handleCookiesLoaded(msg),
             'docUpdated': (msg) => this.updateDocTab(msg.doc),
             'error': (msg) => this.handleError(msg),
@@ -574,6 +581,12 @@ class RequestTesterApp {
                 this.initializePanelData(data);
             } finally {
                 this.state._suppressDirty = false;
+            }
+
+            // Register HTTP Forge script globals type definitions for Monaco IntelliSense
+            // (_ , moment, CryptoJS, etc.). Must happen after editors may have been created.
+            if (data.globalsTypes && this.editorsManager && typeof this.editorsManager.setGlobalsTypes === 'function') {
+                this.editorsManager.setGlobalsTypes(data.globalsTypes);
             }
 
             this.applyLayoutMode(this.state.layoutMode || 'stack', { persist: false });
@@ -794,6 +807,26 @@ class RequestTesterApp {
         if (msg.sessionVariables) {
             this.state.sessionVariables = msg.sessionVariables;
         }
+    }
+
+    handleVariablesUpdated(msg) {
+        if (!msg) return;
+        if (msg.environmentVariables) {
+            this.state.resolvedEnvironment = {
+                ...(this.state.resolvedEnvironment || {}),
+                variables: msg.environmentVariables
+            };
+        }
+        if (msg.collectionVariables) {
+            this.state.collectionVariables = msg.collectionVariables;
+        }
+        if (msg.globalVariables) {
+            this.state.globalVariables = msg.globalVariables;
+        }
+        if (msg.sessionVariables) {
+            this.state.sessionVariables = msg.sessionVariables;
+        }
+        refreshTemplateInputTitles();
     }
 
     handleCookiesLoaded(msg) {
@@ -1341,7 +1374,8 @@ class RequestTesterApp {
         vscode.postMessage({
             command: 'resolveUrlPreview',
             request,
-            sequence: this.previewRequestSequence
+            sequence: this.previewRequestSequence,
+            sessionVariables: this.state.sessionVariables || {}
         });
     }
 

@@ -55,7 +55,7 @@ export class CollectionEditorPanel implements IWebviewMessenger {
             this.panel.title = `Collection: ${name}`;
         };
 
-        const readyHandler = new ReadyHandler(this.collectionService, collectionId);
+        const readyHandler = new ReadyHandler(this.collectionService, collectionId, envConfigService);
         const saveHandler = new SaveHandler(this.collectionService, collectionId, onNameChange);
         const updateHandler = new UpdateHandler(this.collectionService, collectionId, onNameChange);
         const suggestEnvHandler = new SuggestEnvHandler(collectionId, envConfigService, this.collectionService);
@@ -133,6 +133,10 @@ export class CollectionEditorPanel implements IWebviewMessenger {
     private setupMessageHandlers(): void {
         this.panel.webview.onDidReceiveMessage(
             async (message) => {
+                if (message?.type === 'close') {
+                    this.dispose();
+                    return;
+                }
                 await this.router.route(message, this.messenger);
             },
             null,
@@ -152,8 +156,12 @@ export class CollectionEditorPanel implements IWebviewMessenger {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'style.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'script.js'));
         const monacoViewerUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, 'monaco-viewer.js'));
+        const requestTesterModulesPath = vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'request-tester', 'modules');
+        const scriptCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(requestTesterModulesPath, 'script-completion-provider.js'));
+        const templateCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(requestTesterModulesPath, 'template-completion-provider.js'));
 
         // Build CSP
+
         const cspContent = `default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src ${webview.cspSource} https://cdnjs.cloudflare.com; font-src ${webview.cspSource} https://cdnjs.cloudflare.com; img-src ${webview.cspSource} data:; connect-src https://cdnjs.cloudflare.com;`;
 
         // Read HTML template
@@ -165,6 +173,8 @@ export class CollectionEditorPanel implements IWebviewMessenger {
         html = html.replace('{{styleUri}}', styleUri.toString());
         html = html.replace('{{scriptUri}}', scriptUri.toString());
         html = html.replace('{{monacoViewerUri}}', monacoViewerUri.toString());
+        html = html.replace('{{scriptCompletionUri}}', scriptCompletionUri.toString());
+        html = html.replace('{{templateCompletionUri}}', templateCompletionUri.toString());
 
         return html;
     }

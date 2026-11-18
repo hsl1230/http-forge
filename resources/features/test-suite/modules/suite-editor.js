@@ -50,6 +50,8 @@ export function buildCurrentSuiteState() {
             iterations: parseInt(elements.iterationsInput.value) || 1,
             delay: parseInt(elements.delayInput.value) || 0,
             stopOnError: elements.stopOnErrorCheck.checked,
+            loadPersistedEnvironmentValues: elements.readFromSharedSessionCheck?.checked || false,
+            usePersistentCookieJar: elements.writeToSharedSessionCheck?.checked || false,
             readFromSharedSession: elements.readFromSharedSessionCheck?.checked || false,
             writeToSharedSession: elements.writeToSharedSessionCheck?.checked || false
         } : state.suite.config
@@ -101,10 +103,16 @@ export function setSuite(suite, requests) {
         elements.delayInput.value = suite.config.delay || 0;
         elements.stopOnErrorCheck.checked = suite.config.stopOnError || false;
         if (elements.readFromSharedSessionCheck) {
-            elements.readFromSharedSessionCheck.checked = suite.config.readFromSharedSession || false;
+            elements.readFromSharedSessionCheck.checked =
+                suite.config.loadPersistedEnvironmentValues ??
+                suite.config.readFromSharedSession ??
+                false;
         }
         if (elements.writeToSharedSessionCheck) {
-            elements.writeToSharedSessionCheck.checked = suite.config.writeToSharedSession || false;
+            elements.writeToSharedSessionCheck.checked =
+                suite.config.usePersistentCookieJar ??
+                suite.config.writeToSharedSession ??
+                false;
         }
     } else {
         // Reset to defaults if no config
@@ -270,6 +278,8 @@ export function saveSuite() {
             iterations: parseInt(elements.iterationsInput.value) || 1,
             delay: parseInt(elements.delayInput.value) || 0,
             stopOnError: elements.stopOnErrorCheck.checked,
+            loadPersistedEnvironmentValues: elements.readFromSharedSessionCheck?.checked || false,
+            usePersistentCookieJar: elements.writeToSharedSessionCheck?.checked || false,
             readFromSharedSession: elements.readFromSharedSessionCheck?.checked || false,
             writeToSharedSession: elements.writeToSharedSessionCheck?.checked || false
         }

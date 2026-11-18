@@ -6,10 +6,16 @@
 
 const vscode = acquireVsCodeApi();
 let collection = null;
+let collectionVariables = {};
+let collectionRuntimeVariables = {};
+// Live state object shared with the template completion provider so variables
+// loaded after the editor is created are reflected in suggestions.
+const completionState = { resolvedEnvironment: null, globalVariables: {}, collectionVariables: {} };
 let preRequestEditor = null;
 let postResponseEditor = null;
 let isDirty = false;
 let monacoReady = false;
+let completionsRegistered = false;
 
 // Determine VS Code theme
 function getMonacoTheme() {
@@ -95,6 +101,49 @@ function setupEventListeners() {
         vscode.postMessage({ type: 'ready' }); // Re-fetch data
     });
 
+    // Close button with unsaved-changes confirmation
+    document.getElementById('btn-close')?.addEventListener('click', () => {
+        if (!isDirty) {
+            vscode.postMessage({ type: 'close' });
+            return;
+        }
+        document.getElementById('unsaved-modal')?.classList.remove('hidden');
+    });
+
+    // Modal: Save
+    document.getElementById('modal-save')?.addEventListener('click', () => {
+        const data = collectFormData();
+        vscode.postMessage({ type: 'save', collection: data });
+        // Close after save completes (handled by saveSuccess)
+        const handler = (event) => {
+            if (event.data?.type === 'saveSuccess') {
+                window.removeEventListener('message', handler);
+                vscode.postMessage({ type: 'close' });
+            }
+        };
+        window.addEventListener('message', handler);
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+    });
+
+    // Modal: Discard
+    document.getElementById('modal-discard')?.addEventListener('click', () => {
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+        vscode.postMessage({ type: 'close' });
+    });
+
+    // Modal: Cancel
+    document.getElementById('modal-cancel')?.addEventListener('click', () => {
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+    });
+
+    // Prevent accidental data loss on window close (X button)
+    window.addEventListener('beforeunload', (e) => {
+        if (isDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
     // Name change handler
     document.getElementById('collection-name')?.addEventListener('input', markDirty);
     document.getElementById('collection-description')?.addEventListener('input', markDirty);
@@ -138,7 +187,8 @@ function initEditors() {
         automaticLayout: true,
         fontSize: 13,
         tabSize: 2,
-        wordWrap: 'on'
+        wordWrap: 'on',
+        fixedOverflowWidgets: true
     };
 
     const preRequestContainer = document.getElementById('pre-request-editor');
@@ -163,6 +213,22 @@ function initEditors() {
         });
         postResponseEditor.onDidChangeModelContent(() => markDirty());
     }
+
+    setTimeout(registerCompletions, 0);
+}
+
+function registerCompletions() {
+    if (completionsRegistered || typeof monaco === 'undefined') return;
+    let registered = false;
+    if (typeof window.registerHttpForgeScriptCompletions === 'function') {
+        window.registerHttpForgeScriptCompletions();
+        registered = true;
+    }
+    if (typeof window.registerHttpForgeTemplateCompletionProviders === 'function') {
+        window.registerHttpForgeTemplateCompletionProviders(completionState);
+        registered = true;
+    }
+    if (registered) completionsRegistered = true;
 }
 
 function markDirty() {
@@ -175,6 +241,12 @@ window.addEventListener('message', event => {
     switch (message.type) {
         case 'init':
             collection = message.collection;
+            collectionVariables = collection?.variables || {};
+            completionState.collectionVariables = collectionVariables;
+            completionState.resolvedEnvironment = message.resolvedEnvironment || null;
+            completionState.globalVariables = message.globalVariables || {};
+            collectionRuntimeVariables = message.runtimeVariables || {};
+            registerCompletions();
             renderCollection();
             break;
         case 'saveSuccess':
@@ -267,19 +339,27 @@ function renderVariables() {
     tbody.innerHTML = '';
 
     const variables = collection.variables || {};
+    const runtimeValues = collectionRuntimeVariables || {};
     for (const [key, value] of Object.entries(variables)) {
-        addVariableRow(key, String(value));
+        addVariableRow(key, String(value), runtimeValues[key] ? String(runtimeValues[key]) : '');
+    }
+    // Runtime-only collection variables (script-added)
+    for (const [key, value] of Object.entries(runtimeValues)) {
+        if (!Object.prototype.hasOwnProperty.call(variables, key)) {
+            addVariableRow(key, '', String(value));
+        }
     }
 }
 
-function addVariableRow(key = '', value = '') {
+function addVariableRow(key = '', value = '', runtimeValue = '') {
     const tbody = document.getElementById('variables-body');
     if (!tbody) return;
     
     const tr = document.createElement('tr');
     tr.innerHTML = 
         '<td><input type="text" class="var-key" value="' + escapeHtml(key) + '" placeholder="Variable name"></td>' +
-        '<td><input type="text" class="var-value" value="' + escapeHtml(value) + '" placeholder="Value"></td>' +
+        '<td><input type="text" class="var-value" value="' + escapeHtml(value) + '" placeholder="Initial value"></td>' +
+        '<td><input type="text" class="var-runtime" value="' + escapeHtml(runtimeValue) + '" placeholder="Current value"></td>' +
         '<td class="actions">' +
             '<button class="btn-icon btn-danger delete-var-btn" title="Delete">×</button>' +
         '</td>';
@@ -365,11 +445,14 @@ function renderAuthConfig(authType) {
 function collectFormData() {
     // Variables
     const variables = {};
+    const runtimeVariables = {};
     document.querySelectorAll('#variables-body tr').forEach(row => {
         const key = row.querySelector('.var-key')?.value?.trim();
         const value = row.querySelector('.var-value')?.value || '';
+        const runtimeValue = row.querySelector('.var-runtime')?.value || '';
         if (key) {
             variables[key] = value;
+            if (runtimeValue !== '') runtimeVariables[key] = runtimeValue;
         }
     });
 
@@ -403,6 +486,7 @@ function collectFormData() {
         name: document.getElementById('collection-name')?.value?.trim() || '',
         description: document.getElementById('collection-description')?.value?.trim() || '',
         variables,
+        runtimeVariables,
         auth,
         scripts
     };

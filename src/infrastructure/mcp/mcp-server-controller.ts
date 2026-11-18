@@ -140,7 +140,8 @@ export class McpServerController {
         testSuiteService,
         configService,
         registry,
-        new CopilotAiProvider()
+        new CopilotAiProvider(),
+        this.deps.context.extensionUri
       );
       this.server = new McpServerService(registry, executor, mcpPort, configService, workspaceFolder);
 

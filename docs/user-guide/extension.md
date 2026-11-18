@@ -58,7 +58,7 @@ The Request Tester is the primary execution UI.
 - Method selector
 - URL/path input
 - Send and Save buttons
-- Resolved URL preview below the request line shows the final URL after environment variables, dynamic variables, filters, and auth query params are resolved.
+- Resolved URL preview below the request line shows the final URL after environment, collection, dynamic, filter, and auth variables are resolved. Values written by collection/folder pre-request scripts appear after the request has run.
 
 ### Params tab
 - Path params are auto‑detected from `:param` and `{{param}}` patterns.

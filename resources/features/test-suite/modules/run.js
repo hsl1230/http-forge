@@ -97,6 +97,8 @@ export async function startRun() {
         delay: parseInt(elements.delayInput.value) || 0,
         environmentId: state.selectedEnvironment,
         stopOnError: elements.stopOnErrorCheck.checked,
+        loadPersistedEnvironmentValues: elements.readFromSharedSessionCheck.checked,
+        usePersistentCookieJar: elements.writeToSharedSessionCheck.checked,
         readFromSharedSession: elements.readFromSharedSessionCheck.checked,
         writeToSharedSession: elements.writeToSharedSessionCheck.checked,
         dataFile: state.dataFile

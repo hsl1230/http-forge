@@ -160,7 +160,9 @@ function createRequestBuilder({ elements, state, getMethod, getRequestType, getP
             settings: { ...state.settings },
             scripts: {
                 preRequest: state.scripts.preRequest,
-                postResponse: state.scripts.postResponse
+                postResponse: state.scripts.postResponse,
+                ...(state.scripts.preRequestPath && { preRequestPath: state.scripts.preRequestPath }),
+                ...(state.scripts.postResponsePath && { postResponsePath: state.scripts.postResponsePath })
             },
             ...(websocket && { websocket })
         };

@@ -2,10 +2,54 @@
 
 HTTP Forge supports multiple variable scopes to keep request data consistent across environments.
 
-## Scopes
-- **Globals**: workspace‑wide
-- **Environment**: selected environment (persisted to workspace state via `pm.environment.set()`)
-- **Collection**: applies to requests in a collection
+## Variable levels
+
+HTTP Forge has two families of variables:
+
+- **Static variables** — loaded from configuration files before a request runs.
+- **Runtime variables** — created, updated, or removed by scripts through the `pm.*` APIs.
+
+At resolution time, the runtime layer of a scope sits above the static layer of the same scope.
+
+### Static variables
+
+| Level | Where it lives | Applies to | Notes |
+|---|---|---|---|
+| Global | `environments/_global.json` → `variables` | All requests | Committed defaults |
+| Global local | `environments/_global.local.json` → `variables` | All requests | Overrides `_global.json`; gitignored by convention |
+| Environment | `environments/<env>.json` → `variables` | Selected/run environment | Initial values |
+| Environment local | `environments/<env>.local.json` → `variables` | Selected/run environment | Overrides `<env>.json`; gitignored by convention |
+| Collection | `collections/<collection>/collection.json` → `variables` | Requests in that collection | Per-collection defaults |
+
+OS keychain secrets are an optional config-time environment layer. They are not stored in a JSON file; see [OS Keychain secrets](#os-keychain-secrets-recommended) below.
+
+Within the same file-backed scope, the later file wins:
+
+```
+_global.json  <  _global.local.json
+<env>.json    <  <env>.local.json
+```
+
+Collection variables are read from `collection.json`; scripts can add a runtime overlay on top of them (see below).
+
+### Runtime variables
+
+| API | Overlay | Scope | Persistence |
+|---|---|---|---|
+| `pm.globals.set/unset/clear` | `_global*.json` | All requests in the process/run | Memory only; lost on VS Code reload/restart |
+| `pm.environment.set/unset/clear` | `<env>*.json` | Active environment | Stored as workspace “Current Values”; survives reloads in VS Code, run-only in CLI. A later run reads these persisted values only when “Load persisted environment values” is enabled; otherwise it starts from the environment file values |
+| `pm.collectionVariables.set/unset/clear` | `collection.json` variables | That collection | Memory only; kept for the session/run |
+| `pm.variables.set/unset/clear` | All scopes (top tier) | Request execution; suite/flow runners may carry local values forward | Not persisted across runs |
+
+Runtime writes do not modify the underlying files:
+
+- `pm.environment.set()` updates the environment’s Current Values, not `<env>.local.json`.
+- `pm.globals.set()` updates the in-memory global store, not `_global.local.json`.
+- `pm.collectionVariables.set()` updates the collection’s in-memory variables, not `collection.json`.
+
+`pm.variables` is the merged view: reads fall through the cascade, but writes go to the request-local top tier. Within one request, `pm.variables.set()` wins over every other scope for the rest of that execution (pre-request and post-response). A standalone Request Tester run starts with an empty local scope; suite and flow runners may carry the resulting local snapshot into later requests.
+
+The Environment and Collection editors expose a **Current value** column next to the file-backed value, so runtime values can be viewed and edited without changing the committed files.
 
 ## Variable syntax
 Use `{{variableName}}` anywhere:
@@ -22,11 +66,51 @@ Use `{{variableName}}` anywhere:
 ```
 
 ## Resolution order
-When the same key exists at multiple scopes, the most specific value wins (Postman-compatible):
-1. Variables (merged view)
+
+When the same key exists at multiple scopes, the most specific value wins:
+
+1. `pm.variables` / request-local runtime values
 2. Environment
 3. Collection
 4. Globals
+
+Within each scope, runtime values sit above the static layer:
+
+```
+Environment:  <env>.json
+           <  <env>.local.json
+           <  pm.environment.set()
+           <  keychain secret value
+
+Collection:   collection.json variables
+           <  pm.collectionVariables.set()
+
+Globals:      _global.json
+           <  _global.local.json
+           <  pm.globals.set()
+```
+
+### Why this order?
+
+- `.local.json` overrides the shared file because it is the machine/developer-specific initial value.
+- `pm.environment.set()` overrides both files because it is the current value for the active environment, matching Postman’s Initial Values vs Current Values model.
+- A keychain secret overrides the runtime environment value because the keychain is the authoritative source for a variable declared as a secret. Runtime writes do not update the keychain, so they must not mask it.
+
+### `unset` behavior
+
+`unset()` removes the runtime overlay for that key; it does not delete the static file value. Resolution falls back to the next layer:
+
+```
+pm.environment.set('token', '...')
+        ↓ unset
+<env>.local.json
+        ↓ if absent
+<env>.json
+        ↓ if absent
+_global.local.json / _global.json
+```
+
+For a keychain-secret variable, the keychain value still wins after the runtime value is unset. To change it, update the keychain value (or remove the secret flag).
 
 ## Environment selection
 The environment dropdown controls:
@@ -47,8 +131,9 @@ When requests are executed, resolved secret values in headers and body fields ar
 ```
 http-forge/environments/
 ├── _global.json
-├── _secrets.json
-└── dev.json
+├── _global.local.json
+├── dev.json
+└── dev.local.json
 ```
 
 ## OS Keychain secrets (recommended)
@@ -146,9 +231,11 @@ dev.json
 ### Example environment file
 ```json
 {
-	"baseUrl": "https://api.example.com",
-	"apiKey": "{{API_KEY}}",
-	"tenant": "corp"
+	"variables": {
+		"baseUrl": "https://api.example.com",
+		"apiKey": "{{API_KEY}}",
+		"tenant": "corp"
+	}
 }
 ```
 

@@ -148,16 +148,19 @@ export class EnvironmentEditorPanel implements IWebviewMessenger {
         
         // Get URIs for resources
         const sharedStyleUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'shared', 'monaco-viewer.css')
+            vscode.Uri.joinPath(this.extensionUri, 'resources', 'shared', 'monaco-viewer.css')
         );
         const sharedScriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'shared', 'monaco-loader.js')
+            vscode.Uri.joinPath(this.extensionUri, 'resources', 'shared', 'monaco-viewer.js')
         );
         const styleUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'environment-editor', 'style.css')
         );
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'environment-editor', 'script.js')
+        );
+        const templateInputAutocompleteUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.extensionUri, 'resources', 'shared', 'template-input-autocomplete.js')
         );
 
         // Read HTML template
@@ -176,6 +179,7 @@ export class EnvironmentEditorPanel implements IWebviewMessenger {
         html = html.replace('{{sharedScriptUri}}', sharedScriptUri.toString());
         html = html.replace('{{styleUri}}', styleUri.toString());
         html = html.replace('{{scriptUri}}', scriptUri.toString());
+        html = html.replace('{{templateInputAutocompleteUri}}', templateInputAutocompleteUri.toString());
 
         return html;
     }

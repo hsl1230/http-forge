@@ -7,13 +7,15 @@
  * registers views, and hands a CommandContext to the command facade.
  */
 
-import type { CollectionService, ConfigService, CookieService, EnvironmentConfigService, HttpRequestService, RequestHistoryService } from '@http-forge/core';
+import type { CollectionService, ConfigService, CookieService, EnvironmentConfigService, IEnvironmentConfigService, HttpRequestService, RequestHistoryService } from '@http-forge/core';
 import { TestSuiteService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { createEmptyApi } from './api/empty-api';
 import { registerAllCommands } from './commands';
-import { registerHttpForgeChatParticipant } from './presentation/chat/http-forge-chat-participant';
+import { HttpForgeModuleDefinitionProvider } from './infrastructure/module-definition-provider';
+import { HttpForgeTemplateCompletionProvider } from './infrastructure/template-completion-provider';
+import { HttpForgeTemplateHoverProvider } from './infrastructure/template-hover-provider';import { registerHttpForgeChatParticipant } from './presentation/chat/http-forge-chat-participant';
 import { notifyIfAgentsMdStale } from './commands/agentsMdCommands';
 import { showPendingNotices } from './commands/notices';
 import type { CommandContext } from './commands/command-context';
@@ -154,6 +156,43 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
 
   // Register @http-forge chat participant for GitHub Copilot
   registerHttpForgeChatParticipant(context);
+
+  // Provide template variable/filter completions in .http-forge JSON and script files
+  const templateCompletionProvider = new HttpForgeTemplateCompletionProvider(
+    envConfigService as IEnvironmentConfigService,
+    collectionService as CollectionService
+  );
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      'json',
+      templateCompletionProvider,
+      '{', '$', '|', ' '
+    ),
+    vscode.languages.registerCompletionItemProvider(
+      'javascript',
+      templateCompletionProvider,
+      '{', '$', '|', ' '
+    )
+  );
+
+  // Show template variable values and filter descriptions on hover
+  const templateHoverProvider = new HttpForgeTemplateHoverProvider(
+    envConfigService as IEnvironmentConfigService,
+    collectionService as CollectionService
+  );
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider('json', templateHoverProvider),
+    vscode.languages.registerHoverProvider('javascript', templateHoverProvider)
+  );
+
+  // Make require('./helper') and require('helper') in HTTP Forge scripts open
+  // the resolved module file from scripts.modulePaths.
+  context.subscriptions.push(
+    vscode.languages.registerDefinitionProvider(
+      'javascript',
+      new HttpForgeModuleDefinitionProvider(configService as ConfigService)
+    )
+  );
 
   // One-time notice when the versioned AI agent guide is stale (opt-in refresh)
   void notifyIfAgentsMdStale({ workspaceFolder, context }).catch(() => {});

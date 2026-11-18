@@ -14,7 +14,7 @@ import { COMMAND_IDS } from '../shared/constants';
 import type { CommandContext } from './command-context';
 
 export function registerEnvironmentCommands(ctx: CommandContext): void {
-  const { context, envConfigService, environmentsTreeProvider } = ctx;
+  const { context, collectionService, envConfigService, environmentsTreeProvider, collectionsTreeProvider } = ctx;
 
   // Refresh Environments
   context.subscriptions.push(
@@ -175,6 +175,36 @@ export function registerEnvironmentCommands(ctx: CommandContext): void {
       await envConfigService.resetEnvironmentOverrides(picked);
       environmentsTreeProvider.refresh();
       vscode.window.showInformationMessage(`Reset script-set values for environment "${picked}".`);
+    })
+  );
+
+  // Clear runtime variables (globals, environment Current Values, collection variables)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.clearRuntimeVariables, async (options?: { confirm?: boolean }) => {
+      const shouldConfirm = options?.confirm !== false;
+      if (shouldConfirm) {
+        const confirm = await vscode.window.showWarningMessage(
+          'Clear all runtime variables (globals, environment Current Values, and collection variables)?',
+          { modal: true },
+          'Clear'
+        );
+        if (confirm !== 'Clear') {
+          return;
+        }
+      }
+
+      envConfigService.clearGlobalVariables();
+      for (const environmentName of envConfigService.getEnvironmentNames()) {
+        await envConfigService.resetEnvironmentOverrides(environmentName);
+      }
+      for (const collection of collectionService.getAllCollections()) {
+        collectionService.clearCollectionVariables(collection.id);
+      }
+
+      environmentsTreeProvider.refresh();
+      collectionsTreeProvider.refresh();
+      RequestTesterPanelManager.getInstance()?.notifyEnvironmentsChanged();
+      vscode.window.showInformationMessage('Runtime variables cleared.');
     })
   );
 

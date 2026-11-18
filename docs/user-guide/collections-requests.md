@@ -41,11 +41,24 @@ http-forge/
         ├── collection.json
         ├── login/
         │   ├── request.json
+        │   ├── body.json        ← Optional external body (raw JSON body)
         │   └── doc.md           ← Optional request documentation (Markdown)
         └── users/
             ├── request.json
             └── doc.md
 ```
+
+## External body files (`body.json`, `body.xml`, `body.txt`, `body.html`, `body.js`, `body.graphql`)
+
+Large or multi-line request bodies are stored outside `request.json` in a sibling
+file. `request.json` keeps the body type/format metadata, while the file holds
+the body content.
+
+- `body.json` is loaded automatically when the request is opened or run.
+- Editing `body.json` on disk refreshes open Request Tester panels.
+- Variables in `body.json` are resolved before the request is sent.
+- Running a request, collection, suite, or MCP execution hydrates the body from
+  `body.json` if it was not already in memory.
 
 ## Request documentation (doc.md)
 Each request folder can contain a `doc.md` file alongside `request.json`. This Markdown file is displayed in the **Document tab** of the Request Tester panel.
@@ -61,6 +74,18 @@ Changes to any file under the collections directory (create, edit, delete) autom
 - Reload all **open Request Tester panels** with the latest data from disk
 
 No manual refresh is needed — edits from other VS Code tabs, external editors, or git operations are reflected immediately.
+
+## Lazy loading and on-demand hydration
+
+HTTP Forge loads collection metadata first and hydrates heavy per-request files
+on demand. This includes `body.json`, scripts, schemas, and `doc.md`.
+
+- Opening a request in the Request Tester hydrates its body and other heavy
+  fields.
+- Running a request, collection, suite, or MCP tool hydrates the request before
+  execution.
+- If a request was already open before `body.json` was added or changed, reopen
+  it or use **Refresh Collections** once.
 
 ## Duplicating collections, folders, and requests
 Right-click any item in the Collections tree view and select **Duplicate**. The copy is created at the same level as the original.

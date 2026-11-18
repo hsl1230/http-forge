@@ -1,0 +1,70 @@
+# HTTP Forge
+
+> HTTP testing, scripting, and API discovery for VS Code, CLI, and MCP. Postman-compatible script API (pm/ctx/hf), template syntax, test suites, environments, and AI-assisted test generation.
+
+## Quick Start
+
+- Install the VS Code extension: search "HTTP Forge" in the marketplace
+- Or install the CLI: `npm install -g @http-forge/cli`
+- Create a collection: use the sidebar or `http-forge` CLI
+- Write scripts in `post-response.js` using `pm.test()` and `pm.expect()`
+- Run: `http-forge run collection <name> --env <env> --json`
+
+## Documentation
+- User Guide Index: https://github.com/hsl1230/http-forge/tree/main/docs/user-guide
+- Scripts & Assertions: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/scripts-assertions.md
+- Postman Compatibility: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/postman-compatibility.md
+- Postman Compatibility Matrix: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/postman-compatibility-matrix.md
+- Environments & Variables: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/environments-variables.md
+- Collections & Requests: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/collections-requests.md
+- Test Suites: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/test-suites.md
+- Template Syntax: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/template-syntax.md
+- MCP Server: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/mcp-server.md
+- Custom Modules: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/custom-modules.md
+- Troubleshooting: https://github.com/hsl1230/http-forge/blob/main/docs/user-guide/troubleshooting.md
+
+## Script API
+- Globals type definitions: https://github.com/hsl1230/http-forge/blob/main/http-forge.core/src/infrastructure/collection/templates/http-forge-globals.d.ts
+
+### Key globals
+- `pm` / `ctx` / `hf` — interchangeable aliases for the Postman-compatible API
+- `pm.test(name, fn)` — register a test case
+- `pm.expect(value)` — Chai-style assertions (equal, eql, have.property, jsonSchema, be.ok/true/false/null/empty, not, include, contain, match, above, below, within, instanceOf, throw, change, increase, decrease, by, etc.)
+- `pm.response` — code, status, statusText, body, headers, cookies, responseTime, responseSize, json(), text(), reason()
+- `pm.response.to.have.status(code)` / `.header(name, value?)` / `.body()` / `.jsonBody()` / `.jsonSchema(schema)`
+- `pm.response.to.be.ok / .success / .error / .clientError / .serverError`
+- `pm.request` — method, url (Postman Url object), headers, body, params, query, auth
+- `pm.environment` / `pm.globals` / `pm.collectionVariables` / `pm.variables` — variable scopes (get, set, has, unset, clear, toObject, replaceIn)
+- `pm.cookies` — get, set, has, list, toObject, jar
+- `pm.execution` — setNextRequest, skipRequest, runRequest, location
+- `pm.visualizer` — set, clear
+- `pm.iterationData` — data-driven iteration variables
+- `pm.sendRequest(urlOrOptions, callback?)` — standalone HTTP call
+- `postman` — legacy Postman namespace (setGlobalVariable, setEnvironmentVariable, getResponseHeader, etc.)
+- `CryptoJS`, `moment`, `_` (lodash), `querystring`, `require`, `console`, `Buffer`, `URL`, `atob`/`btoa`
+
+### Template syntax
+- `{{variableName}}` — variable interpolation
+- `{{value | upper | trim}}` — filter chain
+- `{{$guid}}`, `{{$timestamp}}`, `{{$randomInt}}` — dynamic variables
+- `{{variable | date:'YYYY-MM-DD'}}` — filter with argument
+
+## Packages
+- http-forge (VS Code extension): https://github.com/hsl1230/http-forge
+- http-forge.core (runtime engine): https://github.com/hsl1230/http-forge/tree/main/http-forge.core
+- http-forge.cli (CLI): https://github.com/hsl1230/http-forge/tree/main/http-forge.cli
+
+## Key concepts
+- Collections, requests, folders, environments, scripts (pre-request/post-response)
+- Template syntax: {{variable}}, {{$guid}}, {{value | upper | trim}}
+- Script API: pm/ctx/hf (aliases), pm.test(), pm.expect() (Chai-style), pm.response, pm.request, pm.execution, pm.visualizer
+- Postman-compatible: pm.sendRequest, pm.setNextRequest, postman.* legacy globals
+- MCP server for AI-driven testing (run, discover, generate, suggest assertions, heal)
+- API discovery from source (Express, Nest, Fastify, Lambda, Spring, FastAPI)
+- OpenAPI import/export, collection enhancement, environment suggestions
+- Test suites with control flow (if/for/while/switch/block/script nodes)
+- Data-driven testing with CSV/JSON iteration data
+- Business context via .http-forge/knowledge/ markdown files
+
+## Full context
+- llms-full.txt: https://github.com/hsl1230/http-forge/blob/main/llms-full.txt (concatenated docs)

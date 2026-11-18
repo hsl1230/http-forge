@@ -143,7 +143,9 @@ export class RequestTesterPanel implements vscode.Disposable {
 
     const requestPreviewHandler = new RequestPreviewHandler(
       envConfigService,
-      httpService
+      httpService,
+      collectionService,
+      this.dataProvider
     );
 
     const historyHandler = new HistoryHandler(
@@ -457,6 +459,12 @@ export class RequestTesterPanel implements vscode.Disposable {
         return;
       }
 
+      // Open a module referenced by require() in a script editor
+      if (cmd === 'openModule') {
+        await this.openModuleFile(String(msg.moduleName || ''));
+        return;
+      }
+
       // Route all other messages through the router
       await this.router.route(msg, this.messenger);
     });
@@ -465,10 +473,46 @@ export class RequestTesterPanel implements vscode.Disposable {
   private async sendInitialData(): Promise<void> {
     try {
       const data = this.dataProvider.getInitialData();
+      // Attach HTTP Forge script globals type definitions so the Monaco editor
+      // can provide IntelliSense for `_`, `moment`, `CryptoJS`, etc.
+      data.globalsTypes = this.loadGlobalsTypes();
       this.messenger.postMessage({ command: 'init', data });
     } catch (error) {
       console.error('[RequestTesterPanel] Failed to send initial data:', error);
     }
+  }
+
+  /**
+   * Load the HTTP Forge script globals type definitions (.d.ts) for Monaco.
+   * Tries the workspace copy first, then falls back to the bundled core template.
+   */
+  private loadGlobalsTypes(): string {
+    // 1. Try workspace copy
+    try {
+      const container = getServiceContainer();
+      const collectionsPath = container.config?.getCollectionsPath?.();
+      if (collectionsPath) {
+        const forgeRoot = path.basename(path.dirname(collectionsPath)) === 'assets'
+          ? path.dirname(path.dirname(collectionsPath))
+          : path.dirname(collectionsPath);
+        const wsPath = path.join(forgeRoot, 'assets', 'http-forge-globals.d.ts');
+        if (fs.existsSync(wsPath)) {
+          return fs.readFileSync(wsPath, 'utf-8');
+        }
+      }
+    } catch { /* fall through */ }
+
+    // 2. Fall back to bundled core template
+    try {
+      const coreMain = require.resolve('@http-forge/core');
+      const coreDir = path.dirname(path.dirname(coreMain)); // dist/ -> package root
+      const templatePath = path.join(coreDir, 'dist', 'templates', 'http-forge-globals.d.ts');
+      if (fs.existsSync(templatePath)) {
+        return fs.readFileSync(templatePath, 'utf-8');
+      }
+    } catch { /* fall through */ }
+
+    return '';
   }
 
   /**
@@ -523,6 +567,62 @@ export class RequestTesterPanel implements vscode.Disposable {
       const doc = await vscode.workspace.openTextDocument(docPath);
       await vscode.window.showTextDocument(doc);
     }
+  }
+
+  /**
+   * Open a module referenced by require() in a script editor.
+   * Resolution follows scripts.modulePaths, like the runtime module loader.
+   */
+  private async openModuleFile(moduleName: string): Promise<void> {
+    if (!moduleName) return;
+
+    const container = getServiceContainer();
+    const modulePaths = container.config.getModulePaths();
+    const candidates: string[] = [];
+
+    for (const modulePath of modulePaths) {
+      const root = path.resolve(modulePath);
+
+      if (moduleName.startsWith('./') || moduleName.startsWith('../')) {
+        const resolved = path.resolve(root, moduleName);
+        candidates.push(resolved, `${resolved}.js`, `${resolved}.json`, `${resolved}.ts`, path.join(resolved, 'index.js'));
+      } else {
+        try {
+          candidates.push(require.resolve(moduleName, { paths: [root] }));
+        } catch {
+          // Fall through to conventional path candidates below.
+        }
+        candidates.push(
+          path.join(root, moduleName),
+          path.join(root, `${moduleName}.js`),
+          path.join(root, `${moduleName}.json`),
+          path.join(root, moduleName, 'index.js')
+        );
+      }
+    }
+
+    const resolvedPath = candidates.find((candidate) => {
+      try {
+        return fs.existsSync(candidate) && fs.statSync(candidate).isFile();
+      } catch {
+        return false;
+      }
+    });
+
+    const isAllowed = resolvedPath
+      ? modulePaths.some((modulePath) => {
+          const root = path.resolve(modulePath);
+          return resolvedPath === root || resolvedPath.startsWith(root + path.sep);
+        })
+      : false;
+
+    if (!resolvedPath || !isAllowed) {
+      vscode.window.showErrorMessage(`Module not found: ${moduleName}`);
+      return;
+    }
+
+    const doc = await vscode.workspace.openTextDocument(resolvedPath);
+    await vscode.window.showTextDocument(doc);
   }
 
   /**
@@ -587,7 +687,10 @@ export class RequestTesterPanel implements vscode.Disposable {
       vscode.Uri.file(path.join(resourcePath, 'bundle.js'))
     );
 
+    const cspContent = `default-src 'none'; style-src ${panel.webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src ${panel.webview.cspSource} 'unsafe-eval' https://cdnjs.cloudflare.com; font-src ${panel.webview.cspSource} https://cdnjs.cloudflare.com; img-src ${panel.webview.cspSource} data:; connect-src https://cdnjs.cloudflare.com;`;
+
     html = html
+      .replace(/\{\{cspContent\}\}/g, cspContent)
       .replace(/\{\{styleUri\}\}/g, styleUri.toString())
       .replace(/\{\{bundleUri\}\}/g, bundleUri.toString())
       .replace(/\{\{sharedStyleUri\}\}/g, sharedStyleUri.toString())

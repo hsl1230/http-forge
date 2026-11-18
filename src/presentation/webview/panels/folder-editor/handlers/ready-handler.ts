@@ -5,7 +5,7 @@
  * Sends initial folder data to the webview.
  */
 
-import { ICollectionService } from '@http-forge/core';
+import { ICollectionService, IEnvironmentConfigService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 import { FolderData } from '../interfaces';
@@ -16,7 +16,8 @@ export class ReadyHandler implements IMessageHandler {
     constructor(
         private readonly collectionService: ICollectionService,
         private readonly collectionId: string,
-        private readonly folderId: string
+        private readonly folderId: string,
+        private readonly envConfigService: IEnvironmentConfigService
     ) {}
 
     getSupportedCommands(): string[] {
@@ -63,10 +64,15 @@ export class ReadyHandler implements IMessageHandler {
             folderCount: stats.folders
         };
 
+        const selectedEnvironment = this.envConfigService.getSelectedEnvironment();
+
         messenger.postMessage({
             type: 'init',
             folder: folderData,
-            collectionName: collection.name
+            collectionName: collection.name,
+            collectionVariables: collection?.variables || {},
+            resolvedEnvironment: this.envConfigService.getResolvedEnvironment(selectedEnvironment),
+            globalVariables: this.envConfigService.getGlobalVariables()
         });
     }
 

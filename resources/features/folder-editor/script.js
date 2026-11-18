@@ -7,10 +7,15 @@
 const vscode = acquireVsCodeApi();
 let folder = null;
 let collectionName = '';
+let collectionVariables = {};
+// Live state object shared with the template completion provider so variables
+// loaded after the editor is created are reflected in suggestions.
+const completionState = { resolvedEnvironment: null, globalVariables: {}, collectionVariables: {} };
 let preRequestEditor = null;
 let postResponseEditor = null;
 let isDirty = false;
 let monacoReady = false;
+let completionsRegistered = false;
 
 // Determine VS Code theme
 function getMonacoTheme() {
@@ -91,6 +96,48 @@ function setupEventListeners() {
         vscode.postMessage({ type: 'ready' }); // Re-fetch data
     });
 
+    // Close button with unsaved-changes confirmation
+    document.getElementById('btn-close')?.addEventListener('click', () => {
+        if (!isDirty) {
+            vscode.postMessage({ type: 'close' });
+            return;
+        }
+        document.getElementById('unsaved-modal')?.classList.remove('hidden');
+    });
+
+    // Modal: Save
+    document.getElementById('modal-save')?.addEventListener('click', () => {
+        const data = collectFormData();
+        vscode.postMessage({ type: 'save', folder: data });
+        const handler = (event) => {
+            if (event.data?.type === 'saveSuccess') {
+                window.removeEventListener('message', handler);
+                vscode.postMessage({ type: 'close' });
+            }
+        };
+        window.addEventListener('message', handler);
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+    });
+
+    // Modal: Discard
+    document.getElementById('modal-discard')?.addEventListener('click', () => {
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+        vscode.postMessage({ type: 'close' });
+    });
+
+    // Modal: Cancel
+    document.getElementById('modal-cancel')?.addEventListener('click', () => {
+        document.getElementById('unsaved-modal')?.classList.add('hidden');
+    });
+
+    // Prevent accidental data loss on window close (X button)
+    window.addEventListener('beforeunload', (e) => {
+        if (isDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
     // Name change handler
     document.getElementById('folder-name')?.addEventListener('input', markDirty);
     document.getElementById('folder-description')?.addEventListener('input', markDirty);
@@ -129,7 +176,8 @@ function initEditors() {
         automaticLayout: true,
         fontSize: 13,
         tabSize: 2,
-        wordWrap: 'on'
+        wordWrap: 'on',
+        fixedOverflowWidgets: true
     };
 
     const preRequestContainer = document.getElementById('pre-request-editor');
@@ -154,6 +202,22 @@ function initEditors() {
         });
         postResponseEditor.onDidChangeModelContent(() => markDirty());
     }
+
+    setTimeout(registerCompletions, 0);
+}
+
+function registerCompletions() {
+    if (completionsRegistered || typeof monaco === 'undefined') return;
+    let registered = false;
+    if (typeof window.registerHttpForgeScriptCompletions === 'function') {
+        window.registerHttpForgeScriptCompletions();
+        registered = true;
+    }
+    if (typeof window.registerHttpForgeTemplateCompletionProviders === 'function') {
+        window.registerHttpForgeTemplateCompletionProviders(completionState);
+        registered = true;
+    }
+    if (registered) completionsRegistered = true;
 }
 
 function markDirty() {
@@ -167,6 +231,11 @@ window.addEventListener('message', event => {
         case 'init':
             folder = message.folder;
             collectionName = message.collectionName || '';
+            collectionVariables = message.collectionVariables || {};
+            completionState.collectionVariables = collectionVariables;
+            completionState.resolvedEnvironment = message.resolvedEnvironment || null;
+            completionState.globalVariables = message.globalVariables || {};
+            registerCompletions();
             renderFolder();
             break;
         case 'saveSuccess':

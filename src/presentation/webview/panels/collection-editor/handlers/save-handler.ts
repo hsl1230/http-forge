@@ -49,6 +49,15 @@ export class SaveHandler implements IMessageHandler {
             if (collectionData.description !== undefined) collection.description = collectionData.description;
             if (collectionData.variables !== undefined) collection.variables = collectionData.variables;
             if (collectionData.auth !== undefined) collection.auth = collectionData.auth;
+
+            if (collectionData.runtimeVariables !== undefined) {
+                this.collectionService.clearCollectionVariables(this.collectionId);
+                for (const [key, value] of Object.entries(collectionData.runtimeVariables)) {
+                    if (key.trim() && value !== '') {
+                        this.collectionService.setCollectionVariable(this.collectionId, key, value);
+                    }
+                }
+            }
             if (collectionData.scripts !== undefined) collection.scripts = collectionData.scripts;
 
             await this.collectionService.saveCollection(collection);
