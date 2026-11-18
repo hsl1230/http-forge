@@ -5,6 +5,18 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.6 - 2026-11-18
+
+### Changed
+
+- Upgraded `@http-forge/core` to `^1.0.6`, inheriting the startup metadata cache for large collections on Windows.
+
+## 1.0.5 - 2026-11-18
+
+### Changed
+
+- Upgraded `@http-forge/core` to `^1.0.5`, inheriting the Test Suite panel load-time performance fix (O(N²) → O(N) resolution) for large collections.
+
 ## 1.0.4 - 2026-11-16
 
 ### Added
