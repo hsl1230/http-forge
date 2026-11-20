@@ -214,7 +214,7 @@ function createMonacoEditorsManager({
                     target: monaco.languages.typescript.ScriptTarget.ES2020,
                     module: monaco.languages.typescript.ModuleKind.CommonJS,
                     allowJs: true,
-                    noLib: true,
+                    noLib: false,
                     strict: false
                 });
 

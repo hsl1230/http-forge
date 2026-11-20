@@ -5,6 +5,15 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.7 - 2026-11-20
+
+### Changed
+
+- Upgraded `@http-forge/core` to `^1.0.7`, inheriting universal JSON secret bundling and caching across all secret providers.
+- Monaco IntelliSense for HTTP Forge script globals (`_`, `moment`, `CryptoJS`, etc.) in the Request Tester webview.
+- Fixed Monaco IntelliSense for HTTP Forge script globals (`_`, `moment`, `CryptoJS`, etc.): `noLib` was set to `true`, which disabled Monaco's JavaScript language service and prevented `addExtraLib` from registering type definitions. Changed to `noLib: false`.
+- Depends on `@http-forge/core` `^1.0.7` (cache, path index, watcher improvements).
+
 ## 1.0.6 - 2026-11-18
 
 ### Changed
