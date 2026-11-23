@@ -17,10 +17,10 @@ This works identically in the **VS Code extension** and the **`@http-forge/cli`*
 
 | Alias (default) | Provider | Token syntax | Authentication source | SDK required |
 |---|---|---|---|---|
-| `aws` | AWS Secrets Manager | `{{secret:aws/<secretId>[.<jsonPath>|#jsonField]}}` | SDK chain (configured `profile`, env, `~/.aws`, IAM role, ECS) | `@aws-sdk/client-secrets-manager` |
+| `aws` | AWS Secrets Manager | `{{secret:aws/<secretId>[.<jsonPath>\|#jsonField]}}` | SDK chain (configured `profile`, env, `~/.aws`, IAM role, ECS) | `@aws-sdk/client-secrets-manager` |
 | `azure` | Azure Key Vault | `{{secret:azure/<name>[/<version>][.<jsonPath>]}}` | `DefaultAzureCredential` (env, managed identity, CLI) | `@azure/keyvault-secrets`, `@azure/identity` |
 | `gcp` | Google Secret Manager | `{{secret:gcp/<name>[/versions/<n>][.<jsonPath>]}}` | Application Default Credentials | `@google-cloud/secret-manager` |
-| `vault` | HashiCorp Vault (KV v2) | `{{secret:vault/<path>[.<jsonPath>|#field]}}` | `VAULT_TOKEN` + `VAULT_ADDR` | none (built-in `fetch`) |
+| `vault` | HashiCorp Vault (KV v2) | `{{secret:vault/<path>[.<jsonPath>\|#field]}}` | `VAULT_TOKEN` + `VAULT_ADDR` | none (built-in `fetch`) |
 | `op` | 1Password | `{{secret:op/<item>/<field>[.<jsonPath>]}}` | `OP_SERVICE_ACCOUNT_TOKEN`, configured desktop `account`, or `op` CLI session | optional `@1password/sdk` (0.5+ for desktop account) |
 | `doppler` | Doppler | `{{secret:doppler/<NAME>[.<jsonPath>]}}` | `DOPPLER_TOKEN` service token | none (built-in `https`) |
 
@@ -226,7 +226,7 @@ For an SSO profile, add `--profile my-profile --region us-east-1`.
 {{secret:aws/myapp/prod#db_password}}
 ```
 
-- Append `#field` to read one field from a JSON secret.
+- For JSON secrets, use dot-notation (`#field` also works for top-level fields): `{{secret:aws/myapp/prod.db_password}}` or `{{secret:aws/myapp/prod#db_password}}`.
 - In CI, prefer OIDC role assumption over long-lived access keys (see [CI/CD](#cicd)).
 
 ### Azure Key Vault sign-in
@@ -496,8 +496,8 @@ vault kv get secret/myapp/prod
 {{secret:vault/myapp/prod}}
 ```
 
-- With no `#field`, HTTP Forge returns the `value` key if it exists, or the only key in the
-  secret.
+- With no path, HTTP Forge returns the `value` key if it exists, or the only key in the
+  secret. Use dot-notation or `#field` to extract a specific field: `{{secret:vault/myapp/prod.password}}` or `{{secret:vault/myapp/prod#password}}`.
 - In CI, inject a short-lived token from the CI secret store, or authenticate with AppRole
   before running the CLI.
 
@@ -1255,6 +1255,66 @@ Supported path syntax:
 | Deeply nested | `secret-name.a.b[2].c` | `parsed.a.b[2].c` |
 
 If the path doesn't exist in the JSON, the token is left unresolved (and a warning is logged).
+
+### Provider support
+
+JSON path resolution is implemented in the shared `BaseSecretResolver` base class, so it works
+**identically for all providers**. The only requirement is that the secret value must be a
+valid JSON string.
+
+| Provider | JSON path (`.`) | Legacy `#field` | Version specifier |
+|---|---|---|---|
+| AWS Secrets Manager | ✅ | ✅ | ❌ |
+| Azure Key Vault | ✅ | ❌ (use `.`) | ✅ (`/<version>`) |
+| Google Secret Manager | ✅ | ❌ (use `.`) | ✅ (`/versions/<n>`) |
+| HashiCorp Vault (KV v2) | ✅ | ✅ | ❌ |
+| 1Password | ✅ | ❌ (use `.`) | ❌ |
+| Doppler | ✅ | ❌ (use `.`) | ❌ |
+| Custom | ✅ | Depends on implementation | Depends |
+
+- **JSON path (`.`)**: Universal — works with all providers. Use dot-notation for nested access: `secret-name.db.password`, `items[0].name`.
+- **Legacy `#field`**: Only AWS and Vault support this. It extracts a top-level field from a JSON secret. Prefer dot-notation for new usage.
+- **Version specifier**: Only Azure and GCP support pinning a specific secret version in the path.
+
+### Legacy `#field` syntax
+
+AWS and Vault historically used `#field` to extract a top-level field from a JSON secret:
+
+```http
+# AWS: reads the "db_password" field from the JSON secret "myapp/prod"
+{{secret:aws/myapp/prod#db_password}}
+
+# Vault: reads the "password" field from the KV v2 data
+{{secret:vault/secret/myapp/prod#password}}
+```
+
+This is equivalent to dot-notation:
+
+```http
+{{secret:aws/myapp/prod.db_password}}   # same as #db_password
+{{secret:vault/secret/myapp/prod.password}}  # same as #password
+```
+
+Both syntaxes are supported. **Prefer dot-notation** for new usage — it supports nested
+paths and array indices, while `#field` only accesses top-level keys.
+
+### Combining with provider-specific version syntax
+
+Some providers (GCP, Azure) support version specifiers using `/`. When combining with
+JSON path dot-notation, **the version specifier must come before the dot**:
+
+```
+# GCP — latest version, JSON field:
+{{secret:gcp/http-forge-bundle.sit.CI_PP_SQD05_TS018_PASSWORD}}
+
+# GCP — specific version, JSON field:
+{{secret:gcp/http-forge-bundle/versions/3.sit.CI_PP_SQD05_TS018_PASSWORD}}
+
+# Azure — pinned version, JSON field:
+{{secret:azure/my-secret/1.0.db.password}}
+```
+
+Rule: version specifier (`/versions/N` or `/<version>`) comes first, then the dot, then the JSON path.
 
 ### Caching
 
