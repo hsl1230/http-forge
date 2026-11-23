@@ -931,6 +931,11 @@ npm install @1password/sdk                       # 1Password service account / d
 
 ### In the VS Code extension
 
+> **Important:** The extension does **not** bundle cloud SDKs. You must install them in
+> your project's module path before secret resolution will work. If a SDK is missing, the
+> resolver throws a clear error (e.g. `requires @google-cloud/secret-manager`) and logs it
+> to the **HTTP Forge** output channel.
+
 The extension loads SDKs from your **project's** `node_modules`, resolved through the first
 `scripts.modulePaths` entry that contains a `package.json`. Install the SDK there:
 
@@ -1274,6 +1279,39 @@ Simple string secrets (no JSON) work exactly as before — the value is returned
 ```http
 {{secret:aws/my-api-key}}   # returns the raw string
 ```
+
+---
+
+## TLS certificates (`certPath`, `keyPath`, `caPath`, `pfxPath`)
+
+Certificate file paths in `http-forge.config.json` (under `request.certificates`) and
+per-request TLS settings can contain `{{secret:...}}` tokens. The resolved value is
+treated as **inline PEM/binary content** — no file on disk is needed:
+
+```json
+{
+  "request": {
+    "certificates": [
+      {
+        "host": "*.dev.n.svc.tv.telus.net",
+        "certPath": "{{secret:aws/my-cert}}",
+        "keyPath": "{{secret:aws/my-key}}",
+        "enabled": true
+      }
+    ]
+  }
+}
+```
+
+- If the path contains a `{{secret:...}}` token, HTTP Forge resolves it via the
+  secret provider and uses the returned value directly as the certificate content.
+- If the path is a regular file path, it is read from disk as before.
+- `caPath`, `pfxPath`, and `passphrase` also support secret tokens.
+- The WebSocket client (`wss://`) does **not** yet support secret tokens in TLS
+  settings (file paths only).
+
+This lets you store sensitive certificate data in your secret manager alongside
+other credentials, keeping it out of the repository.
 
 ---
 
