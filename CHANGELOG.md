@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added hierarchical folder support for Test Suites: nested folders and sub-folders in the Test Suite tree view, with recursive file system watching for create/delete/rename/move/update.
 - Upgraded `@http-forge/core` to `^1.0.8`.
 - Monaco IntelliSense for HTTP Forge script globals in Request Tester webview.
 
