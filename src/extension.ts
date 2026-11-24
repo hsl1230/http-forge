@@ -103,7 +103,8 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
   });
 
   const testSuitesView = vscode.window.createTreeView('httpForge.testSuites', {
-    treeDataProvider: testSuitesTreeProvider
+    treeDataProvider: testSuitesTreeProvider,
+    showCollapseAll: true
   });
 
   const environmentsView = vscode.window.createTreeView('httpForge.environments', {
