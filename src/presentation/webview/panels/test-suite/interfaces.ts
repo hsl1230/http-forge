@@ -21,10 +21,14 @@ export interface SuiteRunConfiguration {
         path: string;
         content: string;
     };
-    /** Read variables from shared session */
-    readFromSharedSession: boolean;
-    /** Write variables to shared session */
-    writeToSharedSession: boolean;
+    /** @deprecated Use loadPersistedEnvironmentValues. */
+    readFromSharedSession?: boolean;
+    /** @deprecated Use usePersistentCookieJar. */
+    writeToSharedSession?: boolean;
+    /** Load persisted environment Current Values from previous runs */
+    loadPersistedEnvironmentValues?: boolean;
+    /** Use the persistent cookie jar across runs */
+    usePersistentCookieJar?: boolean;
 }
 
 /**

@@ -57,7 +57,11 @@ export function mergeCollectionRequests(base: CollectionRequest, saved: Collecti
     websocket: saved.websocket ?? base.websocket,
     scripts: {
       preRequest: saved.scripts?.preRequest || base.scripts?.preRequest || '',
-      postResponse: saved.scripts?.postResponse || base.scripts?.postResponse || ''
+      postResponse: saved.scripts?.postResponse || base.scripts?.postResponse || '',
+      // Absolute paths recorded at load time — the webview round-trips these so
+      // execution can attach the real filename for breakpoints.
+      preRequestPath: saved.scripts?.preRequestPath || base.scripts?.preRequestPath,
+      postResponsePath: saved.scripts?.postResponsePath || base.scripts?.postResponsePath
     },
     // Saved takes precedence for all fields — preserves the user's manual
     // edits. Users can delete the saved request to pick up fresh base values.

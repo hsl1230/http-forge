@@ -262,7 +262,7 @@ Typical flow: design and validate in the extension, automate with CLI/MCP, and g
 - **[Postman Compatibility Reference](docs/user-guide/postman-compatibility.md)** — full `pm.*` matrix
 - [CLI & CI/CD](docs/user-guide/cli-standalone.md)
 - [MCP Server](docs/user-guide/mcp-server.md)
-- [Secret Providers](docs/user-guide/secret-providers.md)
+- [Secret Providers](docs/user-guide/secret-providers.md) — fetch secrets from AWS, Azure, GCP, Vault, 1Password, Doppler via `{{secret:alias/path}}` (supports dot-notation JSON paths and TTL caching)
 - [TypeScript Codegen](docs/user-guide/codegen.md)
 - [Playwright Integration](docs/user-guide/playwright.md)
 - [Configuration](docs/user-guide/configuration.md) — [full example](resources/http-forge.config.example.json)

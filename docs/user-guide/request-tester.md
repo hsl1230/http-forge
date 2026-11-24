@@ -7,7 +7,7 @@ The Request Tester is the main UI for building and executing requests from the e
 - **Path/URL**: Absolute URL or relative path resolved against environment variables (supports Express.js route patterns like `:id`)
 - **Send**: Executes the request
 - **Save**: Saves updates back to the collection
-- **Resolved URL preview**: Shows the final executed URL after inline variables, selected environment values, dynamic variables, filter/pipe expressions, and auth query params are resolved.
+- **Resolved URL preview**: Shows the final executed URL after inline variables, selected environment values, collection variables, dynamic variables, filter/pipe expressions, and auth query params are resolved. Collection/global/environment values written by collection or folder pre-request scripts are reflected after the request has run.
 
 ### Example
 ```
@@ -65,6 +65,10 @@ Auth settings are properly inherited when running requests in Test Suites.
 - **GraphQL**: Dedicated GraphQL body type with query and variables editors (see [GraphQL](#graphql) below)
 - **Raw**: plain text
 - **None**
+
+Body variables such as `{{token}}` are resolved before the request is sent. For
+requests stored in folder format, body content may live in `body.json`; it is
+loaded automatically when the request is opened or run.
 
 ### Mustache templates
 Editors now highlight Mustache templates (e.g. `{{name}}`, `{{#section}}...{{/section}}`, `{{^inverse}}`, `{{!comment}}`, `{{>partial}}`, and unescaped `{{{raw}}}`)
@@ -176,7 +180,7 @@ The Document tab displays request-level Markdown documentation stored in a `doc.
 ## Auto-reload on file changes
 Open Request Tester panels automatically reload when underlying files change on disk:
 
-- **Collection files**: Changes to `request.json`, `doc.md`, scripts, or any file under the collections directory trigger a full reload of the panel data and a refresh of the Collections tree view.
+- **Collection files**: Changes to `request.json`, `body.json`, `doc.md`, scripts, schemas, or any file under the collections directory trigger a full reload of the panel data and a refresh of the Collections tree view.
 - **Environment files**: Changes to environment JSON files trigger a reload of resolved environment data in all open panels and a refresh of the Environments tree view.
 - **External edits**: This works for edits made in another VS Code tab, an external editor, or via git operations — no manual refresh is needed.
 

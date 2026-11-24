@@ -126,7 +126,8 @@ export class McpExecutor {
         private readonly testSuiteService: ITestSuiteService,
         private readonly configService: IConfigService,
         private readonly registry: McpToolRegistry,
-        private readonly aiProvider?: IAiProvider
+        private readonly aiProvider?: IAiProvider,
+        private readonly extensionUri?: { fsPath: string }
     ) {}
 
     async call(toolName: string, args: Record<string, any>): Promise<string> {
@@ -171,6 +172,7 @@ export class McpExecutor {
             testSuite: this.testSuiteService,
             environmentConfig: this.envConfigService,
             workspaceFolder: this.configService.getWorkspacePath(),
+            ...(this.extensionUri ? { docsPath: `${this.extensionUri.fsPath}/resources/docs` } : {}),
             ...(this.aiProvider ? { aiProvider: this.aiProvider } : {}),
         };
         const callbacks: McpRunCallbacks = {

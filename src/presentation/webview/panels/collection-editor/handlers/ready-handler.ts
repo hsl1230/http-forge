@@ -8,7 +8,7 @@
  * - Single Responsibility: Only handles webview ready state
  */
 
-import { ICollectionService } from '@http-forge/core';
+import { ICollectionService, IEnvironmentConfigService } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { IMessageHandler, IWebviewMessenger } from '../../../shared-interfaces';
 
@@ -17,7 +17,8 @@ export class ReadyHandler implements IMessageHandler {
 
     constructor(
         private readonly collectionService: ICollectionService,
-        private readonly collectionId: string
+        private readonly collectionId: string,
+        private readonly envConfigService: IEnvironmentConfigService
     ) {}
 
     getSupportedCommands(): string[] {
@@ -44,9 +45,14 @@ export class ReadyHandler implements IMessageHandler {
             return;
         }
 
+        const selectedEnvironment = this.envConfigService.getSelectedEnvironment();
+
         messenger.postMessage({
             type: 'init',
-            collection
+            collection,
+            runtimeVariables: this.collectionService.getCollectionVariableLocals(this.collectionId),
+            resolvedEnvironment: this.envConfigService.getResolvedEnvironment(selectedEnvironment),
+            globalVariables: this.envConfigService.getGlobalVariables()
         });
     }
 }

@@ -40,6 +40,7 @@ export class FolderEditorPanel implements IWebviewMessenger {
         // Get service from container
         const container = getServiceContainer();
         this.collectionService = container.collection;
+        const envConfigService = container.environmentConfig;
 
         // Create messenger for webview communication
         this.messenger = new WebviewMessenger(panel);
@@ -52,7 +53,7 @@ export class FolderEditorPanel implements IWebviewMessenger {
             this.panel.title = `Folder: ${name}`;
         };
 
-        const readyHandler = new ReadyHandler(this.collectionService, collectionId, folderId);
+        const readyHandler = new ReadyHandler(this.collectionService, collectionId, folderId, envConfigService);
         const saveHandler = new SaveHandler(this.collectionService, collectionId, folderId, onNameChange);
 
         // Register handlers
@@ -152,6 +153,10 @@ export class FolderEditorPanel implements IWebviewMessenger {
     private setupMessageHandlers(): void {
         this.panel.webview.onDidReceiveMessage(
             async (message) => {
+                if (message?.type === 'close') {
+                    this.dispose();
+                    return;
+                }
                 await this.router.route(message, this.messenger);
             },
             null,
@@ -171,6 +176,9 @@ export class FolderEditorPanel implements IWebviewMessenger {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'style.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(resourcePath, 'script.js'));
         const monacoViewerUri = webview.asWebviewUri(vscode.Uri.joinPath(sharedPath, 'monaco-viewer.js'));
+        const requestTesterModulesPath = vscode.Uri.joinPath(this.extensionUri, 'resources', 'features', 'request-tester', 'modules');
+        const scriptCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(requestTesterModulesPath, 'script-completion-provider.js'));
+        const templateCompletionUri = webview.asWebviewUri(vscode.Uri.joinPath(requestTesterModulesPath, 'template-completion-provider.js'));
 
         // Build CSP
         const cspContent = `default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src ${webview.cspSource} https://cdnjs.cloudflare.com; font-src ${webview.cspSource} https://cdnjs.cloudflare.com; img-src ${webview.cspSource} data:; connect-src https://cdnjs.cloudflare.com;`;
@@ -184,6 +192,8 @@ export class FolderEditorPanel implements IWebviewMessenger {
         html = html.replace('{{styleUri}}', styleUri.toString());
         html = html.replace('{{scriptUri}}', scriptUri.toString());
         html = html.replace('{{monacoViewerUri}}', monacoViewerUri.toString());
+        html = html.replace('{{scriptCompletionUri}}', scriptCompletionUri.toString());
+        html = html.replace('{{templateCompletionUri}}', templateCompletionUri.toString());
 
         return html;
     }

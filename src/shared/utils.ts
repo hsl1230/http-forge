@@ -64,7 +64,11 @@ export function ensureRequestDefaults(item: Partial<CollectionRequest>): Collect
         body: item.body || null,
         scripts: {
             preRequest: item.scripts?.preRequest || '',
-            postResponse: item.scripts?.postResponse || ''
+            postResponse: item.scripts?.postResponse || '',
+            // Absolute paths recorded when the scripts were loaded from disk.
+            // Carrying them here keeps breakpoints pointed at the real file.
+            preRequestPath: item.scripts?.preRequestPath,
+            postResponsePath: item.scripts?.postResponsePath
         },
         auth: item.auth,
         settings: item.settings,

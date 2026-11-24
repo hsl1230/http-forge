@@ -5,6 +5,106 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.8 - 2026-11-23
+
+### Changed
+
+- Added hierarchical folder support for Test Suites: nested folders and sub-folders in the Test Suite tree view, with recursive file system watching for create/delete/rename/move/update.
+- Upgraded `@http-forge/core` to `^1.0.8`.
+- Monaco IntelliSense for HTTP Forge script globals in Request Tester webview.
+
+## 1.0.7 - 2026-11-20
+
+### Changed
+
+- Upgraded `@http-forge/core` to `^1.0.7`, inheriting universal JSON secret bundling and caching across all secret providers.
+- Monaco IntelliSense for HTTP Forge script globals (`_`, `moment`, `CryptoJS`, etc.) in the Request Tester webview.
+- Fixed Monaco IntelliSense for HTTP Forge script globals (`_`, `moment`, `CryptoJS`, etc.): `noLib` was set to `true`, which disabled Monaco's JavaScript language service and prevented `addExtraLib` from registering type definitions. Changed to `noLib: false`.
+- Depends on `@http-forge/core` `^1.0.7` (cache, path index, watcher improvements).
+
+## 1.0.6 - 2026-11-18
+
+### Changed
+
+- Added Monaco IntelliSense for HTTP Forge script globals (`_`, `moment`, `CryptoJS`, etc.) in the Request Tester webview: type definitions from `http-forge-globals.d.ts` are now loaded from the workspace or the bundled core template and registered with Monaco via `addExtraLib`.
+- Upgraded `@http-forge/core` to `^1.0.6`, inheriting the startup metadata cache for large collections on Windows.
+
+## 1.0.5 - 2026-11-18
+
+### Changed
+
+- Upgraded `@http-forge/core` to `^1.0.5`, inheriting the Test Suite panel load-time performance fix (O(N²) → O(N) resolution) for large collections.
+
+## 1.0.4 - 2026-11-16
+
+### Added
+
+- Context menu (Edit / Open Original) on test suite result rows, visible on focus.
+
+### Changed
+
+- Raised the supported minimums to VS Code 1.145.3 and Node.js 24.19.0 to align the debugger and Node inspector protocols.
+
+### Fixed
+
+- Collection and folder editors: added unsaved-changes confirmation (Save/Discard/Cancel) on close, plus `beforeunload` guard for the X button.
+- WebSocket pre-request/post-response scripts now execute with the request's real script filenames; the webview round-trips `preRequestPath`/`postResponsePath` so breakpoints resolve to the file the user edited.
+- Request context construction (`ensureRequestDefaults`) preserves script file paths, so HTTP request-level scripts also resolve breakpoints to their files.
+
+## 1.0.3 - 2026-11-09
+
+### Added
+
+- Template input autocomplete for `{{variable}}`, `$dynamicVars`, and filters in Monaco editors, plain inputs, Folder Editor, Collection Editor, and Environment Editor.
+- Hover values for variables in both webviews and VS Code editors.
+- Script-aware completion in Request Tester, Folder Editor, and Collection Editor.
+- Module opening from script editors.
+- Lazy-loading and body hydration from external `body.json` files.
+- `pm.iterationData` support during collection and suite runs.
+- Current-value columns in Environment and Collection editors.
+- **Clear Runtime Variables** command and button.
+- MCP `list_documentation` and `get_documentation` tools for AI-driven doc discovery.
+- Bundled key documentation in `resources/docs/user-guide/` for offline MCP access.
+- `examples/scripts/` with annotated patterns (auth flow, CRUD workflow, error handling, data-driven testing).
+- `.github/copilot-instructions.md` and `llms.txt` for AI tool discovery.
+- AGENTS.md template now includes step-by-step recipes for generating collections, test suites, environments, and assertions.
+
+### Fixed
+
+
+- Folder-based test suite runs now hydrate requests from the live collection, including payloads stored in external `body.json` files.
+- Template input autocomplete dropdown: name column now content-sized (capped at 50 chars) so the value column expands to fill the dropdown.
+- Template input autocomplete: right-aligned values eliminate blank space after short values.
+- Environment editor: fixed broken shared resource paths (monaco-viewer.css, monaco-viewer.js, template-input-autocomplete.js).
+- Collection and folder editors: autocomplete now registers reliably (deferred registration + init handler).
+- Script editor suggest widget no longer appears above the cursor (fixed `overflow: hidden` on `.script-editor-container` + `fixedOverflowWidgets`).
+
+- `pm.iterationData` is now populated during collection and suite runs in the Test Suite panel.
+- Environment and Collection editors now show a Current value column for runtime values.
+- Added the **Clear Runtime Variables** command and button.
+
+### Changed
+
+- Upgraded `@http-forge/core` dependency to `^1.0.3`.
+- AGENTS.md template extracted to `templates/AGENTS.md` (reduced bundle size by ~26 KB).
+- AGENTS.md template optimized for AI (264 lines, down from 574).
+- `ensureForgeWorkspaceFiles` now auto-generates `.github/copilot-instructions.md` and `llms.txt` in user projects.
+
+- Renamed suite run options for clarity: `readFromSharedSession` → `loadPersistedEnvironmentValues`, `writeToSharedSession` → `usePersistentCookieJar`.
+- Updated variable documentation for static vs runtime variables, precedence, `.local.json`, and persistence.
+
+## 1.0.2 - 2026-11-09
+
+### Fixed
+
+- Request execution now hydrates lazy-loaded request bodies before sending, including body content stored in external `body.json` files. This applies to the Request Tester, collection runs, test suite runs, and MCP execution.
+- Custom module files and their local dependencies are now refreshed at the start of each run, so edited modules are picked up on the next run without reloading VS Code.
+- Collection and test suite documentation now describe external `body.json` storage and on-demand hydration.
+
+### Changed
+
+- Upgraded `@http-forge/core` dependency to `^1.0.2`.
+
 ## 1.0.1 - 2026-10-29
 
 ### Changed

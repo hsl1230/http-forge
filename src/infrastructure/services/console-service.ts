@@ -53,8 +53,12 @@ export class ConsoleService implements IConsoleService {
                 break;
         }
 
-        // Auto-show output channel when content is logged (preserve focus on editor)
-        this.outputChannel.show(true);
+        // Auto-show output channel only on errors to avoid UI thrashing
+        // when many warnings are logged in quick succession (e.g. 600+ secret
+        // resolution attempts).
+        if (level === 'error') {
+            this.outputChannel.show(true);
+        }
 
         // Notify listeners (for any UI components that want to display logs)
         this.notifyListeners(entry);

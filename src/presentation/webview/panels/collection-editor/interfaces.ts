@@ -51,6 +51,7 @@ export interface CollectionUpdate {
     name?: string;
     description?: string;
     variables?: Record<string, string>;
+    runtimeVariables?: Record<string, string>;
     auth?: CollectionAuth;
     scripts?: CollectionScripts;
 }

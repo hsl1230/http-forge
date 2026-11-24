@@ -9,13 +9,14 @@ This guide is split by how you use HTTP Forge. Start with the guide that matches
 - [Codegen (@http-forge/codegen)](codegen.md)
 - [Playwright Integration (@http-forge/playwright)](playwright.md)
 - [Troubleshooting & FAQs](troubleshooting.md)
+- [Debugging Collection Runs & Test Suites](debugging.md)
 
 ## Reference Chapters
 - [Configuration](configuration.md)
 - [Collections & Requests](collections-requests.md)
 - [Environments & Variables](environments-variables.md) — includes Template Engine (filters, expressions, dynamic variables)
 - [Template Syntax Reference](template-syntax.md) — supported `{{ }}` variables, dynamic vars, filters, and expressions
-- [Secret Providers](secret-providers.md) — fetch secrets from AWS, Azure, GCP, Vault, 1Password, Doppler via `{{secret:alias/path}}`
+- [Secret Providers](secret-providers.md) — fetch secrets from AWS, Azure, GCP, Vault, 1Password, Doppler via `{{secret:alias/path}}` (supports dot-notation JSON paths and TTL caching)
 - [Request Tester](request-tester.md)
 - [Scripts & Assertions](scripts-assertions.md)
 - [Custom Modules](custom-modules.md)

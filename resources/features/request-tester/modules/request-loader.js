@@ -212,6 +212,8 @@ function createRequestLoader({
         // Reset scripts first
         state.scripts.preRequest = '';
         state.scripts.postResponse = '';
+        state.scripts.preRequestPath = undefined;
+        state.scripts.postResponsePath = undefined;
         if (editorsManager) {
             editorsManager.setPreRequestScript('');
             editorsManager.setPostResponseScript('');
@@ -231,6 +233,10 @@ function createRequestLoader({
                     editorsManager.setPostResponseScript(request.scripts.postResponse);
                 }
             }
+            // Keep the load-time paths attached to the code so execution can
+            // report the real filename instead of a synthetic one.
+            state.scripts.preRequestPath = request.scripts.preRequestPath;
+            state.scripts.postResponsePath = request.scripts.postResponsePath;
         }
 
         // Reset and apply settings

@@ -1,0 +1,41 @@
+# HTTP Forge User Guide
+
+This guide is split by how you use HTTP Forge. Start with the guide that matches your workflow, then use the reference chapters for deep dives.
+
+## Primary Guides
+- [Getting Started](getting-started.md)
+- [Extension (VS Code)](extension.md)
+- [CLI & Standalone](cli-standalone.md)
+- [Codegen (@http-forge/codegen)](codegen.md)
+- [Playwright Integration (@http-forge/playwright)](playwright.md)
+- [Troubleshooting & FAQs](troubleshooting.md)
+- [Debugging Collection Runs & Test Suites](debugging.md)
+
+## Reference Chapters
+- [Configuration](configuration.md)
+- [Collections & Requests](collections-requests.md)
+- [Environments & Variables](environments-variables.md) — includes Template Engine (filters, expressions, dynamic variables)
+- [Template Syntax Reference](template-syntax.md) — supported `{{ }}` variables, dynamic vars, filters, and expressions
+- [Secret Providers](secret-providers.md) — fetch secrets from AWS, Azure, GCP, Vault, 1Password, Doppler via `{{secret:alias/path}}`
+- [Request Tester](request-tester.md)
+- [Scripts & Assertions](scripts-assertions.md)
+- [Custom Modules](custom-modules.md)
+- [History & Shared History](history-shared.md)
+- [Test Suites](test-suites.md)
+- [MCP Server](mcp-server.md) — expose your collections to AI agents (Claude, Copilot, etc.)
+- [AI Features](extension.md#11-ai-features) — enhance collections, scan for env vars (requires GitHub Copilot)
+- [Flows](flows.md)
+- [Security & Sensitive Data](security.md) — automatic redaction of tokens, passwords, credentials in persisted files
+- [Import/Export & Postman Compatibility](import-export.md)
+- [Postman Compatibility Reference](postman-compatibility.md)
+- [Postman Compatibility Matrix](postman-compatibility-matrix.md)
+- [HTTP Forge vs Postman](comparison-postman.md)
+- [Public API for Extensions](public-api.md)
+
+## What’s covered
+- Collections, requests, environments, variables, and history
+- Scripts, tests, and assertions
+- Import/export and compatibility
+- CLI/standalone execution and results — including `generate-collection` and `suggest-env`
+- Codegen clients and Playwright integration
+- AI features: collection enhancement, env var scanning, and MCP agentic tools (GitHub Copilot)

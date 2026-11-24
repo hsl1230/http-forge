@@ -837,10 +837,15 @@ export function createResultItemElement(compactResult, index, preExpanded) {
     item.title = 'Click to view details';
     item.style.height = `${VIRTUAL_SCROLL.itemHeight}px`;
     item.style.boxSizing = 'border-box';
+    item.tabIndex = 0;
 
     // Status class for coloring (2xx=success, 3xx=redirect, 4xx/5xx=error)
     const statusClass = result.status >= 200 && result.status < 300 ? 'success' :
                         result.status >= 300 && result.status < 400 ? 'redirect' : 'error';
+
+    // Resolve the suite-request slug for context-menu actions (edit / open original)
+    const suiteReq = (state.requests || []).find(r => r.requestId === result.requestId);
+    const slug = suiteReq?.slug || '';
 
     item.innerHTML = `
         <span class="result-icon ${result.passed ? 'passed' : 'failed'}">
@@ -849,6 +854,14 @@ export function createResultItemElement(compactResult, index, preExpanded) {
         <span class="result-method ${result.method}">${escapeHtml(result.method || 'GET')}</span>
         <div class="result-details">
             <div class="result-name" title="${escapeHtml(fullPath)}">${escapeHtml(fullPath)}</div>
+            ${slug ? `
+            <div class="request-actions-menu result-actions-menu" data-slug="${escapeHtml(slug)}">
+                <button class="menu-trigger result-menu-trigger" title="Actions">⋯</button>
+                <div class="menu-dropdown result-menu-dropdown">
+                    <button class="menu-item result-action-btn" data-slug="${escapeHtml(slug)}" data-action="edit">✎ Edit</button>
+                    <button class="menu-item result-action-btn" data-slug="${escapeHtml(slug)}" data-action="open-original">↗ Open Original</button>
+                </div>
+            </div>` : ''}
         </div>
         <span class="result-status ${statusClass}">${result.status || '-'}</span>
         <span class="result-duration">${result.duration}ms</span>
@@ -860,6 +873,49 @@ export function createResultItemElement(compactResult, index, preExpanded) {
         event.stopPropagation();
         state.autoScroll = false;
         showResultDetail(index);
+    });
+
+    // Context menu: visible only when row is focused; toggles dropdown
+    const menuTrigger = item.querySelector('.result-menu-trigger');
+    const menuDropdown = item.querySelector('.result-menu-dropdown');
+    if (menuTrigger && menuDropdown) {
+        menuTrigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const wasOpen = menuDropdown.classList.contains('open');
+            document.querySelectorAll('.result-menu-dropdown.open').forEach(m => m.classList.remove('open', 'open-above'));
+            if (!wasOpen) {
+                menuDropdown.classList.add('open');
+                // Flip the dropdown above the button when there is not enough
+                // room below, so the menu stays visible for bottom rows.
+                const rect = menuTrigger.getBoundingClientRect();
+                if (window.innerHeight - rect.bottom < 90) {
+                    menuDropdown.classList.add('open-above');
+                }
+            }
+        });
+    }
+
+    // Wire action buttons
+    item.querySelectorAll('.result-action-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const action = btn.dataset.action;
+            const s = btn.dataset.slug;
+            document.querySelectorAll('.result-menu-dropdown.open').forEach(m => m.classList.remove('open'));
+            if (!s || !action) return;
+            if (action === 'edit') {
+                vscode.postMessage({ command: 'editSuiteRequest', slug: s });
+            } else if (action === 'open-original') {
+                vscode.postMessage({ command: 'openOriginalRequest', slug: s });
+            }
+        });
+    });
+
+    // Close menus when clicking elsewhere
+    item.addEventListener('blur', () => {
+        document.querySelectorAll('.result-menu-dropdown.open').forEach(m => m.classList.remove('open', 'open-above'));
     });
 
     return item;

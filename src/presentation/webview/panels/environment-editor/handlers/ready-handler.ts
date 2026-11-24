@@ -80,7 +80,9 @@ export class ReadyHandler implements IMessageHandler {
                 secretVariablesByEnv,
                 // Script-set session overrides ("Current Values") per env, so the
                 // UI can show them next to file values with revert affordances.
-                sessionOverridesByEnv: this.configService.getAllEnvironmentVariableLocals()
+                sessionOverridesByEnv: this.configService.getAllEnvironmentVariableLocals(),
+                // Runtime global values (pm.globals.set), session-only.
+                globalSessionOverrides: this.configService.getGlobalVariableLocals()
             }
         });
     }

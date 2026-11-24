@@ -3,8 +3,9 @@
 HTTP Forge uses `.http-forge/http-forge.config.json` in the workspace root.  A
 workspace-level secrets file (`http-forge.secrets.json`) used to be
 supported, but it is no longer read by the extension; sensitive values
-should instead live in environment-specific files (e.g. a gitignored
-`_secrets.json` in the `http-forge/environments` folder).
+should instead live in the gitignored local environment files
+(`_global.local.json` or `<env>.local.json`) in the `http-forge/environments`
+folder.
 
 ## File location
 ```
@@ -141,9 +142,10 @@ AI analysis is grounded in your team's actual business rules instead of guessing
 ## Environment files (folder layout)
 ```
 http-forge/environments/
-├── _global.json      # global variables + default headers
-├── _secrets.json     # local secrets (gitignored)
+├── _global.json          # global variables + default headers
+├── _global.local.json    # local global overrides (gitignored)
 ├── dev.json
+├── dev.local.json        # local environment overrides (gitignored)
 ├── sit.json
 └── prod.json
 ```
@@ -151,7 +153,9 @@ http-forge/environments/
 ## Secrets
 Workspace-level secrets file support has been removed.  If you still have a
 `http-forge.secrets.json` in your workspace it will be ignored.  Store any
-sensitive values in your environments folder instead, e.g. `http-forge/environments/_secrets.json`.
+sensitive values in the gitignored local environment files instead, e.g.
+`http-forge/environments/_global.local.json` or
+`http-forge/environments/prod.local.json`.
 
 ## Example: project-specific paths
 ```json

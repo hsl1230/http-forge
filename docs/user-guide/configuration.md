@@ -350,6 +350,10 @@ Use `secrets.providers` inside `.http-forge/http-forge.config.json` instead. Bes
 providers, `"provider": "custom"` loads a resolver module from `scripts.modulePaths`; see
 [Custom providers](secret-providers.md#custom-providers).
 
+Secret values support **JSON path resolution** — use dot-notation to extract nested values from
+bundled JSON secrets: `{{secret:gcp/my-bundle.db.password}}`. Raw values are cached with a
+5-minute TTL and cleared at the start of each run. See [JSON path resolution](secret-providers.md#json-path-resolution-secret-bundling).
+
 Store secrets in environment-local files under your environments folder (for example `dev.local.json` or `_global.local.json`) and keep them gitignored.
 
 ## Partial configuration

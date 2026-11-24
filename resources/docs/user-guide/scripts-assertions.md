@@ -1,0 +1,346 @@
+# Scripts & Assertions
+
+HTTP Forge scripts are Postman‑compatible and run in two phases.
+
+## Phases
+- **Pre‑request**: modify request, set variables
+- **Post‑response**: validate response, assert expectations
+
+## Aliases
+HTTP Forge exposes three interchangeable aliases in **both** script nodes (`pre-request` / `post-response`) **and** flow condition expressions (`if` / `switch` / `for` / `while`):
+- `pm` — Postman-compatible namespace
+- `ctx` — HTTP Forge idiomatic alias
+- `hf` — HTTP Forge shorthand
+
+All three resolve to the same runtime API (`variables`, `environment`, `globals`, `collectionVariables`, `request`, `response`, `cookies`, `test`, `expect`, etc.). Use whichever fits the style of the file you are editing.
+
+> `agl` was the legacy shorthand for `hf`; it remains accepted for backward compatibility but new code should use `hf`.
+
+## Request API (pre‑request)
+- `ctx.request.url`
+- `ctx.request.method`
+- `ctx.request.headers`
+- `ctx.request.body`
+- `ctx.request.params`
+- `ctx.request.query`
+- `ctx.request.setHeader(name, value)`
+- `ctx.request.removeHeader(name)`
+
+## Response API (post‑response)
+- `ctx.response.status` / `ctx.response.statusText`
+- `ctx.response.headers` (HeaderList: `.get()`, `.has()`, `.toObject()`, `.each()`)
+- `ctx.response.cookies`
+- `ctx.response.json()` / `ctx.response.text()`
+- `ctx.response.responseTime`
+- `ctx.response.responseSize`
+
+## Variables API
+Scopes:
+- `ctx.variables` (merged view — reads from all scopes)
+- `ctx.environment` (persisted to workspace state)
+- `ctx.collectionVariables`
+- `ctx.globals`
+- `ctx.iterationData` (read-only, data-driven testing)
+
+Methods:
+- `get`, `set`, `unset`, `clear`, `has`, `toObject`, `replaceIn`
+
+### Initial values vs current values (script-set variables)
+
+`pm.environment.set()` writes a **current value**: it shadows (never replaces) the file value and **survives VS Code restarts**. The file stays clean; the override lives in workspace session state. This matches Postman.
+
+- See which variables are script-overridden in the Environment editor — overridden rows show the current value with a blue marker and a ↩ button. Reverting drops the override so the file value applies again. Overridden rows are read-only and are never written back to the file on save.
+- Drop **all** overrides for one environment at once: the **↩ Reset current values** button in the Environment editor, or the Command Palette → **HTTP Forge: Reset Environment Current Values** (Postman's "Reset All").
+- Clear **all** runtime variables (globals, environment Current Values, and collection variables): the **🧹 Clear runtime variables** button in the Environment editor, or the Command Palette → **HTTP Forge: Clear Runtime Variables**.
+- The Environment and Collection editors now show a **Current value** column next to the file-backed value, so static and runtime values can be edited and saved independently.
+- From scripts: `pm.environment.unset('key')` removes one override; `pm.environment.clear()` removes all for the environment.
+- `pm.globals.set()` is memory-only and does not survive restarts.
+
+### Storing non-string values
+
+All variable scopes support automatic serialization of non-string values (arrays, objects, numbers, booleans):
+
+```javascript
+// Arrays and objects are auto-serialized on set()
+ctx.environment.set('users', [1, 2, 3]);
+ctx.environment.set('config', { retries: 3, timeout: 5000 });
+ctx.environment.set('count', 42);
+ctx.environment.set('flag', true);
+
+// get() automatically deserializes back to the original type
+const users = ctx.environment.get('users');   // [1, 2, 3] (array)
+const config = ctx.environment.get('config'); // { retries: 3, timeout: 5000 } (object)
+const count = ctx.environment.get('count');   // 42 (number)
+const flag  = ctx.environment.get('flag');    // true (boolean)
+```
+
+Under the hood, `set()` tags non-string values with an internal type marker before storing. Only values carrying this marker are deserialized by `get()` — plain strings are always returned as-is, even if they look like JSON (e.g. `"true"`, `"123"`, `"[1,2,3]"`).
+
+> **Tip:** There is no ambiguity between `set('x', true)` (boolean) and `set('x', 'true')` (string). Each is stored distinctly and `get('x')` returns the exact type you stored.
+
+### Using typed variables in templates
+
+Variables stored as arrays or objects work seamlessly with [filter pipes](template-syntax.md) and property access:
+
+```text
+{{users | first}}         → 1  (first element of the array)
+{{users | at(2)}}         → 3  (element at index 2)
+{{users[0]}}              → 1  (index access — same as first)
+{{config | prop("retries")}} → 3  (nested property access)
+{{config.retries}}        → 3  (dot access — same as prop)
+{{count | add(8)}}        → 50 (arithmetic on a number)
+```
+
+No `parseJSON` filter is needed — the template engine detects typed values automatically.
+
+These also work inside script strings:
+
+```javascript
+pm.test("First user is {{users | first}}", () => { ... });
+pm.test("Retry count: {{config.retries}}", () => { ... });
+```
+
+## Tests & assertions
+- `ctx.test(name, fn)` (sync and async callbacks supported)
+- `ctx.test.skip(name, fn?)` — record a skipped test (the callback is **not** executed)
+- `ctx.test.fail(name)` — record an immediate failure
+- `ctx.test.index()` — zero-based index of the next test in execution order
+- `ctx.expect(value)`
+- `ctx.response.to.have.status()`
+- `ctx.response.to.have.header()`
+- `ctx.response.to.have.jsonBody()`
+- `ctx.response.to.have.jsonSchema(schema)` — validate the JSON body against a JSON Schema (dependency-free)
+- `ctx.response.to.be.ok` / `.success` / `.error` / `.clientError` / `.serverError` (getters or functions)
+
+> The `pm.*` aliases (`pm.test`, `pm.expect`, `pm.response.to.have.jsonSchema`, …) behave identically. See the [Postman Compatibility Matrix](postman-compatibility-matrix.md) for the full mapping.
+
+### Expect chain assertions
+| Method | Notes |
+|---|---|
+| `.to.equal()` | Strict equality |
+| `.to.eql()` | Deep equality |
+| `.to.deep.equal()` | Deep equality (alias) |
+| `.to.have.property()` | Object property check |
+| `.to.include()` | Contains value |
+| `.to.contain()` | Contains value (alias of `.include()`; strings, arrays, objects) |
+| `.to.match()` | Regex match |
+| `.to.be.a()` / `.to.be.an()` | Type checking |
+| `.to.have.lengthOf()` | Array/string length |
+| `.to.exist` | Not null/undefined |
+| `.to.have.members()` | Array members |
+| `.to.have.keys()` | Object keys |
+| `.to.have.string()` | String contains |
+| `.to.be.ok` | Truthy |
+| `.to.be.true` / `.false` / `.null` / `.undefined` / `.empty` | Value checks |
+| `.to.be.above()` / `.below()` / `.within()` | Numeric range |
+| `.not` | Negation chain |
+
+### How assertions affect pass/fail
+
+**In Test Suites**: When assertions are defined, they determine whether a request passes or fails. This is useful for testing expected error conditions:
+
+```javascript
+// This test expects a 404, so the request passes when 404 is returned
+ctx.test('Missing resource returns 404', () => {
+    ctx.expect(ctx.response.status).to.equal(404);
+});
+```
+
+**In Request Tester**: Assertions are displayed in the Tests tab. Pass/fail is shown with green/red indicators.
+
+## Send additional requests
+```javascript
+ctx.sendRequest({
+	url: '{{baseUrl}}/health',
+	method: 'GET'
+}, (err, res) => {
+	if (err) console.error(err);
+	console.log(res.status);
+});
+```
+
+## Example: pre‑request
+```javascript
+ctx.environment.set('timestamp', Date.now().toString());
+ctx.request.setHeader('X-Trace', ctx.environment.get('timestamp'));
+```
+
+## Example: validate JSON schema (simple)
+```javascript
+ctx.test('has user id', () => {
+	const json = ctx.response.json();
+	ctx.expect(json).to.have.property('id');
+});
+```
+
+## Example: validate JSON schema (built-in)
+```javascript
+ctx.test('user matches schema', () => {
+	ctx.response.to.have.jsonSchema({
+		type: 'object',
+		required: ['id', 'name'],
+		properties: {
+			id: { type: 'number' },
+			name: { type: 'string', minLength: 1 },
+			email: { type: 'string', pattern: '@' }
+		}
+	});
+});
+```
+The built-in validator is dependency-free and supports `type`, `properties`, `required`, `items`, `enum`, `additionalProperties`, `minimum`/`maximum`, `minLength`/`maxLength`, and `pattern`.
+
+## Example: post‑response
+```javascript
+ctx.test('status is 200', () => {
+	ctx.expect(ctx.response.status).to.equal(200);
+});
+
+const token = ctx.response.json().token;
+ctx.environment.set('authToken', token);
+```
+
+## Console output
+Use `console.log`, `console.warn`, `console.error` to send output to the Console tab.
+
+## Execution flow control (suite runner)
+- `ctx.execution.setNextRequest(name)` — Jump to a named request in the suite
+- `ctx.execution.setNextRequest(null)` — Stop suite execution after current request
+- `ctx.execution.skipRequest()` — Skip the HTTP call (pre-request scripts only)
+- `ctx.setNextRequest(name)` — Top-level alias
+
+These only affect suite runner execution. In the Request Tester, they are silently ignored.
+
+## Visualizer
+Render custom HTML visualizations from response data using Handlebars templates:
+
+```javascript
+const template = `
+<table>
+  <tr><th>Name</th><th>Status</th></tr>
+  {{#each items}}
+  <tr><td>{{name}}</td><td>{{status}}</td></tr>
+  {{/each}}
+</table>`;
+
+pm.visualizer.set(template, { items: pm.response.json().data });
+```
+
+The rendered output appears in the **Visualize** tab of the Request Tester response panel.
+
+## Sandbox globals
+- `xml2Json(xmlString)` — Convert XML to JSON object
+- `jsonStringify(value)` — Alias for `JSON.stringify()`
+- `jsonParse(string)` — Alias for `JSON.parse()`
+
+## CryptoJS
+Full CryptoJS library available in scripts:
+- **Hashing**: SHA1, SHA256, SHA384, SHA512, SHA3, MD5, RIPEMD160
+- **HMAC**: HmacSHA1, HmacSHA256, HmacSHA384, HmacSHA512, HmacMD5
+- **Encryption**: AES, DES, TripleDES (encrypt/decrypt)
+- **Key derivation**: PBKDF2
+- **Encoding**: Hex, Base64, Utf8, Latin1, Utf16
+
+```javascript
+// Hash
+const hash = CryptoJS.SHA256('hello').toString();
+
+// HMAC
+const hmac = CryptoJS.HmacSHA256('message', 'secret').toString();
+
+// AES encryption
+const encrypted = CryptoJS.AES.encrypt('data', 'passphrase').toString();
+const decrypted = CryptoJS.AES.decrypt(encrypted, 'passphrase').toString(CryptoJS.enc.Utf8);
+
+// PBKDF2
+const key = CryptoJS.PBKDF2('password', 'salt', { keySize: 256/32, iterations: 1000 });
+```
+
+## Cookies API
+- `ctx.cookies.toObject()` — Flat `{name: value}` map of all cookies
+- `ctx.cookies.jar()` — Cookie jar with `set()`, `get()`, `clear()`, `getAll()`
+- `ctx.response.cookies` — Response cookies array
+- `ctx.response.cookie(name)` — Get specific cookie
+- `ctx.response.hasCookie(name)` — Check cookie exists
+
+## Script API IntelliSense
+
+The pre-request and post-response script editors provide context-aware code completion for the full scripting API. Type `hf.`, `pm.`, or `ctx.` followed by `.` to get suggestions:
+
+| Path | Suggestions |
+|---|---|
+| `hf.` | `variables`, `environment`, `globals`, `collectionVariables`, `request`, `response`, `cookies`, `test()`, `expect()`, `sendRequest()`, `info` |
+| `hf.variables.` | `get(key)`, `set(key, value)`, `has(key)`, `unset(key)`, `clear()`, `toObject()`, `replaceIn(str)` |
+| `hf.environment.` | `get(key)`, `set(key, value)`, `has(key)`, `name`, … |
+| `hf.request.` | `url`, `method`, `headers`, `body`, `params`, `query` |
+| `hf.request.headers.` | `add()`, `get()`, `has()`, `remove()`, `update()`, `upsert()` |
+| `hf.response.` | `status`, `json()`, `text()`, `getHeader()`, `to` |
+| `hf.response.to.have.` | `status()`, `header()`, `body()`, `jsonBody()` |
+| `hf.response.to.be.` | `ok()`, `error()`, `clientError()`, `serverError()` |
+| `expect(x).to.` | `equal()`, `include()`, `property()`, `above()`, `below()`, `not`, `ok`, `empty`, … |
+
+Methods with parameters include snippet tab-stops for quick filling.
+
+## Template Engine in Scripts
+
+The same template engine available in the Request Tester (filters, expressions, dynamic variables) works directly in pre-request and post-response script source code. All `{{variable}}` templates are **automatically resolved** before the script executes — no need to wrap strings in `replaceIn()`.
+
+### Automatic pre-resolution
+
+HTTP Forge runs the full 5-step resolution pipeline on your script source before VM execution:
+
+1. **Dynamic variables**: `{{$guid}}`, `{{$randomInt(1, 100)}}`
+2. **Filter chains**: `{{username | upper}}`, `{{price | add(tax)}}`
+3. **Variable lookup**: `{{baseUrl}}` from environment/collection/globals
+4. **JavaScript expressions**: `{{price * quantity}}`
+5. **Original text**: unresolved placeholders left as-is
+
+This means you can write templates directly in your script code:
+
+```javascript
+// Templates auto-resolve before the script runs
+const url = '{{baseUrl}}/api/users';
+const token = '{{authToken | trim}}';
+const id = '{{$guid}}';
+const greeting = '{{firstName + " " + lastName}}';
+
+console.log(url);  // → 'https://api.example.com/api/users'
+```
+
+### Using filters in scripts
+```javascript
+// Filters work directly in script source strings
+ctx.request.url = '{{baseUrl}}/api/{{resourceId | upper}}';
+ctx.request.setHeader('Authorization', 'Basic {{credentials | btoa}}');
+
+// Dynamic variables with environment-resolved arguments
+const id = '{{$randomInt(minId, maxId)}}';
+ctx.variables.set('requestId', id);
+```
+
+### `replaceIn()` is still available
+
+The `replaceIn()` method remains available for **runtime dynamic strings** — strings constructed at execution time that contain `{{}}` patterns:
+
+```javascript
+// replaceIn() is needed when the template string is built at runtime
+const templateStr = hf.variables.get('urlTemplate'); // e.g. '{{baseUrl}}/{{path}}'
+const resolved = hf.variables.replaceIn(templateStr);
+```
+
+> **Double-resolution is safe**: If you call `replaceIn()` on a string that was already pre-resolved, it simply returns the string unchanged because there are no `{{}}` markers left to process.
+
+## WebSocket and Socket.IO scripts
+
+Headless WebSocket/Socket.IO runs expose a JSON transcript as the response body:
+
+```js
+pm.test('handshake ok', () => pm.expect(pm.response.code).to.equal(101));
+pm.test('received a frame', () => {
+  const transcript = pm.response.json();
+  pm.expect(transcript.protocol).to.equal('websocket'); // or 'socketio'
+  pm.expect(transcript.frames.length).to.be.greaterThan(0);
+  pm.expect(transcript.frames.some(f => f.direction === 'in')).to.be.true;
+});
+```
+
+The transcript contains `protocol`, `frames` (with `direction`, `type`, `data`, `encoding`, `event`, `args`, `ack`, `size`, `time`), and `close` (`code`, `reason`, `wasClean`).

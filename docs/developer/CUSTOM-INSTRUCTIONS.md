@@ -171,7 +171,7 @@ export class RequestExecutionHandler implements IMessageHandler {
         collectionId: context.collectionId,
         requestId: context.requestId || message.requestId,
         environmentId: this.contextProvider.getEnvironmentId(),
-        localVariables: message.localVariables
+        nonGlobalVariables: message.nonGlobalVariables
       };
 
       this.logger.debug('[RequestExecutionHandler] Executing request', {
@@ -456,7 +456,7 @@ export interface ExecuteRequestInput {
   collectionId: string;
   requestId: string;
   environmentId?: string;
-  localVariables?: Record<string, string>;
+  nonGlobalVariables?: Record<string, string>;
 }
 
 /**
@@ -556,7 +556,7 @@ export class ExecuteRequestCommand implements IExecuteRequestCommand {
         collectionId: input.collectionId,
         requestId: input.requestId,
         environmentId: input.environmentId,
-        localVariables: input.localVariables
+        nonGlobalVariables: input.nonGlobalVariables
       });
 
       // 3️⃣ TRANSFORM RESULT
@@ -642,7 +642,7 @@ export interface RequestExecutionOptions {
   collectionId: string;
   requestId: string;
   environmentId?: string;
-  localVariables?: Record<string, string>;
+  nonGlobalVariables?: Record<string, string>;
 }
 
 export interface ExecutionResult {
@@ -696,7 +696,7 @@ export class RequestOrchestrator implements IRequestOrchestrator {
       let variables = this.mergeVariables(
         collection.variables,
         {},  // environment variables (if loaded)
-        options.localVariables
+        options.nonGlobalVariables
       );
 
       this.logger.debug('[RequestOrchestrator] Merged variables', {

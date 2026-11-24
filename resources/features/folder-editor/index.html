@@ -102,11 +102,27 @@
 
         <div class="footer">
             <button class="btn btn-secondary" id="btn-reset">Reset</button>
+            <button class="btn btn-secondary" id="btn-close">Close</button>
             <button class="btn btn-primary" id="btn-save">Save Folder</button>
+        </div>
+
+        <!-- Unsaved changes modal -->
+        <div id="unsaved-modal" class="modal-overlay hidden">
+            <div class="modal-dialog">
+                <div class="modal-title">Unsaved Changes</div>
+                <div class="modal-body">You have unsaved changes. What would you like to do?</div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="modal-save">Save</button>
+                    <button class="btn btn-secondary" id="modal-discard">Discard</button>
+                    <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="{{monacoViewerUri}}"></script>
+    <script type="module" src="{{scriptCompletionUri}}"></script>
+    <script type="module" src="{{templateCompletionUri}}"></script>
     <script src="{{scriptUri}}"></script>
 </body>
 </html>

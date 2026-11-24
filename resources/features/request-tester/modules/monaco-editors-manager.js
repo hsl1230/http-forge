@@ -56,9 +56,13 @@ function createMonacoEditorsManager({
     onBodyChange,
     onScriptChange,
     onWsMessageChange,
+    onOpenModule,
     getDefaultPreRequestScript,
-    getDefaultPostResponseScript
+    getDefaultPostResponseScript,
+    globalsTypes
 }) {
+    // Store globals types for Monaco IntelliSense (may be set later via setGlobalsTypes)
+    let _globalsTypes = globalsTypes || '';
     // Editor instances
     let requestBodyEditor = null;
     let wsMessageEditor = null;
@@ -191,6 +195,43 @@ function createMonacoEditorsManager({
      */
     function createEditors() {
         try {
+            // Disable semantic module resolution for script editors. Monaco's
+            // JavaScript/TypeScript language service can otherwise try to open
+            // relative require() targets as files in the webview, which fails
+            // with "The editor could not be opened because the file was not
+            // found".
+            if (monaco?.languages?.typescript?.javascriptDefaults) {
+                monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                    noSemanticValidation: true,
+                    noSyntaxValidation: false,
+                    noSuggestionDiagnostics: true
+                });
+                // Keep HTTP Forge's own completion provider as the source of truth for
+                // pm/hf/ctx. Avoid Monaco's default JavaScript library suggestions,
+                // which can include members that do not exist on HTTP Forge's runtime
+                // response object.
+                monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+                    target: monaco.languages.typescript.ScriptTarget.ES2020,
+                    module: monaco.languages.typescript.ModuleKind.CommonJS,
+                    allowJs: true,
+                    noLib: false,
+                    strict: false
+                });
+
+                // Register HTTP Forge script globals (_ , moment, CryptoJS, etc.)
+                // so the Monaco editor provides IntelliSense for them.
+                if (_globalsTypes) {
+                    try {
+                        monaco.languages.typescript.javascriptDefaults.addExtraLib(
+                            _globalsTypes,
+                            'http-forge-globals.d.ts'
+                        );
+                    } catch (e) {
+                        console.warn('[MonacoEditorsManager] Could not register globals types:', e && e.message);
+                    }
+                }
+            }
+
             // Double-check Monaco is fully available
             if (typeof monaco === 'undefined' || !monaco.editor || typeof monaco.editor.create !== 'function') {
                 console.error('[MonacoEditorsManager] Monaco editor not fully loaded. monaco:', typeof monaco,
@@ -203,6 +244,37 @@ function createMonacoEditorsManager({
                     console.error('[MonacoEditorsManager] Failed to create editors after max retries');
                 }
                 return;
+            }
+
+            function getRequiredModuleAtPosition(model, position) {
+                if (!model || !position) return null;
+                const line = model.getLineContent(position.lineNumber);
+                const regex = /require\\s*\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)/g;
+                let match;
+                while ((match = regex.exec(line)) !== null) {
+                    const moduleName = match[1];
+                    const moduleIndex = line.indexOf(moduleName, match.index);
+                    const quoteStart = moduleIndex - 1;
+                    const quoteEnd = moduleIndex + moduleName.length + 1;
+                    const column = position.column - 1;
+                    if (column >= quoteStart && column < quoteEnd) {
+                        return moduleName;
+                    }
+                }
+                return null;
+            }
+
+            function attachModuleOpener(editor, phase) {
+                if (!editor || typeof editor.onMouseDown !== 'function') return;
+                editor.onMouseDown((event) => {
+                    const moduleName = getRequiredModuleAtPosition(editor.getModel(), event.target?.position);
+                    if (!moduleName) return;
+                    if (event.event?.preventDefault) event.event.preventDefault();
+                    if (event.event?.stopPropagation) event.event.stopPropagation();
+                    if (typeof onOpenModule === 'function') {
+                        onOpenModule(moduleName, phase);
+                    }
+                });
             }
 
             // Request body editor (raw body)
@@ -292,13 +364,15 @@ function createMonacoEditorsManager({
                 preRequestScriptEditor = monaco.editor.create(elements.preRequestScriptEditor, {
                     ...DEFAULT_EDITOR_CONFIG,
                     value: '',
-                    language: 'javascript'
+                    language: 'javascript',
+                    multiCursorModifier: 'ctrlCmd'
                 });
 
                 preRequestScriptEditor.onDidChangeModelContent(() => {
                     state.scripts.preRequest = preRequestScriptEditor.getValue();
                     if (onScriptChange) onScriptChange('preRequest');
                 });
+                attachModuleOpener(preRequestScriptEditor, 'pre-request');
             }
 
             // Post-response script editor
@@ -307,13 +381,15 @@ function createMonacoEditorsManager({
                 postResponseScriptEditor = monaco.editor.create(elements.postResponseScriptEditor, {
                     ...DEFAULT_EDITOR_CONFIG,
                     value: '',
-                    language: 'javascript'
+                    language: 'javascript',
+                    multiCursorModifier: 'ctrlCmd'
                 });
 
                 postResponseScriptEditor.onDidChangeModelContent(() => {
                     state.scripts.postResponse = postResponseScriptEditor.getValue();
                     if (onScriptChange) onScriptChange('postResponse');
                 });
+                attachModuleOpener(postResponseScriptEditor, 'post-response');
             }
 
             // Register GraphQL language (syntax highlighting, brackets, etc.)
@@ -321,6 +397,9 @@ function createMonacoEditorsManager({
 
             // Register completion providers (IntelliSense for {{ }} templates + hf/pm/ctx script API)
             registerTemplateCompletionProviders(state);
+            if (typeof registerTemplateHoverProviders === 'function') {
+                registerTemplateHoverProviders(state);
+            }
             registerScriptCompletionProviders();
 
             // Mark as ready after Monaco finishes internal setup
@@ -660,7 +739,26 @@ function createMonacoEditorsManager({
         if (responseBodyEditor) safeSetEditorValue(responseBodyEditor, '');
     }
 
+    /**
+     * Register HTTP Forge script globals type definitions for Monaco IntelliSense.
+     * Can be called before or after editors are created.
+     */
+    function setGlobalsTypes(content) {
+        _globalsTypes = content || '';
+        if (monaco?.languages?.typescript?.javascriptDefaults && _globalsTypes) {
+            try {
+                monaco.languages.typescript.javascriptDefaults.addExtraLib(
+                    _globalsTypes,
+                    'http-forge-globals.d.ts'
+                );
+            } catch (e) {
+                console.warn('[MonacoEditorsManager] Could not register globals types:', e && e.message);
+            }
+        }
+    }
+
     return {
+        setGlobalsTypes,
         initialize,
         onReady,
         isReady: () => isReady,

@@ -80,11 +80,13 @@ export class RequestExecutionHandler implements IMessageHandler {
       return;
     }
 
+    this.scriptExecutor?.beginRun?.();
     try {
       await this.executeWithCollectionContext(request, context!, environment, messenger);
     } catch (error: any) {
       this.handleRequestError(error, messenger);
     } finally {
+      this.scriptExecutor?.endRun?.();
       this.currentAbortController = undefined;
     }
 
@@ -112,6 +114,17 @@ export class RequestExecutionHandler implements IMessageHandler {
 
     const collectionService = getServiceContainer().collection;
     const collection = collectionService.getCollection(context.collectionId!);
+
+    // Lazy-loaded collections keep body.json (and other heavy fields) off the
+    // initial tree. Hydrate the request before execution so a body stored in
+    // body.json is actually sent even if the open panel still holds a light
+    // cached copy.
+    const hydratedRequest = context?.requestId && collection
+      ? collectionService.findRequest(collection.id, context.requestId)
+      : undefined;
+    if (hydratedRequest && context?.request) {
+      context.request = { ...context.request, body: hydratedRequest.body ?? context.request.body };
+    }
 
     // Find the request in the collection to get folder scripts chain
     const requestData = findRequestInCollection(collection, context.requestId!);
@@ -143,6 +156,13 @@ export class RequestExecutionHandler implements IMessageHandler {
       onConsoleOutput,
       collection?.name || context.collectionName || 'standalone'
     );
+
+    if (collection) {
+      executorWithCollectionName.setCollectionVariables({
+        ...(collection.variables || {}),
+        ...collectionService.getCollectionVariableLocals(collection.id)
+      });
+    }
 
     this.currentAbortController = new AbortController();
 
@@ -177,7 +197,7 @@ export class RequestExecutionHandler implements IMessageHandler {
       headers: uiRequest.headers as Record<string, string> | undefined,
       query: uiRequest.query as Record<string, string> | undefined,
       params: (uiRequest.params as Record<string, string> | undefined) || resolveParamsToStrings(context?.request?.params),
-      body: uiRequest.body !== null && uiRequest.body !== undefined ? uiRequest.body : context?.request?.body,
+      body: uiRequest.body !== null && uiRequest.body !== undefined ? uiRequest.body : (hydratedRequest?.body ?? context?.request?.body),
       scripts: uiRequest.scripts || context?.request?.scripts,
       settings: uiRequest.settings || context?.request?.settings,
       // include authorization info so CollectionRequestExecutor can apply auth
@@ -190,6 +210,9 @@ export class RequestExecutionHandler implements IMessageHandler {
       {}, // variables - can be extended
       this.currentAbortController.signal
     );
+
+    this.syncCollectionVariables(result.modifiedCollectionVariables, collection?.id);
+    this.postVariablesUpdated(result, environment, collection?.id, messenger);
 
     // Extract cookies from response headers (only if headers exist)
     const domain = this.extractDomain(result.executedRequest.url);
@@ -245,6 +268,69 @@ export class RequestExecutionHandler implements IMessageHandler {
           visualizerData: result.visualizerData
         }
       }
+    });
+  }
+
+  /**
+   * Persist collection variables written by collection/folder/request scripts.
+   *
+   * `modifiedCollectionVariables` is the full live collection scope, so values
+   * removed with pm.collectionVariables.unset() are deleted from the local store
+   * as well. Collection file values themselves are never mutated.
+   */
+  private syncCollectionVariables(
+    modifiedCollectionVariables: Record<string, string> | undefined,
+    collectionId: string | undefined
+  ): void {
+    if (!modifiedCollectionVariables || !collectionId) {
+      return;
+    }
+
+    const collectionService = getServiceContainer().collection;
+    const existingLocals = collectionService.getCollectionVariableLocals(collectionId);
+    const fileVariables = collectionService.getCollectionVariables(collectionId);
+
+    for (const key of Object.keys(existingLocals)) {
+      if (!(key in modifiedCollectionVariables)) {
+        collectionService.deleteCollectionVariable(collectionId, key);
+      }
+    }
+
+    for (const [key, value] of Object.entries(modifiedCollectionVariables)) {
+      // Do not shadow an unchanged collection-file value with a duplicate local.
+      // That way editing the collection file still wins on the next preview.
+      if (key in fileVariables && fileVariables[key] === value) {
+        collectionService.deleteCollectionVariable(collectionId, key);
+      } else {
+        collectionService.setCollectionVariable(collectionId, key, value);
+      }
+    }
+  }
+
+  /**
+   * Refresh the webview's variable scopes after scripts mutate them so hover
+   * tooltips and template completion see the values that were just written.
+   */
+  private postVariablesUpdated(
+    result: { requestLocalWrites?: Record<string, string> },
+    environment: string,
+    collectionId: string | undefined,
+    messenger: IWebviewMessenger
+  ): void {
+    const collectionService = getServiceContainer().collection;
+    const collectionVariables = collectionId
+      ? {
+        ...collectionService.getCollectionVariables(collectionId),
+        ...collectionService.getCollectionVariableLocals(collectionId)
+      }
+      : {};
+
+    messenger.postMessage({
+      command: 'variablesUpdated',
+      environmentVariables: this.envConfigService.getResolvedEnvironment(environment)?.variables || {},
+      collectionVariables,
+      globalVariables: this.envConfigService.getGlobalVariables(),
+      sessionVariables: result.requestLocalWrites || {}
     });
   }
 

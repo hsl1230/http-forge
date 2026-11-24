@@ -17,12 +17,12 @@ This works identically in the **VS Code extension** and the **`@http-forge/cli`*
 
 | Alias (default) | Provider | Token syntax | Authentication source | SDK required |
 |---|---|---|---|---|
-| `aws` | AWS Secrets Manager | `{{secret:aws/<secretId>[#jsonField]}}` | SDK chain (configured `profile`, env, `~/.aws`, IAM role, ECS) | `@aws-sdk/client-secrets-manager` |
-| `azure` | Azure Key Vault | `{{secret:azure/<name>[/<version>]}}` | `DefaultAzureCredential` (env, managed identity, CLI) | `@azure/keyvault-secrets`, `@azure/identity` |
-| `gcp` | Google Secret Manager | `{{secret:gcp/<name>[/versions/<n>]}}` | Application Default Credentials | `@google-cloud/secret-manager` |
-| `vault` | HashiCorp Vault (KV v2) | `{{secret:vault/<path>[#field]}}` | `VAULT_TOKEN` + `VAULT_ADDR` | none (built-in `fetch`) |
-| `op` | 1Password | `{{secret:op/<item>/<field>}}` | `OP_SERVICE_ACCOUNT_TOKEN`, configured desktop `account`, or `op` CLI session | optional `@1password/sdk` (0.5+ for desktop account) |
-| `doppler` | Doppler | `{{secret:doppler/<NAME>}}` | `DOPPLER_TOKEN` service token | none (built-in `https`) |
+| `aws` | AWS Secrets Manager | `{{secret:aws/<secretId>[.<jsonPath>\|#jsonField]}}` | SDK chain (configured `profile`, env, `~/.aws`, IAM role, ECS) | `@aws-sdk/client-secrets-manager` |
+| `azure` | Azure Key Vault | `{{secret:azure/<name>[/<version>][.<jsonPath>]}}` | `DefaultAzureCredential` (env, managed identity, CLI) | `@azure/keyvault-secrets`, `@azure/identity` |
+| `gcp` | Google Secret Manager | `{{secret:gcp/<name>[/versions/<n>][.<jsonPath>]}}` | Application Default Credentials | `@google-cloud/secret-manager` |
+| `vault` | HashiCorp Vault (KV v2) | `{{secret:vault/<path>[.<jsonPath>\|#field]}}` | `VAULT_TOKEN` + `VAULT_ADDR` | none (built-in `fetch`) |
+| `op` | 1Password | `{{secret:op/<item>/<field>[.<jsonPath>]}}` | `OP_SERVICE_ACCOUNT_TOKEN`, configured desktop `account`, or `op` CLI session | optional `@1password/sdk` (0.5+ for desktop account) |
+| `doppler` | Doppler | `{{secret:doppler/<NAME>[.<jsonPath>]}}` | `DOPPLER_TOKEN` service token | none (built-in `https`) |
 
 All six built-in aliases are **pre-registered out of the box** — you can use
 `{{secret:aws/...}}` etc. with zero configuration as long as the matching
@@ -226,7 +226,7 @@ For an SSO profile, add `--profile my-profile --region us-east-1`.
 {{secret:aws/myapp/prod#db_password}}
 ```
 
-- Append `#field` to read one field from a JSON secret.
+- For JSON secrets, use dot-notation (`#field` also works for top-level fields): `{{secret:aws/myapp/prod.db_password}}` or `{{secret:aws/myapp/prod#db_password}}`.
 - In CI, prefer OIDC role assumption over long-lived access keys (see [CI/CD](#cicd)).
 
 ### Azure Key Vault sign-in
@@ -496,8 +496,8 @@ vault kv get secret/myapp/prod
 {{secret:vault/myapp/prod}}
 ```
 
-- With no `#field`, HTTP Forge returns the `value` key if it exists, or the only key in the
-  secret.
+- With no path, HTTP Forge returns the `value` key if it exists, or the only key in the
+  secret. Use dot-notation or `#field` to extract a specific field: `{{secret:vault/myapp/prod.password}}` or `{{secret:vault/myapp/prod#password}}`.
 - In CI, inject a short-lived token from the CI secret store, or authenticate with AppRole
   before running the CLI.
 
@@ -931,6 +931,11 @@ npm install @1password/sdk                       # 1Password service account / d
 
 ### In the VS Code extension
 
+> **Important:** The extension does **not** bundle cloud SDKs. You must install them in
+> your project's module path before secret resolution will work. If a SDK is missing, the
+> resolver throws a clear error (e.g. `requires @google-cloud/secret-manager`) and logs it
+> to the **HTTP Forge** output channel.
+
 The extension loads SDKs from your **project's** `node_modules`, resolved through the first
 `scripts.modulePaths` entry that contains a `package.json`. Install the SDK there:
 
@@ -1014,7 +1019,7 @@ variable (see each provider below), following this precedence:
   extension host environment. If omitted, `AWS_PROFILE` is used.
 - **`region`** falls back to `AWS_DEFAULT_REGION` → `AWS_REGION`, then the profile's region.
 - **Token:** `{{secret:aws/<secretId>}}` returns the raw `SecretString`.
-- **JSON field:** for a JSON secret, append `#field` → `{{secret:aws/myapp/prod#db_password}}`.
+- **JSON field:** for a JSON secret, use dot-notation or `#field` → `{{secret:aws/myapp/prod.db_password}}` or `{{secret:aws/myapp/prod#db_password}}`.
 
 ### Azure Key Vault
 
@@ -1053,7 +1058,7 @@ variable (see each provider below), following this precedence:
   [HashiCorp Vault sign-in](#hashicorp-vault-sign-in). **`address`** falls back to `VAULT_ADDR`
   (default `http://127.0.0.1:8200`).
 - **`mountPath`** defaults to `secret`. **`namespace`** (Enterprise/HCP) is sent as `X-Vault-Namespace` and falls back to `VAULT_NAMESPACE`.
-- **Token:** `{{secret:vault/<path>}}` returns the `value` key; pin a field with `#field` → `{{secret:vault/myapp/prod#db_password}}`.
+- **Token:** `{{secret:vault/<path>}}` returns the `value` key; pin a field with dot-notation or `#field` → `{{secret:vault/myapp/prod.db_password}}` or `{{secret:vault/myapp/prod#db_password}}`.
 
 ### 1Password
 
@@ -1104,8 +1109,10 @@ The module can export any of:
 A factory receives `{ alias, options }` and returns an object with `providerName` and an async
 `resolve(path)` method. `providerName` is used for diagnostics; if omitted, the alias is used.
 Return a string on success, `undefined` when the secret does not exist, and throw on
-authentication or transport errors. The path after the alias — including any `#field` suffix —
-is passed to `resolve(path)` unchanged, so the module decides how to parse it.
+authentication or transport errors. The path after the alias — including any `#field` suffix
+or `.json.path` — is passed to `resolve(path)` unchanged, so the module decides how to parse it.
+For custom providers, dot-notation JSON path resolution is handled automatically if the
+returned value is a JSON string.
 
 ```js
 // .http-forge/assets/lib/corp-secrets.js
@@ -1222,6 +1229,149 @@ settings, so they work as soon as the matching credentials/env vars are present:
 Add a `secrets` block only when you need to pin a region/URL/project or register extra aliases.
 Custom provider aliases are never pre-registered; define them explicitly as shown in
 [Custom providers](#custom-providers).
+
+---
+
+## JSON path resolution (secret bundling)
+
+A single secret can store a bundled JSON object. Use **dot-notation** to extract a
+nested value instead of fetching the whole secret:
+
+```http
+# Secret stored as: { "db": { "password": "s3cret", "port": 5432 }, "items": [{ "id": 1, "name": "a" }] }
+
+Authorization: Bearer {{secret:gcp/app-config.db.password}}
+X-Db-Port: {{secret:gcp/app-config.db.port}}
+X-First-Item: {{secret:gcp/app-config.items[0].name}}
+```
+
+Supported path syntax:
+
+| Syntax | Example | Result |
+|---|---|---|
+| Top-level field | `secret-name.field` | `parsed.field` |
+| Nested field | `secret-name.db.password` | `parsed.db.password` |
+| Array index | `secret-name.items[0].name` | `parsed.items[0].name` |
+| Deeply nested | `secret-name.a.b[2].c` | `parsed.a.b[2].c` |
+
+If the path doesn't exist in the JSON, the token is left unresolved (and a warning is logged).
+
+### Provider support
+
+JSON path resolution is implemented in the shared `BaseSecretResolver` base class, so it works
+**identically for all providers**. The only requirement is that the secret value must be a
+valid JSON string.
+
+| Provider | JSON path (`.`) | Legacy `#field` | Version specifier |
+|---|---|---|---|
+| AWS Secrets Manager | ✅ | ✅ | ❌ |
+| Azure Key Vault | ✅ | ❌ (use `.`) | ✅ (`/<version>`) |
+| Google Secret Manager | ✅ | ❌ (use `.`) | ✅ (`/versions/<n>`) |
+| HashiCorp Vault (KV v2) | ✅ | ✅ | ❌ |
+| 1Password | ✅ | ❌ (use `.`) | ❌ |
+| Doppler | ✅ | ❌ (use `.`) | ❌ |
+| Custom | ✅ | Depends on implementation | Depends |
+
+- **JSON path (`.`)**: Universal — works with all providers. Use dot-notation for nested access: `secret-name.db.password`, `items[0].name`.
+- **Legacy `#field`**: Only AWS and Vault support this. It extracts a top-level field from a JSON secret. Prefer dot-notation for new usage.
+- **Version specifier**: Only Azure and GCP support pinning a specific secret version in the path.
+
+### Legacy `#field` syntax
+
+AWS and Vault historically used `#field` to extract a top-level field from a JSON secret:
+
+```http
+# AWS: reads the "db_password" field from the JSON secret "myapp/prod"
+{{secret:aws/myapp/prod#db_password}}
+
+# Vault: reads the "password" field from the KV v2 data
+{{secret:vault/secret/myapp/prod#password}}
+```
+
+This is equivalent to dot-notation:
+
+```http
+{{secret:aws/myapp/prod.db_password}}   # same as #db_password
+{{secret:vault/secret/myapp/prod.password}}  # same as #password
+```
+
+Both syntaxes are supported. **Prefer dot-notation** for new usage — it supports nested
+paths and array indices, while `#field` only accesses top-level keys.
+
+### Combining with provider-specific version syntax
+
+Some providers (GCP, Azure) support version specifiers using `/`. When combining with
+JSON path dot-notation, **the version specifier must come before the dot**:
+
+```
+# GCP — latest version, JSON field:
+{{secret:gcp/http-forge-bundle.sit.CI_PP_SQD05_TS018_PASSWORD}}
+
+# GCP — specific version, JSON field:
+{{secret:gcp/http-forge-bundle/versions/3.sit.CI_PP_SQD05_TS018_PASSWORD}}
+
+# Azure — pinned version, JSON field:
+{{secret:azure/my-secret/1.0.db.password}}
+```
+
+Rule: version specifier (`/versions/N` or `/<version>`) comes first, then the dot, then the JSON path.
+
+### Caching
+
+Raw secret values are **cached in memory** with a TTL (default 5 minutes). Multiple JSON
+path queries on the same secret (e.g. `db.password` and `db.port`) share a single fetch.
+The cache is cleared automatically at the start of each run (request, collection, or suite)
+so stale values are never reused across runs.
+
+You can also clear the cache manually via the provider's `clearCache()` method.
+
+### Backward compatibility
+
+The legacy `#field` syntax is still supported:
+
+```http
+{{secret:aws/myapp/prod#db_password}}   # equivalent to {{secret:aws/myapp/prod.db_password}}
+{{secret:vault/myapp/prod#password}}     # equivalent to {{secret:vault/myapp/prod.password}}
+```
+
+Simple string secrets (no JSON) work exactly as before — the value is returned as-is:
+
+```http
+{{secret:aws/my-api-key}}   # returns the raw string
+```
+
+---
+
+## TLS certificates (`certPath`, `keyPath`, `caPath`, `pfxPath`)
+
+Certificate file paths in `http-forge.config.json` (under `request.certificates`) and
+per-request TLS settings can contain `{{secret:...}}` tokens. The resolved value is
+treated as **inline PEM/binary content** — no file on disk is needed:
+
+```json
+{
+  "request": {
+    "certificates": [
+      {
+        "host": "*.dev.n.svc.tv.telus.net",
+        "certPath": "{{secret:aws/my-cert}}",
+        "keyPath": "{{secret:aws/my-key}}",
+        "enabled": true
+      }
+    ]
+  }
+}
+```
+
+- If the path contains a `{{secret:...}}` token, HTTP Forge resolves it via the
+  secret provider and uses the returned value directly as the certificate content.
+- If the path is a regular file path, it is read from disk as before.
+- `caPath`, `pfxPath`, and `passphrase` also support secret tokens.
+- The WebSocket client (`wss://`) does **not** yet support secret tokens in TLS
+  settings (file paths only).
+
+This lets you store sensitive certificate data in your secret manager alongside
+other credentials, keeping it out of the repository.
 
 ---
 
