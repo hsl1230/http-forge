@@ -43,4 +43,5 @@ export interface CommandContext {
 
   // Tree views (for selection/reveal)
   collectionsView: vscode.TreeView<CollectionTreeItem>;
+  testSuitesView: vscode.TreeView<any>;
 }

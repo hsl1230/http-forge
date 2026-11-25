@@ -104,7 +104,9 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
 
   const testSuitesView = vscode.window.createTreeView('httpForge.testSuites', {
     treeDataProvider: testSuitesTreeProvider,
-    showCollapseAll: true
+    showCollapseAll: true,
+    canSelectMany: true,
+    dragAndDropController: testSuitesTreeProvider
   });
 
   const environmentsView = vscode.window.createTreeView('httpForge.environments', {
@@ -152,7 +154,8 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
     testSuitesTreeProvider,
     discoveredApisTreeProvider,
     requestGitHistoryProvider,
-    collectionsView
+    collectionsView,
+    testSuitesView
   } satisfies CommandContext);
 
   // Register @http-forge chat participant for GitHub Copilot

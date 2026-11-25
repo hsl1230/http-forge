@@ -2,7 +2,7 @@
   "name": "http-forge",
   "displayName": "HTTP Forge - The API Platform Built for AI Agents",
   "description": "Free Postman/Bruno/Thunder Client alternative. Run API tests in VS Code, CI/CD, and let AI agents drive your entire test lifecycle via MCP. 60+ MCP tools, OpenAPI 3.0, headless CLI, TypeScript codegen - all local, no cloud account.",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "publisher": "henry-huang",
   "icon": "resources/http-forge-icon.png",
   "license": "MIT",
@@ -386,6 +386,21 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "httpForge.newTestSuiteFolder",
+        "title": "New Folder",
+        "category": "HTTP Forge"
+      },
+      {
+        "command": "httpForge.renameTestSuiteFolder",
+        "title": "Rename Folder",
+        "category": "HTTP Forge"
+      },
+      {
+        "command": "httpForge.deleteTestSuiteFolder",
+        "title": "Delete Folder",
+        "category": "HTTP Forge"
+      },
+      {
         "command": "httpForge.showConsole",
         "category": "HTTP Forge",
         "title": "Show Console"
@@ -536,6 +551,18 @@
         "command": "http-forge.importRequest",
         "title": "Import Request",
         "category": "HTTP Forge"
+      },
+      {
+        "command": "httpForge.runTestSuitesInFolder",
+        "title": "Run All Suites in Folder"
+      },
+      {
+        "command": "httpForge.runSelectedTestSuites",
+        "title": "Run Selected Suites"
+      },
+      {
+        "command": "httpForge.runAllTestSuites",
+        "title": "Run All Test Suites"
       }
     ],
     "menus": {
@@ -637,6 +664,11 @@
           "command": "httpForge.newTestSuite",
           "when": "view == httpForge.testSuites",
           "group": "navigation@2"
+        },
+        {
+          "command": "httpForge.newTestSuiteFolder",
+          "when": "view == httpForge.testSuites",
+          "group": "navigation@3"
         },
         {
           "command": "httpForge.discoverApis",
@@ -839,6 +871,36 @@
           "command": "httpForge.checkDiscoveryDrift",
           "when": "view == httpForge.discoveredApis",
           "group": "3_maintain@1"
+        },
+        {
+          "command": "httpForge.runTestSuitesInFolder",
+          "when": "view == httpForge.testSuites",
+          "group": "1_run@1"
+        },
+        {
+          "command": "httpForge.newTestSuiteFolder",
+          "when": "view == httpForge.testSuites",
+          "group": "1_create@1"
+        },
+        {
+          "command": "httpForge.renameTestSuiteFolder",
+          "when": "view == httpForge.testSuites && viewItem == testSuiteFolder",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "httpForge.deleteTestSuiteFolder",
+          "when": "view == httpForge.testSuites && viewItem == testSuiteFolder",
+          "group": "3_delete@1"
+        },
+        {
+          "command": "httpForge.runAllTestSuites",
+          "when": "view == httpForge.testSuites",
+          "group": "1_run@2"
+        },
+        {
+          "command": "httpForge.runSelectedTestSuites",
+          "when": "view == httpForge.testSuites",
+          "group": "1_run@0"
         }
       ]
     },
@@ -905,7 +967,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "@http-forge/core": "^1.0.8",
+    "@http-forge/core": "^1.0.9",
     "cheerio": "^1.1.2",
     "uuid": "^13.0.0",
     "xml2js": "^0.6.2",

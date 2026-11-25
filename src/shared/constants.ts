@@ -114,6 +114,9 @@ export const COMMAND_IDS = {
     runTestSuite: 'httpForge.runTestSuite',
     duplicateTestSuite: 'httpForge.duplicateTestSuite',
     refreshTestSuites: 'httpForge.refreshTestSuites',
+    newTestSuiteFolder: 'httpForge.newTestSuiteFolder',
+    renameTestSuiteFolder: 'httpForge.renameTestSuiteFolder',
+    deleteTestSuiteFolder: 'httpForge.deleteTestSuiteFolder',
     // Console commands
     showConsole: 'httpForge.showConsole',
     clearConsole: 'httpForge.clearConsole',

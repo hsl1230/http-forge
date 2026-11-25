@@ -417,3 +417,61 @@ Test suites can mix HTTP, WebSocket, and Socket.IO request nodes. Each request n
 - Scripts and `pm.test` assertions run against the frame transcript.
 - Socket.IO nodes are supported in the interactive Request Tester and in headless suite runs.
 - See [WebSocket examples](../reference/websocket-examples.md) for sample requests.
+
+## Hierarchical folders for test suites
+
+Test suites can be organized into nested folders for better management.
+
+### Folder structure
+Folders are derived from the directory structure under `storage.root/suites/`. Each subdirectory becomes a folder in the Test Suites tree view.
+
+```
+suites/
+├── sanity-all.suite.json          (root level)
+├── initialization/
+│   └── sanity-initialization-and-auth.suite.json
+├── content/
+│   └── sanity-content-and-entitlements.suite.json
+└── tray/
+    └── sanity-tray-and-search.suite.json
+```
+
+### Create a folder
+1. Click the **New Folder** button in the Test Suites view title bar, or right-click any item and select **New Folder**.
+2. Enter the folder name.
+3. The folder is created on disk and appears in the tree view.
+
+### Rename a folder
+1. Right-click a folder and select **Rename Folder**.
+2. Enter the new name.
+3. All suites inside the folder are updated automatically.
+
+### Delete a folder
+1. Right-click a folder and select **Delete Folder**.
+2. Choose:
+   - **Move suites to parent**: suites are moved to the parent folder.
+   - **Delete suites too**: all suites in the folder are permanently deleted.
+
+### Move suites and folders (drag-and-drop)
+- Drag a test suite onto a folder to move it there.
+- Drag a folder onto another folder to move the entire folder (with all contents).
+- Drag to the root area to move to the top level.
+- Dragging a folder into itself or its own subfolder is prevented.
+
+### Multi-select and run
+- **Ctrl+click** (or **Shift+click**) to select multiple suites.
+- Right-click any selected suite and choose **Run Selected Test Suites**.
+- Or use the command palette: **HTTP Forge: Run Test Suites** (QuickPick multi-select).
+
+All selected suites are combined into a single composite suite with one block node per suite, producing a single combined report.
+
+### Run all suites in a folder
+Right-click a folder and select **Run All Suites in Folder**. All suites under that folder (including nested subfolders) are combined into a composite suite.
+
+### External file system changes
+The Test Suites tree view watches the file system recursively. Changes made via terminal, VS Code Explorer, or external editors are reflected automatically:
+- New `.suite.json` files appear as suites
+- Deleted files are removed from the tree
+- Renamed files update the suite name
+- Moved files update the folder hierarchy
+- Modified file contents update the suite metadata

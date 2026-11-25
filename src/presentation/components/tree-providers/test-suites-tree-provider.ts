@@ -143,6 +143,30 @@ export class TestSuitesTreeProvider implements vscode.TreeDataProvider<TestSuite
             }
         }
 
+        // Include empty folders from disk
+        try {
+            const allFolders = this.testSuiteService.getAllFolders();
+            for (const fp of allFolders) {
+                if (parentPath === '') {
+                    // Root level: top-level folders
+                    if (!fp.includes('/')) {
+                        folders.add(fp);
+                    }
+                } else if (fp.startsWith(prefix)) {
+                    const rest = fp.slice(prefix.length);
+                    const firstSegment = rest.split('/')[0];
+                    if (firstSegment && rest === firstSegment) {
+                        // Direct child folder (no deeper nesting at this level)
+                        folders.add(firstSegment);
+                    } else if (firstSegment) {
+                        folders.add(firstSegment);
+                    }
+                }
+            }
+        } catch {
+            // ignore
+        }
+
         const folderItems = Array.from(folders).sort().map(folderName => {
             const folderPath = parentPath ? `${parentPath}/${folderName}` : folderName;
             return new TestSuiteFolderTreeItem(folderPath, folderName);
@@ -177,13 +201,20 @@ export class TestSuitesTreeProvider implements vscode.TreeDataProvider<TestSuite
         return undefined;
     }
 
-    // Drag and drop (basic — just refresh)
     handleDrag(
         source: readonly TestSuiteNode[],
         dataTransfer: vscode.DataTransfer,
         token: vscode.CancellationToken
     ): void {
-        // Drag support can be added later
+        // Store both suite IDs and folder paths
+        const suiteIds = source
+            .filter((s): s is TestSuiteTreeItem => s instanceof TestSuiteTreeItem)
+            .map(s => s.suite.id);
+        const folderPaths = source
+            .filter((s): s is TestSuiteFolderTreeItem => s instanceof TestSuiteFolderTreeItem)
+            .map(s => s.folderPath);
+        const payload = { suiteIds, folderPaths };
+        dataTransfer.set('application/vnd.code.tree.httpforge.testsuites', new vscode.DataTransferItem(payload));
     }
 
     async handleDrop(
@@ -191,6 +222,47 @@ export class TestSuitesTreeProvider implements vscode.TreeDataProvider<TestSuite
         dataTransfer: vscode.DataTransfer,
         token: vscode.CancellationToken
     ): Promise<void> {
-        // Drop support can be added later
+        const item = dataTransfer.get('application/vnd.code.tree.httpforge.testsuites');
+        if (!item) return;
+        const payload = item.value as { suiteIds: string[]; folderPaths: string[] };
+        if (!payload) return;
+
+        // Determine target folder path
+        let targetFolder = '';
+        if (target instanceof TestSuiteFolderTreeItem) {
+            targetFolder = target.folderPath;
+        } else if (target instanceof TestSuiteTreeItem) {
+            targetFolder = target.suite.folderPath || '';
+        }
+
+        // Move folders first
+        if (payload.folderPaths && payload.folderPaths.length > 0) {
+            for (const folderPath of payload.folderPaths) {
+                // Don't move a folder into itself or its own subfolder
+                if (targetFolder === folderPath || targetFolder.startsWith(`${folderPath}/`)) continue;
+                // Don't move to the same location
+                const parentPath = folderPath.split('/').slice(0, -1).join('/');
+                if (targetFolder === parentPath) continue;
+                const folderName = folderPath.split('/').pop() || folderPath;
+                const newPath = targetFolder ? `${targetFolder}/${folderName}` : folderName;
+                try {
+                    await this.testSuiteService.moveFolder(folderPath, newPath);
+                } catch (e) {
+                    console.error('[DragDrop] Failed to move folder:', e);
+                }
+            }
+        }
+
+        // Move suites
+        if (payload.suiteIds && payload.suiteIds.length > 0) {
+            for (const id of payload.suiteIds) {
+                const suite = await this.testSuiteService.getSuite(id);
+                if (!suite) continue;
+                suite.folderPath = targetFolder || undefined;
+                await this.testSuiteService.updateSuite(suite);
+            }
+        }
+
+        this.refreshImmediate();
     }
 }
