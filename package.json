@@ -397,6 +397,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "httpForge.showCoverageReport",
+        "title": "Show Test Coverage Report",
+        "category": "HTTP Forge"
+      },
+      {
         "command": "httpForge.newTestSuiteFolder",
         "title": "New Folder",
         "category": "HTTP Forge"
@@ -680,6 +685,11 @@
           "command": "httpForge.refreshTestSuites",
           "when": "view == httpForge.testSuites",
           "group": "navigation@1"
+        },
+        {
+          "command": "httpForge.showCoverageReport",
+          "when": "view == httpForge.testSuites",
+          "group": "navigation@4"
         },
         {
           "command": "httpForge.newTestSuite",

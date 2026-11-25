@@ -57,6 +57,7 @@ function createMonacoEditorsManager({
     onScriptChange,
     onWsMessageChange,
     onOpenModule,
+    onAiComplete,
     getDefaultPreRequestScript,
     getDefaultPostResponseScript,
     globalsTypes
@@ -373,6 +374,20 @@ function createMonacoEditorsManager({
                     if (onScriptChange) onScriptChange('preRequest');
                 });
                 attachModuleOpener(preRequestScriptEditor, 'pre-request');
+
+                if (onAiComplete) {
+                    preRequestScriptEditor.addAction({
+                        id: 'httpforge.aiComplete',
+                        label: 'AI Complete Script',
+                        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Space],
+                        run: (editor) => {
+                            const content = editor.getValue();
+                            const position = editor.getPosition();
+                            const line = position ? position.lineNumber : 1;
+                            onAiComplete('preRequest', content, line);
+                        }
+                    });
+                }
             }
 
             // Post-response script editor
@@ -390,6 +405,20 @@ function createMonacoEditorsManager({
                     if (onScriptChange) onScriptChange('postResponse');
                 });
                 attachModuleOpener(postResponseScriptEditor, 'post-response');
+
+                if (onAiComplete) {
+                    postResponseScriptEditor.addAction({
+                        id: 'httpforge.aiComplete',
+                        label: 'AI Complete Script',
+                        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Space],
+                        run: (editor) => {
+                            const content = editor.getValue();
+                            const position = editor.getPosition();
+                            const line = position ? position.lineNumber : 1;
+                            onAiComplete('postResponse', content, line);
+                        }
+                    });
+                }
             }
 
             // Register GraphQL language (syntax highlighting, brackets, etc.)
@@ -769,6 +798,17 @@ function createMonacoEditorsManager({
         getResponseBodyEditor,
         getPreRequestScriptEditor,
         getPostResponseScriptEditor,
+        insertAiCompletion: (scriptType, completion) => {
+            const editor = scriptType === 'preRequest' ? preRequestScriptEditor : postResponseScriptEditor;
+            if (!editor || !completion) return;
+            const position = editor.getPosition();
+            if (position) {
+                editor.executeEdits('ai-complete', [{
+                    range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                    text: completion,
+                }]);
+            }
+        },
         getWsMessageEditor,
         getGraphqlQueryEditor,
         getGraphqlVariablesEditor,

@@ -465,9 +465,50 @@ export class RequestTesterPanel implements vscode.Disposable {
         return;
       }
 
+      // AI inline completion for script editors
+      if (cmd === 'aiCompleteScript') {
+        await this.handleAiCompleteScript(msg);
+        return;
+      }
+
       // Route all other messages through the router
       await this.router.route(msg, this.messenger);
     });
+  }
+
+  private async handleAiCompleteScript(msg: any): Promise<void> {
+    try {
+      const scriptType = msg.scriptType || 'preRequest';
+      const content = msg.content || '';
+      const cursorLine = msg.cursorLine || 1;
+
+      // Use Copilot or BYOK provider
+      const { CopilotAiProvider } = await import('../../../../infrastructure/copilot-ai-provider');
+      const provider = new CopilotAiProvider();
+
+      const prompt = `You are an HTTP Forge script assistant. Complete the following JavaScript code for a ${scriptType === 'preRequest' ? 'pre-request' : 'post-response'} script. The code uses the pm/ctx/hf API (Postman-compatible). Return ONLY the completion text (no markdown, no explanation). Complete from the cursor position.
+
+Current script:
+${content}
+
+Cursor is at line ${cursorLine}. Complete the next line or block:`;
+
+      const completion = await provider.complete(prompt);
+      const trimmed = completion.trim().replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+
+      this.messenger.postMessage({
+        command: 'aiScriptCompletion',
+        scriptType,
+        completion: trimmed,
+      });
+    } catch (err: any) {
+      this.messenger.postMessage({
+        command: 'aiScriptCompletion',
+        scriptType: msg.scriptType || 'preRequest',
+        completion: '',
+        error: err?.message ?? 'AI completion failed.',
+      });
+    }
   }
 
   private async sendInitialData(): Promise<void> {

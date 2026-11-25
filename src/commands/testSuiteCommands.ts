@@ -9,6 +9,7 @@ import type { TestSuite } from '@http-forge/core';
 import * as vscode from 'vscode';
 import { TestSuitePanel } from '../presentation/webview/panels/test-suite';
 import { TestSuiteFolderTreeItem, TestSuiteTreeItem } from '../presentation/components/tree-providers/test-suites-tree-provider';
+import { CoverageReportPanel } from '../presentation/webview/panels/coverage-report/coverage-report-panel';
 import { COMMAND_IDS } from '../shared/constants';
 import type { CommandContext } from './command-context';
 
@@ -306,6 +307,14 @@ export function registerTestSuiteCommands(ctx: CommandContext): void {
       await testSuiteService.deleteFolder(item.folderPath, deleteSuites);
       testSuitesTreeProvider.refresh();
       vscode.window.showInformationMessage(`Folder "${item.folderName}" deleted`);
+    })
+  );
+
+  // Show Coverage Report
+  context.subscriptions.push(
+    vscode.commands.registerCommand('httpForge.showCoverageReport', async () => {
+      if (!ctx.testSuiteService || !ctx.collectionService) return;
+      CoverageReportPanel.createOrShow(ctx.context.extensionUri, ctx.collectionService, ctx.testSuiteService);
     })
   );
 }

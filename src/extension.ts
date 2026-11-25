@@ -10,6 +10,7 @@
 import type { CollectionService, ConfigService, CookieService, EnvironmentConfigService, IEnvironmentConfigService, HttpRequestService, RequestHistoryService } from '@http-forge/core';
 import { TestSuiteService } from '@http-forge/core';
 import * as vscode from 'vscode';
+import { ScriptInlineCompletionProvider } from './infrastructure/script-inline-completion-provider';
 import { HttpForgeApi, HttpForgeApiImpl } from './api';
 import { createEmptyApi } from './api/empty-api';
 import { registerAllCommands } from './commands';
@@ -141,6 +142,15 @@ export function activate(context: vscode.ExtensionContext): HttpForgeApi {
       await runImportRequestCommand(context);
     })
   );
+  // Register inline completion provider for HTTP Forge scripts
+  const scriptCompletionProvider = new ScriptInlineCompletionProvider();
+  context.subscriptions.push(
+    vscode.languages.registerInlineCompletionItemProvider(
+      { pattern: '**/scripts/*.js' },
+      scriptCompletionProvider
+    )
+  );
+
   registerAllCommands({
     context,
     workspaceFolder,

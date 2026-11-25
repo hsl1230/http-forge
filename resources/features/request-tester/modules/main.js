@@ -191,6 +191,9 @@ class RequestTesterApp {
             onOpenModule: (moduleName, phase) => {
                 vscode.postMessage({ command: 'openModule', moduleName, phase });
             },
+            onAiComplete: (scriptType, content, cursorLine) => {
+                vscode.postMessage({ command: 'aiCompleteScript', scriptType, content, cursorLine });
+            },
             getDefaultPreRequestScript,
             getDefaultPostResponseScript
         });
@@ -454,6 +457,7 @@ class RequestTesterApp {
             'aiDetectedHardcoded':   (msg) => this.handleAiDetectedHardcoded(msg),
             'aiCompareResult':       (msg) => this.handleAiCompareResult(msg),
             'aiChatResponse':        (msg) => this.handleAiChatResponse(msg),
+            'aiScriptCompletion':    (msg) => this.handleAiScriptCompletion(msg),
             // Schema editor handlers
             ...this.schemaEditorManager.getMessageHandlers(),
             // OAuth2 handlers
@@ -1895,6 +1899,16 @@ class RequestTesterApp {
             .replace(/\n/g, '<br>');
         msgs.appendChild(div);
         msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    handleAiScriptCompletion(msg) {
+        if (msg.error) {
+            console.warn('[AI Complete] Error:', msg.error);
+            return;
+        }
+        if (msg.completion && this.editorsManager?.insertAiCompletion) {
+            this.editorsManager.insertAiCompletion(msg.scriptType === 'preRequest' ? 'preRequest' : 'postResponse', msg.completion);
+        }
     }
 
     syncUrlWithQueryParams() {
