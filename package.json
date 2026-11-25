@@ -86,7 +86,18 @@
         "httpForge.ai.model": {
           "type": "string",
           "default": "",
-          "description": "Preferred GitHub Copilot chat model for AI-powered features (e.g. gpt-4o). Leave empty to let the extension pick the best available model."
+          "description": "Preferred AI model ID (Copilot model ID, OpenAI model name, or Anthropic model name). Leave empty for auto-select."
+        },
+        "httpForge.ai.provider": {
+          "type": "string",
+          "default": "copilot",
+          "enum": ["copilot", "openai", "anthropic", "custom"],
+          "description": "AI provider: copilot (GitHub Copilot), openai, anthropic, or custom (OpenAI-compatible endpoint)"
+        },
+        "httpForge.ai.customBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Custom OpenAI-compatible API base URL (only used when provider is 'custom')"
         }
       }
     },
@@ -404,6 +415,16 @@
         "command": "httpForge.showConsole",
         "category": "HTTP Forge",
         "title": "Show Console"
+      },
+      {
+        "command": "httpForge.configureAiProvider",
+        "category": "HTTP Forge",
+        "title": "Configure AI Provider (BYOK)"
+      },
+      {
+        "command": "httpForge.testAiProvider",
+        "category": "HTTP Forge",
+        "title": "Test AI Provider"
       },
       {
         "command": "httpForge.clearConsole",

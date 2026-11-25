@@ -8,6 +8,7 @@
 
 import { registerAgentsMdCommands } from './agentsMdCommands';
 import { registerAiCommands } from './aiCommands';
+import { registerAiProviderCommands } from './aiProviderCommands';
 import { registerArchitectCommands } from './architectCommands';
 import { registerCollectionCommands } from './collectionCommands';
 import { registerConsoleCommands } from './consoleCommands';
@@ -35,6 +36,7 @@ export function registerAllCommands(ctx: CommandContext): void {
   registerHarCommands(ctx);
   registerGitHistoryCommands(ctx);
   registerAiCommands(ctx);
+  registerAiProviderCommands(ctx);
   registerDiscoveryCommands(ctx);
   registerDiscoveryActionCommands(ctx);
   registerArchitectCommands(ctx);

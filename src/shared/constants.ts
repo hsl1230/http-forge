@@ -119,6 +119,8 @@ export const COMMAND_IDS = {
     deleteTestSuiteFolder: 'httpForge.deleteTestSuiteFolder',
     // Console commands
     showConsole: 'httpForge.showConsole',
+    configureAiProvider: 'httpForge.configureAiProvider',
+    testAiProvider: 'httpForge.testAiProvider',
     clearConsole: 'httpForge.clearConsole',
     // Reorder commands
     moveItemUp: 'httpForge.moveItemUp',
