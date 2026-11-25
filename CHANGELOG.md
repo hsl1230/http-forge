@@ -5,11 +5,24 @@ All notable changes to HTTP Forge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.9 - 2026-11-25
+
+### Added
+
+- Added hierarchical folder support for Test Suites: nested folders and sub-folders in the Test Suite tree view, with recursive file system watching for create/delete/rename/move/update.
+- **Test Suite folder management**: Create, rename, and delete folders from the Test Suites tree view (context menu + title bar button).
+- **Drag-and-drop**: Move test suites and folders between hierarchy levels in the Test Suites tree view.
+- **Run Selected Test Suites**: Multi-select suites and run them as a composite suite (context menu + QuickPick command).
+- **Run All Suites in Folder**: Run all suites under a folder as a composite suite.
+- **Composite suite execution**: Virtual composite suites wrap multiple suites in block nodes for a single combined report.
+- Test Suites tree view now supports `canSelectMany` for multi-select.
+- `@http-forge/core` upgraded to `^1.0.9`.
+
+
 ## 1.0.8 - 2026-11-23
 
 ### Changed
 
-- Added hierarchical folder support for Test Suites: nested folders and sub-folders in the Test Suite tree view, with recursive file system watching for create/delete/rename/move/update.
 - Upgraded `@http-forge/core` to `^1.0.8`.
 - Monaco IntelliSense for HTTP Forge script globals in Request Tester webview.
 
